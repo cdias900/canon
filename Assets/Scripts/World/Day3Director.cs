@@ -133,8 +133,10 @@ namespace SheepGate.World
             if (state != null && state.HasFlag(GameFlags.VocationRevealed))
             {
                 // This run already reached its ending. Day three stays open to walk around in, but
-                // nothing replays.
+                // nothing replays — and the day cannot be ended again, or each press would resolve
+                // another night on a run that is already over.
                 _sequenceFinished = true;
+                SetEndDayAvailable(false);
                 Debug.Log("[World] Day three already ended in this run; the closing sequence stays closed.");
                 return;
             }

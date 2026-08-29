@@ -58,6 +58,11 @@ Corolário prático: **nunca mande a leitura para fora do app.** Deep link para 
 17. **Menores (13-17) são arquitetura, não configuração.** Faixa etária no perfil, matchmaking bloqueado, entrada em time só por código, falas pré-formadas com moderação. Times de menores e adultos não se misturam — constraint no banco.
 18. **Sem pagar para avançar.** Num jogo sobre obra erguida por sacrifício voluntário, vender o atalho refuta o tema. Monetização: temporada nova ou cosmético. Nunca recurso, nunca timer, nunca atalho de obra.
 
+### A leitura
+
+19. **Leitura paga em entendimento, nunca em número.** Ler nunca dá bônus, stat ou nível — dá saber **qual verbo funciona quando**. Os verbos centrais (construir, vigiar, dividir obra/guarda) nunca são trancados atrás de leitura: quem não leu tem jogada válida, só que pior. Bônus por ler é caça-níquel com skin de Bíblia, e a motivação evapora junto com o bônus.
+20. **A leitura é sempre pulável, e a pulabilidade é o instrumento.** Se ler desse número, 100% dos jogadores "leriam" e `deep_read` deixaria de medir qualquer coisa. A pergunta de produto nunca é *como impedir que pulem*; é **que fração converte, e ela cresce?** Planejar funil: o segundo e o terceiro convite, não só o primeiro.
+
 ## Decisões tomadas
 
 | Tema | Decisão |
@@ -67,7 +72,8 @@ Corolário prático: **nunca mande a leitura para fora do app.** Deep link para 
 | Arquitetura do corpus | **Corpus duplo:** embeddings sobre tradução de domínio público (índice devolve só *referência*); exibição via YouVersion. Funciona mesmo se os termos proibirem armazenar. |
 | Modo do POC | Single player, sem cadastro, offline em runtime. |
 | Classes | **Vocação / Ofício / Posto** em três camadas. Vocação é arquétipo portável entre temporadas, descoberta pelo comportamento — nunca escolhida em menu. |
-| Multiplayer | Fase seguinte. NPCs do capítulo 3 ocupam assentos que depois viram jogadores, **sem migração de esquema**. |
+| Multiplayer | **No MVP** — convite de amigo é o motor de aquisição da faixa, e é o que faz "entendimento em vez de número" motivar. **Co-op assíncrono** sobre estado compartilhado: NPCs do capítulo 3 ocupam assentos que viram jogadores, **na mesma tabela, sem migração de esquema**. Nunca tempo real. **O POC segue solo.** |
+| Persona | **13-19 direto; 10-12 só pelo canal do adulto** (líder, escola, responsável). Crê que o texto importa, acha o texto chato, tem opções melhores no bolso. O concorrente é o feed, não outro app de Bíblia. **O jogo não gasta um segundo convencendo ninguém** — o trabalho é logística e contexto. Ver `docs/persona-e-proposito.md`. |
 | Calendário | 12 a 15 sessões por temporada. Os 52 dias são a façanha que o texto anuncia, não a contagem de sessões. |
 | Monetização | Primeira temporada gratuita e completa; temporadas seguintes pagas. Cosmético secundário. Licença institucional é o canal não explorado. |
 
@@ -76,7 +82,7 @@ Corolário prático: **nunca mande a leitura para fora do app.** Deep link para 
 - **`version_id` da tradução** — depende de três perguntas nos termos do YouVersion: dá para armazenar? dá para puxar em lote? quais versões a chave habilita? Enquanto não sair, usar domínio público e trocar o id depois.
 - **Jesus/Espírito Santo como guia** — adiado para fora do POC. A leitura tipológica é legítima; volta como easter egg numa temporada que a mereça, nunca como fala gerada.
 - **Qual conceito vence** — o POC decide entre ir fundo em Neemias, voltar ao Cânon, ou fundir. Por isso a camada compartilhada (versículo, vocação, telemetria) se escreve com capricho e a camada de jogo se escreve descartável.
-- **Persona** — o campo segue vazio no brainstorm do time, e os dois conceitos miram públicos diferentes: o Cânon fala com quem rejeita o formato; Neemias fala com quem já está disposto.
+- **A faixa 13-19 cruza a fronteira menor/adulto da regra 17**, que proíbe times mistos por constraint no banco — e com multiplayer no MVP isso virou decisão de esquema. Refinamento proposto em `docs/persona-e-proposito.md`: matchmaking aberto nunca cruza; time fechado por código pode. **Pendente de ratificação por Pedro + cibersegurança. Não alterar a regra 17 antes disso.**
 
 ## O time
 
@@ -89,6 +95,7 @@ Brainstorm ativo do time (Google Docs) tem contribuições de João, Cris, Pedro
 | Arquivo | O que é |
 |---|---|
 | `POC-IMPLEMENTATION.md` | **Spec de implementação do POC.** Estrutura de projeto, esquemas de dados, sistemas, conteúdo dos três dias, prova de ânimo, critérios de aceite. É o que se executa. |
+| `docs/persona-e-proposito.md` | **Para quem o jogo é e o que ele precisa causar.** Faixa etária, a tese de transformação, a escada de degraus, as métricas de desejo, e as regras 19-20. |
 | `docs/poc-scope.md` | Escopo e justificativa do POC: as três sessões, o corte, as quatro decisões pendentes, o que é descartável e o que fica. |
 | `docs/nehemiah-game-design.md` | Desenho completo do jogo de Neemias: vocações, loop dia/noite, quatro ameaças, prova de ânimo, discrição, produção, riscos. |
 | `docs/canon-24h-plan.md` | Plano do hackathon para o Cânon. Histórico, mas os guardrails e a divisão de frentes seguem válidos. |

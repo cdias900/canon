@@ -71,7 +71,9 @@ Arquétipos, não profissões. Testados contra duas temporadas diferentes.
 
 **Regra da descoberta:** nunca mostre a barra de progresso da vocação. Se o jogador vê que faltam três ações corajosas para virar Zelote, vira lista de tarefas. Acumule escondido, revele o nome.
 
-**Ponte com o Cânon:** a habilidade sobe de nível quando o jogador lê o capítulo de onde ela vem. É a Âncora do Cânon virando árvore de habilidades — e as vocações são as mesmas classes que o Cânon já tinha (Zelote, Escriba, Pastor, Exilado, Profeta).
+**Ponte com o Cânon:** as vocações são as mesmas classes que o Cânon já tinha (Zelote, Escriba, Pastor, Exilado, Profeta), e a Âncora do Cânon é o mesmo conceito — texto que se equipa.
+
+> ⚠️ **Substituído.** Este parágrafo dizia que *a habilidade sobe de nível quando o jogador lê o capítulo de onde ela vem*. **Não é mais assim.** Leitura paga em **entendimento, nunca em número** — dá saber qual verbo funciona quando, jamais um bônus ou um nível. Os verbos centrais nunca são trancados atrás de leitura. Ver `persona-e-proposito.md` §*Regra — leitura paga em entendimento, nunca em número*.
 
 ## O loop — metade constrói, metade vigia
 

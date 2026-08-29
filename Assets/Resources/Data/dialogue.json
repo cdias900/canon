@@ -3,53 +3,115 @@
     "npc": "hananias",
     "day": 1,
     "lines": [
-      { "text": "Meu pai misturava resina com óleo e vendia em frasco pequeno. Eu sei o cheiro de tudo que já foi bom nesta rua." },
-      { "text": "Hoje eu sei o peso de uma pedra queimada. Aprendi em dois dias, e não queria ter aprendido." },
-      { "text": "Minha irmã dorme na casa do sogro, do outro lado do vale. Aqui não tem porta que feche, e o que não tem porta não é casa." },
-      { "verse": "NEH.2.17", "frame": "O homem que veio da capital falou na praça na semana passada. Anotaram assim:" },
-      { "text": "Eu não gostei de ouvir. Também não achei uma palavra dele para desmentir." }
+      {
+        "text": "Meu pai misturava resina com óleo e vendia em frasco pequeno. Eu sei o cheiro de tudo que já foi bom nesta rua."
+      },
+      {
+        "text": "Hoje eu sei o peso de uma pedra queimada. Aprendi em dois dias, e não queria ter aprendido."
+      },
+      {
+        "text": "Minha irmã dorme na casa do sogro, do outro lado do vale. Aqui não tem porta que feche, e o que não tem porta não é casa."
+      },
+      {
+        "verse": "NEH.2.17",
+        "frame": "O homem que veio da capital falou na praça na semana passada. Anotaram assim:"
+      },
+      {
+        "text": "Eu não gostei de ouvir. Também não achei uma palavra dele para desmentir."
+      }
     ],
-    "grants": { "vocation": { "pastor": 1 } },
+    "grants": {
+      "vocation": {
+        "pastor": 1
+      }
+    },
     "reliable": true
   },
   "salum_d1": {
     "npc": "salum",
     "day": 1,
     "lines": [
-      { "text": "Salum. Aquelas duas na argamassa são minhas filhas. Não faça essa cara: elas assentam melhor que eu, e eu assento há vinte anos." },
-      { "text": "Aqui a conta é curta e ninguém gosta dela. Cada pessoa em cima do muro de noite é uma pessoa fora da pedra de dia." },
-      { "text": "E se não tem ninguém em cima, você levanta de dia o que jogam no chão de noite. Não tem saída bonita. Tem escolha." },
-      { "verse": "NEH.2.18", "frame": "O que se falou depois disso ficou registrado assim:" },
-      { "text": "Foi mais fácil dizer do que fazer. Mas a gente disse, e eu estava lá." }
+      {
+        "text": "Salum. Aquelas duas na argamassa são minhas filhas. Não faça essa cara: elas assentam melhor que eu, e eu assento há vinte anos."
+      },
+      {
+        "text": "Aqui a conta é curta e ninguém gosta dela. Cada pessoa em cima do muro de noite é uma pessoa fora da pedra de dia."
+      },
+      {
+        "text": "E se não tem ninguém em cima, você levanta de dia o que jogam no chão de noite. Não tem saída bonita. Tem escolha."
+      },
+      {
+        "verse": "NEH.2.18",
+        "frame": "O que se falou depois disso ficou registrado assim:"
+      },
+      {
+        "text": "Foi mais fácil dizer do que fazer. Mas a gente disse, e eu estava lá."
+      }
     ],
-    "grants": { "vocation": { "mordomo": 1 } },
+    "grants": {
+      "vocation": {
+        "mordomo": 1
+      }
+    },
     "reliable": true
   },
   "baruque_d1": {
     "npc": "baruque",
     "day": 1,
     "lines": [
-      { "text": "Baruque. Eu peguei aquele trecho ali, o que fica virado para o descampado." },
-      { "text": "Todo mundo escolhe o pedaço na frente da própria casa. Alguém tem que ficar com o que dá para ver de longe." },
-      { "text": "Sobra espaço do meu lado, se você quiser. Não vou fingir que é o mesmo trabalho que o dos outros." },
-      { "verse": "NEH.4.6", "frame": "Perguntei ao homem que anota os turnos como tinha ido a primeira semana. Ele leu o que estava escrito:" },
-      { "text": "Ânimo é o que acaba primeiro por aqui. Antes da comida, antes da pedra." }
+      {
+        "text": "Baruque. Eu peguei aquele trecho ali, o que fica virado para o descampado."
+      },
+      {
+        "text": "Todo mundo escolhe o pedaço na frente da própria casa. Alguém tem que ficar com o que dá para ver de longe."
+      },
+      {
+        "text": "Sobra espaço do meu lado, se você quiser. Não vou fingir que é o mesmo trabalho que o dos outros."
+      },
+      {
+        "verse": "NEH.4.6",
+        "frame": "Perguntei ao homem que anota os turnos como tinha ido a primeira semana. Ele leu o que estava escrito:"
+      },
+      {
+        "text": "Ânimo é o que acaba primeiro por aqui. Antes da comida, antes da pedra."
+      }
     ],
-    "grants": { "vocation": { "zelote": 1 } },
+    "grants": {
+      "vocation": {
+        "zelote": 1
+      }
+    },
     "reliable": true
   },
   "hananias_d2": {
     "npc": "hananias",
     "day": 2,
     "lines": [
-      { "text": "Dormi mal. Não foi barulho. Foi não ter barulho nenhum." },
-      { "text": "Passei a mão no que você assentou ontem. Está firme. Isso me deixou de bom humor até quase o meio-dia." },
-      { "text": "Meu tio parou de vir. Disse que já perdeu casa uma vez e que não vai ficar aqui esperando perder de novo. Eu não discuti com ele." }
+      {
+        "text": "Dormi mal. Não foi barulho. Foi não ter barulho nenhum."
+      },
+      {
+        "text": "Passei a mão no que você assentou ontem. Está firme. Isso me deixou de bom humor até quase o meio-dia."
+      },
+      {
+        "text": "Meu tio parou de vir. Disse que já perdeu casa uma vez e que não vai ficar aqui esperando perder de novo. Eu não discuti com ele."
+      }
     ],
-    "grants": { "vocation": {} },
+    "grants": {
+      "vocation": {}
+    },
     "choices": [
-      { "id": "donate", "text": "Te trouxe pedra. Pega.", "next": "hananias_d2_donate", "requires_rubble": 3, "hidden_if_flag": "donated_rubble" },
-      { "id": "leave", "text": "Depois a gente conversa." }
+      {
+        "id": "donate",
+        "text": "Te trouxe pedra. Pega.",
+        "next": "hananias_d2_donate",
+        "requires_rubble": 3,
+        "hidden_if_flag": "donated_rubble"
+      },
+      {
+        "id": "leave",
+        "text": "Depois a gente conversa."
+      }
     ],
     "reliable": true
   },
@@ -57,74 +119,150 @@
     "npc": "hananias",
     "day": 2,
     "lines": [
-      { "text": "Pedra? Para mim?" },
-      { "text": "O meu pedaço é o mais curto da rua e mesmo assim eu estou atrasado. Eu não ia pedir para ninguém." },
-      { "text": "Eu lembro disso. Não é jeito de falar, é aviso: eu lembro." }
+      {
+        "text": "Pedra? Para mim?"
+      },
+      {
+        "text": "O meu pedaço é o mais curto da rua e mesmo assim eu estou atrasado. Eu não ia pedir para ninguém."
+      },
+      {
+        "text": "Eu lembro disso. Não é jeito de falar, é aviso: eu lembro."
+      }
     ],
-    "grants": { "vocation": { "pastor": 2 }, "set_flag": "donated_rubble" },
+    "grants": {
+      "vocation": {
+        "pastor": 2
+      },
+      "set_flag": "donated_rubble"
+    },
     "reliable": true
   },
   "salum_d2": {
     "npc": "salum",
     "day": 2,
     "lines": [
-      { "text": "Hoje eu dividi as minhas filhas. Uma na pedra, outra lá em cima olhando a estrada. Não gostei de nenhuma das duas decisões." },
-      { "text": "Se você deixou gente de vigia ontem, já viu no que deu. Se não deixou, também viu." },
-      { "text": "Não vou te dizer o que fazer. Só que a conta não muda, e o muro não sabe quantas mãos você tem." }
+      {
+        "text": "Hoje eu dividi as minhas filhas. Uma na pedra, outra lá em cima olhando a estrada. Não gostei de nenhuma das duas decisões."
+      },
+      {
+        "text": "Se você deixou gente de vigia ontem, já viu no que deu. Se não deixou, também viu."
+      },
+      {
+        "text": "Não vou te dizer o que fazer. Só que a conta não muda, e o muro não sabe quantas mãos você tem."
+      }
     ],
-    "grants": { "vocation": {} },
+    "grants": {
+      "vocation": {}
+    },
     "reliable": true
   },
   "baruque_d2": {
     "npc": "baruque",
     "day": 2,
     "lines": [
-      { "text": "Foi no meu trecho. Amanheceu com uma pedra fora do lugar. Uma só, no meio, escolhida a dedo." },
-      { "text": "Isso não é estrago, é recado. Quem quer derrubar muro não desloca uma pedra." },
-      { "text": "Eles não querem entrar. Querem que a gente pare por conta própria e vá embora dizendo que tentou." }
+      {
+        "text": "Foi no meu trecho. Amanheceu com uma pedra fora do lugar. Uma só, no meio, escolhida a dedo."
+      },
+      {
+        "text": "Isso não é estrago, é recado. Quem quer derrubar muro não desloca uma pedra."
+      },
+      {
+        "text": "Eles não querem entrar. Querem que a gente pare por conta própria e vá embora dizendo que tentou."
+      }
     ],
-    "grants": { "vocation": {} },
+    "grants": {
+      "vocation": {}
+    },
     "reliable": true
   },
   "meremote_d2": {
     "npc": "meremote",
     "day": 2,
     "lines": [
-      { "text": "Meremote. Fui buscar cal na estrada baixa antes de o sol subir." },
-      { "text": "Vi cavaleiros. Quatro, talvez cinco. Pararam na curva, do lado de lá do riacho, e ficaram olhando para cá um tempo que ninguém fica olhando à toa." },
-      { "text": "Não desceram. Voltaram pelo mesmo caminho, sem pressa." },
-      { "text": "Estou te contando porque não sei o que fazer com isso. Você é que decide onde fica a sua gente hoje à noite." }
+      {
+        "text": "Meremote. Fui buscar cal na estrada baixa antes de o sol subir."
+      },
+      {
+        "text": "Vi cavaleiros. Quatro, talvez cinco. Pararam na curva, do lado de lá do riacho, e ficaram olhando para cá um tempo que ninguém fica olhando à toa."
+      },
+      {
+        "text": "Não desceram. Voltaram pelo mesmo caminho, sem pressa."
+      },
+      {
+        "text": "Estou te contando porque não sei o que fazer com isso. Você é que decide onde fica a sua gente hoje à noite."
+      }
     ],
-    "grants": { "vocation": { "profeta": 1 } },
+    "grants": {
+      "vocation": {
+        "profeta": 1
+      }
+    },
     "reliable": true
   },
   "zacur_d2": {
     "npc": "zacur",
     "day": 2,
     "lines": [
-      { "text": "Zacur. Meu cunhado toca gado do outro lado do vale e passa pela estrada baixa todo dia, sem falta." },
-      { "text": "Não vem ninguém. Se viesse tropa, o gado espantava e ele via poeira de longe. Não teve poeira nenhuma esta semana." },
-      { "text": "Meia cidade não dorme direito desde que o homem da capital chegou. Vê cavaleiro em toda sombra e ouve tambor em todo vento." },
-      { "text": "Eu durmo. E acordo cedo, e assento mais pedra que os que ficaram acordados. Faça a sua conta." }
+      {
+        "text": "Zacur. Meu cunhado toca gado do outro lado do vale e passa pela estrada baixa todo dia, sem falta."
+      },
+      {
+        "text": "Não vem ninguém. Se viesse tropa, o gado espantava e ele via poeira de longe. Não teve poeira nenhuma esta semana."
+      },
+      {
+        "text": "Meia cidade não dorme direito desde que o homem da capital chegou. Vê cavaleiro em toda sombra e ouve tambor em todo vento."
+      },
+      {
+        "text": "Eu durmo. E acordo cedo, e assento mais pedra que os que ficaram acordados. Faça a sua conta."
+      }
     ],
-    "grants": { "vocation": { "escriba": 1 } },
+    "grants": {
+      "vocation": {
+        "escriba": 1
+      }
+    },
     "reliable": false
   },
   "malquias_d2": {
     "npc": "malquias",
     "day": 2,
     "lines": [
-      { "text": "Malquias, de Bete-Haquerem. Administro um distrito que hoje não tem muro nenhum, então não me peça conselho de obra." },
-      { "text": "Chegou isto para você. Três homens, a cavalo, deixaram e foram embora sem descer." },
-      { "text": "Querem conversar. Num povoado na planície, um dia de caminhada daqui. Dizem que é sobre um acordo que interessa aos dois lados." },
-      { "text": "Pode ser conversa de verdade. Pode ser que só queiram você a um dia de distância daqui. Eu li a mesma carta que você e não sei dizer qual das duas." },
-      { "text": "E eu não vou no seu lugar." }
+      {
+        "text": "Malquias, de Bete-Haquerem. Administro um distrito que hoje não tem muro nenhum, então não me peça conselho de obra."
+      },
+      {
+        "text": "Chegou isto para você. Três homens, a cavalo, deixaram e foram embora sem descer."
+      },
+      {
+        "text": "Querem conversar. Num povoado na planície, um dia de caminhada daqui. Dizem que é sobre um acordo que interessa aos dois lados."
+      },
+      {
+        "text": "Pode ser conversa de verdade. Pode ser que só queiram você a um dia de distância daqui. Eu li a mesma carta que você e não sei dizer qual das duas."
+      },
+      {
+        "text": "E eu não vou no seu lugar."
+      }
     ],
-    "grants": { "vocation": { "exilado": 1 } },
+    "grants": {
+      "vocation": {
+        "exilado": 1
+      }
+    },
     "choices": [
-      { "id": "accept", "text": "Eu desço. Quero ouvir o que eles têm.", "next": "malquias_d2_accept" },
-      { "id": "refuse", "text": "Não desço. Tenho pedra para assentar.", "next": "malquias_d2_refuse" },
-      { "id": "defer", "text": "Ainda não sei. Respondo depois." }
+      {
+        "id": "accept",
+        "text": "Eu desço. Quero ouvir o que eles têm.",
+        "next": "malquias_d2_accept"
+      },
+      {
+        "id": "refuse",
+        "text": "Não desço. Tenho pedra para assentar.",
+        "next": "malquias_d2_refuse"
+      },
+      {
+        "id": "defer",
+        "text": "Ainda não sei. Respondo depois."
+      }
     ],
     "reliable": true
   },
@@ -132,125 +270,213 @@
     "npc": "malquias",
     "day": 2,
     "lines": [
-      { "text": "Você respondeu que não desce. Eles vão mandar de novo. Gente assim manda quatro vezes antes de mudar de tática." },
-      { "verse": "NEH.6.3", "frame": "Já chamaram o homem da capital do mesmo jeito. A resposta dele ficou registrada assim:" },
-      { "text": "Ele foi mais educado que você. Volta para o muro." }
+      {
+        "text": "Você respondeu que não desce. Eles vão mandar de novo. Gente assim manda quatro vezes antes de mudar de tática."
+      },
+      {
+        "verse": "NEH.6.3",
+        "frame": "Já chamaram o homem da capital do mesmo jeito. A resposta dele ficou registrada assim:"
+      },
+      {
+        "text": "Volta para o muro. A pedra não se assenta sozinha."
+      }
     ],
-    "grants": { "vocation": { "zelote": 2 }, "set_flag": "refused_invite" },
+    "grants": {
+      "vocation": {
+        "zelote": 2
+      },
+      "set_flag": "refused_invite"
+    },
     "reliable": true
   },
   "malquias_d2_accept": {
     "npc": "malquias",
     "day": 2,
     "lines": [
-      { "text": "Você vai. Está bem. Eu aviso quem fica." },
-      { "text": "Um dia na estrada, e um dia sem você aqui em cima. Alguém cobre o seu trecho, e ninguém cobre trecho de outro do mesmo jeito que cobre o seu." },
-      { "text": "Se falarem alguma coisa que preste, me conta na volta. Falo sério: eu quero saber." }
+      {
+        "text": "Você vai. Está bem. Eu aviso quem fica."
+      },
+      {
+        "text": "Um dia na estrada, e um dia sem você aqui em cima. Alguém cobre o seu trecho, e ninguém cobre trecho de outro do mesmo jeito que cobre o seu."
+      },
+      {
+        "text": "Se falarem alguma coisa que preste, me conta na volta. Falo sério: eu quero saber."
+      }
     ],
-    "grants": { "vocation": {}, "set_flag": "accepted_invite" },
+    "grants": {
+      "vocation": {},
+      "set_flag": "accepted_invite"
+    },
     "reliable": true
   },
   "malquias_d2_return": {
     "npc": "malquias",
     "day": 2,
     "lines": [
-      { "text": "Você voltou. Foram educados?" },
-      { "text": "Eles sempre são. Ofereceram uma coisa que dá para escrever e outra que não dá. Você que sabe o que vale qual." },
-      { "text": "Um dia é um dia. Amanhã a gente vê o que ele custou." }
+      {
+        "text": "Você voltou. Foram educados?"
+      },
+      {
+        "text": "Eles sempre são. Ofereceram uma coisa que dá para escrever e outra que não dá. Você que sabe o que vale qual."
+      },
+      {
+        "text": "Um dia é um dia. Amanhã a gente vê o que ele custou."
+      }
     ],
-    "grants": { "vocation": {} },
+    "grants": {
+      "vocation": {}
+    },
     "reliable": true
   },
   "well_d2_1": {
     "npc": "",
     "day": 2,
     "lines": [
-      { "text": "O poço da praça é fundo e a água é escura. Dizem que tem peixe desde a época em que isto aqui era cisterna aberta." },
-      { "text": "A linha desce. A linha sobe. Não vem nada." }
+      {
+        "text": "O poço da praça é fundo e a água é escura. Dizem que tem peixe desde a época em que isto aqui era cisterna aberta."
+      },
+      {
+        "text": "A linha desce. A linha sobe. Não vem nada."
+      }
     ],
-    "grants": { "vocation": {} },
+    "grants": {
+      "vocation": {}
+    },
     "reliable": true
   },
   "well_d2_2": {
     "npc": "",
     "day": 2,
     "lines": [
-      { "text": "De novo nada. Uma das filhas do Salum passa, olha para dentro do poço, olha para você, e segue." },
-      { "text": "A água não se mexe." }
+      {
+        "text": "De novo nada. Uma das filhas do Salum passa, olha para dentro do poço, olha para você, e segue."
+      },
+      {
+        "text": "A água não se mexe."
+      }
     ],
-    "grants": { "vocation": {} },
+    "grants": {
+      "vocation": {}
+    },
     "reliable": true
   },
   "well_d2_3": {
     "npc": "",
     "day": 2,
     "lines": [
-      { "text": "A menina volta. Aponta para o outro lado do poço, não fala nada, e vai embora." },
-      { "text": "Você joga do outro lado. Na terceira vem peixe, e vem mais do que cabe na mão." },
-      { "verse": "JHN.21.6", "frame": "Em outro lugar, ficou registrado assim:" }
+      {
+        "text": "A menina volta. Aponta para o outro lado do poço, não fala nada, e vai embora."
+      },
+      {
+        "text": "Você joga do outro lado. Na terceira vem peixe, e vem mais do que cabe na mão."
+      },
+      {
+        "verse": "JHN.21.6",
+        "frame": "Em outro lugar, ficou registrado assim:"
+      }
     ],
-    "grants": { "set_flag": "fish_caught" },
+    "grants": {
+      "set_flag": "fish_caught"
+    },
     "reliable": true
   },
   "hananias_d3": {
     "npc": "hananias",
     "day": 3,
     "lines": [
-      { "text": "Fecharam a estrada baixa. Hoje ninguém entra e ninguém sai." },
-      { "text": "Eu fico. Não é coragem, é que eu não tenho para onde ir e já sei de cor o cheiro de casa queimada." }
+      {
+        "text": "Fecharam a estrada baixa. Hoje ninguém entra e ninguém sai."
+      },
+      {
+        "text": "Eu fico. Não é coragem, é que eu não tenho para onde ir e já sei de cor o cheiro de casa queimada."
+      }
     ],
-    "grants": { "vocation": {} },
+    "grants": {
+      "vocation": {}
+    },
     "reliable": true
   },
   "salum_d3": {
     "npc": "salum",
     "day": 3,
     "lines": [
-      { "text": "Mandei as minhas filhas para dentro. Elas não foram. Eu não insisti muito." },
-      { "text": "Hoje não tem divisão que resolva. Hoje é todo mundo em cima, e a pedra que der, deu." }
+      {
+        "text": "Mandei as minhas filhas para dentro. Elas não foram. Eu não insisti muito."
+      },
+      {
+        "text": "Hoje não tem divisão que resolva. Hoje é todo mundo em cima, e a pedra que der, deu."
+      }
     ],
-    "grants": { "vocation": {} },
+    "grants": {
+      "vocation": {}
+    },
     "reliable": true
   },
   "baruque_d3": {
     "npc": "baruque",
     "day": 3,
     "lines": [
-      { "text": "É no meu trecho. Sempre ia ser no meu trecho, e eu sabia disso quando escolhi." },
-      { "text": "Vem comigo. Não precisa ser hoje o dia em que você aprende a olhar para o campo aberto, mas seria uma boa hora." }
+      {
+        "text": "É no meu trecho. Sempre ia ser no meu trecho, e eu sabia disso quando escolhi."
+      },
+      {
+        "text": "Vem comigo. Não precisa ser hoje o dia em que você aprende a olhar para o campo aberto, mas seria uma boa hora."
+      }
     ],
-    "grants": { "vocation": {} },
+    "grants": {
+      "vocation": {}
+    },
     "reliable": true
   },
   "meremote_d3": {
     "npc": "meremote",
     "day": 3,
     "lines": [
-      { "text": "Eram cinco. Eu contei quatro e te disse quatro. Era cinco." },
-      { "text": "Não estou pedindo desculpa por ter contado errado. Estou dizendo que eu vi, e que continuo vendo." }
+      {
+        "text": "Eram cinco. Eu contei quatro e te disse quatro. Era cinco."
+      },
+      {
+        "text": "Não estou pedindo desculpa por ter contado errado. Estou dizendo que eu vi, e que continuo vendo."
+      }
     ],
-    "grants": { "vocation": {} },
+    "grants": {
+      "vocation": {}
+    },
     "reliable": true
   },
   "zacur_d3": {
     "npc": "zacur",
     "day": 3,
     "lines": [
-      { "text": "Meu cunhado não passou pela estrada baixa ontem. Descobri hoje de manhã, tarde demais para servir de alguma coisa." },
-      { "text": "Eu não inventei nada. Repeti uma coisa que eu não tinha conferido, e repeti com muita certeza. Acho que é pior." },
-      { "text": "Se você me ouviu, a culpa não é sua." }
+      {
+        "text": "Meu cunhado não passou pela estrada baixa ontem. Descobri hoje de manhã, tarde demais para servir de alguma coisa."
+      },
+      {
+        "text": "Eu não inventei nada. Repeti uma coisa que eu não tinha conferido, e repeti com muita certeza. Acho que é pior."
+      },
+      {
+        "text": "Se você me ouviu, a culpa não é sua."
+      }
     ],
-    "grants": { "vocation": {} },
+    "grants": {
+      "vocation": {}
+    },
     "reliable": true
   },
   "malquias_d3": {
     "npc": "malquias",
     "day": 3,
     "lines": [
-      { "text": "Vim com onze homens do meu distrito. É o que eu tenho e é o que eu trouxe." },
-      { "text": "Se isto aqui cair, o meu lado do vale é o próximo da fila. Não estou sendo generoso, estou sendo prático." }
+      {
+        "text": "Vim com onze homens do meu distrito. É o que eu tenho e é o que eu trouxe."
+      },
+      {
+        "text": "Se isto aqui cair, o meu lado do vale é o próximo da fila. Não estou sendo generoso, estou sendo prático."
+      }
     ],
-    "grants": { "vocation": {} },
+    "grants": {
+      "vocation": {}
+    },
     "reliable": true
   }
 }

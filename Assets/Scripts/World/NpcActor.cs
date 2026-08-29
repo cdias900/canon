@@ -32,7 +32,6 @@ namespace SheepGate.World
         private const string InviteAcceptNodeId = "malquias_d2_accept";
         private const string InviteRefuseNodeId = "malquias_d2_refuse";
         private const string InviteReturnNodeId = "malquias_d2_return";
-        private const string InviteDamagedSegmentId = "seg_01";
         private const string InviteDaySpentKey = "invite_day_spent";
 
         // Handing a resident material scores the shepherd. The amount mirrors requires_rubble on
@@ -377,15 +376,80 @@ namespace SheepGate.World
             WallSystem wall = FindFirstObjectByType<WallSystem>();
             if (wall != null)
             {
-                wall.DamageSegment(InviteDamagedSegmentId);
+                // Resolved from the data, never a literal id: the night, the trial and the day away
+                // must all punish the same segment, or re-authoring wall_segments.json quietly makes
+                // the invitation free. DamageSegment on an unknown id only warns, so a hardcoded id
+                // that drifts fails silently — which is the worst way for a cost to disappear.
+                string exposed = ResolveExposedSegmentId(wall);
+                if (!string.IsNullOrEmpty(exposed))
+                {
+                    wall.DamageSegment(exposed);
+                }
+                else
+                {
+                    Debug.LogWarning("[World] No wall segment could be resolved; the day away cost nothing.");
+                }
             }
             else
             {
-                Debug.LogWarning("[World] No WallSystem in the scene; \"" + InviteDamagedSegmentId
-                                 + "\" was not damaged by the day away.");
+                Debug.LogWarning("[World] No WallSystem in the scene; the day away damaged nothing.");
             }
 
             WorldRuntime.SaveNow();
+        }
+
+        /// <summary>
+        /// The segment a day away costs, taken from the data rather than named in code. Mirrors
+        /// MoraleContest's resolver so the night, the trial and the invitation all agree.
+        /// </summary>
+        private static string ResolveExposedSegmentId(WallSystem wall)
+        {
+            if (wall != null)
+            {
+                try
+                {
+                    string primary = wall.PrimaryExposedSegmentId;
+                    if (!string.IsNullOrEmpty(primary))
+                    {
+                        return primary;
+                    }
+                }
+                catch (Exception exception)
+                {
+                    Debug.LogWarning("[World] Reading the wall's exposed segment failed: " + exception.Message);
+                }
+            }
+
+            WallSegmentDef[] defs = null;
+            try
+            {
+                defs = GameData.WallSegments;
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning("[World] Could not read wall_segments.json: " + exception.Message);
+            }
+
+            if (defs != null)
+            {
+                for (int i = 0; i < defs.Length; i++)
+                {
+                    if (defs[i] != null && defs[i].exposed && !string.IsNullOrEmpty(defs[i].id))
+                    {
+                        return defs[i].id;
+                    }
+                }
+
+                for (int i = 0; i < defs.Length; i++)
+                {
+                    if (defs[i] != null && !string.IsNullOrEmpty(defs[i].id))
+                    {
+                        return defs[i].id;
+                    }
+                }
+            }
+
+            return null;
         }
 
         /// <summary>Material actually leaves the player's hands. Charged once.</summary>

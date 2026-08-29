@@ -42,8 +42,8 @@ namespace SheepGate.Scripture
         /// <summary>Counter key prefix that makes deep_read once-per-chapter across sessions.</summary>
         public const string DeepReadCounterPrefix = "deep_read_";
 
-        const string EscribaVocationId = "escriba";
-        const int EscribaPoints = 2;
+        const string ScribeVocationId = "escriba";
+        const int ScribePoints = 2;
 
         const float PanelInsetX = 20f;
         const float PanelInsetTop = 48f;
@@ -60,6 +60,9 @@ namespace SheepGate.Scripture
 
         string _chapterKey = string.Empty;
         string _trigger = DefaultTrigger;
+
+        /// <summary>True when the game opened the reader rather than the player choosing to.</summary>
+        bool _gameAsked;
         bool _placeholderBuild;
 
         ScrollRect _scroll;
@@ -109,6 +112,17 @@ namespace SheepGate.Scripture
         /// </summary>
         public static ChapterReaderUI Open(string chapterRef, string trigger)
         {
+            return Open(chapterRef, trigger, false);
+        }
+
+        /// <summary>
+        /// <paramref name="gameAsked"/> distinguishes a reader the game opened from one the player
+        /// chose to open. Only the second raises unprompted_read, because only the second is
+        /// evidence of desire. Reading is never required and never rewarded with a number
+        /// (AGENTS.md rules 19 and 20), so this flag is the measuring instrument.
+        /// </summary>
+        public static ChapterReaderUI Open(string chapterRef, string trigger, bool gameAsked)
+        {
             string key = Normalize(chapterRef);
             if (key.Length == 0)
             {
@@ -142,7 +156,7 @@ namespace SheepGate.Scripture
             }
 
             var reader = container.gameObject.AddComponent<ChapterReaderUI>();
-            reader.Build(key, string.IsNullOrEmpty(trigger) ? DefaultTrigger : trigger);
+            reader.Build(key, string.IsNullOrEmpty(trigger) ? DefaultTrigger : trigger, gameAsked);
             _current = reader;
             return reader;
         }
@@ -161,7 +175,7 @@ namespace SheepGate.Scripture
 
         // ------------------------------------------------------------------ construction
 
-        void Build(string chapterKey, string trigger)
+        void Build(string chapterKey, string trigger, bool gameAsked)
         {
             if (_built)
             {
@@ -171,6 +185,7 @@ namespace SheepGate.Scripture
             _built = true;
             _chapterKey = chapterKey;
             _trigger = trigger;
+            _gameAsked = gameAsked;
 
             ChapterEntry chapter = ScriptureService.GetChapter(chapterKey);
             _placeholderBuild = SafeIsPlaceholderBuild();
@@ -434,6 +449,19 @@ namespace SheepGate.Scripture
                 { "trigger", _trigger },
                 { "placeholder", _placeholderBuild }
             });
+
+            // Desire, not compliance. Every reader entry in the POC today is a button the player
+            // chose to press and could have ignored, so every open is unprompted; the flag exists
+            // so that the day some path opens the reader on the game's initiative, the funnel can
+            // still tell the two apart instead of counting them together.
+            if (!_gameAsked)
+            {
+                Telemetry.Track(TelemetryEvents.UnpromptedRead, new Dictionary<string, object>
+                {
+                    { "ref", _chapterKey },
+                    { "trigger", _trigger }
+                });
+            }
         }
 
         // ------------------------------------------------------------------ vocation
@@ -456,7 +484,7 @@ namespace SheepGate.Scripture
             VocationTracker tracker = VocationTracker.EnsureRegistered();
             if (tracker != null)
             {
-                tracker.Add(EscribaVocationId, EscribaPoints);
+                tracker.Add(ScribeVocationId, ScribePoints);
             }
 
             state.SetFlag(GameFlags.ChapterOpened);

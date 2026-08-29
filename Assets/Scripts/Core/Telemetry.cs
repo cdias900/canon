@@ -175,6 +175,13 @@ namespace SheepGate.Core
         public const string VerseShown = "verse_shown";
         public const string ChapterOpened = "chapter_opened";
         public const string DeepRead = "deep_read";
+
+        /// <summary>
+        /// Opened without the game asking. The funnel in docs/persona-e-proposito.md separates
+        /// compliance from desire, and this is the first rung where the player is the one who
+        /// decided. read_ahead, offday_read and ungamed_read are season-scale and out of POC scope.
+        /// </summary>
+        public const string UnpromptedRead = "unprompted_read";
         public const string RevealShown = "reveal_shown";
         public const string NodeCompleted = "node_completed";
         public const string VocationRevealed = "vocation_revealed";

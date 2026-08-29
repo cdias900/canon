@@ -45,6 +45,12 @@ namespace SheepGate.World
         const float FadeSeconds = 0.45f;
         const float BeatPause = 0.35f;
 
+        /// <summary>How long after he sets off before you follow. Long enough to read as following.</summary>
+        const float FollowDelay = 0.3f;
+
+        /// <summary>He walks a little quicker than you, so he stays ahead the whole way.</summary>
+        const float LeadWalkSpeed = 3.9f;
+
         /// <summary>How far out the camera sits while the world map is on screen.</summary>
         const float WorldSize = 34f;
 
@@ -144,14 +150,26 @@ namespace SheepGate.World
             // is a stranger letting himself into someone else's house.
             Vector2Int door = CellFrom(GameData.Map != null ? GameData.Map.player_house_door : null, new Vector2Int(14, 9));
 
+            // You travel together. He pushes off first and you fall in behind a beat later, close
+            // enough that it reads as being led rather than as two people taking turns walking.
+            bool neighbourInside = false;
             if (_neighbour != null)
             {
-                yield return _neighbour.WalkToCell(door);
-                _neighbour.SetVisible(false);          // through the door, ahead of you
-                yield return new WaitForSeconds(BeatPause);
+                StartCoroutine(LeadToDoor(door, () => neighbourInside = true));
+                yield return new WaitForSeconds(FollowDelay);
             }
 
             yield return WalkTo(door);
+
+            // He is normally through the door before you reach it; wait only if he is not.
+            float waited = 0f;
+            while (_neighbour != null && !neighbourInside && waited < 6f)
+            {
+                waited += Time.deltaTime;
+                yield return null;
+            }
+
+            yield return new WaitForSeconds(BeatPause);
             yield return Fade(0f, 1f, FadeSeconds);
 
             bool dressed = false;
@@ -176,9 +194,11 @@ namespace SheepGate.World
 
             // --- 5. The gathering ------------------------------------------------------------
             Vector2Int plaza = CellFrom(GameData.Map != null ? GameData.Map.plaza : null, new Vector2Int(19, 13));
+            // He said "vem", so again he goes first and you fall in behind him.
             if (_neighbour != null)
             {
-                StartCoroutine(_neighbour.WalkToCell(FindOpenCellNear(plaza, 2)));
+                StartCoroutine(_neighbour.WalkToCell(FindOpenCellNear(plaza, 2), LeadWalkSpeed));
+                yield return new WaitForSeconds(FollowDelay);
             }
 
             yield return WalkTo(plaza);
@@ -268,6 +288,20 @@ namespace SheepGate.World
             Vector3 delta = worldPosition - _player.transform.position;
             appearance.SetDirection(FacingDirectionExtensions.FromDelta(
                 new Vector2(delta.x, delta.y), FacingDirection.Down));
+        }
+
+        /// <summary>
+        /// Walks the neighbour to his door and puts him through it. Run alongside the player's own
+        /// walk rather than before it, so the two of you cross the village together.
+        /// </summary>
+        IEnumerator LeadToDoor(Vector2Int door, Action onInside)
+        {
+            yield return _neighbour.WalkToCell(door, LeadWalkSpeed);
+            _neighbour.SetVisible(false);
+            if (onInside != null)
+            {
+                onInside();
+            }
         }
 
         // ---------------------------------------------------------------- beats

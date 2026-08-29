@@ -112,6 +112,7 @@ Brainstorm ativo do time (Google Docs) tem contribuições de João, Cris, Pedro
 **Regras de engenharia detalhadas em [`docs/development-guidelines.md`](docs/development-guidelines.md).** O resumo:
 
 - **Código em inglês, sem exceção** — identificadores, comentários, logs, chaves de JSON, nomes de arquivo, nomes de GameObject, eventos de telemetria, mensagens de commit. Documento de engenharia em inglês; documento de produto (este, persona, design) em pt-BR.
+- **Mensagem de commit em inglês, e isso é verificado.** `tools/install-hooks.sh` uma vez por clone, e o mesmo checador roda no CI a cada push. **Citar pt-BR não quebra a regra:** o que está entre crases ou aspas é ignorado — a regra é sobre as frases em volta da citação.
 - **Nenhuma string que o jogador lê mora em `.cs`.** Toda ela vive em `Assets/Resources/Data/locales/<locale>/` e é lida por `Loc.T("chave")`. O validador quebra a build se um literal chegar à tela.
 - **O jogo é bilíngue: pt-BR e en.** `pt-BR` é a língua de autoria; as outras são tradução dela. Estrutura e números têm **uma cópia só**, compartilhada — só as palavras se duplicam por idioma, para que balanceamento não possa divergir entre línguas.
 - Referências bíblicas no formato **`LIVRO.CAP.VERS`** (`NEH.4.17`, `JHN.21.6`), sempre em código e em spec.

@@ -31,6 +31,7 @@ brew install --cask unity-hub
 ## Running it
 
 ```bash
+tools/install-hooks.sh           # once per clone: commit messages get checked for English
 tools/unity-check.sh --open      # open the project in the editor, then press Play
 tools/unity-check.sh             # headless compile, reports C# errors
 node tools/validate-content.mjs  # scripture integrity, locale parity, hardcoded strings

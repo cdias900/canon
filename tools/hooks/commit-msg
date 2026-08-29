@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Rejects a commit message that is not in English.
+#
+# Tracked in the repository rather than left in .git/hooks, which git never shares, so the rule
+# travels with the code. Install it with tools/install-hooks.sh.
+#
+# Quoting pt-BR content is allowed and does not trip this: see tools/check-commit-message.mjs.
+set -uo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+
+if ! command -v node >/dev/null 2>&1; then
+  # Refusing is deliberate. A hook that passes when it cannot run is not a rule, and Node is
+  # already required to work on this repository at all.
+  echo "commit-msg: node is not on PATH, so the commit message could not be checked." >&2
+  echo "  Install Node 20+, or commit with --no-verify if you are certain." >&2
+  exit 1
+fi
+
+exec node "${ROOT}/tools/check-commit-message.mjs" "$1"

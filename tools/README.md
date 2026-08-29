@@ -11,6 +11,9 @@ tools/verses.manifest.json   the references we ship, and one translation per loc
 tools/fetch-verses.mjs       manifest -> Assets/Resources/Data/locales/<locale>/verses.json
 tools/validate-content.mjs   deterministic layer-1 validator (exit 1 on failure)
 tools/list-curation.mjs      authored canonical speech awaiting a human read, every locale
+tools/check-commit-message.mjs   fails a commit message that is not in English
+tools/hooks/                 git hooks, tracked so they travel with the repository
+tools/install-hooks.sh       points git at tools/hooks (once per clone)
 
 tools/unity-check.sh         headless compile
 tools/acceptance.sh          the product rules, asserted once per locale
@@ -175,6 +178,32 @@ never become a way to spill licensed text into a log.
 | `YouVersion rejected the app key (HTTP 401)` | Wrong key, or the key does not enable that version id. |
 | `Verse X came back without usable text` | The API item shape changed. The error lists the field names it did receive; adjust `extractReference` / `extractText` in `fetch-verses.mjs`. |
 | Game shows the unavailable marker on every line | A placeholder build, or `verses.json` is missing from `Assets/Resources/Data/`. |
+
+## Commit messages
+
+`git log` is read by everyone who touches this repository, so messages are English like the rest of
+the code. Opt in once per clone:
+
+```bash
+tools/install-hooks.sh
+```
+
+That sets `core.hooksPath` to `tools/hooks` — git never shares `.git/hooks`, which is why the hook
+is tracked here instead. CI runs the same checker on every push, so the rule still holds for a
+clone that never opted in or a commit made with `--no-verify`.
+
+**Quoting pt-BR is not a violation.** Content inside backticks, double quotes or single quotes is
+stripped before the message is judged, across line breaks included, so English prose naming a line
+of dialogue passes. Two commits in this history rely on that.
+
+A message fails on a letter that does not occur in English prose, on a subject opening with a
+Portuguese verb, or on two or more unambiguously Portuguese words. English homographs — `no`, `do`,
+`todo`, `os` — are excluded deliberately; a check that fires on "add a todo list" gets ignored.
+
+```bash
+node tools/check-commit-message.mjs --range origin/main..HEAD   # judge a range
+node tools/check-commit-message.mjs .git/COMMIT_EDITMSG         # judge one message
+```
 
 ## The curation queue
 

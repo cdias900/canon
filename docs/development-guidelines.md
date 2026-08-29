@@ -23,7 +23,7 @@ Every artifact a developer reads is written in English, with no exceptions:
 | File and directory names | `WallSystem.cs`, `wall_segments.json` |
 | GameObject names | `"PatrolButton"`, `"HUDCanvas"` |
 | Telemetry event and flag names | `deep_read`, `watch_posted_d1` |
-| Branch names, commit messages, PR titles | |
+| Branch names, commit messages, PR titles | enforced — see below |
 | Engineering documentation | `README.md`, `docs/architecture-contract.md`, `docs/handoff.md`, `docs/youversion-api.md`, `tools/README.md` |
 
 The reason is not preference. The team is Brazilian and most of this code is written by agents, so
@@ -46,6 +46,42 @@ first and translated outward.
 thinking about the product in the team's own language, and they are read by the five people who
 decide what this is, not by the compiler. The line falls where the audience changes: a document
 about *how the code works* is English, a document about *what the game is* is pt-BR.
+
+### Commit messages, and how that one is enforced
+
+`git log` is read by everyone who ever touches this repository, so it follows the same rule as the
+code. This one is checked rather than trusted:
+
+```bash
+tools/install-hooks.sh    # once per clone
+```
+
+That points `core.hooksPath` at `tools/hooks`, and `commit-msg` rejects a message that is not
+English. Git never shares `.git/hooks`, which is why the hooks are tracked in `tools/` and why
+there is a command to opt in. CI runs the same checker on every push, so the rule holds for anyone
+who has not run it, or who reaches for `--no-verify`.
+
+**Quoting pt-BR is allowed and does not fail the check.** A commit that explains why a line of
+dialogue changed has to be able to name the line. Anything inside `` `backticks` ``, "double
+quotes" or 'single quotes' is stripped before the message is judged, including across line breaks —
+two commits already in this history do exactly that. The rule is about the sentences around the
+quotation:
+
+```
+Remove "Ele foi mais educado que você." from the refusal branch      yes
+Corrige a fala do vizinho no dia 2                                   rejected
+```
+
+The checker is deliberately hard to trip by accident. It fails on a letter that does not occur in
+English prose, on a subject opening with a Portuguese verb, or on two or more unambiguously
+Portuguese words. English homographs — `no`, `do`, `todo`, `os` — are excluded on purpose: a check
+that fires on "add a todo list" is a check people learn to switch off.
+
+Run it over history at any time:
+
+```bash
+node tools/check-commit-message.mjs --range origin/main..HEAD
+```
 
 ## 2. Player-facing text lives in one place
 
@@ -131,6 +167,7 @@ or fails.
 **Every change is verified against a build, not against a compile.** In order, cheapest first:
 
 ```bash
+tools/install-hooks.sh            # once per clone: commit messages get checked
 tools/unity-check.sh              # compiles; 0 errors AND 0 warnings is the bar
 node tools/validate-content.mjs   # scripture integrity, locale parity, hardcoded strings
 tools/acceptance.sh               # the product rules, asserted per locale

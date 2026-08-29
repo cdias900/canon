@@ -1,0 +1,46 @@
+# Commit messages are English. tools/hooks/commit-msg says so on a developer's machine; this
+# says so on the server, because a hook is opt-in per clone and --no-verify skips it.
+#
+# This is the repository's only workflow, and it is deliberately narrow: it judges commit
+# messages and nothing else. The build, the validator, the acceptance harness and the e2e run
+# all need a Unity licence and a macOS runner, which is a separate decision.
+name: Commit messages
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  english:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The checker walks a revision range, so it needs more than the tip commit.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Check the pushed commit messages
+        env:
+          BEFORE: ${{ github.event.before }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -uo pipefail
+
+          if [ -n "${BASE_REF}" ]; then
+            # A pull request: judge what the branch adds, not what it is built on.
+            RANGE="origin/${BASE_REF}..HEAD"
+          elif [ -n "${BEFORE}" ] && [ "${BEFORE}" != "0000000000000000000000000000000000000000" ] \
+               && git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
+            RANGE="${BEFORE}..${GITHUB_SHA}"
+          else
+            # A new branch, a force push, or a first push: there is no honest "before", so judge
+            # the tip rather than silently checking nothing.
+            RANGE="-1"
+          fi
+
+          echo "Range: ${RANGE}"
+          node tools/check-commit-message.mjs --range "${RANGE}"

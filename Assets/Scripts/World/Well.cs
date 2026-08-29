@@ -72,11 +72,15 @@ namespace SheepGate.World
 
             if (attempts < AttemptsBeforeCatch)
             {
+                // Authored content names these per day and attempt (well_d2_1), matching the
+                // <npc>_d<day> convention used everywhere else; the older well_miss_* names are
+                // kept as fallbacks so either naming resolves.
                 string missNode = WorldRuntime.FirstExistingNode(
+                    "well_d" + day + "_" + attempts,
+                    "well_d2_" + attempts,
                     "well_miss_" + attempts,
                     "well_miss",
-                    "well_try",
-                    "well_d" + day);
+                    "well_try");
 
                 if (!string.IsNullOrEmpty(missNode))
                 {
@@ -94,7 +98,13 @@ namespace SheepGate.World
             state.SetFlag(WorldRuntime.FlagFishCaught);
             WorldRuntime.AwardOnce("exile_fish_awarded", WorldRuntime.VocationExile, 2);
 
-            string catchNode = WorldRuntime.FirstExistingNode("well_fish", "well_catch", "well_d" + day, "well");
+            // The catch is the third attempt's node, and it is the one carrying JHN.21.6.
+            string catchNode = WorldRuntime.FirstExistingNode(
+                "well_d" + day + "_" + AttemptsBeforeCatch,
+                "well_d2_" + AttemptsBeforeCatch,
+                "well_fish",
+                "well_catch",
+                "well");
             if (!string.IsNullOrEmpty(catchNode))
             {
                 WorldRuntime.PlayDialogue(catchNode);

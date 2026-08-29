@@ -85,6 +85,36 @@ namespace SheepGate.EditorTools
             Run(BuildTarget.iOS, BuildTargetGroup.iOS, "Builds/ios");
         }
 
+        /// <summary>
+        /// The same Xcode export against the simulator SDK, into its own directory so the device
+        /// export is left alone. This is the variant that can actually be run from the command
+        /// line: a simulator build needs no signing team.
+        ///
+        /// The architecture has to be set too. It defaults to x86_64, which exports the x86_64
+        /// baselib and then fails to link against an arm64 simulator slice on an Apple Silicon
+        /// machine — the error names missing baselib symbols and says nothing about architecture.
+        /// Both settings are restored afterwards, so what stays on disk keeps describing the
+        /// device build.
+        /// </summary>
+        public static void BuildIOSSimulator()
+        {
+            iOSSdkVersion previousSdk = PlayerSettings.iOS.sdkVersion;
+            AppleMobileArchitectureSimulator previousArchitecture = PlayerSettings.iOS.simulatorSdkArchitecture;
+
+            PlayerSettings.iOS.sdkVersion = iOSSdkVersion.SimulatorSDK;
+            PlayerSettings.iOS.simulatorSdkArchitecture = AppleMobileArchitectureSimulator.ARM64;
+
+            try
+            {
+                Run(BuildTarget.iOS, BuildTargetGroup.iOS, "Builds/ios-sim");
+            }
+            finally
+            {
+                PlayerSettings.iOS.sdkVersion = previousSdk;
+                PlayerSettings.iOS.simulatorSdkArchitecture = previousArchitecture;
+            }
+        }
+
         public static void BuildAndroid()
         {
             Run(BuildTarget.Android, BuildTargetGroup.Android, "Builds/android/SheepGate.apk");

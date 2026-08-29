@@ -96,12 +96,23 @@ namespace SheepGate.Art
             DrawBoot(canvas, BootLX + bootLeftX, BootY + bootLeftY);
             DrawBoot(canvas, BootRX + bootRightX, BootY + bootRightY);
 
-            // Torso. Static: the top overlay covers it.
-            canvas.FillRect(TorsoX, TorsoY, TorsoW, TorsoH, skin);
-            canvas.ShadeRect(TorsoX, TorsoY + TorsoH - 2, TorsoW, 2, ArtPalette.SoftShade);
-            if (drawn == ArtFacing.Right) canvas.ShadeRect(TorsoX, TorsoY, 5, TorsoH, ArtPalette.SoftShade);
-            else if (drawn == ArtFacing.Up) canvas.ShadeRect(TorsoX, TorsoY, TorsoW, 3, ArtPalette.SoftShade);
-            else canvas.HLine(TorsoX + 2, TorsoY + 1, TorsoW - 4, skinShade);
+            // Torso. Static: the top overlay covers it. Build 1 is a narrower frame: one pixel
+            // off each shoulder, which is as much as a 12-pixel torso can show without the two
+            // silhouettes reading as the same person drawn badly.
+            int torsoX = build == 1 ? TorsoX + 1 : TorsoX;
+            int torsoW = build == 1 ? TorsoW - 2 : TorsoW;
+            canvas.FillRect(torsoX, TorsoY, torsoW, TorsoH, skin);
+            if (build == 1)
+            {
+                // The shoulders taper in rather than ending square.
+                canvas.Set(torsoX - 1, TorsoY + 2, skinShade);
+                canvas.Set(torsoX + torsoW, TorsoY + 2, skinShade);
+                canvas.FillRect(torsoX, TorsoY + TorsoH - 4, torsoW, 4, skin);
+            }
+            canvas.ShadeRect(torsoX, TorsoY + TorsoH - 2, torsoW, 2, ArtPalette.SoftShade);
+            if (drawn == ArtFacing.Right) canvas.ShadeRect(torsoX, TorsoY, 5, TorsoH, ArtPalette.SoftShade);
+            else if (drawn == ArtFacing.Up) canvas.ShadeRect(torsoX, TorsoY, torsoW, 3, ArtPalette.SoftShade);
+            else canvas.HLine(torsoX + 2, TorsoY + 1, torsoW - 4, skinShade);
 
             canvas.FillRect(NeckX, NeckY, NeckW, NeckH, skinShade);
 
@@ -110,8 +121,12 @@ namespace SheepGate.Art
             bool handsUp;
             ArmPose(anim, frame, out armTop, out armHeight, out leftOffset, out rightOffset, out handsUp);
             Color32 farArm = drawn == ArtFacing.Right ? skinShade : skin;
-            DrawArm(canvas, ArmLX, armTop + leftOffset, armHeight, farArm, skinLight, skinDeep, true, handsUp);
-            DrawArm(canvas, ArmRX, armTop + rightOffset, armHeight, skin, skinLight, skinDeep, false, handsUp);
+            // Arms follow the shoulder line, or the narrower build's hang off nothing.
+            int armLeftX = build == 1 ? ArmLX + 1 : ArmLX;
+            int armRightX = build == 1 ? ArmRX - 1 : ArmRX;
+
+            DrawArm(canvas, armLeftX, armTop + leftOffset, armHeight, farArm, skinLight, skinDeep, true, handsUp);
+            DrawArm(canvas, armRightX, armTop + rightOffset, armHeight, skin, skinLight, skinDeep, false, handsUp);
             if (anim == ArtAnim.Work) DrawTool(canvas, frame);
 
             DrawHead(canvas, drawn, skin, skinLight, skinShade, skinDeep);

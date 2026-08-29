@@ -108,6 +108,9 @@ namespace SheepGate.UI
 
             /// <summary>Every piece of metadata uses this size, scripture references included.</summary>
             public const int Meta = 26;
+
+            /// <summary>Captions that must read as secondary, such as a closed city on the map.</summary>
+            public const int Small = 24;
         }
 
         static Font _font;

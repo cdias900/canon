@@ -80,6 +80,12 @@ namespace SheepGate.World
         /// <summary>Row the wall segments are drawn on, taken from the map when it marks one.</summary>
         public int WallRowY { get; private set; }
 
+        /// <summary>World position of the middle of the map, used to frame the opening.</summary>
+        public Vector3 CenterWorld()
+        {
+            return CellToWorldCenter(Width / 2, Height / 2);
+        }
+
         private CellKind[,] _kinds;
         private readonly Dictionary<CellKind, Tile> _tiles = new Dictionary<CellKind, Tile>();
         private readonly HashSet<char> _warnedChars = new HashSet<char>();

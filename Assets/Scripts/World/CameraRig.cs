@@ -85,6 +85,7 @@ namespace SheepGate.World
 
         public void SetTarget(Transform target)
         {
+            _cutsceneFraming = false;
             Target = target;
         }
 
@@ -98,6 +99,36 @@ namespace SheepGate.World
         /// Enters or leaves the wide patrol view. Setting the state it already has does nothing at
         /// all, which is what lets more than one caller drive this without double counting.
         /// </summary>
+        /// <summary>
+        /// Points the camera at a fixed world position and size for a scripted beat, detaching it
+        /// from the follow target so the opening can pull out to the world and push back in.
+        /// <paramref name="seconds"/> of 0 snaps; anything larger eases over roughly that long.
+        /// <see cref="SetTarget"/> hands the camera back to the player.
+        /// </summary>
+        public void FrameCutscene(Vector3 worldPosition, float size, float seconds)
+        {
+            IsPatrolView = false;
+            _dragging = false;
+            Target = null;
+
+            _cutsceneAnchor = new Vector3(worldPosition.x, worldPosition.y, CameraZ);
+            _cutsceneFraming = true;
+            _cutsceneSmoothTime = Mathf.Max(0f, seconds) * 0.45f;
+            _targetSize = Mathf.Max(1f, size);
+
+            if (seconds <= 0f && _camera != null)
+            {
+                _camera.orthographicSize = _targetSize;
+                transform.position = _cutsceneAnchor;
+                _sizeVelocity = 0f;
+                _followVelocity = Vector3.zero;
+            }
+        }
+
+        private Vector3 _cutsceneAnchor;
+        private bool _cutsceneFraming;
+        private float _cutsceneSmoothTime;
+
         public void SetPatrolView(bool patrolView)
         {
             if (IsPatrolView == patrolView)
@@ -154,6 +185,14 @@ namespace SheepGate.World
             }
 
             _camera.orthographicSize = Mathf.SmoothDamp(_camera.orthographicSize, _targetSize, ref _sizeVelocity, ZoomSmoothTime);
+
+            if (_cutsceneFraming)
+            {
+                transform.position = _cutsceneSmoothTime <= 0f
+                    ? _cutsceneAnchor
+                    : Vector3.SmoothDamp(transform.position, _cutsceneAnchor, ref _followVelocity, _cutsceneSmoothTime);
+                return;
+            }
 
             Vector3 desired;
             float smoothTime;

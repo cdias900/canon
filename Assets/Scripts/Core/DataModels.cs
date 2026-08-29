@@ -135,6 +135,12 @@ namespace SheepGate.Core
         [JsonProperty("player_spawn")] public GridPos player_spawn;
         [JsonProperty("rubble")] public GridPos[] rubble;
         [JsonProperty("well")] public GridPos well;
+
+        /// <summary>Open ground at the centre of the city, where the crowd gathers.</summary>
+        [JsonProperty("plaza")] public GridPos plaza;
+
+        /// <summary>The walkable cell outside the house the opening walks the player into.</summary>
+        [JsonProperty("player_house_door")] public GridPos player_house_door;
     }
 
     /// <summary>One move available in the morale contest.</summary>

@@ -30,11 +30,49 @@ namespace SheepGate.UI
         }
 
         /// <summary>
+        /// Runs the same screen inside a scene that is already playing, handing control back through
+        /// <paramref name="onDone"/> instead of loading the game scene. The opening cutscene uses
+        /// this: the player is walked into a house, dresses, and walks back out, so the wardrobe has
+        /// to be a beat in the story rather than a screen in front of it.
+        /// </summary>
+        public static void Compose(Action onDone)
+        {
+            new Composer(onDone).Build();
+        }
+
+        /// <summary>
         /// Holds the in-progress selection. A plain object rather than a MonoBehaviour: the screen
         /// has no per-frame work, so button callbacks closing over this instance are enough.
         /// </summary>
         sealed class Composer
         {
+            /// <summary>Set when the screen runs inside a live scene; null means load the game scene.</summary>
+            readonly Action _onDone;
+
+            Canvas _canvas;
+
+            /// <summary>
+            /// Removes the screen. Only used in the in-scene path: the scene-loading path is torn
+            /// down by the scene change itself.
+            /// </summary>
+            void Teardown()
+            {
+                if (_canvas != null)
+                {
+                    UnityEngine.Object.Destroy(_canvas.gameObject);
+                    _canvas = null;
+                }
+            }
+
+            public Composer() : this(null)
+            {
+            }
+
+            public Composer(Action onDone)
+            {
+                _onDone = onDone;
+            }
+
             static readonly FacingDirection[] Directions =
             {
                 FacingDirection.Down,
@@ -75,6 +113,7 @@ namespace SheepGate.UI
                 LoadCurrentAppearance();
 
                 Canvas canvas = UIKit.CreateCanvas("CharacterCreationCanvas", 0);
+                _canvas = canvas;
                 var root = (RectTransform)canvas.transform;
 
                 Image background = UIKit.CreatePanel(root, "Background", UIKit.Palette.Ink);
@@ -366,6 +405,13 @@ namespace SheepGate.UI
 
                 // Written now so the look survives the app being closed before the first day ends.
                 SaveSystem.Save(state);
+
+                if (_onDone != null)
+                {
+                    Teardown();
+                    _onDone();
+                    return;
+                }
 
                 SceneManager.LoadScene(NextScene);
             }

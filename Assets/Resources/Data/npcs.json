@@ -3,42 +3,60 @@
     "id": "hananias",
     "display": "Hananias",
     "source_ref": "NEH.3.8",
-    "spawn": { "x": 12, "y": 9 },
+    "spawn": {
+      "x": 12,
+      "y": 9
+    },
     "palette": "npc_a"
   },
   {
     "id": "salum",
     "display": "Salum",
     "source_ref": "NEH.3.12",
-    "spawn": { "x": 5, "y": 14 },
+    "spawn": {
+      "x": 11,
+      "y": 12
+    },
     "palette": "npc_b"
   },
   {
     "id": "baruque",
     "display": "Baruque",
     "source_ref": "NEH.3.20",
-    "spawn": { "x": 25, "y": 5 },
+    "spawn": {
+      "x": 25,
+      "y": 5
+    },
     "palette": "npc_c"
   },
   {
     "id": "meremote",
     "display": "Meremote",
     "source_ref": "NEH.3.4",
-    "spawn": { "x": 17, "y": 13 },
+    "spawn": {
+      "x": 17,
+      "y": 13
+    },
     "palette": "npc_d"
   },
   {
     "id": "zacur",
     "display": "Zacur",
     "source_ref": "NEH.3.2",
-    "spawn": { "x": 33, "y": 9 },
+    "spawn": {
+      "x": 28,
+      "y": 10
+    },
     "palette": "npc_e"
   },
   {
     "id": "malquias",
     "display": "Malquias",
     "source_ref": "NEH.3.14",
-    "spawn": { "x": 21, "y": 21 },
+    "spawn": {
+      "x": 21,
+      "y": 21
+    },
     "palette": "npc_f"
   }
 ]

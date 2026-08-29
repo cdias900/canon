@@ -95,7 +95,12 @@ namespace SheepGate.World
             // world layer wires nothing between the two.
             ComposeUserInterface();
 
-            // 11. Silent map-edge observation (exile vocation, never displayed).
+            // 11. The opening, when this run has not seen it. It takes the controls away, plays
+            // out, and hands them back; on a resumed save TryAttach returns null and the player
+            // simply lands in the village.
+            IntroCutscene.TryAttach(systemsObject, builder, Rig, Player);
+
+            // 12. Silent map-edge observation (exile vocation, never displayed).
             MapEdgeWatcher watcher = rootObject.AddComponent<MapEdgeWatcher>();
             watcher.Configure(builder, Player);
 

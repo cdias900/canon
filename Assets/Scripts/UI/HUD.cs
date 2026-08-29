@@ -191,6 +191,23 @@ namespace SheepGate.UI
         }
 
         /// <summary>Forces the readouts to match the run right now.</summary>
+        /// <summary>
+        /// Hides the whole overlay for a scripted beat. The opening uses it: during the cutscene
+        /// the village is a place being shown, not a board being operated, and a work-capacity
+        /// readout on screen would say otherwise.
+        /// </summary>
+        public void SetVisible(bool visible)
+        {
+            if (_canvas != null)
+            {
+                _canvas.enabled = visible;
+            }
+            else
+            {
+                gameObject.SetActive(visible);
+            }
+        }
+
         public void Refresh()
         {
             GameState state = TryGetState();

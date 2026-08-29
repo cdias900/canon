@@ -54,7 +54,12 @@ namespace SheepGate.Core
 
             Debug.Log("[Boot] Ready. Day " + state.day + ", " + (freshStart ? "new run." : "resumed run."));
 
-            SceneManager.LoadScene(freshStart ? SceneCharacterCreation : SceneGame);
+            // Always the village. Character creation is no longer a screen in front of the game:
+            // it is a beat inside the opening, played in the house the neighbour walks you into, so
+            // the first thing a new player sees is a city rather than a menu. The CharacterCreation
+            // scene stays in the build for the standalone route and for anyone who needs to reach
+            // the wardrobe without replaying the opening.
+            SceneManager.LoadScene(SceneGame);
         }
 
         static void LoadScripture()

@@ -288,7 +288,7 @@ hand-authored YAML trivial while the real construction stays in compiler-checked
 namespace SheepGate.Core {
     public static class BootSequence {
         public static void Run();   // GameData.LoadAll + ScriptureService.Load + Telemetry.Initialize
-                                    // + register services, then load "CharacterCreation" or "Game"
+                                    // + register services, then load "Game" — always.
     }
 }
 namespace SheepGate.UI    { public static class CharacterCreationScreen { public static void Compose(); } }
@@ -296,6 +296,13 @@ namespace SheepGate.World { public static class GameScene             { public s
 ```
 
 Scene names for `SceneManager.LoadScene` are exactly `Boot`, `CharacterCreation`, `Game`.
+
+**Boot always goes to `Game`.** Character creation is no longer a screen in front of the game; it
+is a beat inside the opening cutscene, played in the house the neighbour walks the player into, so
+the first thing a new player sees is a city rather than a menu. `CharacterCreationScreen.Compose()`
+still builds the standalone screen and loads `Game` when it finishes; `Compose(Action onDone)` runs
+the same screen inside a live scene and hands control back instead. The `CharacterCreation` scene
+stays registered in the build so that route keeps working.
 
 ## Fixed asset GUIDs (scene YAML depends on these — do not change)
 

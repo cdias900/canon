@@ -383,7 +383,7 @@ namespace SheepGate.Quiz
 
         void Build()
         {
-            Image card = UIKit.CreatePanel(_container, "QuizCard", UIKit.Palette.Parchment, ArtKeys.Panel);
+            Image card = UIKit.CreatePanel(_container, "QuizCard", UIKit.Palette.Parchment, UiSpriteKeys.Panel);
             _card = (RectTransform)card.transform;
             _card.anchorMin = new Vector2(0f, 0.5f);
             _card.anchorMax = new Vector2(1f, 0.5f);

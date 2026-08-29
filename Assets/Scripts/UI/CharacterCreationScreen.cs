@@ -166,28 +166,28 @@ namespace SheepGate.UI
 
                     ApplyLayer(
                         _bodyLayers[i],
-                        UIKit.GetSprite(ArtKeys.Body(_body, direction, 0)),
+                        UIKit.GetSprite(UiSpriteKeys.Body(_body, direction, 0)),
                         Shade(UIKit.Palette.Stone, _body),
                         0f,
                         1f);
 
                     ApplyLayer(
                         _legsLayers[i],
-                        UIKit.GetSprite(ArtKeys.Legs(_legs)),
+                        UIKit.GetSprite(UiSpriteKeys.Legs(_legs)),
                         Shade(UIKit.Palette.Night, _legs),
                         0.04f,
                         0.44f);
 
                     ApplyLayer(
                         _topLayers[i],
-                        UIKit.GetSprite(ArtKeys.Top(_top)),
+                        UIKit.GetSprite(UiSpriteKeys.Top(_top)),
                         Shade(UIKit.Palette.Clay, _top),
                         0.44f,
                         0.76f);
 
                     ApplyLayer(
                         _accessoryLayers[i],
-                        UIKit.GetSprite(ArtKeys.Accessory(_accessory)),
+                        UIKit.GetSprite(UiSpriteKeys.Accessory(_accessory)),
                         Shade(UIKit.Palette.Olive, _accessory),
                         0.78f,
                         0.97f);

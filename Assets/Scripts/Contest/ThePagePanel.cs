@@ -119,7 +119,7 @@ namespace SheepGate.Contest
 
             VerseEntry verse = ScriptureService.GetVerse(VerseRef);
 
-            Image card = UIKit.CreatePanel(container, "PageCard", UIKit.Palette.Parchment, ArtKeys.Panel);
+            Image card = UIKit.CreatePanel(container, "PageCard", UIKit.Palette.Parchment, UiSpriteKeys.Panel);
             _card = (RectTransform)card.transform;
             _card.anchorMin = new Vector2(0f, 0.5f);
             _card.anchorMax = new Vector2(1f, 0.5f);

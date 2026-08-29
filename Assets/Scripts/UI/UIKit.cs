@@ -16,7 +16,7 @@ namespace SheepGate.UI
     /// facing translation: screens hand over a SheepGate.Player facing, and the two modules order
     /// their facing enums differently.
     ///
-    /// The name deliberately differs from the art module's ArtKeys. Two public types sharing one
+    /// The name deliberately differs from the art module's UiSpriteKeys. Two public types sharing one
     /// name across two namespaces compile only until a single file imports both, at which point
     /// every unqualified mention of the name becomes a CS0104 ambiguity.
     /// </summary>
@@ -60,50 +60,6 @@ namespace SheepGate.UI
                 case FacingDirection.Right: return ArtFacing.Right;
                 default: return ArtFacing.Down;
             }
-        }
-    }
-
-    /// <summary>
-    /// COMPATIBILITY SHIM — DELETE THIS TYPE.
-    ///
-    /// It exists only because it duplicates the type name SheepGate.Art.ArtKeys, and four files
-    /// outside this one still call it unqualified: CharacterCreationScreen.cs, DailyQuiz.cs,
-    /// ThePagePanel.cs and ContestUI.cs. Every member forwards to <see cref="UiSpriteKeys"/> and
-    /// nothing new may be added here. Once those four files say UiSpriteKeys instead, this whole
-    /// class goes, and the duplicate name with it.
-    ///
-    /// Nothing inside UIKit.cs uses it. Do not reintroduce a bare "ArtKeys" in this file either:
-    /// enclosing-namespace lookup would silently bind it here instead of to the art module.
-    /// </summary>
-    public static class ArtKeys
-    {
-        public const string Panel = UiSpriteKeys.Panel;
-        public const string Bubble = UiSpriteKeys.Bubble;
-        public const string Button = UiSpriteKeys.Button;
-
-        public static string Body(int index, FacingDirection direction, int frame)
-        {
-            return UiSpriteKeys.Body(index, direction, frame);
-        }
-
-        public static string Top(int index)
-        {
-            return UiSpriteKeys.Top(index);
-        }
-
-        public static string Legs(int index)
-        {
-            return UiSpriteKeys.Legs(index);
-        }
-
-        public static string Accessory(int index)
-        {
-            return UiSpriteKeys.Accessory(index);
-        }
-
-        public static ArtFacing ToArtFacing(FacingDirection direction)
-        {
-            return UiSpriteKeys.ToArtFacing(direction);
         }
     }
 

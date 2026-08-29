@@ -394,7 +394,7 @@ namespace SheepGate.Contest
                 valueLayout.minHeight = 40f;
             }
 
-            Image track = UIKit.CreatePanel(root, "Track", UIKit.Palette.PanelSoft, ArtKeys.Panel);
+            Image track = UIKit.CreatePanel(root, "Track", UIKit.Palette.PanelSoft, UiSpriteKeys.Panel);
             track.raycastTarget = false;
             LayoutElement trackLayout = UIKit.Layout(track);
             if (trackLayout != null)
@@ -403,7 +403,7 @@ namespace SheepGate.Contest
                 trackLayout.preferredHeight = 34f;
             }
 
-            Image fill = UIKit.CreatePanel((RectTransform)track.transform, "Fill", fillColor, ArtKeys.Panel);
+            Image fill = UIKit.CreatePanel((RectTransform)track.transform, "Fill", fillColor, UiSpriteKeys.Panel);
             fill.raycastTarget = false;
             var fillRect = (RectTransform)fill.transform;
             fillRect.anchorMin = Vector2.zero;
@@ -417,7 +417,7 @@ namespace SheepGate.Contest
 
         void BuildLog(RectTransform container)
         {
-            Image panel = UIKit.CreatePanel(container, "Log", UIKit.Palette.Panel, ArtKeys.Panel);
+            Image panel = UIKit.CreatePanel(container, "Log", UIKit.Palette.Panel, UiSpriteKeys.Panel);
             panel.raycastTarget = false;
             UIKit.AnchorTop((RectTransform)panel.transform, 430f, 48f, 48f, 404f);
 
@@ -476,7 +476,7 @@ namespace SheepGate.Contest
 
         MoveCard BuildCard(RectTransform parent, ContestMoveDef move)
         {
-            Image background = UIKit.CreatePanel(parent, "Move_" + move.id, UIKit.Palette.PanelSoft, ArtKeys.Button);
+            Image background = UIKit.CreatePanel(parent, "Move_" + move.id, UIKit.Palette.PanelSoft, UiSpriteKeys.Button);
             var rect = (RectTransform)background.transform;
 
             UIKit.VerticalGroup(background.gameObject, 10f, new RectOffset(28, 28, 24, 26));
@@ -517,7 +517,7 @@ namespace SheepGate.Contest
 
         void BuildOutcome(RectTransform container)
         {
-            Image panel = UIKit.CreatePanel(container, "Outcome", UIKit.Palette.Panel, ArtKeys.Panel);
+            Image panel = UIKit.CreatePanel(container, "Outcome", UIKit.Palette.Panel, UiSpriteKeys.Panel);
             _outcomePanel = (RectTransform)panel.transform;
             UIKit.AnchorBottom(_outcomePanel, 560f, 48f, 48f, 48f);
             UIKit.VerticalGroup(panel.gameObject, 22f, new RectOffset(36, 36, 36, 36));

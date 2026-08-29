@@ -1,0 +1,130 @@
+using System.Collections.Generic;
+using Newtonsoft.Json;
+
+namespace SheepGate.Core
+{
+    // Authored content DTOs. Field names mirror the JSON keys under Resources/Data one to one,
+    // which is why they are snake_case: the JSON is hand edited outside Unity and must stay readable.
+    // None of these types ever carries scripture text. A DTO carries a reference such as NEH.4.6;
+    // the literal text is resolved at runtime by SheepGate.Scripture.ScriptureService.
+
+    /// <summary>Integer position on the tilemap grid.</summary>
+    public class GridPos
+    {
+        [JsonProperty("x")] public int x;
+        [JsonProperty("y")] public int y;
+    }
+
+    /// <summary>One resident of the village, from npcs.json.</summary>
+    public class NpcDef
+    {
+        [JsonProperty("id")] public string id;
+        [JsonProperty("display")] public string display;
+
+        /// <summary>Reference that names this person in the text. Reference only, never text.</summary>
+        [JsonProperty("source_ref")] public string source_ref;
+
+        [JsonProperty("spawn")] public GridPos spawn;
+        [JsonProperty("palette")] public string palette;
+    }
+
+    /// <summary>
+    /// One bubble in a dialogue node. A line carries either authored <c>text</c> or a scripture
+    /// <c>verse</c> reference, never both. <c>frame</c> is the authored sentence that introduces
+    /// the quotation and is only meaningful on a verse line.
+    /// </summary>
+    public class DialogueLine
+    {
+        [JsonProperty("text")] public string text;
+        [JsonProperty("verse")] public string verse;
+        [JsonProperty("frame")] public string frame;
+    }
+
+    /// <summary>Points and flags a dialogue node grants once it finishes playing.</summary>
+    public class Grants
+    {
+        [JsonProperty("vocation")] public Dictionary<string, int> vocation;
+        [JsonProperty("flags")] public Dictionary<string, int> flags;
+        [JsonProperty("set_flag")] public string set_flag;
+    }
+
+    /// <summary>One conversation, keyed in dialogue.json by node id such as "hananias_d1".</summary>
+    public class DialogueNode
+    {
+        [JsonProperty("npc")] public string npc;
+        [JsonProperty("day")] public int day;
+        [JsonProperty("lines")] public DialogueLine[] lines;
+        [JsonProperty("grants")] public Grants grants;
+
+        /// <summary>Whether what this node claims is true. The game never shows this to the player.</summary>
+        [JsonProperty("reliable")] public bool reliable;
+    }
+
+    /// <summary>Static definition of a wall segment, from wall_segments.json.</summary>
+    public class WallSegmentDef
+    {
+        [JsonProperty("id")] public string id;
+        [JsonProperty("grid_x")] public int grid_x;
+
+        /// <summary>Work units required per stage. Four entries, one per stage.</summary>
+        [JsonProperty("stage_cost")] public int[] stage_cost;
+
+        [JsonProperty("exposed")] public bool exposed;
+    }
+
+    /// <summary>One vocation archetype, from vocations.json.</summary>
+    public class VocationDef
+    {
+        [JsonProperty("id")] public string id;
+        [JsonProperty("display")] public string display;
+
+        /// <summary>Authored pt-BR line shown at the reveal. Authored prose, never scripture.</summary>
+        [JsonProperty("reveal_line")] public string reveal_line;
+    }
+
+    /// <summary>One daily check-in question, from quiz.json.</summary>
+    public class QuizQuestion
+    {
+        [JsonProperty("day")] public int day;
+        [JsonProperty("prompt")] public string prompt;
+        [JsonProperty("options")] public string[] options;
+
+        /// <summary>Index into <c>options</c>.</summary>
+        [JsonProperty("answer")] public int answer;
+
+        [JsonProperty("note")] public string note;
+    }
+
+    /// <summary>The single village map, from map.json. <c>rows</c> is one string per grid row.</summary>
+    public class MapDef
+    {
+        [JsonProperty("width")] public int width;
+        [JsonProperty("height")] public int height;
+        [JsonProperty("rows")] public string[] rows;
+        [JsonProperty("player_spawn")] public GridPos player_spawn;
+        [JsonProperty("rubble")] public GridPos[] rubble;
+        [JsonProperty("well")] public GridPos well;
+    }
+
+    /// <summary>One move available in the morale contest.</summary>
+    public class ContestMoveDef
+    {
+        [JsonProperty("id")] public string id;
+        [JsonProperty("display")] public string display;
+        [JsonProperty("description")] public string description;
+        [JsonProperty("resolve_delta")] public int resolve_delta;
+        [JsonProperty("morale_delta")] public int morale_delta;
+
+        /// <summary>True when the move only exists after the page has been shown.</summary>
+        [JsonProperty("unlocked_by_page")] public bool unlocked_by_page;
+    }
+
+    /// <summary>Tuning for the day-3 morale contest, from contest.json.</summary>
+    public class ContestConfig
+    {
+        [JsonProperty("player_morale")] public int player_morale;
+        [JsonProperty("enemy_resolve_base")] public int enemy_resolve_base;
+        [JsonProperty("turn_limit")] public int turn_limit;
+        [JsonProperty("moves")] public ContestMoveDef[] moves;
+    }
+}

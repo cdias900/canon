@@ -102,6 +102,20 @@ namespace SheepGate.World
                 new Vector2(delta.x, delta.y), FacingDirection.Down));
         }
 
+        /// <summary>Hides or shows the actor, for stepping through a door the map has no interior for.</summary>
+        public void SetVisible(bool visible)
+        {
+            gameObject.SetActive(visible);
+        }
+
+        /// <summary>Moves without walking, for repositioning while off screen.</summary>
+        public void WarpToCell(Vector2Int cell)
+        {
+            transform.position = _map != null
+                ? _map.CellToWorldCenter(cell)
+                : new Vector3(cell.x + 0.5f, cell.y + 0.5f, 0f);
+        }
+
         public void Despawn()
         {
             if (this != null && gameObject != null)

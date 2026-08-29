@@ -37,7 +37,21 @@ namespace SheepGate.UI
         /// </summary>
         public static void Compose(Action onDone)
         {
-            new Composer(onDone).Build();
+            Compose(onDone, StandaloneSortingOrder);
+        }
+
+        /// <summary>Standalone screen: nothing else is on screen, so any order will do.</summary>
+        public const int StandaloneSortingOrder = 0;
+
+        /// <summary>
+        /// Above the opening's blackout. The cutscene fades to black on its own canvas before the
+        /// wardrobe appears, so a screen drawn underneath that would be invisible.
+        /// </summary>
+        public const int CutsceneSortingOrder = 500;
+
+        public static void Compose(Action onDone, int sortingOrder)
+        {
+            new Composer(onDone, sortingOrder).Build();
         }
 
         /// <summary>
@@ -64,13 +78,16 @@ namespace SheepGate.UI
                 }
             }
 
-            public Composer() : this(null)
+            readonly int _sortingOrder;
+
+            public Composer() : this(null, StandaloneSortingOrder)
             {
             }
 
-            public Composer(Action onDone)
+            public Composer(Action onDone, int sortingOrder)
             {
                 _onDone = onDone;
+                _sortingOrder = sortingOrder;
             }
 
             static readonly FacingDirection[] Directions =
@@ -112,7 +129,7 @@ namespace SheepGate.UI
             {
                 LoadCurrentAppearance();
 
-                Canvas canvas = UIKit.CreateCanvas("CharacterCreationCanvas", 0);
+                Canvas canvas = UIKit.CreateCanvas("CharacterCreationCanvas", _sortingOrder);
                 _canvas = canvas;
                 var root = (RectTransform)canvas.transform;
 

@@ -140,25 +140,38 @@ namespace SheepGate.World
             yield return PlayNode(NodeSummons);
 
             // --- 4. The house ----------------------------------------------------------------
+            // He leads. He offered the clothes, it is his door, and a stranger who walks in first
+            // is a stranger letting himself into someone else's house.
             Vector2Int door = CellFrom(GameData.Map != null ? GameData.Map.player_house_door : null, new Vector2Int(14, 9));
-            StartCoroutine(_neighbour.WalkToCell(FindOpenCellNear(door, 2)));
+
+            if (_neighbour != null)
+            {
+                yield return _neighbour.WalkToCell(door);
+                _neighbour.SetVisible(false);          // through the door, ahead of you
+                yield return new WaitForSeconds(BeatPause);
+            }
+
             yield return WalkTo(door);
             yield return Fade(0f, 1f, FadeSeconds);
 
             bool dressed = false;
-            CharacterCreationScreen.Compose(() => dressed = true);
+            CharacterCreationScreen.Compose(() => dressed = true, CharacterCreationScreen.CutsceneSortingOrder);
             while (!dressed)
             {
                 yield return null;
             }
 
             ReapplyAppearance();
-            yield return Fade(1f, 0f, FadeSeconds);
+
+            // Both of you step back out, him first again.
             if (_neighbour != null)
             {
+                _neighbour.SetVisible(true);
+                _neighbour.WarpToCell(FindOpenCellNear(door, 1));
                 _neighbour.FaceTowards(_player.transform.position);
             }
 
+            yield return Fade(1f, 0f, FadeSeconds);
             yield return PlayNode(NodeDressed);
 
             // --- 5. The gathering ------------------------------------------------------------

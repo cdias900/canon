@@ -187,6 +187,14 @@ namespace SheepGate.Scripture
             // Measure from a settled layout: content height read on the frame it was built would
             // otherwise be zero and make the scroll fraction meaningless.
             UIKit.RebuildNow(_content);
+
+            // Set again now that the content has a real height: a scroll position assigned before
+            // the fitter ran does not survive it.
+            if (_scroll != null)
+            {
+                _scroll.verticalNormalizedPosition = 1f;
+            }
+
             _maxScrollFraction = CurrentScrollFraction();
         }
 
@@ -442,8 +450,11 @@ namespace SheepGate.Scripture
                 return;
             }
 
-            VocationTracker tracker;
-            if (ServiceLocator.TryGet(out tracker) && tracker != null)
+            // EnsureRegistered, not a bare registry lookup: nothing registers a tracker during
+            // boot, so a plain TryGet would drop the points silently and the reader would score
+            // nothing at all.
+            VocationTracker tracker = VocationTracker.EnsureRegistered();
+            if (tracker != null)
             {
                 tracker.Add(EscribaVocationId, EscribaPoints);
             }

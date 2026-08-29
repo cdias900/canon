@@ -14,13 +14,12 @@ namespace SheepGate.UI
     /// First, one control. The split is a single decision with a single cost, and two independent
     /// inputs would let the player dodge the decision by moving both.
     ///
-    /// Second, neither side can be emptied. The slider runs from 1 to total-1, so there is always
-    /// someone building and always someone watching. That is the rule the day is built on: work
-    /// alone loses the wall, watch alone builds nothing.
+    /// Second, neither side can be emptied: the slider is bounded by <see cref="MinimumPerSide"/>
+    /// on both ends, so there is always someone building and always someone watching.
     ///
-    /// The panel states what each side buys and what it costs, and stops there. It never marks a
-    /// split as the right one, and it never previews the outcome — the morning report is where the
-    /// player finds out.
+    /// The panel says where the people go and stops there. It promises no outcome, because the
+    /// night is not this screen's to describe — it never marks a split as the right one, and the
+    /// morning report is where the player finds out what happened.
     /// </summary>
     public sealed class EndDayPanel : MonoBehaviour
     {
@@ -29,6 +28,19 @@ namespace SheepGate.UI
 
         /// <summary>Crew size used when the run does not tell us one.</summary>
         public const int DefaultCrew = 12;
+
+        /// <summary>
+        /// Smallest number of people that may be left on either side of the split.
+        ///
+        /// One, so neither side can be emptied. Every bound and clamp on this screen reads this
+        /// constant and nothing else, so the decision is a single token to change.
+        ///
+        /// KNOWN CONFLICT: DayCycle treats any night with at least one watcher as watched
+        /// (LastNightHadWatch = watchers > 0), so while this is 1 the player cannot reach an
+        /// unwatched night, and the split has no mechanical consequence. Either this becomes 0 or
+        /// DayCycle's threshold rises above 1 — the two cannot both stand.
+        /// </summary>
+        public const int MinimumPerSide = 1;
 
         const float CardWidth = 1000f;
         const float CardHeight = 1120f;
@@ -138,7 +150,7 @@ namespace SheepGate.UI
 
             _built = true;
             _onConfirm = onConfirm;
-            _total = Mathf.Max(2, totalPeople);
+            _total = Mathf.Max(MinimumPerSide * 2, Mathf.Max(1, totalPeople));
             _workers = ResolveInitialWorkers(_total);
 
             var container = (RectTransform)transform;
@@ -159,11 +171,17 @@ namespace SheepGate.UI
 
             BuildSplitRow(cardRect);
 
-            Slider slider = UIKit.CreateSlider(cardRect, "Split", 1, _total - 1, _workers, OnSliderChanged);
+            Slider slider = UIKit.CreateSlider(cardRect, "Split", MinimumPerSide, _total - MinimumPerSide, _workers, OnSliderChanged);
             UIKit.AnchorTop((RectTransform)slider.transform, 84f, 56f, 56f, 400f);
 
-            Text bounds = UIKit.CreateText(cardRect, "Bounds", "Sempre fica alguém dos dois lados.", UIKit.FontSize.Meta, UIKit.Palette.Stone, TextAnchor.MiddleLeft);
-            UIKit.AnchorTop((RectTransform)bounds.transform, 44f, 56f, 56f, 494f);
+            // Read through a local so the check is not constant-folded: if the minimum is ever
+            // set to zero, this line stops being true and the block stops being unreachable code.
+            int minimumPerSide = MinimumPerSide;
+            if (minimumPerSide > 0)
+            {
+                Text bounds = UIKit.CreateText(cardRect, "Bounds", "Sempre fica alguém dos dois lados.", UIKit.FontSize.Meta, UIKit.Palette.Stone, TextAnchor.MiddleLeft);
+                UIKit.AnchorTop((RectTransform)bounds.transform, 44f, 56f, 56f, 494f);
+            }
 
             _workHint = UIKit.CreateText(cardRect, "WorkHint", string.Empty, UIKit.FontSize.Body, UIKit.Palette.Parchment, TextAnchor.UpperLeft);
             UIKit.AnchorTop((RectTransform)_workHint.transform, 104f, 56f, 56f, 552f);
@@ -227,13 +245,13 @@ namespace SheepGate.UI
 
         void OnSliderChanged(int workers)
         {
-            _workers = Mathf.Clamp(workers, 1, _total - 1);
+            _workers = ClampWorkers(workers);
             Refresh();
         }
 
         void Refresh()
         {
-            int workers = Mathf.Clamp(_workers, 1, _total - 1);
+            int workers = ClampWorkers(_workers);
             int watchers = _total - workers;
 
             if (_workNumber != null)
@@ -249,8 +267,8 @@ namespace SheepGate.UI
             if (_workHint != null)
             {
                 _workHint.text = Plural(workers,
-                    "1 pessoa levanta pedra a noite toda. Só quem está na obra faz a muralha subir.",
-                    workers + " pessoas levantam pedra a noite toda. Só quem está na obra faz a muralha subir.");
+                    "1 pessoa segue na obra até o sol nascer.",
+                    workers + " pessoas seguem na obra até o sol nascer.");
             }
 
             if (_watchHint != null)
@@ -268,7 +286,7 @@ namespace SheepGate.UI
                 return;
             }
 
-            int workers = Mathf.Clamp(_workers, 1, _total - 1);
+            int workers = ClampWorkers(_workers);
             int watchers = _total - workers;
 
             GameState state = TryGetState();
@@ -328,13 +346,19 @@ namespace SheepGate.UI
             GameState state = TryGetState();
             int previous = state != null ? state.workAssigned : 0;
             int workers = previous > 0 ? previous : total / 2;
-            return Mathf.Clamp(workers, 1, total - 1);
+            return Mathf.Clamp(workers, MinimumPerSide, total - MinimumPerSide);
         }
 
         static GameState TryGetState()
         {
             GameState state;
             return ServiceLocator.TryGet(out state) ? state : null;
+        }
+
+        /// <summary>Keeps both sides above the minimum, whatever the minimum is set to.</summary>
+        int ClampWorkers(int workers)
+        {
+            return Mathf.Clamp(workers, MinimumPerSide, _total - MinimumPerSide);
         }
 
         static string Plural(int count, string singular, string plural)

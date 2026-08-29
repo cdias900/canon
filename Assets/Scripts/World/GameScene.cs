@@ -624,11 +624,12 @@ namespace SheepGate.World
         {
             get
             {
-                if (_state != null)
-                {
-                    return _state;
-                }
-
+                // The ServiceLocator is asked first, every time, rather than trusting the cache.
+                // Caching the first state seen would keep the world writing flags into a stale
+                // object after a run is restarted in-process — the Reset Save menu item, or any
+                // return to character creation — because ServiceLocator.Clear cannot reach a
+                // static field here. The cache stays only as a fallback so a scene without a
+                // registered state does not hit SaveSystem.Load on every access.
                 GameState resolved = null;
                 try
                 {
@@ -637,6 +638,11 @@ namespace SheepGate.World
                 catch (Exception exception)
                 {
                     Debug.LogWarning("[World] ServiceLocator lookup for GameState failed: " + exception.Message);
+                }
+
+                if (resolved == null)
+                {
+                    resolved = _state;
                 }
 
                 if (resolved == null)

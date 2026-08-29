@@ -19,7 +19,7 @@ namespace SheepGate.Quiz
     /// the same note either way.
     ///
     /// It schedules itself. The morning is when the check-in belongs, so the component subscribes
-    /// to <see cref="DayCycle.MorningStarted"/> and asks for the day the scene opens on, then waits
+    /// to <see cref="DayCycle.MorningStarted"/>, then waits
     /// for a quiet screen — no modal, no conversation, no night resolving — before sliding in. The
     /// day is recorded in a persisted counter the moment the panel appears, so a day gets its
     /// question exactly once even if the player closes the app and comes back.
@@ -650,10 +650,11 @@ namespace SheepGate.Quiz
         /// </summary>
         void Start()
         {
+            // Deliberately does NOT request a check-in for the day the scene opens on. Composing the
+            // village used to queue one immediately, which put a question on screen on top of the
+            // opening - the first thing a new player met was a quiz. The check-in now arrives only
+            // from MorningStarted, so it belongs to a morning the player has earned by ending a day.
             EnsureBindings();
-
-            GameState state = ResolveState();
-            RequestForDay(state != null ? state.day : 1);
         }
     }
 }

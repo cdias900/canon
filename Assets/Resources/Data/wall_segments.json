@@ -1,0 +1,6 @@
+[
+  { "id": "seg_01", "grid_x": 20, "stage_cost": [3, 3, 4, 4], "exposed": false },
+  { "id": "seg_02", "grid_x": 26, "stage_cost": [3, 3, 4, 4], "exposed": true },
+  { "id": "seg_03", "grid_x": 31, "stage_cost": [3, 3, 4, 4], "exposed": false },
+  { "id": "seg_04", "grid_x": 36, "stage_cost": [3, 3, 4, 4], "exposed": false }
+]

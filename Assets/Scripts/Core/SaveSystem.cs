@@ -7,7 +7,7 @@ using UnityEngine;
 namespace SheepGate.Core
 {
     /// <summary>
-    /// Whole-state persistence to a single JSON file. Newtonsoft is mandatory here: JsonUtility
+    /// Whole-state persistence to a single JSON file. Newtonsoft is mandatory here: the built-in Unity JSON helper
     /// cannot round-trip the dictionaries and the flag set that GameState carries.
     /// Nothing in this class may throw at the caller: a missing, partial or corrupt file is a
     /// fresh run, never a crash.

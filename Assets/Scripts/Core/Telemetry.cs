@@ -34,6 +34,9 @@ namespace SheepGate.Core
             ReferenceLoopHandling = ReferenceLoopHandling.Ignore
         };
 
+        // Explicitly BOM-free: a preamble on the first line would break strict JSON Lines parsers.
+        static readonly Encoding Utf8NoBom = new UTF8Encoding(false);
+
         static readonly Dictionary<string, object> EmptyProps = new Dictionary<string, object>();
 
         readonly string _path;
@@ -71,7 +74,7 @@ namespace SheepGate.Core
 
             try
             {
-                File.AppendAllText(_path, line + "\n", Encoding.UTF8);
+                File.AppendAllText(_path, line + "\n", Utf8NoBom);
             }
             catch (Exception exception)
             {

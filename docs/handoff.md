@@ -200,9 +200,6 @@ path by disabling the component. The live Page beat is still only verified by pl
 ## If picking this up cold
 
 0. [`docs/development-guidelines.md`](development-guidelines.md) — how code is written here.
-0b. `tools/install-hooks.sh` — once per clone, or your commit messages are not checked. Git never
-   shares `.git/hooks`, so this is opt-in by design; CI runs the same checker on every push, which
-   is what makes the rule hold for a clone that skipped it.
 1. `tools/unity-check.sh` — compiles, reports C# errors.
 2. `node tools/validate-content.mjs` — scripture integrity, the forbidden-word checklist per
    language, locale parity, and hardcoded player strings.

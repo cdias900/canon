@@ -23,7 +23,7 @@ Every artifact a developer reads is written in English, with no exceptions:
 | File and directory names | `WallSystem.cs`, `wall_segments.json` |
 | GameObject names | `"PatrolButton"`, `"HUDCanvas"` |
 | Telemetry event and flag names | `deep_read`, `watch_posted_d1` |
-| Branch names, commit messages, PR titles | enforced — see below |
+| Branch names, commit messages, PR titles | `add-english-locale`, never `adiciona-idioma` |
 | Engineering documentation | `README.md`, `docs/architecture-contract.md`, `docs/handoff.md`, `docs/youversion-api.md`, `tools/README.md` |
 
 The reason is not preference. The team is Brazilian and most of this code is written by agents, so
@@ -47,41 +47,24 @@ thinking about the product in the team's own language, and they are read by the 
 decide what this is, not by the compiler. The line falls where the audience changes: a document
 about *how the code works* is English, a document about *what the game is* is pt-BR.
 
-### Commit messages, and how that one is enforced
+### Commit messages and branch names
 
-`git log` is read by everyone who ever touches this repository, so it follows the same rule as the
-code. This one is checked rather than trusted:
+`git log` is read by everyone who ever touches this repository, and a branch name shows up in every
+listing, so both follow the same rule as the code.
 
-```bash
-tools/install-hooks.sh    # once per clone
-```
-
-That points `core.hooksPath` at `tools/hooks`, and `commit-msg` rejects a message that is not
-English. Git never shares `.git/hooks`, which is why the hooks are tracked in `tools/` and why
-there is a command to opt in. CI runs the same checker on every push, so the rule holds for anyone
-who has not run it, or who reaches for `--no-verify`.
-
-**Quoting pt-BR is allowed and does not fail the check.** A commit that explains why a line of
-dialogue changed has to be able to name the line. Anything inside `` `backticks` ``, "double
-quotes" or 'single quotes' is stripped before the message is judged, including across line breaks —
-two commits already in this history do exactly that. The rule is about the sentences around the
-quotation:
+**Quoting pt-BR inside an English message is correct, not an exception.** A commit that explains why
+a line of dialogue changed has to be able to name the line. What the rule asks is that the sentences
+*around* the quotation are English:
 
 ```
 Remove "Ele foi mais educado que você." from the refusal branch      yes
-Corrige a fala do vizinho no dia 2                                   rejected
+Corrige a fala do vizinho no dia 2                                   no
 ```
 
-The checker is deliberately hard to trip by accident. It fails on a letter that does not occur in
-English prose, on a subject opening with a Portuguese verb, or on two or more unambiguously
-Portuguese words. English homographs — `no`, `do`, `todo`, `os` — are excluded on purpose: a check
-that fires on "add a todo list" is a check people learn to switch off.
-
-Run it over history at any time:
-
-```bash
-node tools/check-commit-message.mjs --range origin/main..HEAD
-```
+**None of this is enforced by a script**, deliberately. There is no commit hook and no CI check on
+language: it is a reading rule, and it holds because whoever writes — person or agent — has read
+this file. Catching it in review is enough, and a checker that judges prose would spend more of
+everyone's attention on false positives than the rule costs to follow.
 
 ## 2. Player-facing text lives in one place
 
@@ -167,7 +150,6 @@ or fails.
 **Every change is verified against a build, not against a compile.** In order, cheapest first:
 
 ```bash
-tools/install-hooks.sh            # once per clone: commit messages get checked
 tools/unity-check.sh              # compiles; 0 errors AND 0 warnings is the bar
 node tools/validate-content.mjs   # scripture integrity, locale parity, hardcoded strings
 tools/acceptance.sh               # the product rules, asserted per locale

@@ -111,8 +111,32 @@ Brainstorm ativo do time (Google Docs) tem contribuições de João, Cris, Pedro
 
 **Regras de engenharia detalhadas em [`docs/development-guidelines.md`](docs/development-guidelines.md).** O resumo:
 
-- **Código em inglês, sem exceção** — identificadores, comentários, logs, chaves de JSON, nomes de arquivo, nomes de GameObject, eventos de telemetria, mensagens de commit. Documento de engenharia em inglês; documento de produto (este, persona, design) em pt-BR.
-- **Mensagem de commit em inglês, e isso é verificado.** `tools/install-hooks.sh` uma vez por clone, e o mesmo checador roda no CI a cada push. **Citar pt-BR não quebra a regra:** o que está entre crases ou aspas é ignorado — a regra é sobre as frases em volta da citação.
+- **Tudo que um desenvolvedor lê é em inglês. Só o que o jogador lê é traduzido.** Sem exceção, e isto vale inclusive para o que não é código:
+
+  | Em inglês | |
+  |---|---|
+  | Identificadores | tipos, métodos, campos, variáveis |
+  | Comentários e XML docs | inclusive os longos, que este projeto usa bastante |
+  | Mensagens de log | `Debug.Log`, warning, error — são diagnóstico, nunca texto de jogador |
+  | Chaves de JSON | `stage_cost`, `reveal_line` |
+  | Nomes de arquivo e de pasta | `WallSystem.cs`, `wall_segments.json` |
+  | Nomes de GameObject | `"PatrolButton"`, `"HUDCanvas"` — são a alça dos testes de e2e |
+  | Eventos de telemetria e flags | `deep_read`, `watch_posted_d1` |
+  | **Mensagens de commit** | assunto e corpo |
+  | **Nomes de branch** | `add-english-locale`, nunca `adiciona-idioma` |
+  | **Títulos e descrição de PR** | |
+  | Documento de engenharia | `README.md`, `docs/architecture-contract.md`, `docs/handoff.md`, `tools/README.md` |
+
+  Duas coisas continuam em pt-BR de propósito, e as duas são sobre público: **o conteúdo** (pt-BR é a língua de autoria) e **o documento de produto** — este arquivo, persona, design, escopo. A linha cai onde o leitor muda: documento sobre *como o código funciona* é inglês, documento sobre *o que o jogo é* é pt-BR.
+
+- **Citar pt-BR dentro de um texto em inglês é correto, não exceção.** Um commit que explica por que uma fala mudou precisa poder nomear a fala. O que se pede é que as frases *em volta* da citação sejam inglês:
+
+  ```
+  Remove "Ele foi mais educado que você." from the refusal branch      certo
+  Corrige a fala do vizinho no dia 2                                   errado
+  ```
+
+- **Nada disso é verificado por script.** Não há hook nem CI para língua de commit: é regra de leitura, e vale porque quem escreve — pessoa ou agente — leu isto aqui. Rever numa code review é o suficiente.
 - **Nenhuma string que o jogador lê mora em `.cs`.** Toda ela vive em `Assets/Resources/Data/locales/<locale>/` e é lida por `Loc.T("chave")`. O validador quebra a build se um literal chegar à tela.
 - **O jogo é bilíngue: pt-BR e en.** `pt-BR` é a língua de autoria; as outras são tradução dela. Estrutura e números têm **uma cópia só**, compartilhada — só as palavras se duplicam por idioma, para que balanceamento não possa divergir entre línguas.
 - Referências bíblicas no formato **`LIVRO.CAP.VERS`** (`NEH.4.17`, `JHN.21.6`), sempre em código e em spec.

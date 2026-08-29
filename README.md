@@ -43,11 +43,18 @@ open Builds/mac/SheepGate.app
 Reset a playtest — the save is meant to survive restarts, so clear it deliberately:
 
 ```bash
-rm -rf ~/Library/Application\ Support/Create\ Hack
+rm -rf ~/Library/Application\ Support/com.Create-Hack.Porta-das-Ovelhas   # player build
+rm -rf ~/Library/Application\ Support/Create\ Hack                        # editor Play mode
 ```
 
-Telemetry, including `deep_read`, is appended to
-`~/Library/Application Support/Create Hack/Porta das Ovelhas/telemetry.jsonl`.
+**Both paths, because `Application.persistentDataPath` is not the same in the two.** A player
+build resolves it from the bundle identifier; the editor resolves it from company and product
+name. Clearing only one leaves the other's save behind, and the game resumes a run you thought
+you had deleted. Boot logs the resolved paths for exactly this reason — read
+`[Boot] Save ->` in the log rather than guessing.
+
+Telemetry, including `deep_read` and `unprompted_read`, is appended to `telemetry.jsonl`
+alongside the save, in whichever of those two roots the run actually used.
 
 ## The scripture pipeline
 

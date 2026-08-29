@@ -9,6 +9,9 @@ Everything else is a means. The event that answers it is `deep_read`.
 Product context and the non-negotiable rules live in [`AGENTS.md`](AGENTS.md). The implementation
 spec is [`POC-IMPLEMENTATION.md`](POC-IMPLEMENTATION.md).
 
+**Picking this up fresh? Read [`docs/handoff.md`](docs/handoff.md) first** — it covers what is
+finished, what is not, and the things that cost real time to learn the hard way.
+
 ## Requirements
 
 - **Unity 6000.3.23f1** (changeset `09d2ecc7fb28`)

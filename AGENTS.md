@@ -29,7 +29,10 @@ Corolário prático: **nunca mande a leitura para fora do app.** Deep link para 
 1. **O LLM nunca escreve Escritura.** O modelo escolhe a *referência*; o texto literal é buscado por essa referência. Elimina alucinação de versículo por construção, não por prompt.
 2. **Nem código, nem spec, nem prompt contém versículo escrito à mão.** O que circula é `NEH.4.6`. Verificável por grep, e é critério de aceite.
 3. **Deus nunca fala em texto gerado.** Nada de colocar palavras na boca de Deus, de Jesus ou do Espírito Santo.
-4. **Figura canônica só diz o que está atestado.** Personagem nomeado no texto mas *sem fala registrada* (os 40+ construtores de Neemias 3) pode receber diálogo autoral — a Bíblia os nomeia e não os cita. Personagem inventado fala à vontade.
+4. **Figura canônica pode falar; o que ela afirma é que não pode extrapolar o texto.** Personagem nomeado no texto mas *sem fala registrada* (os 40+ construtores de Neemias 3) fala à vontade — a Bíblia os nomeia e não os cita. Personagem inventado, idem. E **figura com fala registrada também pode receber diálogo autoral**, desde que ele não afirme nada que a passagem não sustente: sem evento novo, sem motivo novo, sem tese teológica nova. O modelo é *The Chosen* — fala atestada preservada, lacuna preenchida com ficção que não contradiz.
+    - **Citação continua sendo só referência.** Uma linha tem `text` **ou** `verse`, nunca os dois; o texto de uma citação é resolvido de `verses.json`. Diálogo autoral preenche a lacuna *em volta* da fala registrada, nunca a reescreve com outras palavras. O validador quebra a build em qualquer sequência de 8+ palavras compartilhada com a Escritura, e é isso que impede paráfrase de entrar de fininho.
+    - **Isso é julgamento, não checagem.** Nenhum script decide se uma fala autoral extrapola. Os nós onde isso se aplica são marcados com `canonical_speaker` e `needs_curation` em `dialogue.json`, e `node tools/list-curation.mjs` imprime a fila para leitura humana contra o texto. Nada com fala autoral de figura canônica chega ao jogador sem essa passagem.
+    - A regra 3 continua intacta e sem exceção: **Deus, Jesus e o Espírito Santo nunca falam em texto gerado.**
 5. **Sem viés denominacional.** Onde há divergência de leitura, mostrar as leituras.
 6. **Validador de duas camadas.** Determinística: a referência existe? o trecho bate caractere a caractere? há termo do checklist do cheiro? Por modelo: o texto afirma algo que a passagem não sustenta? Conteúdo sem validação não chega ao jogador.
 
@@ -43,7 +46,10 @@ Corolário prático: **nunca mande a leitura para fora do app.** Deep link para 
 
 ### Discrição
 
-12. **Não anunciar não é esconder.** A referência está visível desde o primeiro minuto, no rodapé do card, no mesmo corpo de qualquer outro metadado. Quem quiser saber, sabe. Adiar um nome é legítimo (um pedreiro não sabe quem é o homem que veio da capital); **trocar ou remover um nome não é**.
+12. **Não anunciar não é esconder.** Adiar um nome é legítimo (um pedreiro não sabe quem é o homem que veio da capital); **trocar ou remover um nome não é**.
+    - **A citação pode ser adiada; o acesso, nunca.** O rodapé com `ref_display` fica oculto até a revelação — quem não sabe que aquilo é Escritura lê a citação como o que ela é na ficção, e chapter-and-verse responderia uma pergunta que ninguém fez. Mas o botão **Saber mais** existe em toda citação desde o primeiro minuto, e abre o capítulo com nome e numeração completos. O jogador curioso está sempre a um toque da resposta inteira. `ScriptureVisibility` implementa isso, e a revelação é de mão única: um jogo que mostrasse referências e parasse leria como ocultação.
+    - **Adiar é da ficção, não do produto.** *The Chosen* é abertamente bíblico na embalagem e adia só a revelação interna à narrativa. Loja, título e códex são honestos sobre o que isto é. A versão que trai o jogador é a que esconde no produto.
+    - **Custo aceito conscientemente:** enquanto a referência não aparece, `deep_read` mede menos gente. O sinal que importa — `unprompted_read` — é justamente o de quem abre sem o jogo pedir.
 13. **Checklist do cheiro — o que nunca entra.**
     - *Palavras:* bênção, propósito, jornada de fé, devocional, versículo do dia, testemunho, "Deus tem um plano".
     - *Arte:* luz dourada, pomba, cruz, mãos em oração, túnica, sandália.

@@ -142,6 +142,26 @@ namespace SheepGate.World
                 : new Vector3(cell.x + 0.5f, cell.y + 0.5f, 0f);
         }
 
+        /// <summary>Raises the sprite a little, for standing on something.</summary>
+        public void LiftBy(float worldY)
+        {
+            Vector3 position = transform.position;
+            transform.position = new Vector3(position.x, position.y + worldY, position.z);
+        }
+
+        /// <summary>
+        /// Leaves this person in the village once the cutscene is done, answering the given dialogue
+        /// node when tapped. The actor stops being cutscene-only and becomes scenery that talks.
+        /// </summary>
+        public StandingNpc PersistAs(TilemapBuilder map, string nodeId, string displayName)
+        {
+            SetVisible(true);
+            Vector2Int cell = map != null
+                ? map.WorldToCell(transform.position)
+                : new Vector2Int(Mathf.RoundToInt(transform.position.x), Mathf.RoundToInt(transform.position.y));
+            return StandingNpc.AttachTo(gameObject, map, cell, nodeId, displayName);
+        }
+
         public void Despawn()
         {
             if (this != null && gameObject != null)

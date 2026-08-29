@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using SheepGate.Art;
 using SheepGate.Core;
 using SheepGate.Dialogue;
 using SheepGate.Player;
@@ -62,6 +63,9 @@ namespace SheepGate.World
         PlayerController _player;
         DialogueSystem _dialogue;
         WorldMapOverlay _worldMap;
+        readonly List<CutsceneActor> _crowd = new List<CutsceneActor>();
+        readonly List<Vector2Int> _crowdSpots = new List<Vector2Int>();
+        GameObject _stone;
         CutsceneActor _neighbour;
         CutsceneActor _governor;
         Image _fade;
@@ -196,26 +200,34 @@ namespace SheepGate.World
 
             // --- 5. The gathering ------------------------------------------------------------
             Vector2Int plaza = CellFrom(GameData.Map != null ? GameData.Map.plaza : null, new Vector2Int(19, 13));
-            // He said "vem", so again he goes first and you fall in behind him.
+
+            // He is already up on the stone when the square fills. The crowd forms an arc facing
+            // him, and everyone keeps facing him for the whole speech.
+            BuildGathering(plaza);
+
+            // The neighbour takes his place in the crowd and the player stops beside him, not on
+            // top of him: you arrive with the person who brought you.
+            Vector2Int neighbourSpot = _crowdSpots.Count > 0 ? _crowdSpots[0] : FindOpenCellNear(plaza, 3);
+            Vector2Int playerSpot = FindOpenCellNear(neighbourSpot, 1);
+
             if (_neighbour != null)
             {
-                List<Vector2Int> route = PathForPlayer(plaza);
+                List<Vector2Int> route = PathForNeighbour(neighbourSpot);
                 float speed = _player != null ? _player.MoveSpeed : CutsceneActor.WalkSpeed;
                 StartCoroutine(route != null && route.Count > 0
                     ? _neighbour.WalkPath(route, speed)
-                    : _neighbour.WalkToCell(FindOpenCellNear(plaza, 2), speed));
+                    : _neighbour.WalkToCell(neighbourSpot, speed));
                 yield return new WaitForSeconds(FollowDelay);
             }
 
-            yield return WalkTo(plaza);
+            yield return WalkTo(playerSpot);
 
-            // The man from the capital, never named. He is already up on the stone when you arrive.
-            Vector2Int stone = FindOpenCellNear(plaza, 3);
-            _governor = CutsceneActor.Spawn("ManFromTheCapital", stone, _map, transform, 0,
-                new Color(0.52f, 0.48f, 0.52f, 1f));
-            _governor.FaceTowards(_player.transform.position);
+            if (_neighbour != null)
+            {
+                _neighbour.FaceTowards(_governor.transform.position);
+            }
+
             FacePlayerTowards(_governor.transform.position);
-
             yield return new WaitForSeconds(BeatPause);
             yield return PlayNode(NodeGathering);
 
@@ -227,8 +239,9 @@ namespace SheepGate.World
                 WorldRuntime.SaveNow();
             }
 
-            if (_neighbour != null) _neighbour.Despawn();
-            if (_governor != null) _governor.Despawn();
+            // Nobody vanishes. The gathering was the whole village turning up; a square that
+            // empties the instant the speech ends would undo it. They stay, and they answer.
+            PersistGathering();
 
             SetHudVisible(true);
             _player.InputEnabled = true;
@@ -340,6 +353,125 @@ namespace SheepGate.World
                 Debug.LogWarning("[World] Could not path the escort: " + exception.Message);
                 return null;
             }
+        }
+
+
+        // ---------------------------------------------------------------- the gathering
+
+        /// <summary>How many people turn up besides you and the neighbour.</summary>
+        const int CrowdSize = 11;
+
+        /// <summary>
+        /// Puts the man on a stone at the middle of the square and arranges everyone else in an arc
+        /// in front of him, all facing him. The arc is built outward from the stone so the player,
+        /// arriving last, is at the back of a crowd rather than in the middle of an empty square.
+        /// </summary>
+        void BuildGathering(Vector2Int plaza)
+        {
+            _governor = CutsceneActor.Spawn("ManFromTheCapital", plaza, _map, transform, 0,
+                new Color(0.55f, 0.50f, 0.53f, 1f));
+            _governor.LiftBy(0.34f);        // standing on the stone, not beside it
+            BuildStone(plaza);
+
+            var palettes = new[]
+            {
+                new Color(0.68f, 0.57f, 0.46f, 1f), new Color(0.56f, 0.49f, 0.42f, 1f),
+                new Color(0.47f, 0.53f, 0.55f, 1f), new Color(0.64f, 0.56f, 0.43f, 1f),
+                new Color(0.51f, 0.45f, 0.49f, 1f), new Color(0.60f, 0.53f, 0.47f, 1f)
+            };
+
+            var taken = new HashSet<Vector2Int> { plaza };
+            int placed = 0;
+
+            // Rings outward from the stone, so the front row fills before the back.
+            for (int radius = 2; radius <= 5 && placed < CrowdSize; radius++)
+            {
+                int steps = Mathf.Max(8, radius * 6);
+                for (int i = 0; i < steps && placed < CrowdSize; i++)
+                {
+                    float angle = (i / (float)steps) * Mathf.PI * 2f;
+                    var cell = new Vector2Int(
+                        plaza.x + Mathf.RoundToInt(Mathf.Cos(angle) * radius),
+                        plaza.y + Mathf.RoundToInt(Mathf.Sin(angle) * radius));
+
+                    if (taken.Contains(cell) || !_map.InBounds(cell.x, cell.y) || !_map.IsWalkable(cell.x, cell.y))
+                    {
+                        continue;
+                    }
+
+                    taken.Add(cell);
+                    _crowdSpots.Add(cell);
+
+                    CutsceneActor person = CutsceneActor.Spawn("Gathered" + placed, cell, _map, transform,
+                        placed % 2, palettes[placed % palettes.Length]);
+                    person.FaceTowards(_governor.transform.position);
+                    _crowd.Add(person);
+                    placed++;
+                }
+            }
+
+            _governor.FaceTowards(_map.CellToWorldCenter(plaza + new Vector2Int(0, -3)));
+        }
+
+        /// <summary>The stone he stands on. Drawn from the rubble tile, which is what it is.</summary>
+        void BuildStone(Vector2Int plaza)
+        {
+            _stone = new GameObject("Stone");
+            _stone.transform.SetParent(transform, false);
+            _stone.transform.position = _map.CellToWorldCenter(plaza);
+
+            SpriteRenderer renderer = _stone.AddComponent<SpriteRenderer>();
+            renderer.sprite = ArtLibrary.Get(ArtKeys.TileRubble);
+            renderer.color = new Color(0.60f, 0.57f, 0.50f, 1f);
+            renderer.sortingOrder = 118;                 // under the man, over the ground
+            _stone.transform.localScale = new Vector3(1.35f, 0.85f, 1f);
+        }
+
+        /// <summary>Route for the neighbour, found from where he is rather than from the player.</summary>
+        List<Vector2Int> PathForNeighbour(Vector2Int destination)
+        {
+            if (_neighbour == null || _player == null || _player.Pathfinder == null || _map == null)
+            {
+                return null;
+            }
+
+            try
+            {
+                Vector2Int from = _map.WorldToCell(_neighbour.transform.position);
+                return _player.Pathfinder.FindPath(from, destination);
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning("[World] Could not path the neighbour to the gathering: " + exception.Message);
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Hands the cutscene's people over to the village. They keep standing where they stood and
+        /// answer when tapped, so the square the speech filled stays full.
+        /// </summary>
+        void PersistGathering()
+        {
+            if (_neighbour != null)
+            {
+                _neighbour.PersistAs(_map, "vizinho_after", "Vizinho");
+            }
+
+            if (_governor != null)
+            {
+                _governor.PersistAs(_map, "governador_after", "O homem da capital");
+            }
+
+            for (int i = 0; i < _crowd.Count; i++)
+            {
+                if (_crowd[i] != null)
+                {
+                    _crowd[i].PersistAs(_map, "multidao_after", "Alguém da obra");
+                }
+            }
+
+            _crowd.Clear();
         }
 
         // ---------------------------------------------------------------- beats

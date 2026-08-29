@@ -76,11 +76,17 @@
         "text": "O homem da capital subiu numa pedra para todo mundo ver. Esperou o barulho baixar."
       },
       {
-        "frame": "Aí ele falou, e falou como quem já tinha contado as pedras uma por uma:",
+        "text": "— Alguns de vocês chegaram esta semana. Outros nasceram aqui e viram isso cair."
+      },
+      {
+        "text": "— Andei a noite toda em volta desta cidade antes de falar com qualquer um. Eu sei o tamanho do que estou pedindo."
+      },
+      {
+        "frame": "Aí ele disse, e disse como quem já tinha contado as pedras uma por uma:",
         "verse": "NEH.2.17"
       },
       {
-        "frame": "Contou também o que tinha conseguido na viagem, e o que o povo respondeu:",
+        "frame": "Contou o que tinha conseguido na viagem, e o que o povo respondeu:",
         "verse": "NEH.2.18"
       },
       {
@@ -91,10 +97,10 @@
         "verse": "NEH.1.11"
       },
       {
-        "text": "Quando levantou a cabeça, não pediu voluntário nem fez votação."
+        "text": "— Cada um pega o trecho mais perto da própria casa. Ninguém vai carregar pedra para um muro que não protege a sua porta."
       },
       {
-        "text": "Disse para cada um pegar o trecho mais perto da própria casa, catar pedra do entulho e começar hoje."
+        "text": "— A pedra está no entulho. É a mesma que caiu. Comecem hoje."
       },
       {
         "text": "E foi isso. Ninguém bateu palma. As pessoas só foram."
@@ -628,5 +634,38 @@
       "vocation": {}
     },
     "reliable": true
+  },
+  "vizinho_after": {
+    "npc": "vizinho",
+    "day": 0,
+    "lines": [
+      {
+        "text": "Eu fico por aqui. Alguém tem que dizer onde é a pedreira quando você perguntar."
+      },
+      {
+        "text": "Pega o entulho primeiro. Sem pedra, o resto é conversa."
+      }
+    ]
+  },
+  "multidao_after": {
+    "npc": "multidao",
+    "day": 0,
+    "lines": [
+      {
+        "text": "Todo mundo pegou um trecho. Eu peguei o da frente da minha casa, como ele mandou."
+      }
+    ]
+  },
+  "governador_after": {
+    "npc": "narrator",
+    "day": 0,
+    "lines": [
+      {
+        "text": "Ele continua na pedra. Responde um de cada vez, sem levantar a voz, e aponta para trechos diferentes do muro."
+      },
+      {
+        "text": "Ninguém te apresentou a ele e você não vai conseguir chegar perto agora."
+      }
+    ]
   }
 }

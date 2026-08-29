@@ -5,6 +5,7 @@ using System.IO;
 using System.Text;
 using SheepGate.Core;
 using SheepGate.Dialogue;
+using SheepGate.Scripture;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -66,6 +67,10 @@ namespace SheepGate.E2E
             // from a terminal that keeps it. Without this, the first WaitForEndOfFrame never
             // returns and the run hangs before its first screenshot.
             Application.runInBackground = true;
+
+            // -data-path does not cover PlayerPrefs, and this run taps the language toggle. Without
+            // this the run would change the language a person gets on their next launch.
+            Locales.SuppressPersistence = true;
 
             var host = new GameObject("E2ERunner");
             DontDestroyOnLoad(host);
@@ -136,6 +141,60 @@ namespace SheepGate.E2E
             CheckHud();
 
             // 5. The whole-screen sweep. Cheap, and it catches every missing string at once.
+            CheckNoMissingStrings();
+
+            // 6. The toggle, in the authoring locale's run only — one pass is enough to prove the
+            // path, and it is the only thing here that exercises a language change at runtime
+            // rather than a language pinned at boot. Everything else in this file would pass on a
+            // build whose toggle did nothing at all, which is exactly what it once did.
+            if (Locales.Active == Locales.Source)
+            {
+                yield return SwitchLanguageAndVerify();
+            }
+        }
+
+        /// <summary>
+        /// Taps the other language and proves the words actually changed.
+        ///
+        /// Reloading the scene is not what changes the language: Loc, GameData and ScriptureService
+        /// are statics that outlive a scene load, and only the Boot scene re-runs the boot sequence.
+        /// So this asserts on the loaded tables AND on a label read off the screen afterwards —
+        /// the first would catch the content failing to reload, the second catches the screen
+        /// failing to rebuild with it.
+        /// </summary>
+        IEnumerator SwitchLanguageAndVerify()
+        {
+            string target = Locales.Next(Locales.Active);
+            string before = TextOf("Day");
+
+            yield return Tap("Locale_" + target, "the " + target + " language chip");
+
+            float deadline = Time.realtimeSinceStartup + StepTimeoutSeconds;
+            while (Loc.LoadedLocale != target && Time.realtimeSinceStartup < deadline)
+            {
+                yield return null;
+            }
+
+            Record("switching to " + target + " reloads the strings", Loc.LoadedLocale == target,
+                "Loc is on " + Loc.LoadedLocale);
+            Record("switching to " + target + " reloads the content", GameData.LoadedLocale == target,
+                "GameData is on " + GameData.LoadedLocale);
+            Record("switching to " + target + " reloads the scripture",
+                ScriptureService.LoadedLocale == target,
+                "ScriptureService is on " + ScriptureService.LoadedLocale);
+
+            // The scene restarts the opening, so getting back to the HUD is the way to read a
+            // label that the switch was supposed to change.
+            yield return AdvanceDialogueUntil(IsHudVisible, "the HUD again after switching");
+            yield return Capture("04-switched");
+
+            string after = TextOf("Day");
+            Record("the screen rebuilt in " + target,
+                !string.IsNullOrEmpty(after) && after != before,
+                "was \"" + (before ?? "nothing") + "\", now \"" + (after ?? "nothing") + "\"");
+            Record("the label matches the new table", after == Loc.T("hud.day", 1),
+                "expected \"" + Loc.T("hud.day", 1) + "\", found \"" + (after ?? "nothing") + "\"");
+
             CheckNoMissingStrings();
         }
 

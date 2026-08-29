@@ -73,6 +73,16 @@ The e2e run was written as part of that pass and immediately found things nothin
   underneath it — 40 + 96 in a row 118 tall. Pre-existing in both languages and worse in English,
   where the words are longer. Fixed by shortening the chips to 74.
 
+And one that nothing else could have found, because it is the feature the whole pass was named
+after: **the language toggle changed the label and not the language.** `SwitchLocale` set
+`Locales.Active`, persisted it and reloaded the scene — and reloading the scene is not what changes
+the language. Only the Boot scene runs `BootSequence.Run`; `GameBootstrap` just calls
+`GameScene.Compose()`. `Loc`, `GameData` and `ScriptureService` are statics that outlive a scene
+load, so the village rebuilt in the old words while the toggle lit up the new language, and the
+persisted preference meant the *next* launch was the one that actually switched. Correct code
+(`ApplyLocale`) that nothing on that path called — the same shape as `MoraleContest.Begin()`.
+`SwitchLocale` now calls it, and the e2e run taps a chip and reads a label back to prove it.
+
 Still open:
 
 - **`tools/e2e.sh` stops at the HUD.** It plays the opening through character creation and into
@@ -123,6 +133,12 @@ existing save now, but it did destroy a live playtest before that was added. Do 
 **So does the e2e runner, which is why `-data-path` exists.** `AppPaths.DataRoot` redirects the save
 and the telemetry somewhere disposable, and `tools/e2e.sh` always passes it. Never launch a player
 with `-e2e` and no `-data-path`.
+
+**`PlayerPrefs` is not covered by `-data-path`.** The language choice is stored there, deliberately —
+it has to be resolvable before a `GameState` exists, and deleting a run is not a request to be
+spoken to in another language. But it means an automated run that taps the toggle would change what
+the person at that machine gets on their next launch. `E2ERunner` sets
+`Locales.SuppressPersistence` before anything can switch.
 
 **A macOS player stops rendering when its window loses focus.** The e2e run is launched from a
 terminal that keeps focus, so the first `WaitForEndOfFrame` never returned and the run hung before

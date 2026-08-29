@@ -108,6 +108,13 @@ namespace SheepGate.Core
             });
             Telemetry.Flush();
 
+            // Reloading the scene is NOT enough on its own. Only the Boot scene runs Run(); the
+            // Game scene's bootstrap just composes, and Loc, GameData and ScriptureService are
+            // statics that survive a scene load with the previous language still in them. Without
+            // this call the scene rebuilds in the old words while Locales.Active reports the new
+            // one, so the toggle lights up and nothing else changes.
+            ApplyLocale(canonical);
+
             Debug.Log("[Boot] Locale -> " + canonical + "; reloading the scene.");
             SceneManager.LoadScene(SceneManager.GetActiveScene().name);
         }

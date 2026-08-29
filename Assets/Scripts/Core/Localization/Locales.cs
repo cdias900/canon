@@ -34,6 +34,15 @@ namespace SheepGate.Core
         static string _active;
 
         /// <summary>
+        /// Stops the chosen language being written to PlayerPrefs.
+        ///
+        /// PlayerPrefs is not covered by -data-path, so an automated run that taps the toggle
+        /// would change the language the person at this machine gets on their next launch. The
+        /// e2e runner sets this before anything can switch.
+        /// </summary>
+        public static bool SuppressPersistence { get; set; }
+
+        /// <summary>
         /// The locale in force. Resolved on first access from the command line, then the stored
         /// preference, then the system language. Never null and never unsupported.
         /// </summary>
@@ -128,7 +137,7 @@ namespace SheepGate.Core
 
             _active = canonical;
 
-            if (persist)
+            if (persist && !SuppressPersistence)
             {
                 PlayerPrefs.SetString(PrefKey, canonical);
                 PlayerPrefs.Save();

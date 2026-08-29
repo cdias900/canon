@@ -145,3 +145,32 @@ never become a way to spill licensed text into a log.
 | `YouVersion rejected the app key (HTTP 401)` | Wrong key, or the key does not enable that version id. |
 | `Verse X came back without usable text` | The API item shape changed. The error lists the field names it did receive; adjust `extractReference` / `extractText` in `fetch-verses.mjs`. |
 | Game shows the unavailable marker on every line | A placeholder build, or `verses.json` is missing from `Assets/Resources/Data/`. |
+
+## The curation queue
+
+A canonical figure — someone the text records speaking — may be given authored dialogue, provided
+it asserts nothing the passage does not. That is a judgement, and no script can make it, so the
+nodes where it applies are marked instead of checked:
+
+```json
+"intro_gathering": {
+  "npc": "governador",
+  "canonical_speaker": true,
+  "needs_curation": true,
+  ...
+}
+```
+
+List everything awaiting a human read:
+
+```bash
+node tools/list-curation.mjs
+```
+
+Two rules still hold mechanically and are not a matter of judgement:
+
+- **Quotation stays reference-only.** A line carries `verse` or `text`, never both, and the text of
+  a quotation is resolved from `verses.json` at runtime. Authored dialogue fills the gaps *around*
+  recorded speech; it never restates it in other words. `validate-content.mjs` fails the build on
+  any 8+ word run shared with the scripture text, which is what stops a paraphrase drifting in.
+- **God, Jesus and the Holy Spirit never speak in generated text.** No flag, no exception.

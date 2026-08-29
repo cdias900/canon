@@ -105,7 +105,9 @@
       {
         "text": "E foi isso. Ninguém bateu palma. As pessoas só foram."
       }
-    ]
+    ],
+    "canonical_speaker": true,
+    "needs_curation": true
   },
   "hananias_d1": {
     "npc": "hananias",

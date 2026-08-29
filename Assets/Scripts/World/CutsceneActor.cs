@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using SheepGate.Art;
 using SheepGate.Core;
 using SheepGate.Player;
@@ -87,6 +88,31 @@ namespace SheepGate.World
                 ? _map.CellToWorldCenter(cell)
                 : new Vector3(cell.x + 0.5f, cell.y + 0.5f, 0f);
             yield return WalkTo(target, speed);
+        }
+
+        /// <summary>
+        /// Walks a list of cells in order. The opening uses this to put an actor on exactly the
+        /// route the player is about to take: walking a straight line to the same destination looks
+        /// nothing like being led, because the two figures diverge the moment anything is in the way.
+        /// </summary>
+        public IEnumerator WalkPath(IList<Vector2Int> path, float speed = WalkSpeed)
+        {
+            if (path == null)
+            {
+                yield break;
+            }
+
+            for (int i = 0; i < path.Count; i++)
+            {
+                yield return WalkTo(CellToWorld(path[i]), speed);
+            }
+        }
+
+        Vector3 CellToWorld(Vector2Int cell)
+        {
+            return _map != null
+                ? _map.CellToWorldCenter(cell)
+                : new Vector3(cell.x + 0.5f, cell.y + 0.5f, 0f);
         }
 
         /// <summary>Turns to look at something without moving.</summary>

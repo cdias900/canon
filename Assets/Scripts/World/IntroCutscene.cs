@@ -45,11 +45,12 @@ namespace SheepGate.World
         const float FadeSeconds = 0.45f;
         const float BeatPause = 0.35f;
 
-        /// <summary>How long after he sets off before you follow. Long enough to read as following.</summary>
-        const float FollowDelay = 0.3f;
-
-        /// <summary>He walks a little quicker than you, so he stays ahead the whole way.</summary>
-        const float LeadWalkSpeed = 3.9f;
+        /// <summary>
+        /// How long after he sets off before you follow. Deliberately tiny: he is guiding you, not
+        /// going on ahead. He walks at the player's own speed on the player's own path, so this
+        /// delay is the entire gap between you and it stays constant the whole way.
+        /// </summary>
+        const float FollowDelay = 0.1f;
 
         /// <summary>How far out the camera sits while the world map is on screen.</summary>
         const float WorldSize = 34f;
@@ -155,7 +156,8 @@ namespace SheepGate.World
             bool neighbourInside = false;
             if (_neighbour != null)
             {
-                StartCoroutine(LeadToDoor(door, () => neighbourInside = true));
+                // Both of you walk the identical route, found once from where the player stands.
+                StartCoroutine(LeadToDoor(door, PathForPlayer(door), () => neighbourInside = true));
                 yield return new WaitForSeconds(FollowDelay);
             }
 
@@ -197,7 +199,11 @@ namespace SheepGate.World
             // He said "vem", so again he goes first and you fall in behind him.
             if (_neighbour != null)
             {
-                StartCoroutine(_neighbour.WalkToCell(FindOpenCellNear(plaza, 2), LeadWalkSpeed));
+                List<Vector2Int> route = PathForPlayer(plaza);
+                float speed = _player != null ? _player.MoveSpeed : CutsceneActor.WalkSpeed;
+                StartCoroutine(route != null && route.Count > 0
+                    ? _neighbour.WalkPath(route, speed)
+                    : _neighbour.WalkToCell(FindOpenCellNear(plaza, 2), speed));
                 yield return new WaitForSeconds(FollowDelay);
             }
 
@@ -294,13 +300,45 @@ namespace SheepGate.World
         /// Walks the neighbour to his door and puts him through it. Run alongside the player's own
         /// walk rather than before it, so the two of you cross the village together.
         /// </summary>
-        IEnumerator LeadToDoor(Vector2Int door, Action onInside)
+        IEnumerator LeadToDoor(Vector2Int door, List<Vector2Int> path, Action onInside)
         {
-            yield return _neighbour.WalkToCell(door, LeadWalkSpeed);
+            float speed = _player != null ? _player.MoveSpeed : CutsceneActor.WalkSpeed;
+
+            if (path != null && path.Count > 0)
+            {
+                yield return _neighbour.WalkPath(path, speed);
+            }
+            else
+            {
+                yield return _neighbour.WalkToCell(door, speed);
+            }
+
             _neighbour.SetVisible(false);
             if (onInside != null)
             {
                 onInside();
+            }
+        }
+
+        /// <summary>
+        /// The route the player is about to walk, so an escort can be put on the same one. Returns
+        /// null when no path exists, and the caller falls back to walking straight there.
+        /// </summary>
+        List<Vector2Int> PathForPlayer(Vector2Int destination)
+        {
+            if (_player == null || _player.Pathfinder == null)
+            {
+                return null;
+            }
+
+            try
+            {
+                return _player.Pathfinder.FindPath(_player.GridPosition, destination);
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning("[World] Could not path the escort: " + exception.Message);
+                return null;
             }
         }
 

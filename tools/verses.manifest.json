@@ -1,9 +1,19 @@
 {
-  "version_id": "3254",
-  "_version_note": "3254 = BLT (Biblia Livre Para Todos), CC BY-SA 4.0. The only Portuguese version this app key entitles. NVI (129) and NIV (111) both return HTTP 403 for this key. Swap this id once NVI access is granted; nothing else changes.",
+  "version_id": "129",
+  "_version_note": "129 = NVI (Nova Versao Internacional, Biblica Inc.), granted through the account's Bible licence. Note the /bibles?language_ranges[] listing does NOT report 129 for pt even when access works - direct passage access is the authority, not the listing.",
   "verses": [
-    "NEH.2.17", "NEH.2.18", "NEH.3.1", "NEH.4.2", "NEH.4.6",
-    "NEH.4.9", "NEH.4.17", "NEH.6.3", "JHN.21.6", "1CO.13.13"
+    "NEH.2.17",
+    "NEH.2.18",
+    "NEH.3.1",
+    "NEH.4.2",
+    "NEH.4.6",
+    "NEH.4.9",
+    "NEH.4.17",
+    "NEH.6.3",
+    "JHN.21.6",
+    "1CO.13.13"
   ],
-  "chapters": ["NEH.4"]
+  "chapters": [
+    "NEH.4"
+  ]
 }

@@ -49,3 +49,34 @@ YouVersion) is not forced here. Attribution and share-alike still must be carrie
 **Open:** whether BLT is the right *reading level and register* for the audience is a product
 question, not a licence one, and has not been decided. Swapping it later is a one-line change to
 `tools/verses.manifest.json`.
+
+
+## Update — NVI access granted
+
+`version_id` is now **129 (NVI, Nova Versão Internacional)**, in Portuguese, which is what the
+game ships against. All ten manifest references plus the whole of NEH.4 resolve under it.
+
+Two things worth knowing, both learned the hard way:
+
+1. **The listing endpoint lies by omission.** `GET /bibles?language_ranges[]=pt` still returns only
+   BLT, even while `GET /bibles/129/passages/NEH.4.6` returns 200. Direct passage access is the
+   authority on entitlement; never gate on the listing.
+2. **Entitlement propagation is not instant.** 129 returned `403 Access denied` for a while after
+   the licence was accepted, then began serving without any change on our side. A 403 here is not
+   necessarily permanent — retry before concluding a version is unavailable.
+
+### The licence obligation changed with the translation
+
+BLT was CC BY-SA. **NVI is all-rights-reserved:**
+
+> Bíblia Sagrada, Nova Versão Internacional®, NVI® © 1993, 2000, 2011, 2023 por Biblica, Inc.
+> Usado com permissão. Todos os direitos reservados mundialmente.
+
+Consequences for the build:
+
+- The copyright string ships in `verses.json` and **must be displayed in-game**. This is now a
+  contractual requirement, not a courtesy.
+- The "can we store the text?" question is answered by the YouVersion licence agreement, not by an
+  open licence. Re-read the accepted terms before caching text anywhere beyond the built app.
+- The dual-corpus design in `CLAUDE.md` regains its point: embeddings should run over a
+  public-domain text that returns only *references*, with NVI used for display only.

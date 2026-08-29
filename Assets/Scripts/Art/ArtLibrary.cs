@@ -181,6 +181,9 @@ namespace SheepGate.Art
             if (ArtKeys.TryParsePart(key, ArtKeys.AccessoryPrefix, CharacterArt.AccessoryVariants, out variant, out facing, out anim, out frame))
                 return Character(key, CharacterArt.Accessory(variant, facing));
 
+            if (ArtKeys.TryParsePart(key, ArtKeys.HairPrefix, CharacterArt.HairVariants, out variant, out facing, out anim, out frame))
+                return Character(key, CharacterArt.Hair(variant, facing));
+
             Warn(key, "unknown art key");
             return Fallback();
         }

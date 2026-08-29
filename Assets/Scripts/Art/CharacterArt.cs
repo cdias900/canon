@@ -40,7 +40,14 @@ namespace SheepGate.Art
         public const int Width = 32;
         public const int Height = 48;
 
-        public const int BodyVariants = 2;
+        /// <summary>
+        /// Build times skin tone. The two are packed into one variant because they share a sprite:
+        /// variant / SkinCount is the build, variant % SkinCount is the tone.
+        /// </summary>
+        public const int BodyVariants = 8;
+
+        public const int SkinCount = 4;
+        public const int HairVariants = 4;
         public const int TopVariants = 4;
         public const int LegsVariants = 4;
         public const int AccessoryVariants = 4;
@@ -64,15 +71,16 @@ namespace SheepGate.Art
             variant = Mathf.Clamp(variant, 0, BodyVariants - 1);
             frame = Mathf.Clamp(frame, 0, 1);
 
+            int build = variant / SkinCount;
+            ArtPalette.SkinTone tone = ArtPalette.SkinTones[variant % SkinCount];
+
             bool mirrored = facing == ArtFacing.Left;
             ArtFacing drawn = mirrored ? ArtFacing.Right : facing;
 
-            Color32 skin = variant == 0 ? ArtPalette.SkinABase : ArtPalette.SkinBBase;
-            Color32 skinLight = variant == 0 ? ArtPalette.SkinALight : ArtPalette.SkinBLight;
-            Color32 skinShade = variant == 0 ? ArtPalette.SkinAShade : ArtPalette.SkinBShade;
-            Color32 skinDeep = variant == 0 ? ArtPalette.SkinADeep : ArtPalette.SkinBDeep;
-            Color32 hair = variant == 0 ? ArtPalette.HairA : ArtPalette.HairB;
-            Color32 hairShade = variant == 0 ? ArtPalette.HairAShade : ArtPalette.HairBShade;
+            Color32 skin = tone.Base;
+            Color32 skinLight = tone.Light;
+            Color32 skinShade = tone.Shade;
+            Color32 skinDeep = tone.Deep;
 
             PixelCanvas canvas = new PixelCanvas(Width, Height);
 
@@ -106,7 +114,7 @@ namespace SheepGate.Art
             DrawArm(canvas, ArmRX, armTop + rightOffset, armHeight, skin, skinLight, skinDeep, false, handsUp);
             if (anim == ArtAnim.Work) DrawTool(canvas, frame);
 
-            DrawHead(canvas, drawn, skin, skinLight, skinShade, skinDeep, hair, hairShade);
+            DrawHead(canvas, drawn, skin, skinLight, skinShade, skinDeep);
 
             canvas.OutlineOpaque(ArtPalette.Ink);
             if (mirrored) canvas.MirrorHorizontal();
@@ -216,7 +224,7 @@ namespace SheepGate.Art
         }
 
         static void DrawHead(PixelCanvas canvas, ArtFacing facing,
-            Color32 skin, Color32 skinLight, Color32 skinShade, Color32 skinDeep, Color32 hair, Color32 hairShade)
+            Color32 skin, Color32 skinLight, Color32 skinShade, Color32 skinDeep)
         {
             canvas.FillRect(HeadX, HeadY, HeadW, HeadH, skin);
             canvas.HLine(HeadX + 1, HeadY + 1, HeadW - 2, skinLight);
@@ -225,10 +233,6 @@ namespace SheepGate.Art
             switch (facing)
             {
                 case ArtFacing.Down:
-                    canvas.FillRect(HeadX, HeadY, HeadW, 4, hair);
-                    canvas.VLine(HeadX, HeadY, 7, hair);
-                    canvas.VLine(HeadX + HeadW - 1, HeadY, 7, hair);
-                    canvas.HLine(HeadX + 1, HeadY + 3, HeadW - 2, hairShade);
                     canvas.Set(13, 8, ArtPalette.Ink);
                     canvas.Set(18, 8, ArtPalette.Ink);
                     canvas.Set(13, 9, skinShade);
@@ -237,15 +241,10 @@ namespace SheepGate.Art
                     break;
 
                 case ArtFacing.Up:
-                    canvas.FillRect(HeadX, HeadY, HeadW, 9, hair);
-                    canvas.HLine(HeadX, HeadY + 8, HeadW, hairShade);
                     canvas.HLine(HeadX + 2, HeadY + 9, HeadW - 4, skinShade);
                     break;
 
                 default: // Right; Left is this canvas mirrored.
-                    canvas.FillRect(HeadX, HeadY, HeadW, 4, hair);
-                    canvas.FillRect(HeadX, HeadY, 6, 9, hair);
-                    canvas.HLine(HeadX, HeadY + 8, 6, hairShade);
                     canvas.Set(19, 8, ArtPalette.Ink);
                     canvas.Set(19, 9, skinShade);
                     canvas.Set(21, 9, skinShade);
@@ -253,6 +252,71 @@ namespace SheepGate.Art
                     canvas.HLine(19, 11, 2, skinDeep);
                     break;
             }
+        }
+
+        /// <summary>
+        /// Hair, lifted out of the head so it can be chosen apart from skin. Four looks, each with
+        /// its own colour, drawn to sit on the same head rectangle the body paints.
+        /// </summary>
+        public static PixelCanvas Hair(int variant, ArtFacing facing)
+        {
+            variant = Mathf.Clamp(variant, 0, HairVariants - 1);
+            bool mirrored = facing == ArtFacing.Left;
+            ArtFacing drawn = mirrored ? ArtFacing.Right : facing;
+
+            Color32 hair = ArtPalette.HairColours[variant];
+            Color32 shade = ArtPalette.HairShades[variant];
+
+            PixelCanvas canvas = new PixelCanvas(Width, Height);
+
+            switch (drawn)
+            {
+                case ArtFacing.Up:
+                    // From behind, every style is a full back of the head.
+                    canvas.FillRect(HeadX, HeadY, HeadW, 9, hair);
+                    canvas.HLine(HeadX, HeadY + 8, HeadW, shade);
+                    if (variant == 2) canvas.FillRect(HeadX + 2, HeadY + 9, HeadW - 4, 3, hair);
+                    break;
+
+                case ArtFacing.Right:
+                    canvas.FillRect(HeadX, HeadY, HeadW, 4, hair);
+                    canvas.FillRect(HeadX, HeadY, 6, 9, hair);
+                    canvas.HLine(HeadX, HeadY + 8, 6, shade);
+                    if (variant == 2) canvas.FillRect(HeadX, HeadY + 8, 4, 5, hair);       // longer
+                    if (variant == 3) canvas.HLine(HeadX + 1, HeadY, HeadW - 2, shade);    // receding
+                    break;
+
+                default: // Down
+                    canvas.FillRect(HeadX, HeadY, HeadW, 4, hair);
+                    canvas.VLine(HeadX, HeadY, 7, hair);
+                    canvas.VLine(HeadX + HeadW - 1, HeadY, 7, hair);
+                    canvas.HLine(HeadX + 1, HeadY + 3, HeadW - 2, shade);
+
+                    switch (variant)
+                    {
+                        case 1: // cropped: no sides below the brow
+                            canvas.VLine(HeadX, HeadY + 4, 3, ArtPalette.Transparent);
+                            canvas.VLine(HeadX + HeadW - 1, HeadY + 4, 3, ArtPalette.Transparent);
+                            break;
+                        case 2: // long: down past the jaw on both sides
+                            canvas.VLine(HeadX, HeadY, 12, hair);
+                            canvas.VLine(HeadX + HeadW - 1, HeadY, 12, hair);
+                            canvas.VLine(HeadX + 1, HeadY + 7, 5, shade);
+                            canvas.VLine(HeadX + HeadW - 2, HeadY + 7, 5, shade);
+                            break;
+                        case 3: // covered: a worker's head cloth rather than a style
+                            canvas.FillRect(HeadX - 1, HeadY, HeadW + 2, 6, hair);
+                            canvas.HLine(HeadX - 1, HeadY + 5, HeadW + 2, shade);
+                            canvas.VLine(HeadX - 1, HeadY, 9, hair);
+                            canvas.VLine(HeadX + HeadW, HeadY, 9, hair);
+                            break;
+                    }
+
+                    break;
+            }
+
+            if (mirrored) canvas.MirrorHorizontal();
+            return canvas;
         }
 
         // ------------------------------------------------------------------ overlays

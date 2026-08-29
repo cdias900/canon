@@ -102,13 +102,17 @@ namespace SheepGate.UI
 
             const int BodyOptions = 2;
             const int CosmeticOptions = 4;
+            const int SkinOptions = 4;
+            const int HairOptions = 4;
 
             const float SideMargin = 24f;
             const float ChipWidth = 216f;
             const float ChipSpacing = 24f;
-            const float SlotRowHeight = 150f;
-            const float SlotRowSpacing = 12f;
-            const float SlotRowsTop = 760f;
+            const float SlotRowHeight = 118f;
+            const float SlotRowSpacing = 10f;
+            const float SlotRowsTop = 852f;
+            const float NameFieldTop = 736f;
+            const int NameCharacterLimit = 16;
 
             int _body;
             int _top;
@@ -119,8 +123,14 @@ namespace SheepGate.UI
             readonly Image[] _legsLayers = new Image[4];
             readonly Image[] _topLayers = new Image[4];
             readonly Image[] _accessoryLayers = new Image[4];
+            readonly Image[] _hairLayers = new Image[4];
 
             Button[] _bodyChips;
+            Button[] _skinChips;
+            Button[] _hairChips;
+            int _skin;
+            int _hair;
+            string _name = string.Empty;
             Button[] _topChips;
             Button[] _legsChips;
             Button[] _accessoryChips;
@@ -145,7 +155,17 @@ namespace SheepGate.UI
                 UIKit.AnchorTop((RectTransform)subtitle.transform, 56f, 48f, 48f, 180f);
 
                 BuildPreviewStrip(root);
+                BuildNameField(root);
                 BuildSlots(root);
+
+                Button skip = UIKit.CreateButton(root, "QuickStart", "Tanto faz, vamos",
+                    UIKit.Palette.PanelSoft, UIKit.Palette.Muted, QuickStart);
+                var skipRect = (RectTransform)skip.transform;
+                skipRect.anchorMin = new Vector2(0.5f, 0f);
+                skipRect.anchorMax = new Vector2(0.5f, 0f);
+                skipRect.pivot = new Vector2(0.5f, 0f);
+                skipRect.sizeDelta = new Vector2(640f, 84f);
+                skipRect.anchoredPosition = new Vector2(0f, 250f);
 
                 Button start = UIKit.CreateButton(root, "Start", "Começar", UIKit.Palette.Clay, UIKit.Palette.Parchment, Confirm);
                 var startRect = (RectTransform)start.transform;
@@ -199,6 +219,7 @@ namespace SheepGate.UI
                 _legsLayers[index] = BuildLayer(figure, "Legs");
                 _topLayers[index] = BuildLayer(figure, "Top");
                 _accessoryLayers[index] = BuildLayer(figure, "Accessory");
+                _hairLayers[index] = BuildLayer(figure, "Hair");
 
                 Text caption = UIKit.CreateText(cell, "Caption", DirectionCaptions[index],
                     UIKit.FontSize.Meta, UIKit.Palette.Muted, TextAnchor.MiddleCenter);
@@ -222,7 +243,7 @@ namespace SheepGate.UI
 
                     ApplyLayer(
                         _bodyLayers[i],
-                        UIKit.GetSprite(UiSpriteKeys.Body(_body, direction, 0)),
+                        UIKit.GetSprite(UiSpriteKeys.Body(BodyArtVariant, direction, 0)),
                         Shade(UIKit.Palette.Stone, _body),
                         0f,
                         1f);
@@ -240,6 +261,15 @@ namespace SheepGate.UI
                         Shade(UIKit.Palette.Clay, _top),
                         0.44f,
                         0.76f);
+
+                    // Hair last so it sits over the head, and across the full figure because the
+                    // sprite is head-height already.
+                    ApplyLayer(
+                        _hairLayers[i],
+                        UIKit.GetSprite(SheepGate.Art.ArtKeys.Hair(_hair, UiSpriteKeys.ToArtFacing(direction))),
+                        Shade(UIKit.Palette.Night, _hair),
+                        0.76f,
+                        1f);
 
                     ApplyLayer(
                         _accessoryLayers[i],
@@ -298,9 +328,11 @@ namespace SheepGate.UI
             void BuildSlots(RectTransform root)
             {
                 _bodyChips = BuildSlotRow(root, 0, "Corpo", BodyOptions, SelectBody);
-                _topChips = BuildSlotRow(root, 1, "Camisa", CosmeticOptions, SelectTop);
-                _legsChips = BuildSlotRow(root, 2, "Calça", CosmeticOptions, SelectLegs);
-                _accessoryChips = BuildSlotRow(root, 3, "Detalhe", CosmeticOptions, SelectAccessory);
+                _skinChips = BuildSlotRow(root, 1, "Pele", SkinOptions, SelectSkin);
+                _hairChips = BuildSlotRow(root, 2, "Cabelo", HairOptions, SelectHair);
+                _topChips = BuildSlotRow(root, 3, "Camisa", CosmeticOptions, SelectTop);
+                _legsChips = BuildSlotRow(root, 4, "Calça", CosmeticOptions, SelectLegs);
+                _accessoryChips = BuildSlotRow(root, 5, "Detalhe", CosmeticOptions, SelectAccessory);
             }
 
             Button[] BuildSlotRow(RectTransform root, int rowIndex, string label, int optionCount, Action<int> onSelect)
@@ -336,6 +368,59 @@ namespace SheepGate.UI
                 return chips;
             }
 
+            /// <summary>Build and skin share a sprite, so the preview asks for the packed variant.</summary>
+            int BodyArtVariant
+            {
+                get { return Mathf.Clamp(_body, 0, BodyOptions - 1) * AppearanceState.SkinTones + Mathf.Clamp(_skin, 0, SkinOptions - 1); }
+            }
+
+            void SelectSkin(int option)
+            {
+                _skin = Mathf.Clamp(option, 0, SkinOptions - 1);
+                RefreshChips();
+                RefreshPreview();
+            }
+
+            void SelectHair(int option)
+            {
+                _hair = Mathf.Clamp(option, 0, HairOptions - 1);
+                RefreshChips();
+                RefreshPreview();
+            }
+
+            /// <summary>
+            /// For players who do not want to spend time here. ESCOPO asks for a pre-selection, and
+            /// the honest version of that is a button that dresses you and moves on - not a default
+            /// that quietly decides for someone who did want to choose.
+            /// </summary>
+            void QuickStart()
+            {
+                _body = 0;
+                _skin = 1;
+                _hair = 0;
+                _top = 1;
+                _legs = 2;
+                _accessory = 0;
+                RefreshChips();
+                RefreshPreview();
+                Confirm();
+            }
+
+            void BuildNameField(RectTransform root)
+            {
+                RectTransform row = UIKit.CreateRect("NameRow", root);
+                UIKit.AnchorTop(row, 96f, SideMargin + 24f, SideMargin + 24f, NameFieldTop);
+
+                Text caption = UIKit.CreateText(row, "Label", "Nome", UIKit.FontSize.Meta,
+                    UIKit.Palette.Muted, TextAnchor.MiddleLeft);
+                UIKit.AnchorTop((RectTransform)caption.transform, 32f, 0f, 0f, 0f);
+
+                InputField field = UIKit.CreateInputField(row, "NameInput", "Como te chamam",
+                    NameCharacterLimit, value => _name = value);
+                UIKit.AnchorBottom((RectTransform)field.transform, 58f, 0f, 0f, 0f);
+                field.text = _name;
+            }
+
             void SelectBody(int option)
             {
                 _body = Mathf.Clamp(option, 0, BodyOptions - 1);
@@ -367,6 +452,8 @@ namespace SheepGate.UI
             void RefreshChips()
             {
                 Highlight(_bodyChips, _body);
+                Highlight(_skinChips, _skin);
+                Highlight(_hairChips, _hair);
                 Highlight(_topChips, _top);
                 Highlight(_legsChips, _legs);
                 Highlight(_accessoryChips, _accessory);
@@ -404,6 +491,13 @@ namespace SheepGate.UI
                 _top = Mathf.Clamp(appearance.top, 0, CosmeticOptions - 1);
                 _legs = Mathf.Clamp(appearance.legs, 0, CosmeticOptions - 1);
                 _accessory = Mathf.Clamp(appearance.accessory, 0, CosmeticOptions - 1);
+                _skin = Mathf.Clamp(appearance.skin, 0, SkinOptions - 1);
+                _hair = Mathf.Clamp(appearance.hair, 0, HairOptions - 1);
+
+                GameState current;
+                _name = ServiceLocator.TryGet(out current) && current != null && current.playerName != null
+                    ? current.playerName
+                    : string.Empty;
             }
 
             void Confirm()
@@ -416,9 +510,15 @@ namespace SheepGate.UI
                 }
 
                 state.appearance.body = _body;
+                state.appearance.skin = _skin;
+                state.appearance.hair = _hair;
                 state.appearance.top = _top;
                 state.appearance.legs = _legs;
                 state.appearance.accessory = _accessory;
+
+                // Trimmed, and blank is allowed: the wall records whoever turned up, and refusing
+                // to start until someone types a name would gate the game on a form field.
+                state.playerName = (_name ?? string.Empty).Trim();
 
                 // Written now so the look survives the app being closed before the first day ends.
                 SaveSystem.Save(state);

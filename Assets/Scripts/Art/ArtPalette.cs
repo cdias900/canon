@@ -77,6 +77,51 @@ namespace SheepGate.Art
         public static readonly Color32 HairB      = new Color32(46, 42, 36, 255);
         public static readonly Color32 HairBShade = new Color32(32, 29, 25, 255);
 
+        /// <summary>One skin tone: base, highlight, shade and the deepest line.</summary>
+        public struct SkinTone
+        {
+            public Color32 Base;
+            public Color32 Light;
+            public Color32 Shade;
+            public Color32 Deep;
+
+            public SkinTone(Color32 baseColour, Color32 light, Color32 shade, Color32 deep)
+            {
+                Base = baseColour; Light = light; Shade = shade; Deep = deep;
+            }
+        }
+
+        /// <summary>
+        /// Four tones, light to deep. The first two are the pair the game shipped with, kept so
+        /// existing saves keep the face they chose; the other two extend the range downward.
+        /// </summary>
+        public static readonly SkinTone[] SkinTones =
+        {
+            new SkinTone(SkinABase, SkinALight, SkinAShade, SkinADeep),
+            new SkinTone(SkinBBase, SkinBLight, SkinBShade, SkinBDeep),
+            new SkinTone(new Color32(138, 84, 52, 255), new Color32(163, 103, 66, 255),
+                         new Color32(104, 61, 38, 255), new Color32(74, 42, 26, 255)),
+            new SkinTone(new Color32(96, 58, 38, 255), new Color32(120, 75, 50, 255),
+                         new Color32(70, 41, 26, 255), new Color32(48, 28, 18, 255))
+        };
+
+        /// <summary>Hair, as a colour pair. Index is the player's hair choice.</summary>
+        public static readonly Color32[] HairColours =
+        {
+            HairA,
+            HairB,
+            new Color32(122, 84, 44, 255),      // lighter brown
+            new Color32(88, 88, 92, 255)        // grey
+        };
+
+        public static readonly Color32[] HairShades =
+        {
+            HairAShade,
+            HairBShade,
+            new Color32(88, 58, 30, 255),
+            new Color32(62, 62, 66, 255)
+        };
+
         /// <summary>Debug-only marker for an unknown art key. Never part of shipped art.</summary>
         public static readonly Color32 Missing = new Color32(255, 0, 200, 255);
 

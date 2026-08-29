@@ -316,6 +316,45 @@ namespace SheepGate.UI
 
         // ------------------------------------------------------------------ widgets
 
+        /// <summary>
+        /// A single-line text field on the legacy InputField, to match the rest of this kit. TMP's
+        /// input field would drag in the TMP Essentials asset package, which a fresh clone does not
+        /// have — the same reason every other control here is legacy uGUI.
+        /// </summary>
+        public static InputField CreateInputField(Transform parent, string name, string placeholder,
+                                                  int characterLimit, Action<string> onChanged)
+        {
+            Image background = CreatePanel(parent, name, Palette.PanelSoft);
+            var rect = (RectTransform)background.transform;
+
+            Text text = CreateText(rect, "Text", string.Empty, FontSize.Body, Palette.Parchment, TextAnchor.MiddleLeft);
+            var textRect = (RectTransform)text.transform;
+            Stretch(textRect);
+            textRect.offsetMin = new Vector2(20f, 0f);
+            textRect.offsetMax = new Vector2(-20f, 0f);
+            text.supportRichText = false;
+
+            Text hint = CreateText(rect, "Placeholder", placeholder, FontSize.Body, Palette.Muted, TextAnchor.MiddleLeft);
+            var hintRect = (RectTransform)hint.transform;
+            Stretch(hintRect);
+            hintRect.offsetMin = new Vector2(20f, 0f);
+            hintRect.offsetMax = new Vector2(-20f, 0f);
+            hint.fontStyle = FontStyle.Italic;
+
+            InputField field = background.gameObject.AddComponent<InputField>();
+            field.textComponent = text;
+            field.placeholder = hint;
+            field.characterLimit = characterLimit;
+            field.lineType = InputField.LineType.SingleLine;
+
+            if (onChanged != null)
+            {
+                field.onValueChanged.AddListener(value => onChanged(value));
+            }
+
+            return field;
+        }
+
         public static Image CreatePanel(Transform parent, string name, Color color, string spriteKey = UiSpriteKeys.Panel)
         {
             var go = new GameObject(name, typeof(Image));

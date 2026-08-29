@@ -25,10 +25,25 @@ namespace SheepGate.Core
     [Serializable]
     public class AppearanceState
     {
-        public int body;       // 0..1
+        public int body;       // 0..1  build
+        public int skin;       // 0..3  skin tone
+        public int hair;       // 0..3  hair
         public int top;        // 0..3
         public int legs;       // 0..3
         public int accessory;  // 0..3
+
+        /// <summary>
+        /// Build and skin share one sprite, so they share one art variant: build * SkinTones + skin.
+        /// Packing them keeps the existing body_{variant}_{dir}_{anim}_{frame} key format untouched,
+        /// which matters because that format is parsed in the art library and spelled out by hand in
+        /// the world's fallback lookups.
+        /// </summary>
+        public const int SkinTones = 4;
+
+        public int BodyArtVariant
+        {
+            get { return Mathf.Clamp(body, 0, 1) * SkinTones + Mathf.Clamp(skin, 0, SkinTones - 1); }
+        }
     }
 
     /// <summary>

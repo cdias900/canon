@@ -7,7 +7,7 @@ using SheepGate.Core;
 namespace SheepGate.Player
 {
     /// <summary>
-    /// Four stacked <see cref="SpriteRenderer"/>s (body, legs, top, accessory) on a single
+    /// Five stacked <see cref="SpriteRenderer"/>s (body, legs, top, accessory, hair) on a single
     /// GameObject, driven by one animation clock written in code. There is no Animator asset and
     /// no animation clip: sprites are procedural and come from <see cref="ArtLibrary"/>, so frames
     /// are advanced here and looked up by key.
@@ -25,15 +25,18 @@ namespace SheepGate.Player
         private const int LayerLegs = 1;
         private const int LayerTop = 2;
         private const int LayerAccessory = 3;
-        private const int LayerCount = 4;
+
+        /// <summary>Hair draws last so it sits over the head the body painted.</summary>
+        private const int LayerHair = 4;
+        private const int LayerCount = 5;
 
         /// <summary>Child object name per layer, in draw order. Indexed by the Layer* constants.</summary>
-        private static readonly string[] LayerNames = { "Body", "Legs", "Top", "Accessory" };
+        private static readonly string[] LayerNames = { "Body", "Legs", "Top", "Accessory", "Hair" };
 
-        private static readonly string[] LayerPrefixes = { "body", "legs", "top", "acc" };
+        private static readonly string[] LayerPrefixes = { "body", "legs", "top", "acc", "hair" };
 
         /// <summary>Highest variant index accepted per layer, matching the ArtLibrary key list.</summary>
-        private static readonly int[] LayerMaxVariant = { 1, 3, 3, 3 };
+        private static readonly int[] LayerMaxVariant = { 7, 3, 3, 3, 3 };
 
         /// <summary>
         /// Frames requested per layer, in layer order. Only the body is animated in the art
@@ -41,7 +44,7 @@ namespace SheepGate.Player
         /// second frame would generate a duplicate sprite for nothing. The body caps at two
         /// because the key parser clamps the frame token to 0..1.
         /// </summary>
-        private static readonly int[] LayerFrameCount = { 2, 1, 1, 1 };
+        private static readonly int[] LayerFrameCount = { 2, 1, 1, 1, 1 };
 
         private const float FramesPerSecondIdle = 2.5f;
         private const float FramesPerSecondWalk = 8f;
@@ -184,6 +187,10 @@ namespace SheepGate.Player
             _variants[LayerLegs] = state != null ? ClampVariant(LayerLegs, state.legs) : 0;
             _variants[LayerTop] = state != null ? ClampVariant(LayerTop, state.top) : 0;
             _variants[LayerAccessory] = state != null ? ClampVariant(LayerAccessory, state.accessory) : 0;
+
+            // Build and skin share the body sprite, so they arrive packed as one art variant.
+            _variants[LayerBody] = state != null ? state.BodyArtVariant : 0;
+            _variants[LayerHair] = state != null ? ClampVariant(LayerHair, state.hair) : 0;
 
             RebuildFrames();
         }

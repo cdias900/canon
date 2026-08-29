@@ -35,6 +35,7 @@ namespace SheepGate.Art
         public const string TopPrefix = "top";
         public const string LegsPrefix = "legs";
         public const string AccessoryPrefix = "acc";
+        public const string HairPrefix = "hair";
 
         /// <summary>Wall stages 0 through 4 inclusive.</summary>
         public const int WallStageCount = 5;
@@ -63,6 +64,12 @@ namespace SheepGate.Art
         public static string Legs(int variant)
         {
             return LegsPrefix + "_" + variant.ToString(CultureInfo.InvariantCulture);
+        }
+
+        /// <summary>Hair layer key: hair_&lt;variant&gt;_&lt;direction&gt;.</summary>
+        public static string Hair(int variant, ArtFacing facing)
+        {
+            return Part(HairPrefix, variant, facing, ArtAnim.Idle, 0);
         }
 
         public static string Accessory(int variant)

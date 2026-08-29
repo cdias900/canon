@@ -30,8 +30,12 @@ chapter reader fetches verse by verse to keep verse numbers.
 
 ## The translation decision — now answerable
 
-`version_id = 3254` (BLT) is the only Portuguese option this key exposes, so it is the choice
-by elimination rather than by preference.
+**Superseded — see the NVI update at the end of this file.** What follows described the state
+before NVI was enabled in the developer portal, and is kept because the licence reasoning about
+the public-domain fallback is still what applies if NVI is ever withdrawn.
+
+`version_id = 3254` (BLT) was the only Portuguese option the key exposed before NVI was enabled,
+so it was the choice by elimination rather than by preference.
 
 Its licence resolves the three open questions in `CLAUDE.md`:
 
@@ -61,9 +65,11 @@ Two things worth knowing, both learned the hard way:
 1. **The listing endpoint lies by omission.** `GET /bibles?language_ranges[]=pt` still returns only
    BLT, even while `GET /bibles/129/passages/NEH.4.6` returns 200. Direct passage access is the
    authority on entitlement; never gate on the listing.
-2. **Entitlement propagation is not instant.** 129 returned `403 Access denied` for a while after
-   the licence was accepted, then began serving without any change on our side. A 403 here is not
-   necessarily permanent — retry before concluding a version is unavailable.
+2. **A 403 means the version is not enabled yet — go and enable it.** 129 returned
+   `403 Access denied` even with the licence showing as accepted on the account. It started
+   serving only after NVI was explicitly enabled for the app in the YouVersion developer portal.
+   Accepting a licence is not the same act as enabling a version on a key. Do not sit and retry a
+   403: it will not clear on its own.
 
 ### The licence obligation changed with the translation
 

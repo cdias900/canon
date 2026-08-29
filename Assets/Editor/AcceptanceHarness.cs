@@ -150,7 +150,33 @@ namespace SheepGate.EditorTools
         }
 
         // 05 — progress survives closing the app.
+        //
+        // This writes through the real SaveSystem, which means it writes to the real
+        // persistentDataPath — the same file a playtester is using if one is running. The prior
+        // save is captured and restored around the test so the harness can never destroy someone's
+        // session; a test that eats real data is worse than no test.
         static void SaveRoundTrip()
+        {
+            GameState preexisting = SaveSystem.HasSave() ? SaveSystem.Load() : null;
+            try
+            {
+                SaveRoundTripBody();
+            }
+            finally
+            {
+                if (preexisting != null)
+                {
+                    SaveSystem.Save(preexisting);
+                    Report.AppendLine("  note  restored the save that was already on disk");
+                }
+                else
+                {
+                    SaveSystem.Delete();
+                }
+            }
+        }
+
+        static void SaveRoundTripBody()
         {
             GameState original = GameState.NewGame();
             original.day = 2;
@@ -179,8 +205,6 @@ namespace SheepGate.EditorTools
                     : "day=" + loaded.day + " rubble=" + loaded.rubble +
                       " flag=" + loaded.HasFlag(GameFlags.WatchPostedD1) +
                       " stage=" + (loaded.segments.Count > 0 ? loaded.segments[0].stage : -1));
-
-            SaveSystem.Delete();
         }
 
         // 07 + 08 + 09 — the contest is earned by days 1-2, the Page unlocks the strong move,

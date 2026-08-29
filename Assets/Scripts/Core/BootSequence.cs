@@ -20,7 +20,13 @@ namespace SheepGate.Core
 
         public static void Run()
         {
-            Telemetry.Initialize(new JsonlFileSink(Path.Combine(Application.persistentDataPath, TelemetryFileName)));
+            var telemetryPath = Path.Combine(Application.persistentDataPath, TelemetryFileName);
+            Telemetry.Initialize(new JsonlFileSink(telemetryPath));
+
+            // Logged because persistentDataPath differs between the editor and a player build, and
+            // a playtest whose telemetry cannot be found is a playtest that measured nothing.
+            Debug.Log("[Boot] Telemetry -> " + telemetryPath);
+            Debug.Log("[Boot] Save -> " + SaveSystem.SavePath);
 
             GameData.LoadAll();
             LoadScripture();

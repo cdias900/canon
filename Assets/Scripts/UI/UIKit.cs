@@ -10,16 +10,21 @@ namespace SheepGate.UI
     /// <summary>
     /// The sprite keys the UI layer asks <see cref="ArtLibrary"/> for.
     ///
-    /// Key formats are owned by SheepGate.Art.ArtKeys and forwarded from here rather than
-    /// rebuilt, so a change to the naming scheme cannot leave the UI asking for keys the art
-    /// module stopped generating. The three constants exist because UI code reads better with
-    /// ArtKeys.Panel than with the art module's longer spelling.
+    /// Key strings and key formats are owned by SheepGate.Art.ArtKeys and forwarded from here
+    /// rather than rebuilt, so a change to the naming scheme cannot leave the UI asking for keys
+    /// the art module stopped generating. What is genuinely UI-only is the clamping and the
+    /// facing translation: screens hand over a SheepGate.Player facing, and the two modules order
+    /// their facing enums differently.
+    ///
+    /// The name deliberately differs from the art module's ArtKeys. Two public types sharing one
+    /// name across two namespaces compile only until a single file imports both, at which point
+    /// every unqualified mention of the name becomes a CS0104 ambiguity.
     /// </summary>
-    public static class ArtKeys
+    public static class UiSpriteKeys
     {
-        public const string Panel = "ui_panel";
-        public const string Bubble = "ui_bubble";
-        public const string Button = "ui_button";
+        public const string Panel = SheepGate.Art.ArtKeys.UiPanel;
+        public const string Bubble = SheepGate.Art.ArtKeys.UiBubble;
+        public const string Button = SheepGate.Art.ArtKeys.UiButton;
 
         /// <summary>Body layer, idle pose, in the art module's canonical key form.</summary>
         public static string Body(int index, FacingDirection direction, int frame)
@@ -55,6 +60,50 @@ namespace SheepGate.UI
                 case FacingDirection.Right: return ArtFacing.Right;
                 default: return ArtFacing.Down;
             }
+        }
+    }
+
+    /// <summary>
+    /// COMPATIBILITY SHIM — DELETE THIS TYPE.
+    ///
+    /// It exists only because it duplicates the type name SheepGate.Art.ArtKeys, and four files
+    /// outside this one still call it unqualified: CharacterCreationScreen.cs, DailyQuiz.cs,
+    /// ThePagePanel.cs and ContestUI.cs. Every member forwards to <see cref="UiSpriteKeys"/> and
+    /// nothing new may be added here. Once those four files say UiSpriteKeys instead, this whole
+    /// class goes, and the duplicate name with it.
+    ///
+    /// Nothing inside UIKit.cs uses it. Do not reintroduce a bare "ArtKeys" in this file either:
+    /// enclosing-namespace lookup would silently bind it here instead of to the art module.
+    /// </summary>
+    public static class ArtKeys
+    {
+        public const string Panel = UiSpriteKeys.Panel;
+        public const string Bubble = UiSpriteKeys.Bubble;
+        public const string Button = UiSpriteKeys.Button;
+
+        public static string Body(int index, FacingDirection direction, int frame)
+        {
+            return UiSpriteKeys.Body(index, direction, frame);
+        }
+
+        public static string Top(int index)
+        {
+            return UiSpriteKeys.Top(index);
+        }
+
+        public static string Legs(int index)
+        {
+            return UiSpriteKeys.Legs(index);
+        }
+
+        public static string Accessory(int index)
+        {
+            return UiSpriteKeys.Accessory(index);
+        }
+
+        public static ArtFacing ToArtFacing(FacingDirection direction)
+        {
+            return UiSpriteKeys.ToArtFacing(direction);
         }
     }
 
@@ -308,7 +357,7 @@ namespace SheepGate.UI
 
         // ------------------------------------------------------------------ widgets
 
-        public static Image CreatePanel(Transform parent, string name, Color color, string spriteKey = ArtKeys.Panel)
+        public static Image CreatePanel(Transform parent, string name, Color color, string spriteKey = UiSpriteKeys.Panel)
         {
             var go = new GameObject(name, typeof(Image));
             var rect = (RectTransform)go.transform;
@@ -390,7 +439,7 @@ namespace SheepGate.UI
             rect.sizeDelta = new Vector2(320f, 112f);
 
             Image image = go.GetComponent<Image>();
-            image.sprite = GetSprite(ArtKeys.Button);
+            image.sprite = GetSprite(UiSpriteKeys.Button);
             image.type = TypeFor(image.sprite);
             image.color = background;
             image.raycastTarget = true;
@@ -575,7 +624,7 @@ namespace SheepGate.UI
             barRect.anchoredPosition = Vector2.zero;
 
             Image barImage = barGo.GetComponent<Image>();
-            barImage.sprite = GetSprite(ArtKeys.Panel);
+            barImage.sprite = GetSprite(UiSpriteKeys.Panel);
             barImage.type = TypeFor(barImage.sprite);
             barImage.color = new Color(0f, 0f, 0f, 0.28f);
 
@@ -586,7 +635,7 @@ namespace SheepGate.UI
             slidingArea.offsetMin = Vector2.zero;
             slidingArea.offsetMax = Vector2.zero;
 
-            Image handleImage = CreatePanel(slidingArea, "Handle", Palette.Stone, ArtKeys.Panel);
+            Image handleImage = CreatePanel(slidingArea, "Handle", Palette.Stone, UiSpriteKeys.Panel);
             var handleRect = (RectTransform)handleImage.transform;
             handleRect.sizeDelta = Vector2.zero;
 
@@ -624,7 +673,7 @@ namespace SheepGate.UI
             rootRect.localScale = Vector3.one;
             rootRect.sizeDelta = new Vector2(600f, 72f);
 
-            Image background = CreatePanel(rootRect, "Background", Palette.PanelSoft, ArtKeys.Panel);
+            Image background = CreatePanel(rootRect, "Background", Palette.PanelSoft, UiSpriteKeys.Panel);
             var backgroundRect = (RectTransform)background.transform;
             backgroundRect.anchorMin = new Vector2(0f, 0.34f);
             backgroundRect.anchorMax = new Vector2(1f, 0.66f);
@@ -637,7 +686,7 @@ namespace SheepGate.UI
             fillArea.anchoredPosition = new Vector2(-24f, 0f);
             fillArea.sizeDelta = new Vector2(-48f, 0f);
 
-            Image fill = CreatePanel(fillArea, "Fill", Palette.Olive, ArtKeys.Panel);
+            Image fill = CreatePanel(fillArea, "Fill", Palette.Olive, UiSpriteKeys.Panel);
             var fillRect = (RectTransform)fill.transform;
             fillRect.sizeDelta = new Vector2(48f, 0f);
             fill.raycastTarget = false;
@@ -648,7 +697,7 @@ namespace SheepGate.UI
             handleArea.anchoredPosition = Vector2.zero;
             handleArea.sizeDelta = new Vector2(-88f, 0f);
 
-            Image handle = CreatePanel(handleArea, "Handle", Palette.Parchment, ArtKeys.Button);
+            Image handle = CreatePanel(handleArea, "Handle", Palette.Parchment, UiSpriteKeys.Button);
             var handleRect = (RectTransform)handle.transform;
             handleRect.sizeDelta = new Vector2(88f, 0f);
 

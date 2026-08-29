@@ -33,7 +33,7 @@ namespace SheepGate.World
         /// <summary>Runtime tilemap, also the source of the walkable grid for the pathfinder.</summary>
         public static TilemapBuilder MapBuilder { get; private set; }
 
-        /// <summary>Camera rig driving the close follow view and the Ronda wide view.</summary>
+        /// <summary>Camera rig driving the close follow view and the wide patrol view.</summary>
         public static CameraRig Rig { get; private set; }
 
         public static void Compose()
@@ -87,10 +87,15 @@ namespace SheepGate.World
             EnsureContestSystem(systemsObject);
             EnsureQuizSystem(systemsObject);
 
-            // 9. HUD and the rest of the UI layer.
+            // 9. The director of the last day. Nothing else starts the trial or ends the run.
+            EnsureDay3Director(systemsObject);
+
+            // 10. HUD and the rest of the UI layer. The HUD finds the camera rig through the
+            // service locator — registered in step 7 — and drives the patrol view itself, so the
+            // world layer wires nothing between the two.
             ComposeUserInterface();
 
-            // 10. Silent map-edge observation (exile vocation, never displayed).
+            // 11. Silent map-edge observation (exile vocation, never displayed).
             MapEdgeWatcher watcher = rootObject.AddComponent<MapEdgeWatcher>();
             watcher.Configure(builder, Player);
 
@@ -99,13 +104,21 @@ namespace SheepGate.World
 
         private static void EnsureContentLoaded()
         {
-            // Only load when nothing at all is there. A single null property is not proof that Boot
-            // skipped its work: some content files are optional, and LoadAll is not guaranteed to be
-            // safe to run twice.
+            // Emptiness, not null: GameData initialises every property to an empty array or an
+            // empty dictionary, so a null test can never be true and opening Game.unity directly
+            // would compose a village with no residents, no wall and no dialogue. GameData.LoadAll
+            // is documented as safe to call more than once — the last read wins — so reloading when
+            // any of the three sets the world needs came back empty costs nothing.
             bool needsLoad = false;
             try
             {
-                needsLoad = GameData.WallSegments == null && GameData.Npcs == null && GameData.Dialogue == null;
+                WallSegmentDef[] segments = GameData.WallSegments;
+                NpcDef[] npcs = GameData.Npcs;
+                IReadOnlyDictionary<string, DialogueNode> dialogue = GameData.Dialogue;
+
+                needsLoad = segments == null || segments.Length == 0
+                            || npcs == null || npcs.Length == 0
+                            || dialogue == null || dialogue.Count == 0;
             }
             catch (Exception exception)
             {
@@ -460,12 +473,34 @@ namespace SheepGate.World
 
             try
             {
-                // Created so day three can find it. Begin() is never called from the world layer.
+                // Created on every day; Day3Director is what calls Begin(), and only on the last one.
                 host.AddComponent<MoraleContest>();
             }
             catch (Exception exception)
             {
                 Debug.LogWarning("[World] Could not create the MoraleContest: " + exception.Message);
+            }
+        }
+
+        /// <summary>
+        /// Attaches the director of the last day. Without it the trial never begins, the page never
+        /// appears and no vocation is ever named, so a failure here is logged loudly.
+        /// </summary>
+        private static void EnsureDay3Director(GameObject host)
+        {
+            Day3Director existing = UnityEngine.Object.FindFirstObjectByType<Day3Director>();
+            if (existing != null)
+            {
+                return;
+            }
+
+            try
+            {
+                host.AddComponent<Day3Director>();
+            }
+            catch (Exception exception)
+            {
+                Debug.LogError("[World] Could not create the Day3Director; day three has no ending: " + exception.Message);
             }
         }
 

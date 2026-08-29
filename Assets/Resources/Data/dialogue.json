@@ -47,6 +47,10 @@
       { "text": "Meu tio parou de vir. Disse que já perdeu casa uma vez e que não vai ficar aqui esperando perder de novo. Eu não discuti com ele." }
     ],
     "grants": { "vocation": {} },
+    "choices": [
+      { "id": "donate", "text": "Te trouxe pedra. Pega.", "next": "hananias_d2_donate", "requires_rubble": 3, "hidden_if_flag": "donated_rubble" },
+      { "id": "leave", "text": "Depois a gente conversa." }
+    ],
     "reliable": true
   },
   "hananias_d2_donate": {
@@ -57,7 +61,7 @@
       { "text": "O meu pedaço é o mais curto da rua e mesmo assim eu estou atrasado. Eu não ia pedir para ninguém." },
       { "text": "Eu lembro disso. Não é jeito de falar, é aviso: eu lembro." }
     ],
-    "grants": { "vocation": { "pastor": 2 } },
+    "grants": { "vocation": { "pastor": 2 }, "set_flag": "donated_rubble" },
     "reliable": true
   },
   "salum_d2": {
@@ -117,6 +121,11 @@
       { "text": "E eu não vou no seu lugar." }
     ],
     "grants": { "vocation": { "exilado": 1 } },
+    "choices": [
+      { "id": "accept", "text": "Eu desço. Quero ouvir o que eles têm.", "next": "malquias_d2_accept" },
+      { "id": "refuse", "text": "Não desço. Tenho pedra para assentar.", "next": "malquias_d2_refuse" },
+      { "id": "defer", "text": "Ainda não sei. Respondo depois." }
+    ],
     "reliable": true
   },
   "malquias_d2_refuse": {
@@ -180,7 +189,7 @@
       { "text": "Você joga do outro lado. Na terceira vem peixe, e vem mais do que cabe na mão." },
       { "verse": "JHN.21.6", "frame": "Em outro lugar, ficou registrado assim:" }
     ],
-    "grants": { "vocation": { "exilado": 2 }, "set_flag": "fish_caught" },
+    "grants": { "set_flag": "fish_caught" },
     "reliable": true
   },
   "hananias_d3": {

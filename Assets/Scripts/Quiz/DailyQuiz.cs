@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using SheepGate.Core;
+using SheepGate.Dialogue;
 using SheepGate.Player;
 using SheepGate.UI;
+using SheepGate.World;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -16,6 +18,15 @@ namespace SheepGate.Quiz
     /// telling the player they were wrong. The note that follows is there to inform, and it is
     /// the same note either way.
     ///
+    /// It schedules itself. The morning is when the check-in belongs, so the component subscribes
+    /// to <see cref="DayCycle.MorningStarted"/> and asks for the day the scene opens on, then waits
+    /// for a quiet screen — no modal, no conversation, no night resolving — before sliding in. The
+    /// day is recorded in a persisted counter the moment the panel appears, so a day gets its
+    /// question exactly once even if the player closes the app and comes back.
+    ///
+    /// It gates nothing. A day with no authored question, a missing modal root, a player who never
+    /// answers: in every case the rest of the day carries on untouched.
+    ///
     /// Nothing here is scripture. The prompt, the options and the note are authored pt-BR from
     /// quiz.json, which cites references and never quotes text.
     /// </summary>
@@ -28,6 +39,12 @@ namespace SheepGate.Quiz
 
         const float SideMargin = 56f;
         const float CardPadding = 44f;
+
+        /// <summary>Quiet time the screen must have before a queued check-in appears.</summary>
+        const float SettleSeconds = 0.6f;
+
+        /// <summary>How often the scene is searched again for the systems this component watches.</summary>
+        const float BindRetrySeconds = 0.5f;
 
         /// <summary>Raised when the panel is gone, whether it was answered or dismissed.</summary>
         public event Action Closed;
@@ -44,9 +61,21 @@ namespace SheepGate.Quiz
         bool _answered;
         bool _lockHeld;
 
+        DayCycle _dayCycle;
+        DialogueSystem _dialogue;
+        int _pendingDay;
+        float _earliestShowTime;
+        float _nextBindAttempt;
+
         public bool IsShowing
         {
             get { return _container != null; }
+        }
+
+        /// <summary>The day queued for a check-in that has not appeared yet, or 0.</summary>
+        public int PendingDay
+        {
+            get { return _pendingDay; }
         }
 
         /// <summary>Finds the quiz component in the scene, creating a host object when there is none.</summary>
@@ -61,6 +90,157 @@ namespace SheepGate.Quiz
             var go = new GameObject("DailyQuiz");
             return go.AddComponent<DailyQuiz>();
         }
+
+        // ------------------------------------------------------------------ scheduling
+
+        /// <summary>
+        /// Queues the check-in for a day instead of showing it at once. The morning starts with the
+        /// report on screen and often a conversation right after it, and a panel that lands on top
+        /// of those reads as an interruption rather than as a question.
+        ///
+        /// A day already seen, a day with no authored question and a day already queued are all
+        /// dropped in silence: this is called on every morning and on every scene start, so it has
+        /// to be safe to call more often than it acts.
+        /// </summary>
+        public void RequestForDay(int day)
+        {
+            if (day <= 0 || IsShowing || _pendingDay == day)
+            {
+                return;
+            }
+
+            GameState state = ResolveState();
+            if (state != null && state.Counter(SeenCounterPrefix + day) != 0)
+            {
+                return;
+            }
+
+            if (FindQuestion(day) == null)
+            {
+                return;
+            }
+
+            _pendingDay = day;
+            _earliestShowTime = Time.unscaledTime + SettleSeconds;
+        }
+
+        void OnMorningStarted(int day)
+        {
+            RequestForDay(day);
+        }
+
+        void TryShowPending()
+        {
+            if (_pendingDay <= 0 || IsShowing)
+            {
+                return;
+            }
+
+            if (Time.unscaledTime < _earliestShowTime || !IsScreenQuiet())
+            {
+                return;
+            }
+
+            int day = _pendingDay;
+
+            // Cleared first: Show can finish synchronously on the paths where there is nothing to
+            // display, and a day left queued there would be retried on every frame.
+            _pendingDay = 0;
+            Show(day);
+        }
+
+        /// <summary>
+        /// True when nothing else owns the screen. The dialogue system is asked directly because a
+        /// conversation holds neither the modal stack nor the input lock.
+        /// </summary>
+        bool IsScreenQuiet()
+        {
+            if (ModalRoot.IsOpen || InputLock.IsLocked)
+            {
+                return false;
+            }
+
+            if (_dayCycle != null && _dayCycle.IsResolving)
+            {
+                return false;
+            }
+
+            if (_dialogue != null && _dialogue.IsPlaying)
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Finds the day cycle and the dialogue system, retrying on a slow timer while either is
+        /// missing so composition order cannot leave this component deaf.
+        /// </summary>
+        void EnsureBindings()
+        {
+            if (_dayCycle != null && _dialogue != null)
+            {
+                return;
+            }
+
+            if (Time.unscaledTime < _nextBindAttempt)
+            {
+                return;
+            }
+
+            _nextBindAttempt = Time.unscaledTime + BindRetrySeconds;
+
+            if (_dayCycle == null)
+            {
+                BindDayCycle();
+            }
+
+            if (_dialogue == null)
+            {
+                _dialogue = FindFirstObjectByType<DialogueSystem>();
+            }
+        }
+
+        void BindDayCycle()
+        {
+            DayCycle cycle = null;
+            try
+            {
+                ServiceLocator.TryGet(out cycle);
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning("[Quiz] Could not resolve the day cycle: " + exception.Message);
+                cycle = null;
+            }
+
+            if (cycle == null)
+            {
+                cycle = FindFirstObjectByType<DayCycle>();
+            }
+
+            if (cycle == null)
+            {
+                return;
+            }
+
+            _dayCycle = cycle;
+            _dayCycle.MorningStarted += OnMorningStarted;
+        }
+
+        void UnbindDayCycle()
+        {
+            if (_dayCycle == null)
+            {
+                return;
+            }
+
+            _dayCycle.MorningStarted -= OnMorningStarted;
+            _dayCycle = null;
+        }
+
+        // ------------------------------------------------------------------ the panel
 
         /// <summary>
         /// Shows the question authored for this day. A day with no question closes immediately and
@@ -106,6 +286,16 @@ namespace SheepGate.Quiz
             {
                 EnsureCounters(state);
                 state.counters[SeenCounterPrefix + day] = 1;
+
+                // Written to disk here, not at the end of the day: the guard that keeps a day to one
+                // question has to survive the app being closed on this very panel.
+                PersistState(state);
+            }
+
+            // Queued for this day or not, it is on screen now; nothing may show it twice.
+            if (_pendingDay == day)
+            {
+                _pendingDay = 0;
             }
 
             if (!_lockHeld)
@@ -144,6 +334,8 @@ namespace SheepGate.Quiz
 
         void OnDestroy()
         {
+            UnbindDayCycle();
+
             if (_lockHeld)
             {
                 _lockHeld = false;
@@ -151,11 +343,18 @@ namespace SheepGate.Quiz
             }
         }
 
+        void Update()
+        {
+            ReleaseIfClosedFromOutside();
+            EnsureBindings();
+            TryShowPending();
+        }
+
         /// <summary>
         /// Watchdog for a panel closed from outside, such as the hardware back button: the world
         /// must not stay locked and a caller waiting on <see cref="Closed"/> must not stall.
         /// </summary>
-        void Update()
+        void ReleaseIfClosedFromOutside()
         {
             if (!_lockHeld || _container != null)
             {
@@ -303,8 +502,11 @@ namespace SheepGate.Quiz
             if (state != null)
             {
                 // Stored as one-based so "no answer" and "first option" stay distinguishable.
+                // The answer is recorded the same way whether it matches quiz.json or not: the
+                // check-in counts because it was answered, not because it was answered correctly.
                 EnsureCounters(state);
                 state.counters[AnswerCounterPrefix + _day] = index + 1;
+                PersistState(state);
             }
 
             int correct = _question != null ? _question.answer : -1;
@@ -400,6 +602,23 @@ namespace SheepGate.Quiz
             return null;
         }
 
+        static void PersistState(GameState state)
+        {
+            if (state == null)
+            {
+                return;
+            }
+
+            try
+            {
+                SaveSystem.Save(state);
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning("[Quiz] The check-in could not be written to the save: " + exception.Message);
+            }
+        }
+
         void RaiseClosed()
         {
             Action handler = Closed;
@@ -421,6 +640,20 @@ namespace SheepGate.Quiz
         void Awake()
         {
             SheepGate.Vocation.VocationTracker.EnsureRegistered();
+        }
+
+        /// <summary>
+        /// Binds to the day cycle and queues the day the scene opened on. Day one never raises a
+        /// morning — the run starts there — and a save resumed on day two or three would otherwise
+        /// wait for a morning that already happened, so the opening day is asked for directly. The
+        /// persisted counter is what stops that becoming a second showing.
+        /// </summary>
+        void Start()
+        {
+            EnsureBindings();
+
+            GameState state = ResolveState();
+            RequestForDay(state != null ? state.day : 1);
         }
     }
 }

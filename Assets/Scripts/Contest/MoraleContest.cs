@@ -29,7 +29,7 @@ namespace SheepGate.Contest
     ///   enemy resolve  = base + 10 when no watch was posted on night two
     ///                         + 10 when the invitation from outside was accepted
     ///   enemy pressure = base + 6 for the missing watch + 6 for the accepted invitation
-    ///                         + one for every stage of seg_01 still unbuilt
+    ///                         + one for every stage of the contested segment still unbuilt
     ///
     /// Nothing here is random. Two players who prepared the same way see the same fight.
     ///
@@ -46,9 +46,6 @@ namespace SheepGate.Contest
         public const string MoveCallOthers = "call_others";
         public const string MoveShowWatch = "show_watch";
         public const string MoveHalfAndHalf = "half_and_half";
-
-        /// <summary>The segment the fight is fought over, and the only one that can lose work.</summary>
-        public const string SegmentId = "seg_01";
 
         /// <summary>The page interrupts the start of this turn.</summary>
         public const int PageTurn = 2;
@@ -104,6 +101,7 @@ namespace SheepGate.Contest
 
         ContestConfig _config;
         Coroutine _loop;
+        WallSystem _wall;
 
         int _turn;
         int _turnLimit = DefaultTurnLimit;
@@ -124,6 +122,14 @@ namespace SheepGate.Contest
         string _pendingMoveId;
 
         public bool IsRunning { get { return _running; } }
+
+        /// <summary>
+        /// The segment the fight is fought over: the one the wall reports as primarily exposed,
+        /// which is the same one an unwatched night damages. Resolved from the data when the trial
+        /// begins, never named in code, so the night and the trial can never drift apart. Null only
+        /// when neither the wall nor wall_segments.json could offer a segment.
+        /// </summary>
+        public string ContestedSegmentId { get; private set; }
 
         /// <summary>True only while a move from the player is what the fight is waiting for.</summary>
         public bool IsAwaitingMove { get { return _running && _awaitingMove && !_pageBlocking; } }
@@ -213,6 +219,9 @@ namespace SheepGate.Contest
             int resolveBase = _config.enemy_resolve_base > 0 ? _config.enemy_resolve_base : DefaultEnemyResolveBase;
             bool watchPosted = state != null && state.HasFlag(GameFlags.WatchPostedD2);
             bool acceptedInvite = state != null && state.HasFlag(GameFlags.AcceptedInvite);
+
+            // Resolved before the pressure below, which counts the stages this segment still lacks.
+            ContestedSegmentId = ResolveContestedSegmentId();
 
             _enemyResolveMax = resolveBase
                                + (watchPosted ? 0 : ResolveForMissingWatch)
@@ -573,17 +582,25 @@ namespace SheepGate.Contest
         }
 
         /// <summary>
-        /// The only thing losing costs: the work in progress on seg_01. A finished stage never
-        /// regresses, there is no defeat screen, and day three carries on to the reading.
+        /// The only thing losing costs: the work in progress on the contested segment. Damage
+        /// clears the unfinished work inside the current stage and nothing else, so a stage that is
+        /// already standing never comes down. There is no defeat screen, and day three carries on
+        /// to the reading either way.
         /// </summary>
         void LoseUnfinishedWork()
         {
-            WallSystem wall = FindWallSystem();
+            string segmentId = ContestedSegmentId;
+            if (string.IsNullOrEmpty(segmentId))
+            {
+                return;
+            }
+
+            WallSystem wall = Wall;
             if (wall != null)
             {
                 try
                 {
-                    wall.DamageSegment(SegmentId);
+                    wall.DamageSegment(segmentId);
                     return;
                 }
                 catch (Exception exception)
@@ -593,14 +610,29 @@ namespace SheepGate.Contest
             }
 
             GameState state = State;
-            WallSegmentState segment = state != null ? state.Segment(SegmentId) : null;
+            WallSegmentState segment = state != null ? state.Segment(segmentId) : null;
             if (segment == null)
             {
                 return;
             }
 
+            // Same guarantee without the wall present: only the work in progress is lost.
             segment.workInStage = 0;
             segment.damaged = true;
+        }
+
+        /// <summary>The scene's wall, resolved once and re-resolved if it was not there yet.</summary>
+        WallSystem Wall
+        {
+            get
+            {
+                if (_wall == null)
+                {
+                    _wall = FindWallSystem();
+                }
+
+                return _wall;
+            }
         }
 
         static WallSystem FindWallSystem()
@@ -619,6 +651,67 @@ namespace SheepGate.Contest
             }
 
             return FindFirstObjectByType<WallSystem>();
+        }
+
+        /// <summary>
+        /// Finds the segment the trial is fought over, in the data and never in a constant: the
+        /// wall's primary exposed segment first, because that is exactly what an unwatched night
+        /// damages; then the first definition in wall_segments.json carrying the exposed flag; then
+        /// the first definition of any kind, so a data file that forgot the flag still fights over
+        /// a real segment.
+        /// </summary>
+        string ResolveContestedSegmentId()
+        {
+            WallSystem wall = Wall;
+            if (wall != null)
+            {
+                try
+                {
+                    string primary = wall.PrimaryExposedSegmentId;
+                    if (!string.IsNullOrEmpty(primary))
+                    {
+                        return primary;
+                    }
+                }
+                catch (Exception exception)
+                {
+                    Debug.LogWarning("[Contest] Reading the wall's exposed segment failed: " + exception.Message);
+                }
+            }
+
+            WallSegmentDef[] defs = null;
+            try
+            {
+                defs = GameData.WallSegments;
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning("[Contest] Could not read wall_segments.json: " + exception.Message);
+            }
+
+            if (defs != null)
+            {
+                for (int i = 0; i < defs.Length; i++)
+                {
+                    WallSegmentDef def = defs[i];
+                    if (def != null && def.exposed && !string.IsNullOrEmpty(def.id))
+                    {
+                        return def.id;
+                    }
+                }
+
+                for (int i = 0; i < defs.Length; i++)
+                {
+                    WallSegmentDef def = defs[i];
+                    if (def != null && !string.IsNullOrEmpty(def.id))
+                    {
+                        return def.id;
+                    }
+                }
+            }
+
+            Debug.LogWarning("[Contest] No wall segment could be resolved; the trial runs without one.");
+            return null;
         }
 
         // ------------------------------------------------------------------ helpers
@@ -655,11 +748,33 @@ namespace SheepGate.Contest
             }
         }
 
-        /// <summary>Stages of seg_01 already finished, zero to four.</summary>
-        static int CompletedStages()
+        /// <summary>Stages of the contested segment already finished, zero to four.</summary>
+        int CompletedStages()
         {
+            string segmentId = ContestedSegmentId;
+            if (string.IsNullOrEmpty(segmentId))
+            {
+                return 0;
+            }
+
+            WallSystem wall = Wall;
+            if (wall != null)
+            {
+                try
+                {
+                    if (wall.Contains(segmentId))
+                    {
+                        return Mathf.Clamp(wall.StageOf(segmentId), 0, StagesPerSegment);
+                    }
+                }
+                catch (Exception exception)
+                {
+                    Debug.LogWarning("[Contest] Reading the wall stage failed: " + exception.Message);
+                }
+            }
+
             GameState state = State;
-            WallSegmentState segment = state != null ? state.Segment(SegmentId) : null;
+            WallSegmentState segment = state != null ? state.Segment(segmentId) : null;
             if (segment == null)
             {
                 return 0;

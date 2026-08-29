@@ -11,24 +11,37 @@ namespace SheepGate.World
     /// Two views on one map.
     ///
     /// The default view is close and portrait, following the player with SmoothDamp and clamped to
-    /// the map. The Ronda pulls back to <see cref="RondaSize"/> and hands the player horizontal
-    /// dragging, which is the only view where the whole wall is visible.
+    /// the map. The patrol view — the button the player sees is labelled "Ronda" — pulls back to
+    /// <see cref="PatrolSize"/> and hands the player horizontal dragging, which is the only view
+    /// where the whole wall is visible.
     ///
-    /// Using the Ronda scores the exile vocation in silence. The count is never exposed by this
-    /// class and never reaches any UI.
+    /// Entering the patrol view scores the exile vocation in silence. The count is never exposed by
+    /// this class and never reaches any UI.
+    ///
+    /// The seam is <see cref="SetPatrolView"/>: the HUD owns the button and pushes the state in
+    /// here. Setting a state the rig already has does nothing, so two callers pushing the same
+    /// value for one transition still count it once. Anything forwarding a "the view changed to X"
+    /// event must pass that X through <see cref="SetPatrolView"/> — never through
+    /// <see cref="TogglePatrolView"/>, which would flip the rig straight back and leave the button
+    /// disagreeing with the camera. <see cref="TogglePatrolView"/> is for a caller that owns the
+    /// decision itself and has no state to push.
     /// </summary>
     public sealed class CameraRig : MonoBehaviour
     {
         public const float CloseSize = 7.5f;
-        public const float RondaSize = 20f;
+        public const float PatrolSize = 20f;
         public const float FollowSmoothTime = 0.22f;
         public const float ZoomSmoothTime = 0.35f;
         public const float CameraZ = -10f;
 
-        private const string RondaUsesKey = "ronda_uses";
-        private const int RondaUsesForVocation = 3;
+        // Persisted counter keys. The strings live in save files that already exist, so they stay
+        // exactly as authored even though the identifiers around them are English: renaming a key
+        // would silently reset a player's progress.
+        private const string PatrolUsesKey = "ronda_uses";
+        private const string ExileAwardedKey = "exile_ronda_awarded";
+        private const int PatrolUsesForVocation = 3;
 
-        public bool IsRonda { get; private set; }
+        public bool IsPatrolView { get; private set; }
 
         public Transform Target { get; private set; }
 
@@ -37,7 +50,7 @@ namespace SheepGate.World
         private Vector3 _followVelocity;
         private float _sizeVelocity;
         private float _targetSize = CloseSize;
-        private float _rondaX;
+        private float _patrolX;
         private bool _dragging;
         private float _lastPointerX;
 
@@ -66,7 +79,7 @@ namespace SheepGate.World
                 ? new Vector3(Target.position.x, Target.position.y, CameraZ)
                 : new Vector3(transform.position.x, transform.position.y, CameraZ);
 
-            _rondaX = start.x;
+            _patrolX = start.x;
             transform.position = ClampToBounds(start);
         }
 
@@ -75,33 +88,37 @@ namespace SheepGate.World
             Target = target;
         }
 
-        /// <summary>Switches between the close follow view and the Ronda.</summary>
-        public void ToggleRonda()
+        /// <summary>Switches between the close follow view and the wide patrol view.</summary>
+        public void TogglePatrolView()
         {
-            SetRonda(!IsRonda);
+            SetPatrolView(!IsPatrolView);
         }
 
-        public void SetRonda(bool enabledRonda)
+        /// <summary>
+        /// Enters or leaves the wide patrol view. Setting the state it already has does nothing at
+        /// all, which is what lets more than one caller drive this without double counting.
+        /// </summary>
+        public void SetPatrolView(bool patrolView)
         {
-            if (IsRonda == enabledRonda)
+            if (IsPatrolView == patrolView)
             {
                 return;
             }
 
-            IsRonda = enabledRonda;
-            _targetSize = IsRonda ? RondaSize : CloseSize;
+            IsPatrolView = patrolView;
+            _targetSize = IsPatrolView ? PatrolSize : CloseSize;
             _dragging = false;
 
-            if (!IsRonda)
+            if (!IsPatrolView)
             {
                 return;
             }
 
-            _rondaX = Target != null ? Target.position.x : transform.position.x;
-            CountRondaUse();
+            _patrolX = Target != null ? Target.position.x : transform.position.x;
+            CountPatrolUse();
         }
 
-        private void CountRondaUse()
+        private void CountPatrolUse()
         {
             GameState state = WorldRuntime.State;
             if (state == null)
@@ -109,10 +126,10 @@ namespace SheepGate.World
                 return;
             }
 
-            state.Bump(RondaUsesKey);
-            if (state.Counter(RondaUsesKey) >= RondaUsesForVocation)
+            state.Bump(PatrolUsesKey);
+            if (state.Counter(PatrolUsesKey) >= PatrolUsesForVocation)
             {
-                WorldRuntime.AwardOnce("exile_ronda_awarded", WorldRuntime.VocationExile, 2);
+                WorldRuntime.AwardOnce(ExileAwardedKey, WorldRuntime.VocationExile, 2);
             }
 
             WorldRuntime.SaveNow();
@@ -121,12 +138,12 @@ namespace SheepGate.World
         /// <summary>Horizontal pan in world units, for a drag driven by the UI layer.</summary>
         public void PanBy(float worldDeltaX)
         {
-            if (!IsRonda)
+            if (!IsPatrolView)
             {
                 return;
             }
 
-            _rondaX += worldDeltaX;
+            _patrolX += worldDeltaX;
         }
 
         private void LateUpdate()
@@ -141,13 +158,13 @@ namespace SheepGate.World
             Vector3 desired;
             float smoothTime;
 
-            if (IsRonda)
+            if (IsPatrolView)
             {
                 HandleDrag();
                 float wallY = _tilemap != null
                     ? _tilemap.CellToWorldCenter(0, _tilemap.WallRowY).y
                     : transform.position.y;
-                desired = new Vector3(_rondaX, wallY, CameraZ);
+                desired = new Vector3(_patrolX, wallY, CameraZ);
                 smoothTime = _dragging ? 0.05f : 0.30f;
             }
             else
@@ -163,9 +180,9 @@ namespace SheepGate.World
             next.z = CameraZ;
             transform.position = next;
 
-            if (IsRonda)
+            if (IsPatrolView)
             {
-                _rondaX = clamped.x;
+                _patrolX = clamped.x;
             }
         }
 
@@ -197,7 +214,7 @@ namespace SheepGate.World
             float worldPerPixel = (2f * _camera.orthographicSize * _camera.aspect) / screenWidth;
             float delta = (screenPosition.x - _lastPointerX) * worldPerPixel;
             _lastPointerX = screenPosition.x;
-            _rondaX -= delta;
+            _patrolX -= delta;
         }
 
         private static bool IsPointerOverUserInterface()
@@ -353,7 +370,7 @@ namespace SheepGate.World
                 catch (Exception exception)
                 {
                     _inputSystemAvailable = false;
-                    Debug.LogWarning("[World] Reading the Input System failed; the Ronda drag is disabled: " + exception.Message);
+                    Debug.LogWarning("[World] Reading the Input System failed; the patrol drag is disabled: " + exception.Message);
                 }
 
                 return false;

@@ -185,7 +185,7 @@ namespace SheepGate.Dialogue
 
         /// <summary>
         /// True when the player has finished at least one conversation with every NPC in npcs.json.
-        /// This is the condition behind the escriba grant for talking to everyone; it is deliberately
+        /// This is the condition behind the scribe grant for talking to everyone; it is deliberately
         /// derived on demand so no counter of "NPCs remaining" can leak into a UI.
         /// </summary>
         public static bool HasSpokenWithEveryNpc(GameState state)

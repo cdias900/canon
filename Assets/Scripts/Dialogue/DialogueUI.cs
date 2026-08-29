@@ -1,10 +1,16 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 #if ENABLE_INPUT_SYSTEM && !ENABLE_LEGACY_INPUT_MANAGER
 using UnityEngine.InputSystem.UI;
 #endif
+
+// Aliased rather than imported: SheepGate.UI and SheepGate.Art both publish a type called
+// ArtKeys, and a plain using of either namespace here would make every unqualified mention
+// of that name ambiguous.
+using UIKit = SheepGate.UI.UIKit;
 
 namespace SheepGate.Dialogue
 {
@@ -27,6 +33,13 @@ namespace SheepGate.Dialogue
         /// <summary>Raised by the secondary affordance: chapter reference, then verse reference.</summary>
         public event Action<string, string> ChapterRequested;
 
+        /// <summary>
+        /// Raised with the index of the branch the player tapped, into the list last handed to
+        /// <see cref="ShowChoices"/>. Nothing but the authored label of a branch ever reaches the
+        /// screen: no node metadata, no scoring, no hint about which resident is telling the truth.
+        /// </summary>
+        public event Action<int> ChoiceSelected;
+
         private const int CanvasSortingOrder = 100;
         private const float ReferenceWidth = 1080f;
         private const float ReferenceHeight = 1920f;
@@ -43,6 +56,11 @@ namespace SheepGate.Dialogue
 
         private const string MoreButtonLabel = "Saber mais";
         private const string AdvanceHintLabel = "toque para continuar";
+
+        /// <summary>Tall enough for a two-line branch label at body size, plus its insets.</summary>
+        private const float ChoiceButtonHeight = 108f;
+
+        private const float ChoiceSpacing = 12f;
 
         private static readonly Color BubbleTint = new Color(0.94f, 0.92f, 0.88f, 1f);
         private static readonly Color BodyColor = new Color(0.13f, 0.12f, 0.10f, 1f);
@@ -61,6 +79,8 @@ namespace SheepGate.Dialogue
         private GameObject footer;
         private Button moreButton;
         private DialogueTapCatcher catcher;
+        private GameObject choicesRoot;
+        private readonly List<Button> choiceButtons = new List<Button>();
 
         private string fullBody = string.Empty;
         private string currentChapterRef;
@@ -97,6 +117,8 @@ namespace SheepGate.Dialogue
 
         public void Hide()
         {
+            HideChoices();
+
             if (root != null)
             {
                 root.SetActive(false);
@@ -134,6 +156,7 @@ namespace SheepGate.Dialogue
             string chapterRef)
         {
             Build();
+            HideChoices();
 
             fullBody = body ?? string.Empty;
             currentChapterRef = chapterRef;
@@ -221,6 +244,141 @@ namespace SheepGate.Dialogue
             }
         }
 
+        /// <summary>
+        /// Puts one button per branch under the line, in the order given, and takes the advance
+        /// hint away: while branches are on screen, tapping the bubble is no longer what moves the
+        /// conversation forward. Labels are authored pt-BR and are shown verbatim.
+        ///
+        /// Returns false when not a single button could be put on screen, which is the caller's cue
+        /// to keep the ordinary tap-to-finish behaviour rather than wait for a tap that can never
+        /// come.
+        /// </summary>
+        public bool ShowChoices(IList<string> labels)
+        {
+            Build();
+
+            if (choicesRoot == null)
+            {
+                return false;
+            }
+
+            int count = labels != null ? labels.Count : 0;
+            int shown = 0;
+
+            for (int i = 0; i < count; i++)
+            {
+                Button button = i < choiceButtons.Count ? choiceButtons[i] : null;
+                if (button == null)
+                {
+                    button = CreateChoiceButton(i);
+                }
+
+                if (button == null)
+                {
+                    continue;
+                }
+
+                UIKit.SetButtonLabel(button, labels[i]);
+                button.gameObject.SetActive(true);
+                shown++;
+            }
+
+            for (int i = count; i < choiceButtons.Count; i++)
+            {
+                if (choiceButtons[i] != null)
+                {
+                    choiceButtons[i].gameObject.SetActive(false);
+                }
+            }
+
+            choicesRoot.SetActive(shown > 0);
+
+            if (shown > 0 && hintText != null)
+            {
+                hintText.gameObject.SetActive(false);
+            }
+
+            return shown > 0;
+        }
+
+        /// <summary>Takes every branch button off screen. Safe to call when none is showing.</summary>
+        public void HideChoices()
+        {
+            for (int i = 0; i < choiceButtons.Count; i++)
+            {
+                if (choiceButtons[i] != null)
+                {
+                    choiceButtons[i].gameObject.SetActive(false);
+                }
+            }
+
+            if (choicesRoot != null)
+            {
+                choicesRoot.SetActive(false);
+            }
+        }
+
+        private Button CreateChoiceButton(int index)
+        {
+            if (choicesRoot == null)
+            {
+                return null;
+            }
+
+            // The index is captured in a local so every button keeps its own position, not the
+            // loop variable that created it.
+            int captured = index;
+
+            Button button = UIKit.CreateButton(
+                choicesRoot.transform,
+                "Choice" + index,
+                string.Empty,
+                UIKit.Palette.PanelSoft,
+                UIKit.Palette.Parchment,
+                () => OnChoiceClicked(captured));
+
+            if (button == null)
+            {
+                return null;
+            }
+
+            // The bubble's vertical group controls child sizes, so an Image alone gives the row no
+            // height to work with; the layout element is what makes the button a real row.
+            LayoutElement layout = UIKit.Layout(button);
+            if (layout != null)
+            {
+                layout.minHeight = ChoiceButtonHeight;
+                layout.preferredHeight = ChoiceButtonHeight;
+                layout.flexibleWidth = 1f;
+            }
+
+            Text label = button.GetComponentInChildren<Text>();
+            if (label != null)
+            {
+                // Body size, not button size: a branch is a sentence the player says, and it has to
+                // sit at the same weight as the line it answers.
+                label.fontSize = UIKit.FontSize.Body;
+                label.alignment = TextAnchor.MiddleLeft;
+            }
+
+            while (choiceButtons.Count <= index)
+            {
+                choiceButtons.Add(null);
+            }
+
+            choiceButtons[index] = button;
+            return button;
+        }
+
+        private void OnChoiceClicked(int index)
+        {
+            Action<int> handler = ChoiceSelected;
+            if (handler != null)
+            {
+                handler(index);
+            }
+        }
+
         private void Awake()
         {
             Build();
@@ -284,6 +442,7 @@ namespace SheepGate.Dialogue
                 FontStyle.Normal, TextAnchor.UpperLeft);
 
             BuildFooter(bubbleRect, font);
+            BuildChoices(bubbleRect);
 
             hintText = NewText("AdvanceHint", bubbleRect, font, MetadataFontSize, MetadataColor,
                 FontStyle.Normal, TextAnchor.MiddleRight);
@@ -333,6 +492,27 @@ namespace SheepGate.Dialogue
             buttonLabel.raycastTarget = false;
 
             footer.SetActive(false);
+        }
+
+        /// <summary>
+        /// The column the branch buttons live in. It sits below the reference footer so the
+        /// reference is never pushed out of sight by a decision, and it stays empty and inactive
+        /// until a node actually offers branches.
+        /// </summary>
+        private void BuildChoices(RectTransform bubbleRect)
+        {
+            RectTransform choicesRect = NewRect("Choices", bubbleRect);
+            choicesRoot = choicesRect.gameObject;
+
+            VerticalLayoutGroup column = choicesRoot.AddComponent<VerticalLayoutGroup>();
+            column.spacing = ChoiceSpacing;
+            column.childAlignment = TextAnchor.UpperCenter;
+            column.childControlWidth = true;
+            column.childControlHeight = true;
+            column.childForceExpandWidth = true;
+            column.childForceExpandHeight = false;
+
+            choicesRoot.SetActive(false);
         }
 
         private void OnCatcherClicked()

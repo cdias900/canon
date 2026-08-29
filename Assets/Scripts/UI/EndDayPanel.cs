@@ -15,11 +15,13 @@ namespace SheepGate.UI
     /// inputs would let the player dodge the decision by moving both.
     ///
     /// Second, neither side can be emptied: the slider is bounded by <see cref="MinimumPerSide"/>
-    /// on both ends, so there is always someone building and always someone watching.
+    /// on both ends, so there is always someone building and always someone on the wall.
     ///
-    /// The panel says where the people go and stops there. It promises no outcome, because the
-    /// night is not this screen's to describe — it never marks a split as the right one, and the
-    /// morning report is where the player finds out what happened.
+    /// The panel states one rule and no outcomes. The rule is where the watch starts counting,
+    /// read live from <see cref="DayCycle.WatchThreshold"/> as the slider moves, because a player
+    /// who cannot see the line cannot gamble against it — they can only guess, and a guess is not
+    /// a decision. What the night then did with that split is the morning report's to tell, and
+    /// this screen still never marks a split as the right one.
     /// </summary>
     public sealed class EndDayPanel : MonoBehaviour
     {
@@ -32,13 +34,15 @@ namespace SheepGate.UI
         /// <summary>
         /// Smallest number of people that may be left on either side of the split.
         ///
-        /// One, so neither side can be emptied. Every bound and clamp on this screen reads this
-        /// constant and nothing else, so the decision is a single token to change.
+        /// One, so neither side can be emptied (NEH.4.16). Every bound and clamp on this screen
+        /// reads this constant and nothing else, so the decision is a single token to change.
         ///
-        /// KNOWN CONFLICT: DayCycle treats any night with at least one watcher as watched
-        /// (LastNightHadWatch = watchers > 0), so while this is 1 the player cannot reach an
-        /// unwatched night, and the split has no mechanical consequence. Either this becomes 0 or
-        /// DayCycle's threshold rises above 1 — the two cannot both stand.
+        /// This used to conflict with DayCycle, which counted any single watcher as a watch and so
+        /// made an unwatched night unreachable. The conflict is settled the other way round: the
+        /// bound stays, because emptying a side is exactly what the chapter refuses, and DayCycle
+        /// now asks for half the crew before it calls the wall watched. So one person on the wall
+        /// is still a legal split, and it is still not a watch — which is the gamble the night was
+        /// always supposed to offer.
         /// </summary>
         public const int MinimumPerSide = 1;
 
@@ -58,6 +62,8 @@ namespace SheepGate.UI
         Text _watchNumber;
         Text _workHint;
         Text _watchHint;
+        Text _watchStatus;
+        Image _watchAccent;
 
         /// <summary>True while the split panel is on screen.</summary>
         public static bool IsOpen
@@ -180,17 +186,35 @@ namespace SheepGate.UI
             if (minimumPerSide > 0)
             {
                 Text bounds = UIKit.CreateText(cardRect, "Bounds", "Sempre fica alguém dos dois lados.", UIKit.FontSize.Meta, UIKit.Palette.Stone, TextAnchor.MiddleLeft);
-                UIKit.AnchorTop((RectTransform)bounds.transform, 44f, 56f, 56f, 494f);
+                UIKit.AnchorTop((RectTransform)bounds.transform, 40f, 56f, 56f, 494f);
             }
 
             _workHint = UIKit.CreateText(cardRect, "WorkHint", string.Empty, UIKit.FontSize.Body, UIKit.Palette.Parchment, TextAnchor.UpperLeft);
-            UIKit.AnchorTop((RectTransform)_workHint.transform, 104f, 56f, 56f, 552f);
+            UIKit.AnchorTop((RectTransform)_workHint.transform, 96f, 56f, 56f, 546f);
 
             _watchHint = UIKit.CreateText(cardRect, "WatchHint", string.Empty, UIKit.FontSize.Body, UIKit.Palette.Parchment, TextAnchor.UpperLeft);
-            UIKit.AnchorTop((RectTransform)_watchHint.transform, 104f, 56f, 56f, 664f);
+            UIKit.AnchorTop((RectTransform)_watchHint.transform, 96f, 56f, 56f, 646f);
+
+            // Where the watch starts counting, restated on every drag of the slider. The words
+            // stay parchment so they are always legible; the accent bar beside them carries the
+            // same colour pair the morning report uses, so the two screens agree at a glance.
+            RectTransform statusRow = UIKit.CreateRect("Watch Status", cardRect);
+            UIKit.AnchorTop(statusRow, 104f, 56f, 56f, 754f);
+
+            _watchAccent = UIKit.CreatePanel(statusRow, "Accent", UIKit.Palette.Olive);
+            var accentRect = (RectTransform)_watchAccent.transform;
+            accentRect.anchorMin = new Vector2(0f, 0f);
+            accentRect.anchorMax = new Vector2(0f, 1f);
+            accentRect.pivot = new Vector2(0f, 0.5f);
+            accentRect.sizeDelta = new Vector2(10f, 0f);
+            accentRect.anchoredPosition = Vector2.zero;
+            _watchAccent.raycastTarget = false;
+
+            _watchStatus = UIKit.CreateText(statusRow, "Label", string.Empty, UIKit.FontSize.Body, UIKit.Palette.Parchment, TextAnchor.UpperLeft);
+            UIKit.Stretch((RectTransform)_watchStatus.transform, 28f, 0f, 0f, 0f);
 
             Text note = UIKit.CreateText(cardRect, "Note", "De manhã você vê o que a noite fez.", UIKit.FontSize.Meta, UIKit.Palette.Muted, TextAnchor.UpperLeft);
-            UIKit.AnchorTop((RectTransform)note.transform, 80f, 56f, 56f, 786f);
+            UIKit.AnchorTop((RectTransform)note.transform, 56f, 56f, 56f, 866f);
 
             Button confirm = UIKit.CreateButton(cardRect, "Confirm", "Fechar o dia", UIKit.Palette.Clay, UIKit.Palette.Parchment, Confirm);
             var confirmRect = (RectTransform)confirm.transform;
@@ -276,6 +300,33 @@ namespace SheepGate.UI
                 _watchHint.text = Plural(watchers,
                     "1 pessoa fica no muro, de olho na estrada, e não levanta pedra.",
                     watchers + " pessoas ficam no muro, de olho na estrada, e não levantam pedra.");
+            }
+
+            RefreshWatchStatus(watchers);
+        }
+
+        /// <summary>
+        /// States the rule and where this split falls against it. DayCycle answers both questions,
+        /// so the line can never promise a watch the night will not honour.
+        /// </summary>
+        void RefreshWatchStatus(int watchers)
+        {
+            if (_watchStatus == null)
+            {
+                return;
+            }
+
+            int threshold = DayCycle.WatchThreshold(_total);
+            bool posted = DayCycle.CountsAsWatch(watchers, _total);
+            string rule = "A guarda se conta a partir de " + threshold + " no muro.";
+
+            _watchStatus.text = posted
+                ? "Guarda posta.\n" + rule
+                : "Sem guarda esta noite.\n" + rule;
+
+            if (_watchAccent != null)
+            {
+                _watchAccent.color = posted ? UIKit.Palette.Olive : UIKit.Palette.Clay;
             }
         }
 

@@ -8,7 +8,7 @@ namespace SheepGate.UI
 {
     /// <summary>
     /// The permanent overlay: what the player has to spend, what day it is, and the two buttons
-    /// that change the frame — the Ronda camera and the end of the day.
+    /// that change the frame — the wide patrol camera ("Ronda" on the button) and the end of the day.
     ///
     /// Deliberately small. This is a portrait phone screen where the ground itself is the primary
     /// control, so the readouts sit in a single strip at the top and the two buttons sit at the
@@ -31,11 +31,14 @@ namespace SheepGate.UI
         public const int CanvasSortingOrder = 50;
 
         /// <summary>
-        /// Counter bumped every time the Ronda view is entered. Published so whoever owns vocation
-        /// scoring can read it; the HUD deliberately awards nothing itself, because the rest of
-        /// that archetype is scored by systems that own the fish and the map edge.
+        /// Counter bumped every time the wide patrol view is entered. Published so whoever owns
+        /// vocation scoring can read it; the HUD deliberately awards nothing itself, because the
+        /// rest of that archetype is scored by systems that own the fish and the map edge.
+        ///
+        /// The key string is what existing save files already contain, so it stays exactly as it
+        /// is: renaming it would silently reset a player's progress.
         /// </summary>
-        public const string RondaCounter = "ronda_used";
+        public const string PatrolCounter = "ronda_used";
 
         const float TopBarHeight = 140f;
         const float SideMargin = 24f;
@@ -47,20 +50,28 @@ namespace SheepGate.UI
         Text _dayText;
         Text _workText;
         Text _rubbleText;
-        Button _rondaButton;
+        Button _patrolButton;
         Button _endDayButton;
+        CameraRig _cameraRig;
 
-        bool _rondaActive;
+        bool _patrolViewActive;
         int _cachedDay = int.MinValue;
         int _cachedWork = int.MinValue;
         int _cachedWorkMax = int.MinValue;
         int _cachedRubble = int.MinValue;
 
         /// <summary>
-        /// Raised when the player switches between the close view and the Ronda. Whoever owns the
-        /// camera subscribes; the HUD has no opinion about what the camera does.
+        /// Raised with true when the player enters the wide patrol view and false when they leave
+        /// it. Free for anything that wants to follow the frame the player is in.
+        ///
+        /// Subscribing is optional: the HUD already drives the <see cref="CameraRig"/> registered
+        /// in the scene, and <see cref="CameraRig.SetPatrolView"/> ignores a state it already has,
+        /// so a second subscriber that pushes the same value costs nothing. A subscriber that
+        /// forwards this to the rig must pass the bool through <see cref="CameraRig.SetPatrolView"/>
+        /// — forwarding it to <see cref="CameraRig.TogglePatrolView"/> would flip the camera back
+        /// and leave it disagreeing with the button.
         /// </summary>
-        public event Action<bool> RondaToggled;
+        public event Action<bool> PatrolViewToggled;
 
         /// <summary>The HUD in the scene, or null.</summary>
         public static HUD Current
@@ -68,10 +79,10 @@ namespace SheepGate.UI
             get { return _current; }
         }
 
-        /// <summary>True while the wide Ronda view is on.</summary>
-        public bool RondaActive
+        /// <summary>True while the wide patrol view is on.</summary>
+        public bool IsPatrolView
         {
-            get { return _rondaActive; }
+            get { return _patrolViewActive; }
         }
 
         /// <summary>Builds the HUD, or returns the one already in the scene.</summary>
@@ -132,13 +143,14 @@ namespace SheepGate.UI
             _workText = BuildReadout(barRect, "Work", 0.30f, 0.70f, TextAnchor.MiddleCenter);
             _rubbleText = BuildReadout(barRect, "Rubble", 0.70f, 1f, TextAnchor.MiddleRight);
 
-            _rondaButton = UIKit.CreateButton(root, "Ronda", "Ronda", UIKit.Palette.PanelSoft, UIKit.Palette.Parchment, OnRondaClicked);
-            var rondaRect = (RectTransform)_rondaButton.transform;
-            rondaRect.anchorMin = new Vector2(1f, 1f);
-            rondaRect.anchorMax = new Vector2(1f, 1f);
-            rondaRect.pivot = new Vector2(1f, 1f);
-            rondaRect.sizeDelta = new Vector2(238f, 104f);
-            rondaRect.anchoredPosition = new Vector2(-SideMargin, -(TopMargin + TopBarHeight + 18f));
+            // Object name in English, label in pt-BR: "Ronda" is the word the player reads.
+            _patrolButton = UIKit.CreateButton(root, "PatrolButton", "Ronda", UIKit.Palette.PanelSoft, UIKit.Palette.Parchment, OnPatrolClicked);
+            var patrolRect = (RectTransform)_patrolButton.transform;
+            patrolRect.anchorMin = new Vector2(1f, 1f);
+            patrolRect.anchorMax = new Vector2(1f, 1f);
+            patrolRect.pivot = new Vector2(1f, 1f);
+            patrolRect.sizeDelta = new Vector2(238f, 104f);
+            patrolRect.anchoredPosition = new Vector2(-SideMargin, -(TopMargin + TopBarHeight + 18f));
 
             _endDayButton = UIKit.CreateButton(root, "EndDay", "Fim do dia", UIKit.Palette.Clay, UIKit.Palette.Parchment, OnEndDayClicked);
             var endDayRect = (RectTransform)_endDayButton.transform;
@@ -211,42 +223,57 @@ namespace SheepGate.UI
             }
         }
 
-        // ------------------------------------------------------------------ ronda
+        // ------------------------------------------------------------------ patrol view
 
-        void OnRondaClicked()
+        void OnPatrolClicked()
         {
-            SetRonda(!_rondaActive);
-        }
-
-        /// <summary>
-        /// Switches the Ronda view on or off and tells whoever owns the camera. Entering the wide
-        /// view bumps a counter; leaving it does not.
-        /// </summary>
-        public void SetRonda(bool active)
-        {
-            if (_rondaActive == active)
+            // A modal covers the HUD, so this should be unreachable while one is up. Cheap to be
+            // sure, and it matches what the end-of-day button already does.
+            if (ModalRoot.IsOpen)
             {
                 return;
             }
 
-            _rondaActive = active;
+            TogglePatrolView();
+        }
+
+        /// <summary>Flips between the close follow view and the wide patrol view.</summary>
+        public void TogglePatrolView()
+        {
+            SetPatrolView(!_patrolViewActive);
+        }
+
+        /// <summary>
+        /// Switches the wide patrol view on or off: moves the camera, relabels the button and tells
+        /// every listener. Entering the wide view bumps a counter; leaving it does not.
+        /// </summary>
+        public void SetPatrolView(bool active)
+        {
+            if (_patrolViewActive == active)
+            {
+                return;
+            }
+
+            _patrolViewActive = active;
 
             if (active)
             {
                 GameState state = TryGetState();
                 if (state != null)
                 {
-                    state.Bump(RondaCounter);
+                    state.Bump(PatrolCounter);
                 }
             }
 
-            if (_rondaButton != null)
+            if (_patrolButton != null)
             {
-                UIKit.SetButtonLabel(_rondaButton, active ? "Voltar" : "Ronda");
-                UIKit.TintButton(_rondaButton, active ? UIKit.Palette.Night : UIKit.Palette.PanelSoft, UIKit.Palette.Parchment);
+                UIKit.SetButtonLabel(_patrolButton, active ? "Voltar" : "Ronda");
+                UIKit.TintButton(_patrolButton, active ? UIKit.Palette.Night : UIKit.Palette.PanelSoft, UIKit.Palette.Parchment);
             }
 
-            Action<bool> handler = RondaToggled;
+            ApplyToCameraRig(active);
+
+            Action<bool> handler = PatrolViewToggled;
             if (handler == null)
             {
                 return;
@@ -258,8 +285,64 @@ namespace SheepGate.UI
             }
             catch (Exception exception)
             {
-                Debug.LogError("[HUD] A listener threw while the Ronda toggled: " + exception.Message);
+                Debug.LogError("[HUD] A listener threw while the patrol view toggled: " + exception.Message);
             }
+        }
+
+        /// <summary>
+        /// Moves the camera itself, rather than hoping something subscribed to
+        /// <see cref="PatrolViewToggled"/>. The rig is registered by the scene composer, so it is
+        /// resolved through the service locator and only searched for as a fallback; the lookup is
+        /// lazy because the rig exists before the HUD does, but is not guaranteed to be registered
+        /// by the time this component is built.
+        ///
+        /// Nothing is lost if some other module also forwards the event to the rig:
+        /// <see cref="CameraRig.SetPatrolView"/> ignores a state it already has.
+        /// </summary>
+        void ApplyToCameraRig(bool active)
+        {
+            CameraRig rig = ResolveCameraRig();
+            if (rig == null)
+            {
+                Debug.LogWarning("[HUD] No CameraRig is in the scene; the patrol view button changed nothing.");
+                return;
+            }
+
+            try
+            {
+                rig.SetPatrolView(active);
+            }
+            catch (Exception exception)
+            {
+                Debug.LogError("[HUD] Moving the camera into the patrol view failed: " + exception.Message);
+            }
+        }
+
+        CameraRig ResolveCameraRig()
+        {
+            // The cached rig is compared against null on every use: a destroyed component still
+            // holds a live C# reference, and Unity's null comparison is what catches that.
+            if (_cameraRig != null)
+            {
+                return _cameraRig;
+            }
+
+            CameraRig registered;
+            try
+            {
+                if (ServiceLocator.TryGet(out registered) && registered != null)
+                {
+                    _cameraRig = registered;
+                    return _cameraRig;
+                }
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning("[HUD] Looking up the CameraRig failed: " + exception.Message);
+            }
+
+            _cameraRig = FindFirstObjectByType<CameraRig>();
+            return _cameraRig;
         }
 
         // ------------------------------------------------------------------ end of day

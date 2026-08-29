@@ -20,10 +20,26 @@ namespace SheepGate.World
         private const string TalkedPrefix = "talked_";
         private const string PlayedPrefix = "dialogue_played_";
         private const string DistinctTalkedKey = "npcs_talked";
-        private const int FallbackVillageSize = 6;
 
         private static readonly string ShepherdFirstNpc = "hananias";
         private static readonly string ShepherdSecondNpc = "salum";
+
+        // The day-2 invitation, authored in dialogue.json. Malquias hands over the letter and the
+        // branch the player takes is what raises accepted_invite or refused_invite — the two flags
+        // the day-3 contest reads to decide how hard the night is going to be.
+        private const string InviteNpcId = "malquias";
+        private const int InviteDay = 2;
+        private const string InviteAcceptNodeId = "malquias_d2_accept";
+        private const string InviteRefuseNodeId = "malquias_d2_refuse";
+        private const string InviteReturnNodeId = "malquias_d2_return";
+        private const string InviteDamagedSegmentId = "seg_01";
+        private const string InviteDaySpentKey = "invite_day_spent";
+
+        // Handing a resident material scores the shepherd. The amount mirrors requires_rubble on
+        // the donation branch authored in dialogue.json.
+        private const string DonationNodeId = "hananias_d2_donate";
+        private const string DonationPaidKey = "shepherd_donation_paid";
+        private const int DonationRubbleCost = 3;
 
         private static readonly Color[] PaletteColors =
         {
@@ -41,7 +57,6 @@ namespace SheepGate.World
         public string SourceRef { get; private set; }
 
         private DialogueSystem _subscribedSystem;
-        private string _pendingNodeId;
 
         public static NpcActor Spawn(NpcDef def, Transform parent, TilemapBuilder tilemap)
         {
@@ -168,10 +183,7 @@ namespace SheepGate.World
                 return;
             }
 
-            Unsubscribe();
-            _pendingNodeId = nodeId;
-            _subscribedSystem = dialogue;
-            dialogue.NodeFinished += OnNodeFinished;
+            EnsureSubscribed(dialogue);
 
             try
             {
@@ -180,12 +192,17 @@ namespace SheepGate.World
             catch (Exception exception)
             {
                 Debug.LogWarning("[World] DialogueSystem.Play(\"" + nodeId + "\") failed: " + exception.Message);
-                Unsubscribe();
             }
         }
 
         private string ResolveNodeId(int day)
         {
+            string followUp = ResolveFollowUpNodeId(day);
+            if (!string.IsNullOrEmpty(followUp))
+            {
+                return followUp;
+            }
+
             string direct = WorldRuntime.FirstExistingNode(
                 NpcId + "_d" + day,
                 NpcId + "_day" + day,
@@ -239,23 +256,160 @@ namespace SheepGate.World
             return best;
         }
 
-        private void OnNodeFinished(string finishedNodeId)
+        /// <summary>
+        /// Once a decision has been made, this resident has the follow-up to say and not the
+        /// question again. Returns null whenever the ordinary per-day node is the right one.
+        /// </summary>
+        private string ResolveFollowUpNodeId(int day)
         {
-            string nodeId = _pendingNodeId;
-            if (string.IsNullOrEmpty(nodeId))
+            if (NpcId != InviteNpcId || day != InviteDay)
             {
-                Unsubscribe();
-                return;
+                return null;
             }
 
-            // Another node finishing first is not this conversation; keep waiting for ours.
-            if (!string.IsNullOrEmpty(finishedNodeId) && finishedNodeId != nodeId)
+            GameState state = WorldRuntime.State;
+            if (state == null)
+            {
+                return null;
+            }
+
+            if (state.HasFlag(GameFlags.AcceptedInvite))
+            {
+                return WorldRuntime.FirstExistingNode(InviteReturnNodeId);
+            }
+
+            if (state.HasFlag(GameFlags.RefusedInvite))
+            {
+                return WorldRuntime.FirstExistingNode(InviteRefuseNodeId);
+            }
+
+            return null;
+        }
+
+        private void EnsureSubscribed(DialogueSystem dialogue)
+        {
+            if (_subscribedSystem == dialogue)
             {
                 return;
             }
 
             Unsubscribe();
-            RecordConversation(nodeId);
+            _subscribedSystem = dialogue;
+            dialogue.NodeFinished += OnNodeFinished;
+        }
+
+        /// <summary>
+        /// Fires for every node the dialogue system finishes, the ones a branch leads to included.
+        /// Only what this resident actually says is ours to record and to act on.
+        /// </summary>
+        private void OnNodeFinished(string finishedNodeId)
+        {
+            if (string.IsNullOrEmpty(finishedNodeId) || !Speaks(finishedNodeId))
+            {
+                return;
+            }
+
+            RecordConversation(finishedNodeId);
+            ApplyNodeConsequences(finishedNodeId);
+        }
+
+        private bool Speaks(string nodeId)
+        {
+            DialogueNode node = DialogueData.GetNode(nodeId);
+            return node != null && node.npc == NpcId;
+        }
+
+        /// <summary>
+        /// What a finished conversation costs in the world. The dialogue layer owns points and
+        /// flags; capacity, material and stone are the world's to move.
+        /// </summary>
+        private void ApplyNodeConsequences(string nodeId)
+        {
+            if (nodeId == InviteAcceptNodeId)
+            {
+                SpendDayOnTheInvitation();
+                return;
+            }
+
+            if (nodeId == DonationNodeId)
+            {
+                TakeDonatedRubble();
+            }
+        }
+
+        /// <summary>
+        /// Going down the valley costs the whole day: whatever work capacity was left goes with it
+        /// and the stretch nobody covered loses the work in progress on it. The day is not ended
+        /// here on purpose — the player walks back into the village, and the resident who handed
+        /// over the letter still has something to say about the trip.
+        /// </summary>
+        private void SpendDayOnTheInvitation()
+        {
+            GameState state = WorldRuntime.State;
+            if (state == null)
+            {
+                return;
+            }
+
+            if (state.Counter(InviteDaySpentKey) != 0)
+            {
+                return;
+            }
+
+            state.counters[InviteDaySpentKey] = 1;
+
+            int remaining = state.workCapacity;
+            ResourceSystem resources = ResourceSystem.Find();
+            if (resources != null)
+            {
+                if (remaining > 0)
+                {
+                    resources.Spend(remaining);
+                }
+            }
+            else
+            {
+                state.workCapacity = 0;
+            }
+
+            // DamageSegment clears work in progress and never a finished stage: a day away can
+            // cost tomorrow, never yesterday.
+            WallSystem wall = FindFirstObjectByType<WallSystem>();
+            if (wall != null)
+            {
+                wall.DamageSegment(InviteDamagedSegmentId);
+            }
+            else
+            {
+                Debug.LogWarning("[World] No WallSystem in the scene; \"" + InviteDamagedSegmentId
+                                 + "\" was not damaged by the day away.");
+            }
+
+            WorldRuntime.SaveNow();
+        }
+
+        /// <summary>Material actually leaves the player's hands. Charged once.</summary>
+        private void TakeDonatedRubble()
+        {
+            GameState state = WorldRuntime.State;
+            if (state == null || state.Counter(DonationPaidKey) != 0)
+            {
+                return;
+            }
+
+            state.counters[DonationPaidKey] = 1;
+
+            ResourceSystem resources = ResourceSystem.Find();
+            if (resources != null)
+            {
+                resources.AddRubble(-DonationRubbleCost);
+            }
+            else
+            {
+                state.rubble = Mathf.Max(0, state.rubble - DonationRubbleCost);
+            }
+
+            WorldRuntime.SaveNow();
         }
 
         private void RecordConversation(string nodeId)
@@ -268,24 +422,17 @@ namespace SheepGate.World
 
             int day = state.day;
 
+            // Re-reading a conversation and having spoken with the whole village both score the
+            // scribe, and both are granted by DialogueSystem, which owns node completion. Scoring
+            // them here as well paid the scribe twice for one action.
             string playedKey = PlayedPrefix + nodeId;
-            int timesPlayed = state.Counter(playedKey);
-            state.counters[playedKey] = timesPlayed + 1;
-            if (timesPlayed > 0)
-            {
-                // Reading a conversation a second time.
-                WorldRuntime.AwardOnce("scribe_reread_awarded", WorldRuntime.VocationScribe, 2);
-            }
+            state.counters[playedKey] = state.Counter(playedKey) + 1;
 
             string talkedKey = TalkedPrefix + NpcId;
             if (state.Counter(talkedKey) == 0)
             {
                 state.counters[talkedKey] = 1;
                 state.Bump(DistinctTalkedKey);
-                if (state.Counter(DistinctTalkedKey) >= VillageSize())
-                {
-                    WorldRuntime.AwardOnce("scribe_all_npcs_awarded", WorldRuntime.VocationScribe, 2);
-                }
             }
 
             state.counters[TalkedPrefix + NpcId + "_d" + day] = 1;
@@ -296,25 +443,6 @@ namespace SheepGate.World
             }
 
             WorldRuntime.SaveNow();
-        }
-
-        /// <summary>How many residents the village has, so the scribe rule follows the content.</summary>
-        private static int VillageSize()
-        {
-            try
-            {
-                NpcDef[] defs = GameData.Npcs;
-                if (defs != null && defs.Length > 0)
-                {
-                    return defs.Length;
-                }
-            }
-            catch (Exception)
-            {
-                // Fall through to the authored village size.
-            }
-
-            return FallbackVillageSize;
         }
 
         private static bool TalkedOnBothDays(GameState state, string npcId)
@@ -330,8 +458,6 @@ namespace SheepGate.World
                 _subscribedSystem.NodeFinished -= OnNodeFinished;
                 _subscribedSystem = null;
             }
-
-            _pendingNodeId = null;
         }
 
         protected override void OnDestroy()

@@ -10,16 +10,39 @@ namespace SheepGate.World
     /// Builds the village tilemap at runtime from <see cref="MapDef"/> and publishes the walkable
     /// grid consumed by the pathfinder.
     ///
-    /// Row order: rows[0] is the TOP row of the map, so a row index maps to cell y as
-    /// y = height - 1 - rowIndex. Rows shorter than width are padded with ground; unknown
-    /// characters fall back to ground with a single warning.
+    /// THE COORDINATE CONVENTION, AND THE ONLY ONE. Two spaces meet in this class and they are
+    /// not the same one, so read this before editing a map file:
+    ///
+    ///   * rows[0] is the TOP row of the map, the way a map reads in a text editor. A row index
+    ///     becomes a cell row as y = height - 1 - rowIndex, which is
+    ///     <see cref="RowIndexForCellY"/>, and that expression is its own inverse.
+    ///   * Every GridPos authored in content is a CELL coordinate: x grows right, y grows UP, and
+    ///     cell y = 0 is the bottom row of the map, which is rows[height - 1]. That covers
+    ///     map.json player_spawn, rubble and well, and the npcs.json spawns.
+    ///
+    /// So the tile under an entity at (x, y) is rows[height - 1 - y][x], never rows[y][x]. Cell
+    /// space wins because GameScene, NpcActor and WallSystem each consume a GridPos straight as a
+    /// cell and there is no conversion hook between them and the map file. If props ever look
+    /// mirrored against the ground again, a map file moved, not this parser: fix the map file.
+    ///
+    /// A space is void, meaning off the map and never walkable. Rows shorter than width, and rows
+    /// the file does not supply at all, are filled with void for the same reason: padding with
+    /// ground would hand the player cells the author never drew. Unknown characters still fall
+    /// back to ground with a single warning.
     ///
     /// Cell size is one world unit, matching 32 px sprites at 32 pixels per unit.
     /// </summary>
     public sealed class TilemapBuilder : MonoBehaviour
     {
         public const char GroundChar = '.';
-        public const char GroundAltChar = ' ';
+
+        /// <summary>
+        /// Off-map filler. A space used to be read as a second ground character, which left the
+        /// whole outer border walkable and let the player stroll around the wall and out of the
+        /// village. It is void now: the map's boundary is drawn with it.
+        /// </summary>
+        public const char VoidChar = ' ';
+
         public const char RubbleChar = 'r';
         public const char WaterChar = '~';
         public const char HouseChar = '#';
@@ -32,7 +55,10 @@ namespace SheepGate.World
             Rubble = 1,
             Water = 2,
             House = 3,
-            Wall = 4
+            Wall = 4,
+
+            /// <summary>Outside the map. Never walkable, and drawn as a dark edge band.</summary>
+            Void = 5
         }
 
         /// <summary>Most recently built tilemap. Convenience for modules without a service handle.</summary>
@@ -98,6 +124,16 @@ namespace SheepGate.World
             WorldBounds = bounds;
         }
 
+        /// <summary>
+        /// Index into <see cref="MapDef.rows"/> that holds cell row <paramref name="y"/>, and,
+        /// because the expression is its own inverse, the cell row held by a row index. This is
+        /// the single place the row-order convention described on the class is spelled out.
+        /// </summary>
+        public static int RowIndexForCellY(int y, int height)
+        {
+            return height - 1 - y;
+        }
+
         private void CreateGrid()
         {
             GameObject gridObject = new GameObject("Grid");
@@ -120,12 +156,13 @@ namespace SheepGate.World
 
             for (int y = 0; y < Height; y++)
             {
-                int rowIndex = Height - 1 - y;
+                int rowIndex = RowIndexForCellY(y, Height);
                 string row = rowIndex >= 0 && rowIndex < rowCount ? rows[rowIndex] : null;
 
                 for (int x = 0; x < Width; x++)
                 {
-                    char symbol = row != null && x < row.Length ? row[x] : GroundChar;
+                    // Anything the file did not draw is off the map, not free ground.
+                    char symbol = row != null && x < row.Length ? row[x] : VoidChar;
                     CellKind kind = KindOf(symbol);
                     _kinds[x, y] = kind;
                     Walkable[x, y] = kind == CellKind.Ground || kind == CellKind.Rubble;
@@ -148,8 +185,9 @@ namespace SheepGate.World
         {
             switch (symbol)
             {
+                case VoidChar:
+                    return CellKind.Void;
                 case GroundChar:
-                case GroundAltChar:
                 case ',':
                 case '_':
                 case '0':
@@ -213,6 +251,10 @@ namespace SheepGate.World
         {
             switch (kind)
             {
+                case CellKind.Void:
+                    // Deliberately darker than the camera's clear colour, so the edge of the map
+                    // reads as ground dropping away rather than as a rendering gap.
+                    return WorldRuntime.SolidSprite(new Color(0.05f, 0.055f, 0.06f));
                 case CellKind.Rubble:
                     return WorldRuntime.GetSprite("tile_rubble") ?? WorldRuntime.SolidSprite(new Color(0.42f, 0.38f, 0.33f));
                 case CellKind.Water:
@@ -252,9 +294,10 @@ namespace SheepGate.World
             Walkable[x, y] = value;
         }
 
+        /// <summary>Cell kind at a cell. Anything outside the map reads as <see cref="CellKind.Void"/>.</summary>
         public CellKind KindAt(int x, int y)
         {
-            return InBounds(x, y) && _kinds != null ? _kinds[x, y] : CellKind.House;
+            return InBounds(x, y) && _kinds != null ? _kinds[x, y] : CellKind.Void;
         }
 
         /// <summary>Independent copy of the walkable grid, for consumers that want to keep one.</summary>

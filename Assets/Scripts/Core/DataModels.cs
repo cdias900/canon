@@ -48,6 +48,34 @@ namespace SheepGate.Core
         [JsonProperty("set_flag")] public string set_flag;
     }
 
+    /// <summary>
+    /// One branch offered when a node has been read to the end. Optional by construction: a node
+    /// without choices ends on the next tap exactly as it did before branching existed.
+    ///
+    /// Every gate here is evaluated against <see cref="GameState"/> alone, so the dialogue layer
+    /// never has to reach into the world to decide what to show.
+    /// </summary>
+    public class DialogueChoice
+    {
+        /// <summary>Authoring id, used in logs. Never shown to the player.</summary>
+        [JsonProperty("id")] public string id;
+
+        /// <summary>The pt-BR sentence on the button. The only field of this class a player sees.</summary>
+        [JsonProperty("text")] public string text;
+
+        /// <summary>Node played once this branch is taken. Empty simply ends the conversation.</summary>
+        [JsonProperty("next")] public string next;
+
+        /// <summary>Points and flags this branch grants, in the same shape a node uses.</summary>
+        [JsonProperty("grants")] public Grants grants;
+
+        /// <summary>Rubble the player must be carrying for the branch to be offered. 0 means always.</summary>
+        [JsonProperty("requires_rubble")] public int requires_rubble;
+
+        /// <summary>Branch disappears once this flag is raised. Empty means it never disappears.</summary>
+        [JsonProperty("hidden_if_flag")] public string hidden_if_flag;
+    }
+
     /// <summary>One conversation, keyed in dialogue.json by node id such as "hananias_d1".</summary>
     public class DialogueNode
     {
@@ -55,6 +83,9 @@ namespace SheepGate.Core
         [JsonProperty("day")] public int day;
         [JsonProperty("lines")] public DialogueLine[] lines;
         [JsonProperty("grants")] public Grants grants;
+
+        /// <summary>Branches offered after the last line. Null or empty on a straight-through node.</summary>
+        [JsonProperty("choices")] public DialogueChoice[] choices;
 
         /// <summary>Whether what this node claims is true. The game never shows this to the player.</summary>
         [JsonProperty("reliable")] public bool reliable;

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using SheepGate.Core;
+using SheepGate.World;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -27,8 +28,14 @@ namespace SheepGate.UI
         /// <summary>Work units the night crew added, or 0 when nothing recorded it.</summary>
         public int workDone;
 
+        /// <summary>True when the night resolver recorded a work figure, zero included.</summary>
+        public bool workRecorded;
+
         /// <summary>Segments that have stone out of place this morning.</summary>
         public int damagedSegments;
+
+        /// <summary>People the wall needed for the watch to count, or 0 when unknown.</summary>
+        public int watchThreshold;
 
         /// <summary>
         /// Reads the morning off the run. Only facts already written into the state are used: the
@@ -48,6 +55,8 @@ namespace SheepGate.UI
             summary.workers = Mathf.Max(0, state.workAssigned);
             summary.watchers = Mathf.Max(0, state.watchAssigned);
             summary.workDone = Mathf.Max(0, state.Counter(MorningReportUI.NightWorkCounter));
+            summary.workRecorded = HasCounter(state, MorningReportUI.NightWorkCounter);
+            summary.watchThreshold = DayCycle.WatchThreshold(summary.workers + summary.watchers);
 
             int previousDay = morningDay - 1;
             if (previousDay == 1)
@@ -57,6 +66,15 @@ namespace SheepGate.UI
             else if (previousDay == 2)
             {
                 summary.watchPosted = state.HasFlag(GameFlags.WatchPostedD2);
+            }
+
+            if (HasCounter(state, MorningReportUI.NightDamageCounter))
+            {
+                // What last night did. Preferred over the scan below, which cannot tell stone
+                // knocked over tonight from stone still lying where an earlier night left it —
+                // and a report that says COM VIGIA next to fresh damage reads like a lie.
+                summary.damagedSegments = Mathf.Max(0, state.Counter(MorningReportUI.NightDamageCounter));
+                return summary;
             }
 
             if (state.segments != null)
@@ -73,6 +91,11 @@ namespace SheepGate.UI
 
             return summary;
         }
+
+        static bool HasCounter(GameState state, string key)
+        {
+            return state != null && state.counters != null && state.counters.ContainsKey(key);
+        }
     }
 
     /// <summary>
@@ -84,6 +107,10 @@ namespace SheepGate.UI
     ///
     /// It reports and does not judge. There is no line telling the player they should have split
     /// the crew differently, because there is no split this game considers correct.
+    ///
+    /// It appears on its own: <see cref="MorningReportInstaller"/> at the foot of this file holds
+    /// the subscription to DayCycle.MorningStarted, so every morning that follows a night opens
+    /// with this screen.
     /// </summary>
     public sealed class MorningReportUI : MonoBehaviour
     {
@@ -91,10 +118,18 @@ namespace SheepGate.UI
         public const string ModalId = "morning_report";
 
         /// <summary>
-        /// Optional counter the night resolver may write so the report can state how much the
-        /// night crew actually built. Absent, the line is simply left out.
+        /// Counter the night resolver writes with what the night crew actually built. Absent — an
+        /// explicit summary, or a save from before the night recorded it — the line is left out.
+        /// Must match SheepGate.World.DayCycle.NightWorkCounter.
         /// </summary>
         public const string NightWorkCounter = "night_work_done";
+
+        /// <summary>
+        /// Counter the night resolver writes with the segments last night damaged. Absent, the
+        /// report falls back to counting segments that are damaged right now.
+        /// Must match SheepGate.World.DayCycle.NightDamageCounter.
+        /// </summary>
+        public const string NightDamageCounter = "night_damaged_segments";
 
         const float CardWidth = 1000f;
         const float CardHeight = 1000f;
@@ -275,15 +310,29 @@ namespace SheepGate.UI
 
         static List<string> BuildLines(NightSummary summary)
         {
-            var lines = new List<string>(4);
+            var lines = new List<string>(5);
 
             lines.Add("Na obra: " + Mathf.Max(0, summary.workers) + ".   No muro: " + Mathf.Max(0, summary.watchers) + ".");
 
-            if (summary.workDone > 0)
+            // The rule, restated only on the morning it decided something. Stated after the fact
+            // it is information, not a correction: the next split is the player's to make again.
+            if (!summary.watchPosted && summary.watchThreshold > 0)
             {
-                lines.Add(summary.workDone == 1
-                    ? "A noite rendeu 1 de trabalho na muralha."
-                    : "A noite rendeu " + summary.workDone + " de trabalho na muralha.");
+                lines.Add("A guarda se conta a partir de " + summary.watchThreshold + " no muro.");
+            }
+
+            if (summary.workRecorded || summary.workDone > 0)
+            {
+                if (summary.workDone > 0)
+                {
+                    lines.Add(summary.workDone == 1
+                        ? "A noite rendeu 1 de trabalho na muralha."
+                        : "A noite rendeu " + summary.workDone + " de trabalho na muralha.");
+                }
+                else
+                {
+                    lines.Add("A noite não rendeu trabalho na muralha.");
+                }
             }
 
             if (summary.damagedSegments > 0)
@@ -338,6 +387,83 @@ namespace SheepGate.UI
         {
             GameState state;
             return ServiceLocator.TryGet(out state) ? state : null;
+        }
+    }
+
+    /// <summary>
+    /// Keeps the morning report attached to whatever <see cref="DayCycle"/> is in the scene.
+    ///
+    /// The report itself only exists while it is on screen — it is a component added to a modal
+    /// container and destroyed with it — so something else has to be holding the subscription when
+    /// a night ends. This is that something: one object, created before any scene runs, that finds
+    /// the day cycle and listens.
+    ///
+    /// Why it installs itself rather than being composed: the world layer reaches the UI through
+    /// reflection precisely so it never names a UI type, and the composer it does call builds only
+    /// the HUD. Installing here adds no wiring to a file the UI layer does not own. Living in the
+    /// SheepGate.UI namespace is also what lets DayCycle see that a UI listener exists and stop
+    /// warning that the morning went unreported.
+    /// </summary>
+    internal sealed class MorningReportInstaller : MonoBehaviour
+    {
+        const float SearchInterval = 0.5f;
+
+        static MorningReportInstaller _instance;
+
+        DayCycle _cycle;
+        float _nextSearch;
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+        internal static void Install()
+        {
+            if (_instance != null)
+            {
+                return;
+            }
+
+            var host = new GameObject("MorningReportInstaller");
+            DontDestroyOnLoad(host);
+            _instance = host.AddComponent<MorningReportInstaller>();
+        }
+
+        void Update()
+        {
+            // A destroyed DayCycle compares equal to null, so loading another scene re-arms the
+            // search on its own and the next day cycle gets its own subscription.
+            if (_cycle != null || Time.unscaledTime < _nextSearch)
+            {
+                return;
+            }
+
+            _nextSearch = Time.unscaledTime + SearchInterval;
+
+            DayCycle cycle = FindFirstObjectByType<DayCycle>();
+            if (cycle == null)
+            {
+                return;
+            }
+
+            _cycle = cycle;
+            _cycle.MorningStarted += OnMorningStarted;
+        }
+
+        void OnMorningStarted(int day)
+        {
+            MorningReportUI.Show(day);
+        }
+
+        void OnDestroy()
+        {
+            if (_cycle != null)
+            {
+                _cycle.MorningStarted -= OnMorningStarted;
+                _cycle = null;
+            }
+
+            if (_instance == this)
+            {
+                _instance = null;
+            }
         }
     }
 }

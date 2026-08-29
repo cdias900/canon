@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using SheepGate.Core;
@@ -32,6 +33,12 @@ namespace SheepGate.Player
         private const float InteractableScanInterval = 1f;
         private const float DependencyRetryInterval = 0.5f;
         private const int NearestWalkableSearchRadius = 4;
+
+        /// <summary>Name of the public bool property the world's interactables use to opt out.</summary>
+        private const string AvailabilityPropertyName = "IsAvailable";
+
+        private static readonly Dictionary<Type, PropertyInfo> AvailabilityCache =
+            new Dictionary<Type, PropertyInfo>();
 
         private readonly List<Vector2Int> _path = new List<Vector2Int>();
         private readonly List<Component> _interactables = new List<Component>();
@@ -360,6 +367,10 @@ namespace SheepGate.Player
                 Component candidate = _interactables[i];
                 if (candidate == null) continue;
 
+                // Checked here and not only in the scan: the scan is throttled to once a second,
+                // and a pile collected inside that second must stop answering taps immediately.
+                if (!IsInteractableAvailable(candidate)) continue;
+
                 Vector2 candidatePosition = candidate.transform.position;
                 float distance = (candidatePosition - worldPosition).sqrMagnitude;
                 if (distance >= bestDistance) continue;
@@ -375,6 +386,10 @@ namespace SheepGate.Player
         /// Rebuilds the interactable list by scanning behaviours for an interaction entry point.
         /// The scene holds a few dozen objects and the scan is throttled, so this stays cheaper
         /// than requiring the world module to register colliders it has no contract to provide.
+        ///
+        /// Having an entry point is not enough to be listed: something spent for the day is left
+        /// out, so a rubble pile whose renderer and collider are already off cannot keep answering
+        /// taps. A pile that comes back with the morning is picked up by the next scan.
         /// </summary>
         public void RefreshInteractables(bool force)
         {
@@ -391,8 +406,69 @@ namespace SheepGate.Player
                 if (behaviour.transform == transform) continue;
                 if (behaviour.transform.IsChildOf(transform)) continue;
                 if (!InteractBridge.CanInteract(behaviour)) continue;
+                if (!IsInteractableAvailable(behaviour)) continue;
                 _interactables.Add(behaviour);
             }
+        }
+
+        /// <summary>
+        /// Whether an interactable is still worth a tap.
+        ///
+        /// The world's interactables publish a public bool IsAvailable that goes false once the
+        /// thing is spent — a rubble pile taken today, a wall segment already finished — while the
+        /// component itself stays enabled and only its renderer and collider go dark. This module
+        /// is not allowed to bind to that base class by type, so the property is read by name and
+        /// cached per type, exactly as <see cref="InteractBridge"/> resolves the interaction. A
+        /// component that publishes no such property counts as available, which is the behaviour
+        /// everything else in the scene already had.
+        /// </summary>
+        private static bool IsInteractableAvailable(Component component)
+        {
+            if (component == null) return false;
+
+            var behaviour = component as Behaviour;
+            if (behaviour != null && !behaviour.isActiveAndEnabled) return false;
+
+            PropertyInfo property = ResolveAvailabilityProperty(component.GetType());
+            if (property == null) return true;
+
+            try
+            {
+                object value = property.GetValue(component, null);
+                return !(value is bool) || (bool)value;
+            }
+            catch (Exception)
+            {
+                // A getter that throws is not a reason to make the object untappable forever.
+                return true;
+            }
+        }
+
+        private static PropertyInfo ResolveAvailabilityProperty(Type type)
+        {
+            PropertyInfo cached;
+            if (AvailabilityCache.TryGetValue(type, out cached)) return cached;
+
+            PropertyInfo resolved = null;
+            try
+            {
+                resolved = type.GetProperty(
+                    AvailabilityPropertyName,
+                    BindingFlags.Public | BindingFlags.Instance,
+                    null,
+                    typeof(bool),
+                    Type.EmptyTypes,
+                    null);
+            }
+            catch (Exception)
+            {
+                resolved = null;
+            }
+
+            if (resolved != null && !resolved.CanRead) resolved = null;
+
+            AvailabilityCache[type] = resolved;
+            return resolved;
         }
 
         private static int ManhattanDistance(Vector2Int a, Vector2Int b)

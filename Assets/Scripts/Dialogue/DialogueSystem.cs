@@ -20,11 +20,12 @@ namespace SheepGate.Dialogue
         /// <summary>Typing reveal speed. Frozen by the architecture contract.</summary>
         public const float CharactersPerSecond = 40f;
 
-        private const string EscribaVocationId = "escriba";
-        private const int EscribaGrantPoints = 2;
+        /// <summary>Vocation id exactly as authored in vocations.json.</summary>
+        private const string ScribeVocationId = "escriba";
+        private const int ScribeGrantPoints = 2;
 
         /// <summary>
-        /// Guard flags so the escriba grants land once each. They are bookkeeping, not progress:
+        /// Guard flags so the scribe grants land once each. They are bookkeeping, not progress:
         /// nothing reads them back out to a UI.
         /// </summary>
         private const string RereadScoredFlag = "escriba_reread_scored";
@@ -45,10 +46,22 @@ namespace SheepGate.Dialogue
         private bool typing;
         private bool playing;
         private bool placeholderNoticeLogged;
+        private DialogueChoice[] pendingChoices;
+        private bool awaitingChoice;
+        private string queuedNodeId;
 
         public bool IsPlaying
         {
             get { return playing; }
+        }
+
+        /// <summary>
+        /// True while the last line has been read and the player has branches on screen. The node
+        /// is still playing: the world stays locked until a branch is taken.
+        /// </summary>
+        public bool IsAwaitingChoice
+        {
+            get { return awaitingChoice; }
         }
 
         /// <summary>Node currently on screen, or null when nothing is playing.</summary>
@@ -98,9 +111,12 @@ namespace SheepGate.Dialogue
             currentNodeId = nodeId;
             lineIndex = 0;
             playing = true;
+            awaitingChoice = false;
+            pendingChoices = null;
 
             if (ui != null)
             {
+                ui.HideChoices();
                 ui.Show();
             }
 
@@ -109,11 +125,17 @@ namespace SheepGate.Dialogue
 
         /// <summary>
         /// One tap. While a line is still typing this completes it; once a line is fully revealed it
-        /// moves on to the next line, or finishes the node.
+        /// moves on to the next line, or finishes the node. While branches are on screen a tap does
+        /// nothing: the only way out of a decision is to take one.
         /// </summary>
         public void Advance()
         {
             if (!playing)
+            {
+                return;
+            }
+
+            if (awaitingChoice)
             {
                 return;
             }
@@ -183,6 +205,7 @@ namespace SheepGate.Dialogue
 
             ui.AdvanceRequested += OnAdvanceRequested;
             ui.ChapterRequested += OnChapterRequested;
+            ui.ChoiceSelected += OnChoiceSelected;
         }
 
         private void DetachUI()
@@ -194,6 +217,7 @@ namespace SheepGate.Dialogue
 
             ui.AdvanceRequested -= OnAdvanceRequested;
             ui.ChapterRequested -= OnChapterRequested;
+            ui.ChoiceSelected -= OnChoiceSelected;
             ui = null;
         }
 
@@ -221,6 +245,13 @@ namespace SheepGate.Dialogue
                     ui.BeginLine(speaker, frame, body, false, null, null, null);
                     ui.SetRevealedCharacters(0);
                 }
+            }
+
+            // An empty line has nothing to type out, so no typing pass will ever complete it and
+            // offer the branches. Offer them here instead.
+            if (!typing)
+            {
+                OfferChoicesIfAny();
             }
         }
 
@@ -286,15 +317,159 @@ namespace SheepGate.Dialogue
             {
                 ui.SetRevealedCharacters(currentBody.Length);
             }
+
+            OfferChoicesIfAny();
         }
 
-        private void Finish()
+        /// <summary>
+        /// Puts the node's branches on screen once its last line has been fully revealed. A node
+        /// with no branches, or whose branches are all gated out, is untouched by this and ends on
+        /// the next tap exactly as it always did.
+        /// </summary>
+        private void OfferChoicesIfAny()
+        {
+            if (!playing || awaitingChoice || ui == null)
+            {
+                return;
+            }
+
+            if (currentNode == null || currentNode.lines == null)
+            {
+                return;
+            }
+
+            // Branches belong to the end of a node, never in the middle of one.
+            if (lineIndex < currentNode.lines.Length - 1)
+            {
+                return;
+            }
+
+            List<DialogueChoice> available = AvailableChoices(currentNode);
+            if (available.Count == 0)
+            {
+                return;
+            }
+
+            List<string> labels = new List<string>(available.Count);
+            for (int i = 0; i < available.Count; i++)
+            {
+                labels.Add(available[i].text);
+            }
+
+            if (!ui.ShowChoices(labels))
+            {
+                // Nothing reached the screen, so the node must stay tappable: an invisible decision
+                // would be a dead end with no way out of it.
+                Debug.LogWarning("[Dialogue] Node \"" + currentNodeId + "\" offers branches but none could be shown.");
+                return;
+            }
+
+            pendingChoices = available.ToArray();
+            awaitingChoice = true;
+        }
+
+        /// <summary>
+        /// The branches this node is offering right now. Gates read <see cref="GameState"/> only,
+        /// so the dialogue layer decides what to show without asking the world anything.
+        /// </summary>
+        private List<DialogueChoice> AvailableChoices(DialogueNode node)
+        {
+            List<DialogueChoice> result = new List<DialogueChoice>();
+            if (node == null || node.choices == null || node.choices.Length == 0)
+            {
+                return result;
+            }
+
+            GameState state;
+            if (!ServiceLocator.TryGet(out state))
+            {
+                state = null;
+            }
+
+            for (int i = 0; i < node.choices.Length; i++)
+            {
+                DialogueChoice choice = node.choices[i];
+                if (choice == null || string.IsNullOrEmpty(choice.text))
+                {
+                    // A button with nothing written on it is an authoring bug, not a branch.
+                    continue;
+                }
+
+                if (!string.IsNullOrEmpty(choice.hidden_if_flag)
+                    && state != null && state.HasFlag(choice.hidden_if_flag))
+                {
+                    continue;
+                }
+
+                if (choice.requires_rubble > 0 && (state == null || state.rubble < choice.requires_rubble))
+                {
+                    continue;
+                }
+
+                result.Add(choice);
+            }
+
+            return result;
+        }
+
+        private void OnChoiceSelected(int index)
+        {
+            if (!playing || !awaitingChoice)
+            {
+                return;
+            }
+
+            DialogueChoice[] choices = pendingChoices;
+            if (choices == null || index < 0 || index >= choices.Length)
+            {
+                return;
+            }
+
+            DialogueChoice choice = choices[index];
+            awaitingChoice = false;
+            pendingChoices = null;
+
+            if (ui != null)
+            {
+                ui.HideChoices();
+            }
+
+            queuedNodeId = ResolveChoiceTarget(choice);
+            Finish(choice);
+        }
+
+        /// <summary>
+        /// The node a branch leads to, or null when the branch simply ends the conversation. An id
+        /// that is not in the authored data is reported and dropped rather than left to soft-lock.
+        /// </summary>
+        private string ResolveChoiceTarget(DialogueChoice choice)
+        {
+            if (choice == null || string.IsNullOrEmpty(choice.next))
+            {
+                return null;
+            }
+
+            if (DialogueData.TryGetNode(choice.next, out _))
+            {
+                return choice.next;
+            }
+
+            Debug.LogWarning("[Dialogue] Choice \"" + (choice.id ?? choice.text)
+                             + "\" points at unknown node \"" + choice.next + "\"; the conversation just ends.");
+            return null;
+        }
+
+        private void Finish(DialogueChoice choice = null)
         {
             string finishedId = currentNodeId;
             DialogueNode finishedNode = currentNode;
+            string nextNodeId = queuedNodeId;
 
             playing = false;
             typing = false;
+            awaitingChoice = false;
+            pendingChoices = null;
+            queuedNodeId = null;
             currentNode = null;
             currentNodeId = null;
             currentBody = string.Empty;
@@ -312,27 +487,38 @@ namespace SheepGate.Dialogue
 
             int timesSeenBefore = DialogueData.TimesSeen(state, finishedId);
 
-            ApplyGrants(finishedNode, state);
+            // Vocation is scored the first time a conversation is read and never again: several
+            // nodes are deliberately replayable, and re-reading is already paid for by the scribe
+            // grant below. Flags are not progress and are applied on every playthrough.
+            bool firstReading = timesSeenBefore == 0;
+
+            ApplyGrants(finishedNode != null ? finishedNode.grants : null, state, firstReading);
+            ApplyGrants(choice != null ? choice.grants : null, state, firstReading);
+
             DialogueData.RecordSeen(state, finishedId);
-            ApplyEscribaGrants(state, timesSeenBefore);
+            ApplyScribeGrants(state, timesSeenBefore);
 
             Action<string> handler = NodeFinished;
             if (handler != null)
             {
                 handler(finishedId);
             }
+
+            // The branch's target plays only if a listener has not already started something else.
+            if (!string.IsNullOrEmpty(nextNodeId) && !playing)
+            {
+                Play(nextNodeId);
+            }
         }
 
-        private void ApplyGrants(DialogueNode node, GameState state)
+        private void ApplyGrants(Grants grants, GameState state, bool allowVocation)
         {
-            if (node == null || node.grants == null)
+            if (grants == null)
             {
                 return;
             }
 
-            Grants grants = node.grants;
-
-            if (grants.vocation != null && grants.vocation.Count > 0)
+            if (allowVocation && grants.vocation != null && grants.vocation.Count > 0)
             {
                 VocationTracker tracker = ResolveTracker();
                 if (tracker != null)
@@ -345,6 +531,13 @@ namespace SheepGate.Dialogue
                         }
                     }
                 }
+            }
+
+            bool hasFlags = (grants.flags != null && grants.flags.Count > 0)
+                            || !string.IsNullOrEmpty(grants.set_flag);
+            if (!hasFlags)
+            {
+                return;
             }
 
             if (state == null)
@@ -372,11 +565,11 @@ namespace SheepGate.Dialogue
         }
 
         /// <summary>
-        /// Two escriba behaviours are owned by dialogue: reading a conversation a second time, and
-        /// having spoken with everyone. Opening the chapter reader also scores escriba, but that
+        /// Two scribe behaviours are owned by dialogue: reading a conversation a second time, and
+        /// having spoken with everyone. Opening the chapter reader also scores the scribe, but that
         /// action belongs to the reader and is granted there, so it is deliberately not granted here.
         /// </summary>
-        private void ApplyEscribaGrants(GameState state, int timesSeenBefore)
+        private void ApplyScribeGrants(GameState state, int timesSeenBefore)
         {
             if (state == null)
             {
@@ -386,22 +579,22 @@ namespace SheepGate.Dialogue
             if (timesSeenBefore > 0 && !state.HasFlag(RereadScoredFlag))
             {
                 state.SetFlag(RereadScoredFlag);
-                GrantEscriba();
+                GrantScribe();
             }
 
             if (!state.HasFlag(AllNpcsScoredFlag) && DialogueData.HasSpokenWithEveryNpc(state))
             {
                 state.SetFlag(AllNpcsScoredFlag);
-                GrantEscriba();
+                GrantScribe();
             }
         }
 
-        private void GrantEscriba()
+        private void GrantScribe()
         {
             VocationTracker tracker = ResolveTracker();
             if (tracker != null)
             {
-                tracker.Add(EscribaVocationId, EscribaGrantPoints);
+                tracker.Add(ScribeVocationId, ScribeGrantPoints);
             }
         }
 

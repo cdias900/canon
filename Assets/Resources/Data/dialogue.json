@@ -175,6 +175,22 @@
     },
     "reliable": true
   },
+  "meremote_d1": {
+    "npc": "meremote",
+    "day": 1,
+    "lines": [
+      {
+        "text": "Meremote. Trabalho no trecho da subida, perto do portão velho."
+      },
+      {
+        "text": "Não repare a cara. Dormi mal. A estrada faz barulho de noite e eu escuto tudo daqui."
+      },
+      {
+        "text": "Deve ser nada. Sempre é nada."
+      }
+    ],
+    "reliable": true
+  },
   "meremote_d2": {
     "npc": "meremote",
     "day": 2,
@@ -199,6 +215,22 @@
     },
     "reliable": true
   },
+  "zacur_d1": {
+    "npc": "zacur",
+    "day": 1,
+    "lines": [
+      {
+        "text": "Zacur. Sou daqui, nasci a três ruas deste entulho todo."
+      },
+      {
+        "text": "Já vi muro cair e já vi gente prometer levantar. Você é o primeiro que apareceu com pedra na mão."
+      },
+      {
+        "text": "Isso conta alguma coisa. Não sei ainda quanto."
+      }
+    ],
+    "reliable": false
+  },
   "zacur_d2": {
     "npc": "zacur",
     "day": 2,
@@ -222,6 +254,22 @@
       }
     },
     "reliable": false
+  },
+  "malquias_d1": {
+    "npc": "malquias",
+    "day": 1,
+    "lines": [
+      {
+        "text": "Malquias. Administro Bete-Haquerem, um distrito inteiro, e nenhum metro de muro."
+      },
+      {
+        "text": "Vim porque me mandaram vir. Fico porque olhei o tamanho do buraco."
+      },
+      {
+        "text": "Se chegar carta para você, ela passa pela minha mão antes. É o meu único trabalho útil aqui."
+      }
+    ],
+    "reliable": true
   },
   "malquias_d2": {
     "npc": "malquias",

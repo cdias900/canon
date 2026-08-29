@@ -1,0 +1,26 @@
+{
+  "zelote": {
+    "display": "The Zealot",
+    "reveal_line": "You went where the wall was thinnest, and you stayed there. As far as you are concerned, the talking ends when the work starts. It isn't courage exactly. It's that you can't stand with your back to open ground."
+  },
+  "escriba": {
+    "display": "The Scribe",
+    "reveal_line": "You stop in the middle of the work to read a whole thing, right to the end, when nobody is asking you to. You go back to a conversation you already had, to check what you misheard the first time. You don't decide before you know, and that costs you time the others don't spend."
+  },
+  "pastor": {
+    "display": "The Shepherd",
+    "reveal_line": "You hand over stone that was yours to whoever is behind, and you call people to your side when you could have held it alone. You come by the same doors on the same days, and you ask before you speak. The wall interests you less than the people behind it."
+  },
+  "exilado": {
+    "display": "The Exile",
+    "reveal_line": "You climb up to see the whole wall more often than the work calls for, and you walk out to where the city ends and there is nothing to do. You notice the roads and the ways out, the way someone does who has used one. You measure this city like someone who has measured another, and you know what the journey back costs."
+  },
+  "profeta": {
+    "display": "The Prophet",
+    "reveal_line": "In this city two men say opposite things with the same certain face. You don't wait for proof: you weigh what being wrong costs in each of the two directions and decide from there. You see things too early for your own peace of mind, and nobody thanks you for it at the time."
+  },
+  "mordomo": {
+    "display": "The Steward",
+    "reveal_line": "You end your days with empty hands and nothing left over: no strength saved up for tomorrow, no rubble rotting in the corner. Nobody applauds that, because it doesn't show. It only shows when it's missing — and with you it wasn't."
+  }
+}

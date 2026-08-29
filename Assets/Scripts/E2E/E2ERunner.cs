@@ -1,0 +1,561 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.IO;
+using System.Text;
+using SheepGate.Core;
+using SheepGate.Dialogue;
+using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.UI;
+
+namespace SheepGate.E2E
+{
+    /// <summary>
+    /// Plays the opening of a built player without a person at the keyboard, screenshots it, and
+    /// fails the run on anything a person would have noticed.
+    ///
+    /// It exists because of two lessons this project already paid for. The acceptance harness
+    /// constructs systems directly and never composes a scene, so it proves rules and not
+    /// reachability — day 3 was once unreachable in a built game while every rule about it passed.
+    /// And the bugs that have actually shipped were invisible rather than broken: UI drawn under an
+    /// opaque panel, components silently dropped. Neither logged anything, and neither could be
+    /// reasoned about. Both are obvious in a screenshot.
+    ///
+    /// So this runner only ever touches the game the way a finger does: it raycasts the EventSystem
+    /// at a control's own screen position and requires that control to be what the ray actually
+    /// hits before it dispatches a click. Calling Button.onClick directly would pass happily on a
+    /// button buried under a full-screen fade, which is precisely the failure it is here to catch.
+    ///
+    /// Enable with -e2e. Always pair it with -data-path: this drives the real SaveSystem.
+    /// </summary>
+    public sealed class E2ERunner : MonoBehaviour
+    {
+        const string EnableFlag = "-e2e";
+        const string OutputFlag = "-e2e-out";
+
+        /// <summary>The marker Loc and ScriptureService render when a string could not be resolved.</summary>
+        const char MissingMarkerOpen = '⟨';
+
+        const float StepTimeoutSeconds = 30f;
+        const int MaxDialogueAdvances = 120;
+
+        /// <summary>
+        /// Hard ceiling on a whole run. Without it a stalled step is indistinguishable from a slow
+        /// one and the process sits there forever, which is worse than a failure: a failure gets
+        /// read, a hang gets killed by whoever notices first.
+        /// </summary>
+        const float RunTimeoutSeconds = 240f;
+
+        readonly List<string> _failures = new List<string>();
+        readonly List<string> _steps = new List<string>();
+        readonly List<string> _shots = new List<string>();
+
+        string _outputDirectory;
+        bool _finished;
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+        static void Install()
+        {
+            if (!HasFlag(EnableFlag))
+            {
+                return;
+            }
+
+            // A macOS player stops rendering when its window loses focus, and this one is launched
+            // from a terminal that keeps it. Without this, the first WaitForEndOfFrame never
+            // returns and the run hangs before its first screenshot.
+            Application.runInBackground = true;
+
+            var host = new GameObject("E2ERunner");
+            DontDestroyOnLoad(host);
+            host.AddComponent<E2ERunner>();
+        }
+
+        IEnumerator Start()
+        {
+            _outputDirectory = ReadFlagValue(OutputFlag) ?? Path.Combine(AppPaths.DataRoot, "e2e");
+            Directory.CreateDirectory(_outputDirectory);
+
+            Application.logMessageReceived += OnLog;
+            Debug.Log("[E2E] Started. locale=" + Locales.Active + " out=" + _outputDirectory);
+
+            StartCoroutine(Watchdog());
+            yield return RunScript();
+
+            _finished = true;
+            Application.logMessageReceived -= OnLog;
+            WriteResult();
+
+            // A player build ignores the exit code unless it is given one explicitly.
+            Application.Quit(_failures.Count == 0 ? 0 : 1);
+        }
+
+        /// <summary>Ends the process if the script stops making progress, so a stall is reported.</summary>
+        IEnumerator Watchdog()
+        {
+            float deadline = Time.realtimeSinceStartup + RunTimeoutSeconds;
+            while (!_finished && Time.realtimeSinceStartup < deadline)
+            {
+                yield return null;
+            }
+
+            if (_finished)
+            {
+                yield break;
+            }
+
+            _failures.Add("the run did not finish within " + RunTimeoutSeconds + "s");
+            Debug.Log("[E2E] FAIL watchdog — the run did not finish within " + RunTimeoutSeconds + "s");
+            WriteResult();
+            Application.Quit(1);
+        }
+
+        // ------------------------------------------------------------------ the script
+
+        IEnumerator RunScript()
+        {
+            // 1. The opening. Nothing has been touched yet; this is the first thing a player sees.
+            yield return WaitForObject("DialogueCanvas", "the opening dialogue");
+            yield return Capture("01-opening");
+
+            // 2. Through the opening to the one screen that asks the player for something.
+            yield return AdvanceDialogueUntil("CharacterCreationCanvas", "character creation");
+            yield return Capture("02-creation");
+            CheckLanguageToggle();
+
+            // 3. Take the quick route out of creation, the way a player in a hurry would.
+            yield return Tap("QuickStart", "the quick-start button");
+
+            // 4. Through the rest of the opening to the game proper. The condition is that the HUD
+            // is actually on screen, not that its object exists: HUD.SetVisible toggles
+            // Canvas.enabled and leaves the GameObject active, so "the object is there" is true
+            // through the whole cutscene and would screenshot a fade.
+            yield return AdvanceDialogueUntil(IsHudVisible, "the HUD");
+            yield return Capture("03-hud");
+            CheckHud();
+
+            // 5. The whole-screen sweep. Cheap, and it catches every missing string at once.
+            CheckNoMissingStrings();
+        }
+
+        // ------------------------------------------------------------------ assertions
+
+        /// <summary>
+        /// Fails when any label on screen is a resolution marker. This is the check that makes a
+        /// half-translated build impossible to ship: it does not care which key is missing or which
+        /// screen it is on, only that a player would be looking at ⟨something⟩ right now.
+        /// </summary>
+        void CheckNoMissingStrings()
+        {
+            var offenders = new List<string>();
+            foreach (Text text in Resources.FindObjectsOfTypeAll<Text>())
+            {
+                if (text == null || string.IsNullOrEmpty(text.text)) continue;
+                if (!IsInLiveScene(text.gameObject)) continue;
+                if (text.text.IndexOf(MissingMarkerOpen) >= 0)
+                {
+                    offenders.Add(PathOf(text.gameObject) + " = " + text.text);
+                }
+            }
+
+            Record("no unresolved strings on screen", offenders.Count == 0,
+                offenders.Count == 0 ? "every label resolved" : string.Join(" | ", offenders));
+        }
+
+        /// <summary>The toggle must show the language actually running, and must not offer it again.</summary>
+        void CheckLanguageToggle()
+        {
+            GameObject activeChip = Find("Locale_" + Locales.Active);
+            Record("the language toggle shows " + Locales.Active, activeChip != null,
+                activeChip != null ? "chip present" : "no chip named Locale_" + Locales.Active);
+
+            if (activeChip == null) return;
+
+            Button button = activeChip.GetComponent<Button>();
+            Record("the active language is not offered again", button != null && !button.interactable,
+                button == null ? "no Button component" : "interactable=" + button.interactable);
+        }
+
+        /// <summary>The HUD reads from the same locale table the rest of the run does.</summary>
+        void CheckHud()
+        {
+            GameState state = null;
+            try
+            {
+                state = ServiceLocator.Get<GameState>();
+            }
+            catch (Exception exception)
+            {
+                Record("the run has a game state", false, exception.Message);
+                return;
+            }
+
+            string expected = Loc.T("hud.day", Mathf.Max(1, state.day));
+            string actual = TextOf("Day");
+            Record("the HUD day reads the locale string", actual == expected,
+                "expected \"" + expected + "\", found \"" + (actual ?? "nothing") + "\"");
+        }
+
+        // ------------------------------------------------------------------ driving
+
+        /// <summary>
+        /// Clicks a control the way the EventSystem would: a raycast at its own centre, and a
+        /// refusal to dispatch unless that ray reaches it. A control that is present in the
+        /// hierarchy but covered by something else fails here rather than passing quietly.
+        /// </summary>
+        IEnumerator Tap(string objectName, string description)
+        {
+            GameObject target = null;
+            float deadline = Time.realtimeSinceStartup + StepTimeoutSeconds;
+            while (Time.realtimeSinceStartup < deadline)
+            {
+                target = Find(objectName);
+                if (target != null) break;
+                yield return null;
+            }
+
+            if (target == null)
+            {
+                Record("tap " + description, false, "no active object named " + objectName);
+                yield break;
+            }
+
+            yield return TapObject(target, "tap " + description);
+        }
+
+        IEnumerator TapObject(GameObject target, string label)
+        {
+            EventSystem events = EventSystem.current;
+            if (events == null)
+            {
+                Record(label, false, "there is no EventSystem in the scene");
+                yield break;
+            }
+
+            var rect = target.transform as RectTransform;
+            if (rect == null)
+            {
+                Record(label, false, PathOf(target) + " is not a RectTransform");
+                yield break;
+            }
+
+            Vector2 screenPoint = ScreenCentreOf(rect);
+            var pointer = new PointerEventData(events) { position = screenPoint };
+            var hits = new List<RaycastResult>();
+            events.RaycastAll(pointer, hits);
+
+            if (hits.Count == 0)
+            {
+                Record(label, false, PathOf(target) + " is not hit by a ray at " + screenPoint);
+                yield break;
+            }
+
+            // Only the topmost hit matters: that is the one a finger would reach. Looking further
+            // down the list would find the target under an opaque panel and click it anyway, which
+            // is the exact bug this method exists to catch.
+            GameObject reached = hits[0].gameObject;
+            if (!IsSelfOrDescendant(reached, target))
+            {
+                Record(label, false,
+                    PathOf(target) + " is covered by " + PathOf(reached) + " at " + screenPoint);
+                yield break;
+            }
+
+            ExecuteEvents.Execute(reached, pointer, ExecuteEvents.pointerClickHandler);
+            Record(label, true, "clicked " + PathOf(reached));
+            yield return null;
+        }
+
+        /// <summary>
+        /// Taps through dialogue until the named object appears. The tap goes to the real catcher,
+        /// so a dialogue that has stopped receiving input stalls here instead of being stepped over.
+        /// </summary>
+        IEnumerator AdvanceDialogueUntil(string objectName, string description)
+        {
+            return AdvanceDialogueUntil(() => Find(objectName) != null, description);
+        }
+
+        /// <summary>
+        /// True when the HUD is on screen and nothing is covering it. Both halves matter: the
+        /// cutscene hides the HUD by disabling its canvas rather than its object, and it fades the
+        /// screen to black over the top of everything between beats.
+        /// </summary>
+        static bool IsHudVisible()
+        {
+            GameObject hud = Find("HUDCanvas");
+            if (hud == null) return false;
+
+            Canvas canvas = hud.GetComponent<Canvas>();
+            if (canvas == null || !canvas.enabled) return false;
+
+            GameObject fadeCanvas = Find("IntroFadeCanvas");
+            if (fadeCanvas != null)
+            {
+                Image fade = fadeCanvas.GetComponentInChildren<Image>();
+                if (fade != null && fade.color.a > 0.05f) return false;
+            }
+
+            return true;
+        }
+
+        IEnumerator AdvanceDialogueUntil(Func<bool> condition, string description)
+        {
+            for (int advance = 0; advance < MaxDialogueAdvances; advance++)
+            {
+                if (condition())
+                {
+                    Record("reached " + description, true, "after " + advance + " advance(s)");
+                    yield break;
+                }
+
+                DialogueTapCatcher catcher = FindActive<DialogueTapCatcher>();
+                if (catcher != null)
+                {
+                    ExecuteEvents.Execute(
+                        catcher.gameObject,
+                        new PointerEventData(EventSystem.current),
+                        ExecuteEvents.pointerClickHandler);
+                }
+
+                // Cutscenes move the camera and walk characters between lines, so a tap that lands
+                // during a transition is simply ignored. Waiting a beat is what a person does too.
+                yield return new WaitForSeconds(0.25f);
+            }
+
+            Record("reached " + description, false,
+                "still not present after " + MaxDialogueAdvances + " dialogue advances");
+        }
+
+        IEnumerator WaitForObject(string objectName, string description)
+        {
+            float deadline = Time.realtimeSinceStartup + StepTimeoutSeconds;
+            while (Time.realtimeSinceStartup < deadline)
+            {
+                if (Find(objectName) != null)
+                {
+                    Record("reached " + description, true, objectName + " is on screen");
+                    yield break;
+                }
+                yield return null;
+            }
+
+            Record("reached " + description, false, objectName + " never appeared");
+        }
+
+        IEnumerator Capture(string name)
+        {
+            string fileName = name + "-" + Locales.Active + ".png";
+            string path = Path.Combine(_outputDirectory, fileName);
+
+            yield return new WaitForEndOfFrame();
+            ScreenCapture.CaptureScreenshot(path);
+
+            // CaptureScreenshot returns before the file lands; the next frames are when it appears.
+            for (int frame = 0; frame < 60 && !File.Exists(path); frame++)
+            {
+                yield return null;
+            }
+
+            bool written = File.Exists(path);
+            if (written) _shots.Add(fileName);
+            Record("screenshot " + name, written, written ? path : "the file was never written");
+        }
+
+        // ------------------------------------------------------------------ scene lookup
+
+        /// <summary>
+        /// Finds an active object by name across every root, including DontDestroyOnLoad.
+        /// GameObject names are English identifiers by convention, which is what makes them usable
+        /// as test handles: they do not change when the language does.
+        /// </summary>
+        static GameObject Find(string name)
+        {
+            foreach (Transform transform in Resources.FindObjectsOfTypeAll<Transform>())
+            {
+                if (transform == null || transform.name != name) continue;
+                GameObject go = transform.gameObject;
+                if (IsInLiveScene(go) && go.activeInHierarchy) return go;
+            }
+            return null;
+        }
+
+        static T FindActive<T>() where T : Component
+        {
+            foreach (T component in Resources.FindObjectsOfTypeAll<T>())
+            {
+                if (component == null) continue;
+                if (IsInLiveScene(component.gameObject) && component.gameObject.activeInHierarchy) return component;
+            }
+            return null;
+        }
+
+        /// <summary>Excludes prefabs and assets, which FindObjectsOfTypeAll also returns.</summary>
+        static bool IsInLiveScene(GameObject go)
+        {
+            return go != null && go.scene.IsValid() && go.hideFlags == HideFlags.None;
+        }
+
+        static string TextOf(string objectName)
+        {
+            GameObject go = Find(objectName);
+            if (go == null) return null;
+            Text text = go.GetComponent<Text>();
+            return text != null ? text.text : null;
+        }
+
+        static bool IsSelfOrDescendant(GameObject candidate, GameObject target)
+        {
+            for (Transform t = candidate.transform; t != null; t = t.parent)
+            {
+                if (t.gameObject == target) return true;
+            }
+            return false;
+        }
+
+        static Vector2 ScreenCentreOf(RectTransform rect)
+        {
+            Vector3[] corners = new Vector3[4];
+            rect.GetWorldCorners(corners);
+            Vector3 centre = (corners[0] + corners[2]) * 0.5f;
+
+            Canvas canvas = rect.GetComponentInParent<Canvas>();
+            if (canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay && canvas.worldCamera != null)
+            {
+                return RectTransformUtility.WorldToScreenPoint(canvas.worldCamera, centre);
+            }
+
+            // Screen-space overlay: world corners are already in screen coordinates.
+            return new Vector2(centre.x, centre.y);
+        }
+
+        static string PathOf(GameObject go)
+        {
+            var builder = new StringBuilder(go.name);
+            for (Transform t = go.transform.parent; t != null; t = t.parent)
+            {
+                builder.Insert(0, t.name + "/");
+            }
+            return builder.ToString();
+        }
+
+        // ------------------------------------------------------------------ reporting
+
+        void OnLog(string message, string stackTrace, LogType type)
+        {
+            // An error logged during the opening is a failure even when the screen looks right:
+            // a missing locale key reports itself this way before anyone sees the marker.
+            if (type == LogType.Error || type == LogType.Exception || type == LogType.Assert)
+            {
+                _failures.Add("logged " + type + ": " + message);
+            }
+        }
+
+        void Record(string step, bool passed, string detail)
+        {
+            _steps.Add((passed ? "PASS  " : "FAIL  ") + step + " — " + detail);
+            if (!passed)
+            {
+                _failures.Add(step + ": " + detail);
+            }
+            Debug.Log("[E2E] " + (passed ? "PASS " : "FAIL ") + step + " — " + detail);
+        }
+
+        void WriteResult()
+        {
+            var report = new StringBuilder();
+            report.AppendLine("{");
+            report.AppendLine("  \"locale\": " + Quote(Locales.Active) + ",");
+            report.AppendLine("  \"passed\": " + (_failures.Count == 0 ? "true" : "false") + ",");
+            report.AppendLine("  \"steps\": [");
+            for (int i = 0; i < _steps.Count; i++)
+            {
+                report.AppendLine("    " + Quote(_steps[i]) + (i < _steps.Count - 1 ? "," : ""));
+            }
+            report.AppendLine("  ],");
+            report.AppendLine("  \"screenshots\": [");
+            for (int i = 0; i < _shots.Count; i++)
+            {
+                report.AppendLine("    " + Quote(_shots[i]) + (i < _shots.Count - 1 ? "," : ""));
+            }
+            report.AppendLine("  ],");
+            report.AppendLine("  \"failures\": [");
+            for (int i = 0; i < _failures.Count; i++)
+            {
+                report.AppendLine("    " + Quote(_failures[i]) + (i < _failures.Count - 1 ? "," : ""));
+            }
+            report.AppendLine("  ]");
+            report.AppendLine("}");
+
+            string path = Path.Combine(_outputDirectory, "result-" + Locales.Active + ".json");
+            try
+            {
+                File.WriteAllText(path, report.ToString());
+                Debug.Log("[E2E] Result -> " + path);
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning("[E2E] Could not write " + path + ": " + exception.Message);
+            }
+
+            Debug.Log("[E2E] " + (_failures.Count == 0
+                ? "ALL STEPS PASSED (" + Locales.Active + ")"
+                : _failures.Count + " FAILURE(S) (" + Locales.Active + ")"));
+        }
+
+        static string Quote(string value)
+        {
+            var builder = new StringBuilder("\"");
+            foreach (char c in value ?? string.Empty)
+            {
+                switch (c)
+                {
+                    case '"': builder.Append("\\\""); break;
+                    case '\\': builder.Append("\\\\"); break;
+                    case '\n': builder.Append("\\n"); break;
+                    case '\r': builder.Append("\\r"); break;
+                    case '\t': builder.Append("\\t"); break;
+                    default:
+                        if (c < 0x20) builder.Append("\\u").Append(((int)c).ToString("x4"));
+                        else builder.Append(c);
+                        break;
+                }
+            }
+            return builder.Append('"').ToString();
+        }
+
+        // ------------------------------------------------------------------ command line
+
+        static bool HasFlag(string flag)
+        {
+            string[] args = SafeArgs();
+            for (int i = 0; i < args.Length; i++)
+            {
+                if (string.Equals(args[i], flag, StringComparison.OrdinalIgnoreCase)) return true;
+            }
+            return false;
+        }
+
+        static string ReadFlagValue(string flag)
+        {
+            string[] args = SafeArgs();
+            for (int i = 0; i < args.Length - 1; i++)
+            {
+                if (string.Equals(args[i], flag, StringComparison.OrdinalIgnoreCase)) return args[i + 1];
+            }
+            return null;
+        }
+
+        static string[] SafeArgs()
+        {
+            try
+            {
+                return Environment.GetCommandLineArgs() ?? Array.Empty<string>();
+            }
+            catch (Exception)
+            {
+                return Array.Empty<string>();
+            }
+        }
+    }
+}

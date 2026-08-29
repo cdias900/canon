@@ -169,10 +169,10 @@ namespace SheepGate.UI
             cardRect.sizeDelta = new Vector2(CardWidth, CardHeight);
             cardRect.anchoredPosition = Vector2.zero;
 
-            Text title = UIKit.CreateText(cardRect, "Title", "Fim do dia", UIKit.FontSize.Title, UIKit.Palette.Parchment, TextAnchor.MiddleLeft);
+            Text title = UIKit.CreateText(cardRect, "Title", Loc.T("end_day.title"), UIKit.FontSize.Title, UIKit.Palette.Parchment, TextAnchor.MiddleLeft);
             UIKit.AnchorTop((RectTransform)title.transform, 72f, 56f, 56f, 44f);
 
-            Text subtitle = UIKit.CreateText(cardRect, "Subtitle", "Divida a sua gente para esta noite.", UIKit.FontSize.Body, UIKit.Palette.Muted, TextAnchor.MiddleLeft);
+            Text subtitle = UIKit.CreateText(cardRect, "Subtitle", Loc.T("end_day.subtitle"), UIKit.FontSize.Body, UIKit.Palette.Muted, TextAnchor.MiddleLeft);
             UIKit.AnchorTop((RectTransform)subtitle.transform, 56f, 56f, 56f, 126f);
 
             BuildSplitRow(cardRect);
@@ -185,7 +185,7 @@ namespace SheepGate.UI
             int minimumPerSide = MinimumPerSide;
             if (minimumPerSide > 0)
             {
-                Text bounds = UIKit.CreateText(cardRect, "Bounds", "Sempre fica alguém dos dois lados.", UIKit.FontSize.Meta, UIKit.Palette.Stone, TextAnchor.MiddleLeft);
+                Text bounds = UIKit.CreateText(cardRect, "Bounds", Loc.T("end_day.bounds"), UIKit.FontSize.Meta, UIKit.Palette.Stone, TextAnchor.MiddleLeft);
                 UIKit.AnchorTop((RectTransform)bounds.transform, 40f, 56f, 56f, 494f);
             }
 
@@ -213,10 +213,10 @@ namespace SheepGate.UI
             _watchStatus = UIKit.CreateText(statusRow, "Label", string.Empty, UIKit.FontSize.Body, UIKit.Palette.Parchment, TextAnchor.UpperLeft);
             UIKit.Stretch((RectTransform)_watchStatus.transform, 28f, 0f, 0f, 0f);
 
-            Text note = UIKit.CreateText(cardRect, "Note", "De manhã você vê o que a noite fez.", UIKit.FontSize.Meta, UIKit.Palette.Muted, TextAnchor.UpperLeft);
+            Text note = UIKit.CreateText(cardRect, "Note", Loc.T("end_day.note"), UIKit.FontSize.Meta, UIKit.Palette.Muted, TextAnchor.UpperLeft);
             UIKit.AnchorTop((RectTransform)note.transform, 56f, 56f, 56f, 866f);
 
-            Button confirm = UIKit.CreateButton(cardRect, "Confirm", "Fechar o dia", UIKit.Palette.Clay, UIKit.Palette.Parchment, Confirm);
+            Button confirm = UIKit.CreateButton(cardRect, "Confirm", Loc.T("end_day.confirm"), UIKit.Palette.Clay, UIKit.Palette.Parchment, Confirm);
             var confirmRect = (RectTransform)confirm.transform;
             confirmRect.anchorMin = new Vector2(0.5f, 0f);
             confirmRect.anchorMax = new Vector2(0.5f, 0f);
@@ -232,8 +232,8 @@ namespace SheepGate.UI
             RectTransform row = UIKit.CreateRect("Split Row", cardRect);
             UIKit.AnchorTop(row, 180f, 56f, 56f, 200f);
 
-            _workNumber = BuildSplitBox(row, "Work", "Obra", UIKit.Palette.Olive, 0f, 0.5f, 0f, 12f);
-            _watchNumber = BuildSplitBox(row, "Watch", "Guarda", UIKit.Palette.Night, 0.5f, 1f, 12f, 0f);
+            _workNumber = BuildSplitBox(row, "Work", Loc.T("end_day.split.work"), UIKit.Palette.Olive, 0f, 0.5f, 0f, 12f);
+            _watchNumber = BuildSplitBox(row, "Watch", Loc.T("end_day.split.watch"), UIKit.Palette.Night, 0.5f, 1f, 12f, 0f);
         }
 
         Text BuildSplitBox(RectTransform parent, string name, string label, Color accent, float anchorLeft, float anchorRight, float padLeft, float padRight)
@@ -259,7 +259,7 @@ namespace SheepGate.UI
             Text caption = UIKit.CreateText(boxRect, "Caption", label, UIKit.FontSize.Meta, UIKit.Palette.Muted, TextAnchor.UpperLeft);
             UIKit.AnchorTop((RectTransform)caption.transform, 40f, 32f, 20f, 20f);
 
-            Text number = UIKit.CreateText(boxRect, "Number", "0", UIKit.FontSize.Title, UIKit.Palette.Parchment, TextAnchor.LowerLeft);
+            Text number = UIKit.CreateText(boxRect, "Number", string.Empty, UIKit.FontSize.Title, UIKit.Palette.Parchment, TextAnchor.LowerLeft);
             UIKit.AnchorBottom((RectTransform)number.transform, 92f, 32f, 20f, 18f);
 
             return number;
@@ -290,16 +290,12 @@ namespace SheepGate.UI
 
             if (_workHint != null)
             {
-                _workHint.text = Plural(workers,
-                    "1 pessoa segue na obra até o sol nascer.",
-                    workers + " pessoas seguem na obra até o sol nascer.");
+                _workHint.text = Loc.Plural("end_day.work_hint", workers);
             }
 
             if (_watchHint != null)
             {
-                _watchHint.text = Plural(watchers,
-                    "1 pessoa fica no muro, de olho na estrada, e não levanta pedra.",
-                    watchers + " pessoas ficam no muro, de olho na estrada, e não levantam pedra.");
+                _watchHint.text = Loc.Plural("end_day.watch_hint", watchers);
             }
 
             RefreshWatchStatus(watchers);
@@ -318,11 +314,10 @@ namespace SheepGate.UI
 
             int threshold = DayCycle.WatchThreshold(_total);
             bool posted = DayCycle.CountsAsWatch(watchers, _total);
-            string rule = "A guarda se conta a partir de " + threshold + " no muro.";
+            string rule = Loc.T("end_day.watch_rule", threshold);
 
-            _watchStatus.text = posted
-                ? "Guarda posta.\n" + rule
-                : "Sem guarda esta noite.\n" + rule;
+            _watchStatus.text = (posted ? Loc.T("end_day.watch_posted") : Loc.T("end_day.watch_none"))
+                                + "\n" + rule;
 
             if (_watchAccent != null)
             {
@@ -412,9 +407,5 @@ namespace SheepGate.UI
             return Mathf.Clamp(workers, MinimumPerSide, _total - MinimumPerSide);
         }
 
-        static string Plural(int count, string singular, string plural)
-        {
-            return count == 1 ? singular : plural;
-        }
     }
 }

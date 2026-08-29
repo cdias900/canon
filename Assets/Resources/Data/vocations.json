@@ -1,32 +1,20 @@
 [
   {
-    "id": "zelote",
-    "display": "O Zelote",
-    "reveal_line": "Você foi para onde o muro estava mais fino, e ficou lá. Da sua parte, a conversa acaba quando o trabalho começa. Não é coragem exatamente. É que você não consegue ficar de costas para o campo aberto."
+    "id": "zelote"
   },
   {
-    "id": "escriba",
-    "display": "O Escriba",
-    "reveal_line": "Você para no meio da obra para ler uma coisa inteira, até o fim, quando ninguém está cobrando. Volta em conversa que já teve, para conferir o que ouviu errado da primeira vez. Você não decide antes de saber, e isso te custa um tempo que os outros não gastam."
+    "id": "escriba"
   },
   {
-    "id": "pastor",
-    "display": "O Pastor",
-    "reveal_line": "Você entrega pedra que era sua para quem está atrasado, e chama gente para o seu lado quando dava para segurar sozinho. Passa nas mesmas portas nos mesmos dias, e pergunta antes de falar. O muro te interessa menos do que quem está atrás dele."
+    "id": "pastor"
   },
   {
-    "id": "exilado",
-    "display": "O Exilado",
-    "reveal_line": "Você sobe para ver a muralha inteira mais vezes do que a obra pede, e anda até onde a cidade acaba e não há nada para fazer. Repara nas estradas e nas saídas, do jeito de quem já usou uma. Você mede esta cidade como quem já mediu outra, e sabe quanto custa a viagem de volta."
+    "id": "exilado"
   },
   {
-    "id": "profeta",
-    "display": "O Profeta",
-    "reveal_line": "Nesta cidade dois homens dizem coisas opostas com a mesma cara de quem tem certeza. Você não espera prova: pesa o que custa estar errado em cada uma das duas direções e decide por aí. Percebe as coisas cedo demais para o seu próprio sossego, e na hora ninguém agradece."
+    "id": "profeta"
   },
   {
-    "id": "mordomo",
-    "display": "O Mordomo",
-    "reveal_line": "Você termina os dias com as mãos vazias e nada sobrando: nem força guardada para amanhã, nem entulho apodrecendo no canto. Ninguém aplaude isso, porque não aparece. Aparece só quando falta — e com você não faltou."
+    "id": "mordomo"
   }
 ]

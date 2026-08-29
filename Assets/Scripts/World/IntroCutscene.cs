@@ -455,19 +455,19 @@ namespace SheepGate.World
         {
             if (_neighbour != null)
             {
-                _neighbour.PersistAs(_map, "vizinho_after", "Vizinho");
+                _neighbour.PersistAs(_map, "vizinho_after", Loc.T("world.speaker.neighbour"));
             }
 
             if (_governor != null)
             {
-                _governor.PersistAs(_map, "governador_after", "O homem da capital");
+                _governor.PersistAs(_map, "governador_after", Loc.T("world.speaker.governor"));
             }
 
             for (int i = 0; i < _crowd.Count; i++)
             {
                 if (_crowd[i] != null)
                 {
-                    _crowd[i].PersistAs(_map, "multidao_after", "Alguém da obra");
+                    _crowd[i].PersistAs(_map, "multidao_after", Loc.T("world.speaker.crowd"));
                 }
             }
 

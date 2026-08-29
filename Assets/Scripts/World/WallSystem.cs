@@ -474,7 +474,7 @@ namespace SheepGate.World
         {
             _wall = wall;
             SegmentId = segmentId;
-            DisplayName = "Trecho da muralha";
+            DisplayName = Loc.T("world.wall_segment");
         }
 
         public override bool IsAvailable

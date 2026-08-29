@@ -308,7 +308,7 @@ namespace SheepGate.Contest
             string description = move.description ?? string.Empty;
             if (moveId == MoveShowWatch && _watchShown)
             {
-                description += " Eles já viram a tocha uma vez, e não olham duas.";
+                description += Loc.T("contest.move.watch.spent_note");
             }
 
             return description;
@@ -394,7 +394,7 @@ namespace SheepGate.Contest
                 yield return null;
             }
 
-            Report("O muro continua de pé, e agora há um jeito a mais de responder.");
+            Report(Loc.T("contest.log.page_unlocked"));
             RaiseChanged();
         }
 
@@ -423,8 +423,8 @@ namespace SheepGate.Contest
                     int stages = CompletedStages();
                     resolveDelta -= stages;
                     line = stages > 0
-                        ? "Ninguém sai do lugar. O trecho que você levantou aguenta o empurrão."
-                        : "Ninguém sai do lugar. Atrás de você o muro ainda é ideia.";
+                        ? Loc.T("contest.log.hold.built")
+                        : Loc.T("contest.log.hold.bare");
 
                     if (!_firstMovePlayed)
                     {
@@ -441,8 +441,8 @@ namespace SheepGate.Contest
                     float share = total > 0 ? spoken / (float)total : 0f;
                     moraleDelta = Mathf.RoundToInt(move.morale_delta * share);
                     line = spoken > 0
-                        ? "Você chama, e respondem os que te conhecem pelo nome."
-                        : "Você chama. Do seu lado ninguém sabe quem está chamando.";
+                        ? Loc.T("contest.log.call.answered")
+                        : Loc.T("contest.log.call.unanswered");
                     AwardOnce(ShepherdCallCounter, VocationIds.Shepherd, ShepherdCallPoints);
                     break;
                 }
@@ -455,16 +455,16 @@ namespace SheepGate.Contest
                     if (_watchShown)
                     {
                         resolveDelta = SpentWatchResolveDelta;
-                        line = "A mesma tocha, o mesmo caminho. Do outro lado já contaram.";
+                        line = Loc.T("contest.log.watch.spent");
                     }
                     else if (watchPosted)
                     {
-                        line = "A tocha percorre o alto do muro de ponta a ponta, e há gente em cada ponta.";
+                        line = Loc.T("contest.log.watch.posted");
                     }
                     else
                     {
                         resolveDelta = UnpostedWatchResolveDelta;
-                        line = "A tocha percorre um trecho curto. Não há muito o que mostrar.";
+                        line = Loc.T("contest.log.watch.unposted");
                     }
 
                     _watchShown = true;
@@ -473,7 +473,7 @@ namespace SheepGate.Contest
 
                 case MoveHalfAndHalf:
                 {
-                    line = "Eles esperavam uma coisa ou outra. Encontram as duas.";
+                    line = Loc.T("contest.log.half_and_half");
                     break;
                 }
 
@@ -492,19 +492,21 @@ namespace SheepGate.Contest
             Report(line);
         }
 
-        static readonly string[] EnemyLines =
+        // Keys rather than sentences: the words live in the locale table like every other
+        // line the player reads. The order is the order they are shown in.
+        static readonly string[] EnemyLineKeys =
         {
-            "Do outro lado eles avançam alguns passos e param, para você contar quantos são.",
-            "Batem lança em escudo, no mesmo compasso, sem sair do lugar.",
-            "Uma pedra bate no alto do muro. Ninguém se machuca, e é justamente isso que cansa.",
-            "Gritam o dia inteiro sem atacar. Alguns dos seus olham para a estrada de casa."
+            "contest.log.enemy.1",
+            "contest.log.enemy.2",
+            "contest.log.enemy.3",
+            "contest.log.enemy.4"
         };
 
         void ApplyEnemyPressure()
         {
             _morale = Mathf.Clamp(_morale - _pressure, 0, _moraleMax);
 
-            string line = EnemyLines[_enemyLineIndex % EnemyLines.Length];
+            string line = Loc.T(EnemyLineKeys[_enemyLineIndex % EnemyLineKeys.Length]);
             _enemyLineIndex++;
             Report(line);
         }
@@ -523,16 +525,16 @@ namespace SheepGate.Contest
             switch (outcome)
             {
                 case ContestOutcome.EnemyWithdrew:
-                    Report("O outro lado recua. Ninguém desce do muro para ir atrás deles.");
+                    Report(Loc.T("contest.log.end.withdrew"));
                     break;
 
                 case ContestOutcome.PlayerBroke:
-                    Report("Os seus largam a linha, e o outro lado recua assim mesmo, tarde. O que estava pela metade no seu trecho virou pedra solta de novo; o que já estava de pé continua de pé.");
+                    Report(Loc.T("contest.log.end.broke"));
                     LoseUnfinishedWork();
                     break;
 
                 case ContestOutcome.TurnLimit:
-                    Report("Eles se cansam antes de você e vão embora sem dizer nada.");
+                    Report(Loc.T("contest.log.end.limit"));
                     break;
             }
 

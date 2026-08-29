@@ -60,7 +60,7 @@ namespace SheepGate.Core
         /// <summary>Authoring id, used in logs. Never shown to the player.</summary>
         [JsonProperty("id")] public string id;
 
-        /// <summary>The pt-BR sentence on the button. The only field of this class a player sees.</summary>
+        /// <summary>The sentence on the button, in the locale being played. The only field of this class a player sees.</summary>
         [JsonProperty("text")] public string text;
 
         /// <summary>Node played once this branch is taken. Empty simply ends the conversation.</summary>
@@ -109,7 +109,7 @@ namespace SheepGate.Core
         [JsonProperty("id")] public string id;
         [JsonProperty("display")] public string display;
 
-        /// <summary>Authored pt-BR line shown at the reveal. Authored prose, never scripture.</summary>
+        /// <summary>Authored line shown at the reveal. Merged in from the locale, never scripture.</summary>
         [JsonProperty("reveal_line")] public string reveal_line;
     }
 
@@ -163,5 +163,31 @@ namespace SheepGate.Core
         [JsonProperty("enemy_resolve_base")] public int enemy_resolve_base;
         [JsonProperty("turn_limit")] public int turn_limit;
         [JsonProperty("moves")] public ContestMoveDef[] moves;
+    }
+
+    // ---------------------------------------------------------------- locale strings
+    // One type per locale file under Resources/Data/locales/<locale>. These exist only long
+    // enough for GameData to copy their fields onto the DTOs above; nothing else ever sees them.
+
+    /// <summary>Player-facing half of a contest move, from locales/&lt;locale&gt;/contest.json.</summary>
+    public class ContestMoveStrings
+    {
+        [JsonProperty("display")] public string display;
+        [JsonProperty("description")] public string description;
+    }
+
+    /// <summary>Player-facing half of a vocation, from locales/&lt;locale&gt;/vocations.json.</summary>
+    public class VocationStrings
+    {
+        [JsonProperty("display")] public string display;
+        [JsonProperty("reveal_line")] public string reveal_line;
+    }
+
+    /// <summary>Player-facing half of a check-in question, from locales/&lt;locale&gt;/quiz.json.</summary>
+    public class QuizStrings
+    {
+        [JsonProperty("prompt")] public string prompt;
+        [JsonProperty("options")] public string[] options;
+        [JsonProperty("note")] public string note;
     }
 }

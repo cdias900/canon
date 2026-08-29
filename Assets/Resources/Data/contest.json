@@ -5,32 +5,24 @@
   "moves": [
     {
       "id": "hold_line",
-      "display": "Segurar a linha",
-      "description": "Ninguém sai do lugar. Vale mais quanto mais muro já estiver de pé no seu trecho.",
       "resolve_delta": -8,
       "morale_delta": 0,
       "unlocked_by_page": false
     },
     {
       "id": "call_others",
-      "display": "Chamar os outros",
-      "description": "Você grita, e responde quem te conhece pelo nome.",
       "resolve_delta": 0,
       "morale_delta": 12,
       "unlocked_by_page": false
     },
     {
       "id": "show_watch",
-      "display": "Mostrar a guarda",
-      "description": "A tocha percorre o alto do muro. Vale muito se havia gente de vigia ontem; quase nada se não havia.",
       "resolve_delta": -20,
       "morale_delta": 0,
       "unlocked_by_page": false
     },
     {
       "id": "half_and_half",
-      "display": "Metade e metade",
-      "description": "Ninguém larga a colher de pedreiro para pegar a lança. Cada um faz as duas coisas ao mesmo tempo, e é isso que eles não esperavam.",
       "resolve_delta": -15,
       "morale_delta": 8,
       "unlocked_by_page": true

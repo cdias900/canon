@@ -185,5 +185,8 @@ namespace SheepGate.Core
         public const string RevealShown = "reveal_shown";
         public const string NodeCompleted = "node_completed";
         public const string VocationRevealed = "vocation_revealed";
+
+        /// <summary>Raised when the player changes language mid-run, never on boot.</summary>
+        public const string LocaleChanged = "locale_changed";
     }
 }

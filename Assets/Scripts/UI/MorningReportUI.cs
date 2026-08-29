@@ -244,7 +244,7 @@ namespace SheepGate.UI
             cardRect.sizeDelta = new Vector2(CardWidth, CardHeight);
             cardRect.anchoredPosition = Vector2.zero;
 
-            Text kicker = UIKit.CreateText(cardRect, "Kicker", "Manhã do dia " + Mathf.Max(1, summary.day),
+            Text kicker = UIKit.CreateText(cardRect, "Kicker", Loc.T("morning.kicker", Mathf.Max(1, summary.day)),
                 UIKit.FontSize.Meta, UIKit.Palette.Muted, TextAnchor.MiddleLeft);
             UIKit.AnchorTop((RectTransform)kicker.transform, 44f, 56f, 56f, 44f);
 
@@ -260,7 +260,7 @@ namespace SheepGate.UI
             BuildStatusChip(cardRect, watched, accent);
             BuildBody(cardRect, summary);
 
-            Button confirm = UIKit.CreateButton(cardRect, "Confirm", "Começar o dia", UIKit.Palette.Clay, UIKit.Palette.Parchment, Close);
+            Button confirm = UIKit.CreateButton(cardRect, "Confirm", Loc.T("morning.confirm"), UIKit.Palette.Clay, UIKit.Palette.Parchment, Close);
             var confirmRect = (RectTransform)confirm.transform;
             confirmRect.anchorMin = new Vector2(0.5f, 0f);
             confirmRect.anchorMax = new Vector2(0.5f, 0f);
@@ -280,7 +280,7 @@ namespace SheepGate.UI
             chipRect.anchoredPosition = new Vector2(56f, -284f);
             chip.raycastTarget = false;
 
-            Text label = UIKit.CreateText(chipRect, "Label", watched ? "COM VIGIA" : "SEM VIGIA",
+            Text label = UIKit.CreateText(chipRect, "Label", watched ? Loc.T("morning.chip.watched") : Loc.T("morning.chip.unwatched"),
                 UIKit.FontSize.Meta, UIKit.Palette.Ink, TextAnchor.MiddleCenter);
             UIKit.Stretch((RectTransform)label.transform, 12f, 12f, 4f, 4f);
         }
@@ -304,50 +304,46 @@ namespace SheepGate.UI
         static string Headline(bool watched)
         {
             return watched
-                ? "Houve vigia no muro a noite toda."
-                : "O muro passou a noite sem vigia.";
+                ? Loc.T("morning.headline.watched")
+                : Loc.T("morning.headline.unwatched");
         }
 
         static List<string> BuildLines(NightSummary summary)
         {
             var lines = new List<string>(5);
 
-            lines.Add("Na obra: " + Mathf.Max(0, summary.workers) + ".   No muro: " + Mathf.Max(0, summary.watchers) + ".");
+            lines.Add(Loc.T("morning.split", Mathf.Max(0, summary.workers), Mathf.Max(0, summary.watchers)));
 
             // The rule, restated only on the morning it decided something. Stated after the fact
             // it is information, not a correction: the next split is the player's to make again.
             if (!summary.watchPosted && summary.watchThreshold > 0)
             {
-                lines.Add("A guarda se conta a partir de " + summary.watchThreshold + " no muro.");
+                lines.Add(Loc.T("morning.watch_rule", summary.watchThreshold));
             }
 
             if (summary.workRecorded || summary.workDone > 0)
             {
                 if (summary.workDone > 0)
                 {
-                    lines.Add(summary.workDone == 1
-                        ? "A noite rendeu 1 de trabalho na muralha."
-                        : "A noite rendeu " + summary.workDone + " de trabalho na muralha.");
+                    lines.Add(Loc.Plural("morning.work", summary.workDone));
                 }
                 else
                 {
-                    lines.Add("A noite não rendeu trabalho na muralha.");
+                    lines.Add(Loc.T("morning.work.none"));
                 }
             }
 
             if (summary.damagedSegments > 0)
             {
-                lines.Add(summary.damagedSegments == 1
-                    ? "1 trecho amanheceu com pedra fora do lugar."
-                    : summary.damagedSegments + " trechos amanheceram com pedra fora do lugar.");
+                lines.Add(Loc.Plural("morning.damage", summary.damagedSegments));
             }
             else
             {
-                lines.Add("Nenhum trecho saiu do lugar.");
+                lines.Add(Loc.T("morning.damage.none"));
             }
 
             // The promise the whole game is built on, stated as a fact and not as comfort.
-            lines.Add("Nada do que já ficou pronto voltou atrás.");
+            lines.Add(Loc.T("morning.no_regress"));
 
             return lines;
         }

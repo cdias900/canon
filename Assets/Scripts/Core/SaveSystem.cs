@@ -27,12 +27,12 @@ namespace SheepGate.Core
 
         public static string SavePath
         {
-            get { return Path.Combine(Application.persistentDataPath, FileName); }
+            get { return Path.Combine(AppPaths.DataRoot, FileName); }
         }
 
         static string TempPath
         {
-            get { return Path.Combine(Application.persistentDataPath, TempFileName); }
+            get { return Path.Combine(AppPaths.DataRoot, TempFileName); }
         }
 
         public static bool HasSave()

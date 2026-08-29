@@ -143,7 +143,7 @@ namespace SheepGate.Contest
             UIKit.CreateText(
                 _card,
                 "Eyebrow",
-                "ISTO JÁ ESTAVA ESCRITO ANTES DE VOCÊ CHEGAR",
+                Loc.T("page.eyebrow"),
                 UIKit.FontSize.Meta,
                 UIKit.Palette.Stone,
                 TextAnchor.UpperLeft);
@@ -163,7 +163,7 @@ namespace SheepGate.Contest
             _closeButton = UIKit.CreateButton(
                 _card,
                 "CloseButton",
-                "Voltar para o muro",
+                Loc.T("page.close"),
                 UIKit.Palette.Clay,
                 UIKit.Palette.Parchment,
                 Close);
@@ -177,7 +177,7 @@ namespace SheepGate.Contest
             _skipButton = UIKit.CreateButton(
                 container,
                 "SkipButton",
-                "Pular",
+                Loc.T("page.skip"),
                 new Color(0f, 0f, 0f, 0f),
                 UIKit.Palette.Muted,
                 Skip);
@@ -220,7 +220,7 @@ namespace SheepGate.Contest
             _readButton = UIKit.CreateButton(
                 footer,
                 "ReadButton",
-                "Saber mais",
+                Loc.T("page.read_more"),
                 UIKit.Palette.PanelSoft,
                 UIKit.Palette.Parchment,
                 OpenChapter);

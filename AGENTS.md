@@ -101,6 +101,7 @@ Brainstorm ativo do time (Google Docs) tem contribuições de João, Cris, Pedro
 | Arquivo | O que é |
 |---|---|
 | `POC-IMPLEMENTATION.md` | **Spec de implementação do POC.** Estrutura de projeto, esquemas de dados, sistemas, conteúdo dos três dias, prova de ânimo, critérios de aceite. É o que se executa. |
+| `docs/development-guidelines.md` | **Como se escreve código aqui.** Inglês no código, texto de jogador só em `locales/`, como adicionar uma string e um idioma, e a política de testar em build. |
 | `docs/persona-e-proposito.md` | **Para quem o jogo é e o que ele precisa causar.** Faixa etária, a tese de transformação, a escada de degraus, as métricas de desejo, e as regras 19-20. |
 | `docs/poc-scope.md` | Escopo e justificativa do POC: as três sessões, o corte, as quatro decisões pendentes, o que é descartável e o que fica. |
 | `docs/nehemiah-game-design.md` | Desenho completo do jogo de Neemias: vocações, loop dia/noite, quatro ameaças, prova de ânimo, discrição, produção, riscos. |
@@ -108,7 +109,12 @@ Brainstorm ativo do time (Google Docs) tem contribuições de João, Cris, Pedro
 
 ## Convenções
 
-- Prosa e strings de jogador em **pt-BR**; identificadores, chaves de JSON e nomes de arquivo em **inglês**.
+**Regras de engenharia detalhadas em [`docs/development-guidelines.md`](docs/development-guidelines.md).** O resumo:
+
+- **Código em inglês, sem exceção** — identificadores, comentários, logs, chaves de JSON, nomes de arquivo, nomes de GameObject, eventos de telemetria, mensagens de commit. Documento de engenharia em inglês; documento de produto (este, persona, design) em pt-BR.
+- **Nenhuma string que o jogador lê mora em `.cs`.** Toda ela vive em `Assets/Resources/Data/locales/<locale>/` e é lida por `Loc.T("chave")`. O validador quebra a build se um literal chegar à tela.
+- **O jogo é bilíngue: pt-BR e en.** `pt-BR` é a língua de autoria; as outras são tradução dela. Estrutura e números têm **uma cópia só**, compartilhada — só as palavras se duplicam por idioma, para que balanceamento não possa divergir entre línguas.
 - Referências bíblicas no formato **`LIVRO.CAP.VERS`** (`NEH.4.17`, `JHN.21.6`), sempre em código e em spec.
 - Conteúdo de jogo vive em JSON sob `Resources/Data/`, não em ScriptableObject — precisa ser editável fora do Unity.
-- `verses.json` é **gerado**. Nunca editar à mão.
+- `verses.json` é **gerado**, um por locale. Nunca editar à mão.
+- **Mudança só está pronta depois de rodar numa build.** `tools/unity-check.sh` compila, `node tools/validate-content.mjs` valida o conteúdo, `tools/acceptance.sh` afere as regras, e `tools/e2e.sh` constrói o player e joga a abertura em cada idioma, com screenshot. Os três primeiros não bastam: este projeto já embarcou código correto que nada chamava, e bugs que eram invisíveis em vez de quebrados.

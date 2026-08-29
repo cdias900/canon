@@ -1,35 +1,14 @@
 [
   {
     "day": 1,
-    "prompt": "A pedra que você assentou hoje veio de onde?",
-    "options": [
-      "Da pedreira do outro lado do vale",
-      "Dos escombros queimados da própria cidade",
-      "Veio de carroça, com o homem da capital"
-    ],
-    "answer": 1,
-    "note": "Dos escombros. A cidade é remontada com o material dela mesma, e é por isso que catar entulho e assentar pedra são a mesma tarefa em dois tempos. Referência: NEH.4.2."
+    "answer": 1
   },
   {
     "day": 2,
-    "prompt": "Dois moradores te contaram coisas diferentes sobre a estrada. Como o jogo mostra quem está certo?",
-    "options": [
-      "Pela cor do nome sobre a cabeça",
-      "Não mostra",
-      "Pelo ícone que aparece na fala"
-    ],
-    "answer": 1,
-    "note": "Não mostra, e não vai mostrar. Você decide com o que tem: quem viu, de onde viu, e quanto custa estar errado em cada uma das duas direções."
+    "answer": 1
   },
   {
     "day": 3,
-    "prompt": "A prova de ânimo termina quando...",
-    "options": [
-      "o outro lado desiste",
-      "o outro lado é derrubado",
-      "a sua força acaba"
-    ],
-    "answer": 0,
-    "note": "Termina quando alguém desiste. Não há contagem de baixas nesta muralha, nem do seu lado nem do outro: a guarda existe para o ataque não valer a pena. Referência: NEH.4.9."
+    "answer": 0
   }
 ]

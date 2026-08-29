@@ -118,11 +118,11 @@ namespace SheepGate.UI
 
             UIKit.VerticalGroup(card.gameObject, 26f, new RectOffset(52, 52, 48, 48));
 
-            Text kicker = UIKit.CreateText(cardRect, "Kicker", "Dia 3",
+            Text kicker = UIKit.CreateText(cardRect, "Kicker", Loc.T("vocation.kicker"),
                 UIKit.FontSize.Meta, UIKit.Palette.Muted, TextAnchor.UpperLeft);
             SetMinHeight(kicker, 40f);
 
-            Text headline = UIKit.CreateText(cardRect, "Headline", "A brecha fechou.",
+            Text headline = UIKit.CreateText(cardRect, "Headline", Loc.T("vocation.headline"),
                 UIKit.FontSize.Heading, UIKit.Palette.Olive, TextAnchor.UpperLeft);
             SetMinHeight(headline, 64f);
 
@@ -131,7 +131,7 @@ namespace SheepGate.UI
             SetMinHeight(rule, 6f);
 
             Text body = UIKit.CreateText(cardRect, "Body",
-                "O trecho ficou de pé antes de o dia acabar. Amanhã ele não precisa ser levantado de novo.",
+                Loc.T("vocation.body"),
                 UIKit.FontSize.Body, UIKit.Palette.Parchment, TextAnchor.UpperLeft);
             SetMinHeight(body, 96f);
 
@@ -145,13 +145,13 @@ namespace SheepGate.UI
                 spacerLayout.flexibleHeight = 1f;
             }
 
-            Text caption = UIKit.CreateText(cardRect, "ReaderCaption", ChapterRef + ", aqui dentro.",
+            Text caption = UIKit.CreateText(cardRect, "ReaderCaption", Loc.T("vocation.reader_caption", ChapterRef),
                 UIKit.FontSize.Meta, UIKit.Palette.Muted, TextAnchor.LowerLeft);
             SetMinHeight(caption, 36f);
 
             BuildSecondaryRow(cardRect);
 
-            Button continueButton = UIKit.CreateButton(cardRect, "Continue", "Continuar",
+            Button continueButton = UIKit.CreateButton(cardRect, "Continue", Loc.T("vocation.continue"),
                 UIKit.Palette.Clay, UIKit.Palette.Parchment, Close);
             SetMinHeight(continueButton, 124f);
         }
@@ -169,8 +169,8 @@ namespace SheepGate.UI
             SetMinHeight(plate, 150f);
 
             string record = string.IsNullOrEmpty(builderName)
-                ? "Neste trecho reparou você."
-                : "Neste trecho reparou " + builderName + ".";
+                ? Loc.T("vocation.record.anonymous")
+                : Loc.T("vocation.record.named", builderName);
 
             Text line = UIKit.CreateText(plateRect, "Line", record,
                 UIKit.FontSize.Body, UIKit.Palette.Parchment, TextAnchor.UpperLeft);
@@ -187,7 +187,7 @@ namespace SheepGate.UI
             UIKit.HorizontalGroup(row.gameObject, 16f, new RectOffset(0, 0, 0, 0), TextAnchor.MiddleLeft);
             SetMinHeight(row, 100f);
 
-            Button knowMore = UIKit.CreateButton(row, "KnowMore", "Saber mais",
+            Button knowMore = UIKit.CreateButton(row, "KnowMore", Loc.T("vocation.know_more"),
                 UIKit.Palette.PanelSoft, UIKit.Palette.Parchment, OnKnowMoreClicked);
 
             LayoutElement layout = UIKit.Layout(knowMore);
@@ -371,11 +371,11 @@ namespace SheepGate.UI
 
             string name = definition != null && !string.IsNullOrEmpty(definition.display)
                 ? definition.display
-                : "Três dias de obra.";
+                : Loc.T("vocation.reveal.fallback_name");
 
             string line = definition != null && !string.IsNullOrEmpty(definition.reveal_line)
                 ? definition.reveal_line
-                : "Fica o trecho de pé, e fica o que você fez para levantá-lo.";
+                : Loc.T("vocation.reveal.fallback_line");
 
             var container = (RectTransform)transform;
 
@@ -386,7 +386,7 @@ namespace SheepGate.UI
 
             _cardGroup = card.gameObject.AddComponent<CanvasGroup>();
 
-            Text kicker = UIKit.CreateText(cardRect, "Kicker", "Ao fim de três dias",
+            Text kicker = UIKit.CreateText(cardRect, "Kicker", Loc.T("vocation.reveal.kicker"),
                 UIKit.FontSize.Meta, UIKit.Palette.Muted, TextAnchor.UpperLeft);
             SetMinHeight(kicker, 40f);
 
@@ -412,7 +412,7 @@ namespace SheepGate.UI
                 spacerLayout.flexibleHeight = 1f;
             }
 
-            Button close = UIKit.CreateButton(cardRect, "Close", "Voltar para a muralha",
+            Button close = UIKit.CreateButton(cardRect, "Close", Loc.T("vocation.reveal.close"),
                 UIKit.Palette.Clay, UIKit.Palette.Parchment, Close);
             SetMinHeight(close, 124f);
 

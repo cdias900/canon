@@ -1,0 +1,18 @@
+{
+  "hold_line": {
+    "display": "Hold the line",
+    "description": "Nobody moves. Worth more the more wall is already standing on your stretch."
+  },
+  "call_others": {
+    "display": "Call the others",
+    "description": "You shout, and the ones who know you by name answer."
+  },
+  "show_watch": {
+    "display": "Show the watch",
+    "description": "The torch runs along the top of the wall. Worth a great deal if there were people on watch last night; next to nothing if there weren't."
+  },
+  "half_and_half": {
+    "display": "Half and half",
+    "description": "Nobody puts down the trowel to pick up the spear. Everyone does both at once, and that is the part they weren't expecting."
+  }
+}

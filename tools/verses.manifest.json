@@ -1,6 +1,19 @@
 {
-  "version_id": "129",
-  "_version_note": "129 = NVI (Nova Versao Internacional, Biblica Inc.), granted through the account's Bible licence. Note the /bibles?language_ranges[] listing does NOT report 129 for pt even when access works - direct passage access is the authority, not the listing.",
+  "_note": "One set of references, one translation per locale. The references are language independent by design: the model picks a reference, and each locale resolves it in its own version. Adding a language means adding an entry to versions, not touching this list.",
+  "versions": {
+    "pt-BR": {
+      "id": "129",
+      "abbrev": "NVI",
+      "public_domain": false,
+      "note": "129 = NVI (Nova Versao Internacional, Biblica Inc.), granted through the account's Bible licence. All rights reserved, which is why this repo is private. Regenerate against BLT (id 3254, CC BY-SA) before making it public. Note the /bibles?language_ranges[] listing does NOT report 129 for pt even when access works - direct passage access is the authority, not the listing."
+    },
+    "en": {
+      "id": "206",
+      "abbrev": "WEB",
+      "public_domain": true,
+      "note": "206 = World English Bible, public domain. Chosen over NIV (111, also served by this key) precisely because it is public domain: English adds no new licence obligation, so it is the locale that could ship publicly first. Verified by direct passage access on NEH.4.6, not by the version listing."
+    }
+  },
   "verses": [
     "1CO.13.13",
     "JHN.21.6",

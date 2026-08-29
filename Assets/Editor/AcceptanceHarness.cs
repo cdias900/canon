@@ -25,8 +25,12 @@ namespace SheepGate.EditorTools
         static readonly List<string> Failures = new List<string>();
         static readonly StringBuilder Report = new StringBuilder();
 
+        /// <summary>Locale whose criteria are being checked. Prefixed onto every line of the report.</summary>
+        static string _locale = Locales.Source;
+
         static void Check(string criterion, bool passed, string detail)
         {
+            criterion = "[" + _locale + "] " + criterion;
             if (passed)
             {
                 Report.AppendLine("  PASS  " + criterion + " — " + detail);
@@ -45,23 +49,44 @@ namespace SheepGate.EditorTools
             Report.AppendLine("Sheep Gate acceptance harness");
             Report.AppendLine();
 
-            try
-            {
-                GameData.LoadAll();
-                ScriptureService.Load();
+            // Every criterion is checked once per shipped language. A rule that holds in one
+            // locale and not another is exactly the failure a single-language pass cannot see,
+            // and the content split means a missing translation now shows up here rather than
+            // on a player's screen.
+            IReadOnlyDictionary<string, DialogueNode> sourceDialogue = null;
 
-                ScriptureIntegrity();
-                WallProgressNeverRegresses();
-                SaveRoundTrip();
-                ContestRules();
-                VocationResolution();
-                NightDiffers();
-            }
-            catch (Exception exception)
+            foreach (string locale in Locales.Supported)
             {
-                Failures.Add("harness threw: " + exception);
-                Report.AppendLine("  FAIL  harness threw — " + exception.Message);
+                _locale = locale;
+
+                try
+                {
+                    BootSequence.ApplyLocale(locale);
+
+                    if (locale == Locales.Source)
+                    {
+                        sourceDialogue = GameData.Dialogue;
+                    }
+
+                    LocalizationIntegrity(sourceDialogue);
+                    ScriptureIntegrity();
+                    WallProgressNeverRegresses();
+                    SaveRoundTrip();
+                    ContestRules();
+                    VocationResolution();
+                    NightDiffers();
+                }
+                catch (Exception exception)
+                {
+                    Failures.Add("[" + locale + "] harness threw: " + exception);
+                    Report.AppendLine("  FAIL  [" + locale + "] harness threw — " + exception.Message);
+                }
             }
+
+            // Leave the editor on the authoring locale so a run of the harness does not silently
+            // change what the next Play session shows.
+            _locale = Locales.Source;
+            BootSequence.ApplyLocale(Locales.Source);
 
             Report.AppendLine();
             Report.AppendLine(Failures.Count == 0
@@ -74,6 +99,80 @@ namespace SheepGate.EditorTools
             {
                 EditorApplication.Exit(1);
             }
+        }
+
+        /// <summary>
+        /// Every player-facing string this locale owes exists, and its dialogue has the same nodes
+        /// as the authoring locale. Structure lives in one file shared by all languages, so a
+        /// translation can only be wrong by being incomplete — which is what this checks.
+        /// </summary>
+        static void LocalizationIntegrity(IReadOnlyDictionary<string, DialogueNode> sourceDialogue)
+        {
+            Check("L1 string table loads", Loc.Count > 0,
+                Loc.Count + " strings in " + Loc.LoadedLocale);
+
+            var gaps = new List<string>();
+
+            foreach (NpcDef npc in GameData.Npcs)
+            {
+                if (npc != null && string.IsNullOrEmpty(npc.display)) gaps.Add("npc:" + npc.id);
+            }
+
+            foreach (VocationDef vocation in GameData.Vocations)
+            {
+                if (vocation == null) continue;
+                if (string.IsNullOrEmpty(vocation.display)) gaps.Add("vocation.display:" + vocation.id);
+                if (string.IsNullOrEmpty(vocation.reveal_line)) gaps.Add("vocation.reveal_line:" + vocation.id);
+            }
+
+            ContestMoveDef[] moves = GameData.Contest != null ? GameData.Contest.moves : null;
+            if (moves != null)
+            {
+                foreach (ContestMoveDef move in moves)
+                {
+                    if (move == null) continue;
+                    if (string.IsNullOrEmpty(move.display)) gaps.Add("move.display:" + move.id);
+                    if (string.IsNullOrEmpty(move.description)) gaps.Add("move.description:" + move.id);
+                }
+            }
+
+            foreach (QuizQuestion question in GameData.Quiz)
+            {
+                if (question == null) continue;
+                if (string.IsNullOrEmpty(question.prompt)) gaps.Add("quiz.prompt:d" + question.day);
+                if (question.options == null || question.options.Length == 0) gaps.Add("quiz.options:d" + question.day);
+                if (string.IsNullOrEmpty(question.note)) gaps.Add("quiz.note:d" + question.day);
+            }
+
+            Check("L2 content strings complete", gaps.Count == 0,
+                gaps.Count == 0 ? "no gaps" : gaps.Count + " gap(s) [" + string.Join(", ", gaps) + "]");
+
+            if (sourceDialogue == null)
+            {
+                return;
+            }
+
+            var missingNodes = new List<string>();
+            foreach (KeyValuePair<string, DialogueNode> pair in sourceDialogue)
+            {
+                DialogueNode translated;
+                if (!GameData.Dialogue.TryGetValue(pair.Key, out translated) || translated == null)
+                {
+                    missingNodes.Add(pair.Key);
+                    continue;
+                }
+
+                int sourceLines = pair.Value != null && pair.Value.lines != null ? pair.Value.lines.Length : 0;
+                int translatedLines = translated.lines != null ? translated.lines.Length : 0;
+                if (sourceLines != translatedLines)
+                {
+                    missingNodes.Add(pair.Key + " (" + translatedLines + "/" + sourceLines + " lines)");
+                }
+            }
+
+            Check("L3 dialogue matches the source locale", missingNodes.Count == 0,
+                sourceDialogue.Count + " node(s), " + missingNodes.Count + " off" +
+                (missingNodes.Count > 0 ? " [" + string.Join(", ", missingNodes) + "]" : ""));
         }
 
         // 04 — every verse referenced by content resolves from verses.json, none invented.

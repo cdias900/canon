@@ -1,0 +1,673 @@
+{
+  "intro_worldmap": {
+    "npc": "narrator",
+    "day": 0,
+    "cutscene": true,
+    "lines": [
+      {
+        "text": "You walked a long way to get here. Almost everyone here walked."
+      },
+      {
+        "text": "The cities you left behind are still standing. This one isn't."
+      }
+    ]
+  },
+  "intro_arrival": {
+    "npc": "vizinho",
+    "day": 0,
+    "cutscene": true,
+    "lines": [
+      {
+        "text": "Hey. You're one of the ones who came in this week, aren't you? It shows on your face."
+      },
+      {
+        "text": "Welcome. I live in that house over there, the one that still has a roof."
+      },
+      {
+        "text": "Look around. This was a wall. Now it's rubble, and rubble keeps nobody outside."
+      },
+      {
+        "frame": "People came up from the big city asking how we were getting on. This is how it was put to them:",
+        "verse": "NEH.1.3"
+      },
+      {
+        "text": "That's why we came back, and that's why nobody sleeps properly. We're home and the home is wide open."
+      }
+    ]
+  },
+  "intro_summons": {
+    "npc": "vizinho",
+    "day": 0,
+    "cutscene": true,
+    "lines": [
+      {
+        "text": "Today is different, though. A man came from the capital, with letters from the king, and called everyone together by the wall."
+      },
+      {
+        "text": "Nobody's quite sure who he is. I know he rode out before dawn, alone, to see the size of the damage before he opened his mouth."
+      },
+      {
+        "text": "That already tells me more than a speech would."
+      },
+      {
+        "text": "Come on. Not in those road clothes, though. Go inside, find something decent, and we'll walk down together."
+      }
+    ]
+  },
+  "intro_dressed": {
+    "npc": "vizinho",
+    "day": 0,
+    "cutscene": true,
+    "lines": [
+      {
+        "text": "Better. Now you look like you came to stay, not like you came to look."
+      },
+      {
+        "text": "Come on. Everyone's down there already."
+      }
+    ]
+  },
+  "intro_gathering": {
+    "npc": "governador",
+    "day": 0,
+    "cutscene": true,
+    "lines": [
+      {
+        "text": "The man from the capital climbed onto a stone where everyone could see him. He waited for the noise to die down."
+      },
+      {
+        "text": "— Some of you got here this week. Others were born here and watched this come down."
+      },
+      {
+        "text": "— I went around this city all night before I said a word to anyone. I know the size of what I am asking."
+      },
+      {
+        "frame": "Then he said it, and he said it like someone who had already counted the stones one by one:",
+        "verse": "NEH.2.17"
+      },
+      {
+        "frame": "He told them what he had come back with, and what the people answered:",
+        "verse": "NEH.2.18"
+      },
+      {
+        "text": "Then he was quiet for a while. It wasn't a pause for effect; it was something else."
+      },
+      {
+        "frame": "The neighbour beside you whispered that he has been praying like that since before he got here:",
+        "verse": "NEH.1.11"
+      },
+      {
+        "text": "— Each of you takes the stretch nearest your own house. Nobody is going to haul stone for a wall that doesn't cover their own door."
+      },
+      {
+        "text": "— The stone is in the rubble. It's the same stone that fell. Start today."
+      },
+      {
+        "text": "And that was it. Nobody clapped. People just went."
+      }
+    ],
+    "canonical_speaker": true,
+    "needs_curation": true
+  },
+  "hananias_d1": {
+    "npc": "hananias",
+    "day": 1,
+    "lines": [
+      {
+        "text": "My father mixed resin with oil and sold it in small jars. I know the smell of everything that was ever good on this street."
+      },
+      {
+        "text": "Now I know the weight of a burnt stone. I learned it in two days, and I'd rather not have."
+      },
+      {
+        "text": "My sister sleeps at her father-in-law's, the other side of the valley. There's no door here that shuts, and what has no door isn't a house."
+      },
+      {
+        "verse": "NEH.2.17",
+        "frame": "The man who came from the capital spoke in the square last week. It was written down like this:"
+      },
+      {
+        "text": "I didn't enjoy hearing it. I couldn't find a word of it to argue with either."
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "pastor": 1
+      }
+    },
+    "reliable": true
+  },
+  "salum_d1": {
+    "npc": "salum",
+    "day": 1,
+    "lines": [
+      {
+        "text": "Shallum. Those two on the mortar are my daughters. Don't pull that face: they lay better than I do, and I've been laying for twenty years."
+      },
+      {
+        "text": "The arithmetic here is short and nobody likes it. Every person on top of the wall at night is a person off the stone during the day."
+      },
+      {
+        "text": "And if there's nobody up there, you spend the day lifting what they throw down at night. There's no pretty way out. There's a choice."
+      },
+      {
+        "verse": "NEH.2.18",
+        "frame": "What was said after that was set down like this:"
+      },
+      {
+        "text": "It was easier said than done. But we said it, and I was there."
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "mordomo": 1
+      }
+    },
+    "reliable": true
+  },
+  "baruque_d1": {
+    "npc": "baruque",
+    "day": 1,
+    "lines": [
+      {
+        "text": "Baruch. I took that stretch over there, the one facing the open ground."
+      },
+      {
+        "text": "Everyone picks the piece in front of their own house. Somebody has to take the one you can see from far off."
+      },
+      {
+        "text": "There's room on my side, if you want it. I won't pretend it's the same work as everyone else's."
+      },
+      {
+        "verse": "NEH.4.6",
+        "frame": "I asked the man who keeps the shift list how the first week had gone. He read out what was written:"
+      },
+      {
+        "text": "Heart is what runs out first around here. Before the food, before the stone."
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "zelote": 1
+      }
+    },
+    "reliable": true
+  },
+  "hananias_d2": {
+    "npc": "hananias",
+    "day": 2,
+    "lines": [
+      {
+        "text": "I slept badly. It wasn't noise. It was there being no noise at all."
+      },
+      {
+        "text": "I ran my hand over what you laid yesterday. It's solid. That kept me in a good mood until nearly midday."
+      },
+      {
+        "text": "My uncle stopped coming. Said he's lost a house once already and won't sit here waiting to lose another. I didn't argue with him."
+      }
+    ],
+    "grants": {
+      "vocation": {}
+    },
+    "choices": [
+      {
+        "id": "donate",
+        "text": "I brought you stone. Take it.",
+        "next": "hananias_d2_donate",
+        "requires_rubble": 3,
+        "hidden_if_flag": "donated_rubble"
+      },
+      {
+        "id": "leave",
+        "text": "We'll talk later."
+      }
+    ],
+    "reliable": true
+  },
+  "hananias_d2_donate": {
+    "npc": "hananias",
+    "day": 2,
+    "lines": [
+      {
+        "text": "Stone? For me?"
+      },
+      {
+        "text": "My piece is the shortest on the street and I'm behind on it anyway. I wasn't going to ask anyone."
+      },
+      {
+        "text": "I'll remember this. That's not a turn of phrase, it's a warning: I remember."
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "pastor": 2
+      },
+      "set_flag": "donated_rubble"
+    },
+    "reliable": true
+  },
+  "salum_d2": {
+    "npc": "salum",
+    "day": 2,
+    "lines": [
+      {
+        "text": "Today I split my daughters up. One on the stone, the other up there watching the road. I didn't like either decision."
+      },
+      {
+        "text": "If you left people on watch last night, you've seen what came of it. If you didn't, you've seen that too."
+      },
+      {
+        "text": "I'm not going to tell you what to do. Only that the arithmetic doesn't change, and the wall doesn't know how many hands you have."
+      }
+    ],
+    "grants": {
+      "vocation": {}
+    },
+    "reliable": true
+  },
+  "baruque_d2": {
+    "npc": "baruque",
+    "day": 2,
+    "lines": [
+      {
+        "text": "It was on my stretch. Woke up to one stone out of place. Just the one, in the middle, picked on purpose."
+      },
+      {
+        "text": "That's not damage, it's a message. Nobody who wants a wall down moves a single stone."
+      },
+      {
+        "text": "They don't want to come in. They want us to stop on our own and leave saying we tried."
+      }
+    ],
+    "grants": {
+      "vocation": {}
+    },
+    "reliable": true
+  },
+  "meremote_d1": {
+    "npc": "meremote",
+    "day": 1,
+    "lines": [
+      {
+        "text": "Meremoth. I work the stretch up on the rise, near the old gate."
+      },
+      {
+        "text": "Don't mind the face. I slept badly. The road makes noise at night and I hear all of it from here."
+      },
+      {
+        "text": "It's probably nothing. It's always nothing."
+      }
+    ],
+    "reliable": true
+  },
+  "meremote_d2": {
+    "npc": "meremote",
+    "day": 2,
+    "lines": [
+      {
+        "text": "Meremoth. I went out for lime on the low road before the sun was up."
+      },
+      {
+        "text": "I saw riders. Four, maybe five. They stopped at the bend, the far side of the stream, and stood looking this way for longer than anyone looks at nothing."
+      },
+      {
+        "text": "They didn't come down. They went back the same way, in no hurry."
+      },
+      {
+        "text": "I'm telling you because I don't know what to do with it. You're the one who decides where your people are tonight."
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "profeta": 1
+      }
+    },
+    "reliable": true
+  },
+  "zacur_d1": {
+    "npc": "zacur",
+    "day": 1,
+    "lines": [
+      {
+        "text": "Zaccur. I'm from here, born three streets from all this rubble."
+      },
+      {
+        "text": "I've seen a wall come down and I've seen people promise to put one up. You're the first who turned up with stone in your hands."
+      },
+      {
+        "text": "That counts for something. I don't know how much yet."
+      }
+    ],
+    "reliable": false
+  },
+  "zacur_d2": {
+    "npc": "zacur",
+    "day": 2,
+    "lines": [
+      {
+        "text": "Zaccur. My brother-in-law drives cattle the other side of the valley and comes down the low road every day, without fail."
+      },
+      {
+        "text": "Nobody's coming. If troops were moving, the cattle would scatter and he'd see the dust a long way off. There hasn't been any dust this week."
+      },
+      {
+        "text": "Half this city hasn't slept properly since the man from the capital turned up. Sees a rider in every shadow and hears a drum in every gust of wind."
+      },
+      {
+        "text": "I sleep. And I wake early, and I lay more stone than the ones who stayed up. Do your own arithmetic."
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "escriba": 1
+      }
+    },
+    "reliable": false
+  },
+  "malquias_d1": {
+    "npc": "malquias",
+    "day": 1,
+    "lines": [
+      {
+        "text": "Malchijah. I run Beth Haccherem, a whole district, and not one yard of wall."
+      },
+      {
+        "text": "I came because I was told to come. I'm staying because I looked at the size of the hole."
+      },
+      {
+        "text": "If a letter comes for you, it goes through my hands first. That's the only useful job I have here."
+      }
+    ],
+    "reliable": true
+  },
+  "malquias_d2": {
+    "npc": "malquias",
+    "day": 2,
+    "lines": [
+      {
+        "text": "Malchijah, of Beth Haccherem. I run a district with no wall on it at all today, so don't ask me for building advice."
+      },
+      {
+        "text": "This came for you. Three men, on horseback, left it and rode off without dismounting."
+      },
+      {
+        "text": "They want to talk. At a village out on the plain, a day's walk from here. They say it's about an arrangement that suits both sides."
+      },
+      {
+        "text": "It might be a real conversation. It might be that they only want you a day away from here. I read the same letter you did and I can't tell you which."
+      },
+      {
+        "text": "And I'm not going in your place."
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "exilado": 1
+      }
+    },
+    "choices": [
+      {
+        "id": "accept",
+        "text": "I'll go down. I want to hear what they have.",
+        "next": "malquias_d2_accept"
+      },
+      {
+        "id": "refuse",
+        "text": "I'm not going down. I have stone to lay.",
+        "next": "malquias_d2_refuse"
+      },
+      {
+        "id": "defer",
+        "text": "I don't know yet. I'll answer later."
+      }
+    ],
+    "reliable": true
+  },
+  "malquias_d2_refuse": {
+    "npc": "malquias",
+    "day": 2,
+    "lines": [
+      {
+        "text": "You answered that you're not going down. They'll send again. People like that send four times before they change tactics."
+      },
+      {
+        "verse": "NEH.6.3",
+        "frame": "They called the man from the capital down the same way. His answer was set down like this:"
+      },
+      {
+        "text": "Get back to the wall. The stone doesn't lay itself."
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "zelote": 2
+      },
+      "set_flag": "refused_invite"
+    },
+    "reliable": true
+  },
+  "malquias_d2_accept": {
+    "npc": "malquias",
+    "day": 2,
+    "lines": [
+      {
+        "text": "You're going. All right. I'll tell the ones who are staying."
+      },
+      {
+        "text": "A day on the road, and a day without you up here. Somebody covers your stretch, and nobody covers someone else's stretch the way they cover their own."
+      },
+      {
+        "text": "If they say anything worth hearing, tell me when you're back. I mean it: I want to know."
+      }
+    ],
+    "grants": {
+      "vocation": {},
+      "set_flag": "accepted_invite"
+    },
+    "reliable": true
+  },
+  "malquias_d2_return": {
+    "npc": "malquias",
+    "day": 2,
+    "lines": [
+      {
+        "text": "You're back. Were they polite?"
+      },
+      {
+        "text": "They always are. They offered one thing you could write down and one you couldn't. You're the one who knows which is worth what."
+      },
+      {
+        "text": "A day is a day. Tomorrow we'll see what it cost."
+      }
+    ],
+    "grants": {
+      "vocation": {}
+    },
+    "reliable": true
+  },
+  "well_d2_1": {
+    "npc": "",
+    "day": 2,
+    "lines": [
+      {
+        "text": "The well in the square is deep and the water is dark. They say there have been fish in it since this place was an open cistern."
+      },
+      {
+        "text": "The line goes down. The line comes up. Nothing comes with it."
+      }
+    ],
+    "grants": {
+      "vocation": {}
+    },
+    "reliable": true
+  },
+  "well_d2_2": {
+    "npc": "",
+    "day": 2,
+    "lines": [
+      {
+        "text": "Nothing again. One of Shallum's daughters walks past, looks into the well, looks at you, and carries on."
+      },
+      {
+        "text": "The water doesn't move."
+      }
+    ],
+    "grants": {
+      "vocation": {}
+    },
+    "reliable": true
+  },
+  "well_d2_3": {
+    "npc": "",
+    "day": 2,
+    "lines": [
+      {
+        "text": "The girl comes back. Points at the other side of the well, says nothing, and goes."
+      },
+      {
+        "text": "You cast on the other side. On the third try the fish come up, and more of them than you can hold."
+      },
+      {
+        "verse": "JHN.21.6",
+        "frame": "Somewhere else, it was set down like this:"
+      }
+    ],
+    "grants": {
+      "set_flag": "fish_caught"
+    },
+    "reliable": true
+  },
+  "hananias_d3": {
+    "npc": "hananias",
+    "day": 3,
+    "lines": [
+      {
+        "text": "They've closed the low road. Nobody in and nobody out today."
+      },
+      {
+        "text": "I'm staying. It isn't courage, it's that I have nowhere to go and I already know the smell of a burnt house by heart."
+      }
+    ],
+    "grants": {
+      "vocation": {}
+    },
+    "reliable": true
+  },
+  "salum_d3": {
+    "npc": "salum",
+    "day": 3,
+    "lines": [
+      {
+        "text": "I sent my daughters inside. They didn't go. I didn't push it."
+      },
+      {
+        "text": "There's no split that helps today. Today it's everyone up top, and whatever stone gets laid, gets laid."
+      }
+    ],
+    "grants": {
+      "vocation": {}
+    },
+    "reliable": true
+  },
+  "baruque_d3": {
+    "npc": "baruque",
+    "day": 3,
+    "lines": [
+      {
+        "text": "It's on my stretch. It was always going to be my stretch, and I knew that when I picked it."
+      },
+      {
+        "text": "Come with me. Today doesn't have to be the day you learn to look at open ground, but it would be a good time for it."
+      }
+    ],
+    "grants": {
+      "vocation": {}
+    },
+    "reliable": true
+  },
+  "meremote_d3": {
+    "npc": "meremote",
+    "day": 3,
+    "lines": [
+      {
+        "text": "There were five. I counted four and told you four. It was five."
+      },
+      {
+        "text": "I'm not apologising for counting wrong. I'm telling you that I saw them, and that I still see them."
+      }
+    ],
+    "grants": {
+      "vocation": {}
+    },
+    "reliable": true
+  },
+  "zacur_d3": {
+    "npc": "zacur",
+    "day": 3,
+    "lines": [
+      {
+        "text": "My brother-in-law didn't come down the low road yesterday. I found out this morning, too late to be any use."
+      },
+      {
+        "text": "I didn't invent anything. I repeated something I hadn't checked, and I repeated it with a great deal of certainty. I think that's worse."
+      },
+      {
+        "text": "If you listened to me, that's not on you."
+      }
+    ],
+    "grants": {
+      "vocation": {}
+    },
+    "reliable": true
+  },
+  "malquias_d3": {
+    "npc": "malquias",
+    "day": 3,
+    "lines": [
+      {
+        "text": "I came with eleven men from my district. It's what I have and it's what I brought."
+      },
+      {
+        "text": "If this place goes, my side of the valley is next in line. I'm not being generous, I'm being practical."
+      }
+    ],
+    "grants": {
+      "vocation": {}
+    },
+    "reliable": true
+  },
+  "vizinho_after": {
+    "npc": "vizinho",
+    "day": 0,
+    "lines": [
+      {
+        "text": "I'll be around here. Somebody has to tell you where the quarry is when you ask."
+      },
+      {
+        "text": "Get the rubble first. Without stone, the rest is talk."
+      }
+    ]
+  },
+  "multidao_after": {
+    "npc": "multidao",
+    "day": 0,
+    "lines": [
+      {
+        "text": "Everyone took a stretch. I took the one in front of my house, like he said."
+      }
+    ]
+  },
+  "governador_after": {
+    "npc": "narrator",
+    "day": 0,
+    "lines": [
+      {
+        "text": "He's still up on the stone. Answers one person at a time, without raising his voice, and points at different stretches of the wall."
+      },
+      {
+        "text": "Nobody introduced you to him and you won't get near him now."
+      }
+    ]
+  }
+}

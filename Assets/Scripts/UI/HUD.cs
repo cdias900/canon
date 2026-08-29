@@ -143,8 +143,9 @@ namespace SheepGate.UI
             _workText = BuildReadout(barRect, "Work", 0.30f, 0.70f, TextAnchor.MiddleCenter);
             _rubbleText = BuildReadout(barRect, "Rubble", 0.70f, 1f, TextAnchor.MiddleRight);
 
-            // Object name in English, label in pt-BR: "Ronda" is the word the player reads.
-            _patrolButton = UIKit.CreateButton(root, "PatrolButton", "Ronda", UIKit.Palette.PanelSoft, UIKit.Palette.Parchment, OnPatrolClicked);
+            // Object name in English, label from the locale table: the player never reads a
+            // string written in this file.
+            _patrolButton = UIKit.CreateButton(root, "PatrolButton", Loc.T("hud.patrol"), UIKit.Palette.PanelSoft, UIKit.Palette.Parchment, OnPatrolClicked);
             var patrolRect = (RectTransform)_patrolButton.transform;
             patrolRect.anchorMin = new Vector2(1f, 1f);
             patrolRect.anchorMax = new Vector2(1f, 1f);
@@ -152,7 +153,16 @@ namespace SheepGate.UI
             patrolRect.sizeDelta = new Vector2(238f, 104f);
             patrolRect.anchoredPosition = new Vector2(-SideMargin, -(TopMargin + TopBarHeight + 18f));
 
-            _endDayButton = UIKit.CreateButton(root, "EndDay", "Fim do dia", UIKit.Palette.Clay, UIKit.Palette.Parchment, OnEndDayClicked);
+            // Opposite the patrol button and at the same height: the upper-left is the one part of
+            // this screen the HUD was already leaving empty, and it is well clear of the thumb zone.
+            RectTransform languageRow = LanguageToggle.Create(root);
+            languageRow.anchorMin = new Vector2(0f, 1f);
+            languageRow.anchorMax = new Vector2(0f, 1f);
+            languageRow.pivot = new Vector2(0f, 1f);
+            languageRow.sizeDelta = new Vector2(LanguageToggle.Width, LanguageToggle.Height);
+            languageRow.anchoredPosition = new Vector2(SideMargin, -(TopMargin + TopBarHeight + 18f));
+
+            _endDayButton = UIKit.CreateButton(root, "EndDay", Loc.T("hud.end_day"), UIKit.Palette.Clay, UIKit.Palette.Parchment, OnEndDayClicked);
             var endDayRect = (RectTransform)_endDayButton.transform;
             UIKit.AnchorCorner(endDayRect, new Vector2(1f, 0f), new Vector2(330f, 124f), new Vector2(32f, 44f));
         }
@@ -226,17 +236,17 @@ namespace SheepGate.UI
 
             if (_dayText != null)
             {
-                _dayText.text = "Dia " + Mathf.Max(1, state.day);
+                _dayText.text = Loc.T("hud.day", Mathf.Max(1, state.day));
             }
 
             if (_workText != null)
             {
-                _workText.text = "Trabalho " + Mathf.Max(0, state.workCapacity) + "/" + Mathf.Max(0, state.workCapacityMax);
+                _workText.text = Loc.T("hud.work", Mathf.Max(0, state.workCapacity), Mathf.Max(0, state.workCapacityMax));
             }
 
             if (_rubbleText != null)
             {
-                _rubbleText.text = "Entulho " + Mathf.Max(0, state.rubble);
+                _rubbleText.text = Loc.T("hud.rubble", Mathf.Max(0, state.rubble));
             }
         }
 
@@ -284,7 +294,7 @@ namespace SheepGate.UI
 
             if (_patrolButton != null)
             {
-                UIKit.SetButtonLabel(_patrolButton, active ? "Voltar" : "Ronda");
+                UIKit.SetButtonLabel(_patrolButton, active ? Loc.T("hud.patrol_return") : Loc.T("hud.patrol"));
                 UIKit.TintButton(_patrolButton, active ? UIKit.Palette.Night : UIKit.Palette.PanelSoft, UIKit.Palette.Parchment);
             }
 

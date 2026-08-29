@@ -232,7 +232,7 @@ namespace SheepGate.Scripture
             Text titleText = UIKit.CreateText(header, "Title", title, UIKit.FontSize.Title, UIKit.Palette.Parchment, TextAnchor.MiddleLeft);
             UIKit.Stretch((RectTransform)titleText.transform, 8f, 236f, 0f, 0f);
 
-            Button close = UIKit.CreateButton(header, "Close", "Fechar", UIKit.Palette.PanelSoft, UIKit.Palette.Parchment, Close);
+            Button close = UIKit.CreateButton(header, "Close", Loc.T("reader.close"), UIKit.Palette.PanelSoft, UIKit.Palette.Parchment, Close);
             var closeRect = (RectTransform)close.transform;
             closeRect.anchorMin = new Vector2(1f, 0.5f);
             closeRect.anchorMax = new Vector2(1f, 0.5f);
@@ -279,7 +279,7 @@ namespace SheepGate.Scripture
             ChapterVerse[] verses = chapter != null ? chapter.verses : null;
             if (verses == null || verses.Length == 0)
             {
-                Text empty = UIKit.CreateText(_content, "Empty", "Este capítulo não está disponível nesta versão do aplicativo.",
+                Text empty = UIKit.CreateText(_content, "Empty", Loc.T("reader.empty"),
                     UIKit.FontSize.Body, UIKit.Palette.Muted, TextAnchor.UpperLeft);
                 UIKit.Layout(empty).flexibleWidth = 1f;
                 return;

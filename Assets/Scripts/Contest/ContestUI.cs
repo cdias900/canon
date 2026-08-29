@@ -317,7 +317,7 @@ namespace SheepGate.Contest
             Text title = UIKit.CreateText(
                 titleRow,
                 "Title",
-                "A INVESTIDA",
+                Loc.T("contest.title"),
                 UIKit.FontSize.Meta,
                 UIKit.Palette.Muted,
                 TextAnchor.MiddleLeft);
@@ -342,8 +342,8 @@ namespace SheepGate.Contest
                 turnLayout.minHeight = 44f;
             }
 
-            _moraleMeter = BuildMeter(header, "MoraleMeter", "ÂNIMO", UIKit.Palette.Olive);
-            _resolveMeter = BuildMeter(header, "ResolveMeter", "FIRMEZA DO OUTRO LADO", UIKit.Palette.Clay);
+            _moraleMeter = BuildMeter(header, "MoraleMeter", Loc.T("contest.meter.morale"), UIKit.Palette.Olive);
+            _resolveMeter = BuildMeter(header, "ResolveMeter", Loc.T("contest.meter.resolve"), UIKit.Palette.Clay);
         }
 
         Meter BuildMeter(RectTransform parent, string name, string label, Color fillColor)
@@ -546,7 +546,7 @@ namespace SheepGate.Contest
             Button continueButton = UIKit.CreateButton(
                 _outcomePanel,
                 "Continue",
-                "Continuar",
+                Loc.T("contest.continue"),
                 UIKit.Palette.Clay,
                 UIKit.Palette.Parchment,
                 Hide);
@@ -619,13 +619,13 @@ namespace SheepGate.Contest
             switch (outcome)
             {
                 case ContestOutcome.EnemyWithdrew:
-                    return "O outro lado desistiu.";
+                    return Loc.T("contest.outcome.withdrew.title");
 
                 case ContestOutcome.PlayerBroke:
-                    return "Os seus desistiram primeiro.";
+                    return Loc.T("contest.outcome.broke.title");
 
                 default:
-                    return "Ninguém desistiu hoje.";
+                    return Loc.T("contest.outcome.limit.title");
             }
         }
 
@@ -634,13 +634,13 @@ namespace SheepGate.Contest
             switch (outcome)
             {
                 case ContestOutcome.EnemyWithdrew:
-                    return "Eles vão embora pela mesma estrada por onde vieram. A muralha continua onde estava, e você também.";
+                    return Loc.T("contest.outcome.withdrew.body");
 
                 case ContestOutcome.PlayerBroke:
-                    return "Eles recuam assim mesmo, tarde. O que estava pela metade no seu trecho voltou a ser pedra solta; o que já estava de pé continua de pé. Amanhã se assenta de novo.";
+                    return Loc.T("contest.outcome.broke.body");
 
                 default:
-                    return "Passou o dia inteiro sem que ninguém cedesse. Eles vão embora cansados, e voltam quando quiserem.";
+                    return Loc.T("contest.outcome.limit.body");
             }
         }
 
@@ -674,7 +674,7 @@ namespace SheepGate.Contest
             if (_turnText != null)
             {
                 int turn = Mathf.Max(1, _contest.Turn);
-                _turnText.text = "Turno " + turn + " de " + _contest.TurnLimit;
+                _turnText.text = Loc.T("contest.turn", turn, _contest.TurnLimit);
             }
 
             if (_moraleMeter != null)

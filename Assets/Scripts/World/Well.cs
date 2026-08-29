@@ -25,7 +25,7 @@ namespace SheepGate.World
             }
 
             Well well = wellObject.AddComponent<Well>();
-            well.DisplayName = "Poço";
+            well.DisplayName = Loc.T("world.well");
             well.Place(tilemap, cell, true, 0f);
             well.BuildSprite(tilemap != null ? tilemap.Height : 0, cell.y);
             return well;

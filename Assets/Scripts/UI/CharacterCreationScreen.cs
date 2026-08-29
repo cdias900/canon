@@ -98,7 +98,16 @@ namespace SheepGate.UI
                 FacingDirection.Up
             };
 
-            static readonly string[] DirectionCaptions = { "frente", "esquerda", "direita", "costas" };
+            // Keys, not words. An array of literals is the one shape that slips past a check on
+            // call arguments, which is exactly how these four stayed Portuguese in the English
+            // build until a screenshot showed them.
+            static readonly string[] DirectionCaptionKeys =
+            {
+                "creation.facing.front",
+                "creation.facing.left",
+                "creation.facing.right",
+                "creation.facing.back"
+            };
 
             const int BodyOptions = 2;
             const int CosmeticOptions = 4;
@@ -146,19 +155,29 @@ namespace SheepGate.UI
                 Image background = UIKit.CreatePanel(root, "Background", UIKit.Palette.Ink);
                 UIKit.Stretch((RectTransform)background.transform);
 
-                Text title = UIKit.CreateText(root, "Title", "Antes de subir a primeira pedra",
+                Text title = UIKit.CreateText(root, "Title", Loc.T("creation.title"),
                     UIKit.FontSize.Title, UIKit.Palette.Parchment, TextAnchor.MiddleLeft);
                 UIKit.AnchorTop((RectTransform)title.transform, 80f, 48f, 48f, 90f);
 
-                Text subtitle = UIKit.CreateText(root, "Subtitle", "Escolha como você aparece na obra.",
+                Text subtitle = UIKit.CreateText(root, "Subtitle", Loc.T("creation.subtitle"),
                     UIKit.FontSize.Body, UIKit.Palette.Muted, TextAnchor.MiddleLeft);
                 UIKit.AnchorTop((RectTransform)subtitle.transform, 56f, 48f, 48f, 180f);
+
+                // This is the only setup moment the game has, and the first screen a player can
+                // read at their own pace. If the system language guessed wrong, this is where they
+                // find out and where they can say so.
+                RectTransform languageRow = LanguageToggle.Create(root);
+                languageRow.anchorMin = new Vector2(1f, 1f);
+                languageRow.anchorMax = new Vector2(1f, 1f);
+                languageRow.pivot = new Vector2(1f, 1f);
+                languageRow.sizeDelta = new Vector2(LanguageToggle.Width, LanguageToggle.Height);
+                languageRow.anchoredPosition = new Vector2(-48f, -96f);
 
                 BuildPreviewStrip(root);
                 BuildNameField(root);
                 BuildSlots(root);
 
-                Button skip = UIKit.CreateButton(root, "QuickStart", "Tanto faz, vamos",
+                Button skip = UIKit.CreateButton(root, "QuickStart", Loc.T("creation.quick_start"),
                     UIKit.Palette.PanelSoft, UIKit.Palette.Muted, QuickStart);
                 var skipRect = (RectTransform)skip.transform;
                 skipRect.anchorMin = new Vector2(0.5f, 0f);
@@ -167,7 +186,7 @@ namespace SheepGate.UI
                 skipRect.sizeDelta = new Vector2(640f, 84f);
                 skipRect.anchoredPosition = new Vector2(0f, 250f);
 
-                Button start = UIKit.CreateButton(root, "Start", "Começar", UIKit.Palette.Clay, UIKit.Palette.Parchment, Confirm);
+                Button start = UIKit.CreateButton(root, "Start", Loc.T("creation.start"), UIKit.Palette.Clay, UIKit.Palette.Parchment, Confirm);
                 var startRect = (RectTransform)start.transform;
                 startRect.anchorMin = new Vector2(0.5f, 0f);
                 startRect.anchorMax = new Vector2(0.5f, 0f);
@@ -221,7 +240,7 @@ namespace SheepGate.UI
                 _accessoryLayers[index] = BuildLayer(figure, "Accessory");
                 _hairLayers[index] = BuildLayer(figure, "Hair");
 
-                Text caption = UIKit.CreateText(cell, "Caption", DirectionCaptions[index],
+                Text caption = UIKit.CreateText(cell, "Caption", Loc.T(DirectionCaptionKeys[index]),
                     UIKit.FontSize.Meta, UIKit.Palette.Muted, TextAnchor.MiddleCenter);
                 UIKit.AnchorBottom((RectTransform)caption.transform, 44f, 4f, 4f, 22f);
             }
@@ -327,12 +346,12 @@ namespace SheepGate.UI
 
             void BuildSlots(RectTransform root)
             {
-                _bodyChips = BuildSlotRow(root, 0, "Corpo", BodyOptions, SelectBody);
-                _skinChips = BuildSlotRow(root, 1, "Pele", SkinOptions, SelectSkin);
-                _hairChips = BuildSlotRow(root, 2, "Cabelo", HairOptions, SelectHair);
-                _topChips = BuildSlotRow(root, 3, "Camisa", CosmeticOptions, SelectTop);
-                _legsChips = BuildSlotRow(root, 4, "Calça", CosmeticOptions, SelectLegs);
-                _accessoryChips = BuildSlotRow(root, 5, "Detalhe", CosmeticOptions, SelectAccessory);
+                _bodyChips = BuildSlotRow(root, 0, Loc.T("creation.slot.body"), BodyOptions, SelectBody);
+                _skinChips = BuildSlotRow(root, 1, Loc.T("creation.slot.skin"), SkinOptions, SelectSkin);
+                _hairChips = BuildSlotRow(root, 2, Loc.T("creation.slot.hair"), HairOptions, SelectHair);
+                _topChips = BuildSlotRow(root, 3, Loc.T("creation.slot.top"), CosmeticOptions, SelectTop);
+                _legsChips = BuildSlotRow(root, 4, Loc.T("creation.slot.legs"), CosmeticOptions, SelectLegs);
+                _accessoryChips = BuildSlotRow(root, 5, Loc.T("creation.slot.accessory"), CosmeticOptions, SelectAccessory);
             }
 
             Button[] BuildSlotRow(RectTransform root, int rowIndex, string label, int optionCount, Action<int> onSelect)
@@ -346,7 +365,10 @@ namespace SheepGate.UI
                 UIKit.AnchorTop((RectTransform)caption.transform, 40f, 0f, 0f, 0f);
 
                 RectTransform chipRow = UIKit.CreateRect("Chips", row);
-                UIKit.AnchorBottom(chipRow, 96f, 0f, 0f, 4f);
+                // 40 for the label at the top plus 4 of bottom padding leaves 74 inside a row of
+                // 118. At the previous 96 the chips ran up under the caption and clipped it in
+                // every language. 74 is still well over the 44pt minimum touch target.
+                UIKit.AnchorBottom(chipRow, 74f, 0f, 0f, 4f);
 
                 var chips = new Button[optionCount];
                 for (int i = 0; i < optionCount; i++)
@@ -411,11 +433,11 @@ namespace SheepGate.UI
                 RectTransform row = UIKit.CreateRect("NameRow", root);
                 UIKit.AnchorTop(row, 96f, SideMargin + 24f, SideMargin + 24f, NameFieldTop);
 
-                Text caption = UIKit.CreateText(row, "Label", "Nome", UIKit.FontSize.Meta,
+                Text caption = UIKit.CreateText(row, "Label", Loc.T("creation.name_label"), UIKit.FontSize.Meta,
                     UIKit.Palette.Muted, TextAnchor.MiddleLeft);
                 UIKit.AnchorTop((RectTransform)caption.transform, 32f, 0f, 0f, 0f);
 
-                InputField field = UIKit.CreateInputField(row, "NameInput", "Como te chamam",
+                InputField field = UIKit.CreateInputField(row, "NameInput", Loc.T("creation.name_placeholder"),
                     NameCharacterLimit, value => _name = value);
                 UIKit.AnchorBottom((RectTransform)field.transform, 58f, 0f, 0f, 0f);
                 field.text = _name;

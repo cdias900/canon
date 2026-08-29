@@ -8,12 +8,20 @@ This file is the part that would otherwise have to be rediscovered.
 ## Where it is
 
 Three days play end to end. Compiles at 0 errors and 0 warnings across ~60 C# files. Desktop and
-iOS both build. All 18 checks in `tools/acceptance.sh` pass and the content validator is clean.
+iOS both build. `tools/acceptance.sh` passes every criterion **in both languages**, the content
+validator is clean, and `tools/e2e.sh` plays the opening of a real build in each language and
+screenshots it.
+
+**The game is bilingual: pt-BR and English.** pt-BR is the authoring locale. No player-facing string
+exists in C# any more; they all live in `Assets/Resources/Data/locales/<locale>/` and are read
+through `Loc.T`. Structure and numbers are shared, so balance cannot diverge between languages. See
+[`docs/development-guidelines.md`](development-guidelines.md).
 
 | | |
 |---|---|
 | Desktop | `Builds/mac/SheepGate.app` — runnable |
-| iOS | `Builds/ios/Unity-iPhone.xcodeproj` — valid project, **never run on a device** |
+| iOS simulator | `tools/ios-sim.sh` — builds, installs and boots clean on iPhone 17 Pro / Pro Max |
+| iOS device | `Builds/ios/Unity-iPhone.xcodeproj` — valid project, **never run on a device** |
 | Android | Out of scope by decision. Toolchain is installed if it comes back. |
 
 **The opening**: region shot with the other cities shut → push-in to the ruined circular city → a
@@ -25,9 +33,23 @@ with the player's name on it, then an optional "Saber mais" and the vocation rev
 
 ## What is not finished
 
-- **The iOS build has never been run.** It compiles; that is all anyone knows. Portrait UI at
-  1080×1920 on a real phone is where the six-row creation screen and the thumb-zone HUD are most
-  likely to break.
+- **iOS is verified as far as the first screen and no further.** It builds, installs, boots to
+  `[Boot] Ready`, writes telemetry to the app container, and renders the region shot correctly in
+  portrait on both an iPhone 17 Pro and a 17 Pro Max. Everything after that needs a finger:
+  `simctl` cannot tap, and driving the Simulator window with synthetic clicks needs the Mac
+  unlocked. **The six-row creation screen and the thumb-zone HUD are still unseen on a phone**,
+  and they remain the two most likely places for portrait layout to break.
+- **Nothing reads `Screen.safeArea`.** Not once in the codebase. On the opening this is invisible —
+  the title clears the Dynamic Island and only the dialogue panel's bottom border reaches under the
+  home indicator — but every screen that anchors to the top or bottom edge is unprotected, which is
+  exactly the HUD and the creation screen.
+- **The framing of the opening has ~10 px of margin.** `WorldMapOverlay` places the closed cities
+  at x ±14 to ±17 world units and the camera half-width at 19.5:9 is 20.2, so the leftmost city
+  clears the screen edge by about a third of a world unit. At the 1080×1920 the project nominally
+  targets, the half-width is 24.8 and the margin is comfortable. Nothing is clipped on the phones
+  tested; there is simply no room left, and a squarer screen would eat into it.
+- **`WorldMapOverlay.Place.Caption` is never drawn.** Every entry carries `"fechada"` and
+  `BuildPlace` ignores it. Either the caption was meant to render or the field should go.
 - **Day 1 has no daily check-in.** The quiz used to fire on scene composition, which put a question
   on top of the opening; it now arrives only from `MorningStarted`, which never fires on day 1. If
   it is wanted back, the end of the day is the right home — not the start.
@@ -37,12 +59,51 @@ with the player's name on it, then an optional "Saber mais" and the vocation rev
 - **The four skin tones and the build silhouettes are unjudged.** Nobody has looked at whether tones
   2 and 3 are distinguishable at 32×48, or whether the narrower build actually reads.
 
+## What the localisation pass found, and what it did not fix
+
+The e2e run was written as part of that pass and immediately found things nothing else could:
+
+- **Four preview captions were still Portuguese in the English build.** `DirectionCaptions` was an
+  array of string literals, so the validator's check on call arguments could not see it. The
+  validator now also checks fields whose *name* says they hold player words, which is the shape
+  that escaped.
+- **The language chips rendered their labels stacked vertically**, because the chip was narrower
+  than its own two-letter label once `CreateButton`'s 18px insets were taken off.
+- **Every slot label on the character creation screen was clipped** by the chip row running up
+  underneath it — 40 + 96 in a row 118 tall. Pre-existing in both languages and worse in English,
+  where the words are longer. Fixed by shortening the chips to 74.
+
+Still open:
+
+- **`tools/e2e.sh` stops at the HUD.** It plays the opening through character creation and into
+  day 1, and asserts nothing about days 2 and 3, the trial, the Page or the reveal. Extending it is
+  mostly a matter of naming more beats; the machinery for waiting, tapping and screenshotting is
+  there.
+- **Nobody has read the English translation against the passage.** `node tools/list-curation.mjs`
+  now queues both languages and `intro_gathering` is in the queue for `en` as well as `pt-BR`. A
+  translation of a canonical figure's speech is newly authored speech in that language, so rule 4's
+  human read applies to it and has not happened.
+- **The English text has had no native pass.** It reads correctly and keeps the register, but it
+  was written by the same agent that wrote the code.
+
 ## Things that cost real time to learn
 
 **`Application.persistentDataPath` differs between the editor and a player build.** The editor uses
 company/product, a player build uses the bundle identifier. Clearing one leaves the other's save
 behind and the game resumes a run that looked deleted. Boot logs both paths for this reason — read
 `[Boot] Save ->` rather than guessing.
+
+**A simulator build defaults to x86_64, and the failure names baselib rather than architecture.**
+`PlayerSettings.iOS.sdkVersion = SimulatorSDK` is only half of it: `simulatorSdkArchitecture`
+defaults to `X86_64`, which exports the x86_64 baselib. Linking that against an arm64 simulator
+slice on an Apple Silicon machine fails with a page of undefined `il2cpp_baselib::` symbols and no
+mention of architecture anywhere. `BuildScript.BuildIOSSimulator` sets both and restores both.
+`lipo -info Builds/ios-sim/Libraries/baselib.a` is the one-line check that the export is right —
+worth running before spending ten minutes on an Xcode compile that cannot link.
+
+**The device export and the simulator export cannot share a directory.** Their `Libraries/` are
+built for different SDKs, so pointing `xcodebuild -sdk iphonesimulator` at `Builds/ios` fails no
+matter what is overridden on the command line. Hence `Builds/ios-sim`.
 
 **A 403 from YouVersion means the version is not enabled, not that it will clear.** NVI returned
 `Access denied` with the licence showing as accepted on the account; it started serving only after
@@ -58,6 +119,20 @@ verse to keep numbering.
 **The acceptance harness writes through the real `SaveSystem`.** It captures and restores any
 existing save now, but it did destroy a live playtest before that was added. Do not remove the
 `finally` block in `SaveRoundTrip`.
+
+**So does the e2e runner, which is why `-data-path` exists.** `AppPaths.DataRoot` redirects the save
+and the telemetry somewhere disposable, and `tools/e2e.sh` always passes it. Never launch a player
+with `-e2e` and no `-data-path`.
+
+**A macOS player stops rendering when its window loses focus.** The e2e run is launched from a
+terminal that keeps focus, so the first `WaitForEndOfFrame` never returned and the run hung before
+its first screenshot with nothing in the log. `E2ERunner` sets `Application.runInBackground` and
+carries a watchdog, because a hang reads exactly like a slow step.
+
+**`Canvas.enabled` is not `GameObject.activeInHierarchy`.** `HUD.SetVisible` disables the canvas and
+leaves the object active, so an e2e step that waited for the HUD *object* passed instantly, during
+the cutscene, and screenshotted a black fade. Wait for what is on screen, not for what is in the
+hierarchy.
 
 **The Unity Hub deadlocks on its own database.** An install that "Completed with errors" with
 LevelDB lock errors in the log usually just needs the stale Hub process killed and a retry. The
@@ -108,9 +183,15 @@ path by disabling the component. The live Page beat is still only verified by pl
 
 ## If picking this up cold
 
+0. [`docs/development-guidelines.md`](development-guidelines.md) — how code is written here.
 1. `tools/unity-check.sh` — compiles, reports C# errors.
-2. `tools/acceptance.sh` — asserts the rules from POC-IMPLEMENTATION.md §13.
-3. `node tools/validate-content.mjs` — scripture integrity and the forbidden-word checklist.
-4. `node tools/list-curation.mjs` — authored canonical speech awaiting a human read.
+2. `node tools/validate-content.mjs` — scripture integrity, the forbidden-word checklist per
+   language, locale parity, and hardcoded player strings.
+3. `tools/acceptance.sh` — asserts the rules from POC-IMPLEMENTATION.md §13, once per language.
+4. `tools/e2e.sh` — builds a player and plays the opening in every language, with screenshots in
+   `Builds/e2e/`. **Read the screenshots.** A green exit code means nothing was covered and no
+   string was missing; it does not mean the screen looks right.
+5. `node tools/list-curation.mjs` — authored canonical speech awaiting a human read, every language.
+5. `tools/ios-sim.sh` — build and boot the player on an iPhone simulator, then look at it.
 
 The API key lives in `.env.local`, which is git-ignored and has never been committed.

@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using SheepGate.Art;
+using SheepGate.Core;
 using SheepGate.UI;
 using UnityEngine;
 using UnityEngine.UI;
@@ -73,11 +74,11 @@ namespace SheepGate.World
             _canvas = UIKit.CreateCanvas("WorldMapCanvas", 340);
             var root = (RectTransform)_canvas.transform;
 
-            _heading = UIKit.CreateText(root, "Heading", "As cidades do exílio",
+            _heading = UIKit.CreateText(root, "Heading", Loc.T("world.map.heading"),
                 UIKit.FontSize.Title, UIKit.Palette.Parchment, TextAnchor.MiddleCenter);
             UIKit.AnchorTop((RectTransform)_heading.transform, 80f, 40f, 40f, 120f);
 
-            _note = UIKit.CreateText(root, "Note", "Você voltou para uma delas.",
+            _note = UIKit.CreateText(root, "Note", Loc.T("world.map.note"),
                 UIKit.FontSize.Body, UIKit.Palette.Muted, TextAnchor.MiddleCenter);
             UIKit.AnchorTop((RectTransform)_note.transform, 52f, 40f, 40f, 196f);
         }

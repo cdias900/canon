@@ -692,7 +692,7 @@ namespace SheepGate.Dialogue
 
         private static string MissingTextMarker(string reference)
         {
-            return "⟨texto indisponível — " + reference + "⟩";
+            return Loc.T("scripture.unavailable", reference);
         }
     }
 }

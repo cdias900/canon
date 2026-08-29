@@ -55,8 +55,10 @@ namespace SheepGate.Dialogue
         /// </summary>
         private const int MetadataFontSize = 26;
 
-        private const string MoreButtonLabel = "Saber mais";
-        private const string AdvanceHintLabel = "toque para continuar";
+        // Keys, not sentences. Resolved through Loc at the point of use so a language change
+        // between two builds of this screen picks up the new words.
+        private const string MoreButtonKey = "dialogue.read_more";
+        private const string AdvanceHintKey = "dialogue.advance_hint";
 
         /// <summary>Tall enough for a two-line branch label at body size, plus its insets.</summary>
         private const float ChoiceButtonHeight = 108f;
@@ -457,7 +459,7 @@ namespace SheepGate.Dialogue
 
             hintText = NewText("AdvanceHint", bubbleRect, font, MetadataFontSize, MetadataColor,
                 FontStyle.Normal, TextAnchor.MiddleRight);
-            hintText.text = AdvanceHintLabel;
+            hintText.text = Loc.T(AdvanceHintKey);
             hintText.gameObject.SetActive(false);
 
             root.SetActive(false);
@@ -499,7 +501,7 @@ namespace SheepGate.Dialogue
             Text buttonLabel = NewText("Label", buttonRect, font, MetadataFontSize, MetadataColor,
                 FontStyle.Normal, TextAnchor.MiddleCenter);
             Stretch(buttonLabel.rectTransform);
-            buttonLabel.text = MoreButtonLabel;
+            buttonLabel.text = Loc.T(MoreButtonKey);
             buttonLabel.raycastTarget = false;
 
             footer.SetActive(false);

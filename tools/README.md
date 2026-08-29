@@ -1,16 +1,26 @@
-# tools/ - scripture pipeline
+# tools/ - scripture pipeline and checks
 
-Two Node scripts that run **outside Unity**. They turn a list of references into the single
-data file the game reads at runtime, and then check that nothing in the repository quietly
-copied scripture instead of referencing it.
+Node scripts that run **outside Unity**, plus the shell scripts that drive Unity itself. The Node
+half turns a list of references into the data files the game reads at runtime and then checks that
+nothing in the repository quietly copied scripture instead of referencing it.
 
 Requirements: Node 20 or newer. No npm install, no dependencies, nothing to build.
 
 ```
-tools/verses.manifest.json   the references we ship (input, hand edited)
-tools/fetch-verses.mjs       manifest -> Assets/Resources/Data/verses.json (output, generated)
+tools/verses.manifest.json   the references we ship, and one translation per locale (hand edited)
+tools/fetch-verses.mjs       manifest -> Assets/Resources/Data/locales/<locale>/verses.json
 tools/validate-content.mjs   deterministic layer-1 validator (exit 1 on failure)
+tools/list-curation.mjs      authored canonical speech awaiting a human read, every locale
+
+tools/unity-check.sh         headless compile
+tools/acceptance.sh          the product rules, asserted once per locale
+tools/e2e.sh                 build a player and play the opening in every locale, screenshotting
+tools/ios-sim.sh             build, install and run on an iOS simulator
 ```
+
+One set of references, one translation per language. The references are language independent by
+design — the model picks a reference, and each locale resolves it in its own version — so adding a
+language never touches the list.
 
 ## The rule this pipeline exists to enforce
 
@@ -36,20 +46,26 @@ There is no single-verse endpoint, so the script fetches whole chapters - each c
 most once, with a polite delay between calls and backoff on `429` - and slices out the
 verses the manifest asks for.
 
-## OPEN DECISION: `version_id`
+## Translations, one per locale
 
-`version_id` in `verses.manifest.json` is deliberately **not** a real value. It reads
-`PENDING_TRANSLATION_DECISION`, and the fetch refuses to run until it is an integer.
+`verses.manifest.json` names a version per language under `versions`:
 
-It stays open until three licence questions are answered: may we store the text, may we
-fetch in bulk, and which versions the app key enables. Until then, point it at a
-public-domain translation id to unblock implementation and swap the id later - nothing
-else in the pipeline changes.
+| Locale | Version | |
+|---|---|---|
+| `pt-BR` | 129, NVI | All rights reserved. **This is why the repo is private.** Regenerate against BLT (3254, CC BY-SA) before making it public. |
+| `en` | 206, World English Bible | Public domain, so English carries no licence obligation. |
 
-Override without editing the manifest:
+English was chosen public-domain deliberately: NIV (111) is served by the same key and was
+rejected for it. That makes `en` the locale that could ship publicly first.
+
+**Probe entitlement by fetching a passage, never by listing versions.** The
+`/bibles?language_ranges[]` listing under-reports — it omits versions that serve fine — so the
+listing cannot tell you whether a version works. Ask for `NEH.4.6` and see what comes back.
+
+Override without editing the manifest (one locale at a time):
 
 ```
-node tools/fetch-verses.mjs --version-id 3034
+node tools/fetch-verses.mjs --locale en --version-id 12
 ```
 
 ## Running the pipeline
@@ -91,11 +107,14 @@ the build and the game works in airplane mode.
 
 | Flag | Effect |
 |---|---|
-| `--provider youversion` | Default. Fetches real text. Requires `YOUVERSION_API_KEY`. Any other provider name is an error. |
+| *(no flags)* | Fetches every locale listed in the manifest. Requires `YOUVERSION_API_KEY`. |
+| `--locale <id>` | Just that one locale. |
 | `--placeholder` | Structure-only output, no key needed, marks `is_placeholder: true`. |
-| `--version-id <id>` | Overrides the manifest's `version_id`. |
-| `--manifest <path>` | Alternate manifest (default `tools/verses.manifest.json`). |
-| `--out <path>` | Alternate output (default `Assets/Resources/Data/verses.json`). |
+| `--version-id <id>` | Overrides the version for one locale. Requires `--locale`. |
+
+`YOUVERSION_VERSION_ID` in the environment is only a fallback for a locale the manifest does not
+describe. It cannot override a manifest entry: one id in the environment cannot be correct for more
+than one language, and when it could, it silently fetched Portuguese into the English folder.
 
 `validate-content.mjs`
 
@@ -113,9 +132,20 @@ Exit 1 - build blocking:
 3. Any file under `Assets/` or `tools/` containing a run of 8 or more consecutive words that
    also appears in `verses.json` - an accidental paraphrase or a hand-copied verse. Case,
    accents and punctuation are normalized away first, so a reformatted copy is still caught.
-4. A forbidden term from the project checklist in a player-facing string in
-   `Assets/Resources/Data/*.json`: bencao, proposito, jornada de fe, devocional,
-   versiculo do dia, testemunho, "Deus tem um plano" (matched without accents).
+4. A forbidden term from that language's checklist in one of its player-facing strings. The
+   lists are **curated per language, never translated**: the checklist targets a register, and a
+   literal translation of the pt-BR list puts bare "purpose" on the English one, which fires on
+   "picked on purpose" and teaches everyone to ignore the validator.
+5. A locale missing a string the authoring locale has, a placeholder like `{0}` that survives in
+   one language and not the other, or a dialogue file that disagrees with the authoring locale
+   about anything that is not words — nodes, line counts, verse references, choices, grants,
+   flags. Grants and flags live inside a per-language file, so this is what stops a translation
+   changing what the game *does*.
+6. A C# file hardcoding a string a player can read. The sinks are **derived from the method
+   declarations** — any `string` parameter named `label`, `content`, `caption`, `title`… — rather
+   than listed, so a literal forwarded through a helper is caught too. Fields whose *name* says
+   they hold player words are checked as well: `static readonly string[] DirectionCaptions = {…}`
+   is not a call argument, and it shipped untranslated once before this check existed.
 
 Exit 0 - reported but not blocking:
 
@@ -127,11 +157,11 @@ Exit 0 - reported but not blocking:
 
 Two deliberate exemptions:
 
-- `verses.json` is exempt from the forbidden-term check. It is licensed translation text,
-  not our authored voice, and it is not ours to rewrite. The report prints this exemption
-  every run so it reads as a decision rather than a hole.
-- `verses.json` is exempt from the overlap check, for the obvious reason that it *is* the
-  scripture the check compares against.
+- Every locale's `verses.json` is exempt from the forbidden-term check. It is licensed
+  translation text, not our authored voice, and it is not ours to rewrite. The report prints this
+  exemption every run so it reads as a decision rather than a hole.
+- Every locale's `verses.json` is exempt from the overlap check — one of them *is* the scripture
+  being compared against, and the others are licensed text nobody is being asked to rewrite either.
 
 The report never prints the matched text - only file, line and word count. Validating must
 never become a way to spill licensed text into a log.
@@ -140,7 +170,7 @@ never become a way to spill licensed text into a log.
 
 | Symptom | Cause |
 |---|---|
-| `version_id "PENDING_TRANSLATION_DECISION" is not a YouVersion version id` | The open decision above. Pass `--version-id`, or fill the manifest. |
+| `No version is configured for locale "xx"` | Add it under `versions` in the manifest, or pass `--version-id` with `--locale`. |
 | `Environment variable YOUVERSION_API_KEY is not set` | Export the app key, or use `--placeholder`. |
 | `YouVersion rejected the app key (HTTP 401)` | Wrong key, or the key does not enable that version id. |
 | `Verse X came back without usable text` | The API item shape changed. The error lists the field names it did receive; adjust `extractReference` / `extractText` in `fetch-verses.mjs`. |
@@ -161,11 +191,16 @@ nodes where it applies are marked instead of checked:
 }
 ```
 
-List everything awaiting a human read:
+List everything awaiting a human read, in every language:
 
 ```bash
 node tools/list-curation.mjs
 ```
+
+**A translation of a canonical figure's speech is newly authored speech in that language.** It can
+drift from the passage on its own, in ways the original never did, and no automatic check can tell.
+So every locale is queued, not just the authoring one: a language that has not had the read has not
+had the safeguard.
 
 Two rules still hold mechanically and are not a matter of judgement:
 

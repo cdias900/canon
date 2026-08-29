@@ -20,7 +20,7 @@ namespace SheepGate.Core
 
         public static void Run()
         {
-            var telemetryPath = Path.Combine(Application.persistentDataPath, TelemetryFileName);
+            var telemetryPath = Path.Combine(AppPaths.DataRoot, TelemetryFileName);
             Telemetry.Initialize(new JsonlFileSink(telemetryPath));
 
             // Logged because persistentDataPath differs between the editor and a player build, and
@@ -28,8 +28,9 @@ namespace SheepGate.Core
             Debug.Log("[Boot] Telemetry -> " + telemetryPath);
             Debug.Log("[Boot] Save -> " + SaveSystem.SavePath);
 
-            GameData.LoadAll();
-            LoadScripture();
+            // The locale is resolved before any content is read, because every content path
+            // depends on it. Nothing loaded before this point can hold a player-facing string.
+            ApplyLocale(Locales.Active);
 
             var state = SaveSystem.HasSave() ? SaveSystem.Load() : null;
             var freshStart = state == null;
@@ -48,11 +49,16 @@ namespace SheepGate.Core
 
             Telemetry.Track(TelemetryEvents.SessionStart, new Dictionary<string, object>
             {
-                { "day", state.day }
+                { "day", state.day },
+
+                // Carried so deep_read can be read per language. A conversion rate that is not
+                // split by locale cannot say whether a translation is working.
+                { "locale", Locales.Active }
             });
             Telemetry.Flush();
 
-            Debug.Log("[Boot] Ready. Day " + state.day + ", " + (freshStart ? "new run." : "resumed run."));
+            Debug.Log("[Boot] Ready. Day " + state.day + ", " + (freshStart ? "new run." : "resumed run.") +
+                      " Locale " + Locales.Active + ".");
 
             // Always the village. Character creation is no longer a screen in front of the game:
             // it is a beat inside the opening, played in the house the neighbour walks you into, so
@@ -62,13 +68,57 @@ namespace SheepGate.Core
             SceneManager.LoadScene(SceneGame);
         }
 
+        /// <summary>
+        /// Points every content system at a locale and rereads it. Call before anything that can
+        /// put a string on screen; the boot sequence does so before it loads a save.
+        ///
+        /// Reading the same files twice is cheap and the alternative — systems that each remember
+        /// which locale they were built for — is the kind of state that goes stale silently.
+        /// </summary>
+        public static void ApplyLocale(string locale)
+        {
+            Locales.SetActive(locale, false);
+            Loc.Reload();
+            GameData.LoadAll(Locales.Active);
+            LoadScripture();
+        }
+
+        /// <summary>
+        /// Switches language for good: remembers the choice, rereads the content, and reloads the
+        /// current scene so the new strings are on screen.
+        ///
+        /// The scene is reloaded rather than re-texted in place because every label in this project
+        /// is constructed at runtime and nothing holds a reference back to the key that produced it.
+        /// Rebuilding is the only way to be sure nothing was missed. The run itself is untouched:
+        /// the save is on disk and the boot sequence resumes it, so switching language costs the
+        /// player nothing.
+        /// </summary>
+        public static void SwitchLocale(string locale)
+        {
+            string canonical = Locales.Canonical(locale);
+            if (canonical == null || canonical == Locales.Active)
+            {
+                return;
+            }
+
+            Locales.SetActive(canonical);
+            Telemetry.Track(TelemetryEvents.LocaleChanged, new Dictionary<string, object>
+            {
+                { "locale", canonical }
+            });
+            Telemetry.Flush();
+
+            Debug.Log("[Boot] Locale -> " + canonical + "; reloading the scene.");
+            SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+        }
+
         static void LoadScripture()
         {
             // A scripture failure must not stop the boot: the reader degrades to a visible
             // missing-text marker, which is the behaviour ScriptureService already guarantees.
             try
             {
-                ScriptureService.Load();
+                ScriptureService.Reload();
             }
             catch (Exception exception)
             {

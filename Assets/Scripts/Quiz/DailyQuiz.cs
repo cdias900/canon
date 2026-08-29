@@ -403,7 +403,7 @@ namespace SheepGate.Quiz
             UIKit.CreateText(
                 _card,
                 "Eyebrow",
-                "UMA PERGUNTA. NÃO VALE NOTA.",
+                Loc.T("quiz.eyebrow"),
                 UIKit.FontSize.Meta,
                 UIKit.Palette.Stone,
                 TextAnchor.UpperLeft);
@@ -431,7 +431,7 @@ namespace SheepGate.Quiz
             _continueButton = UIKit.CreateButton(
                 _card,
                 "Continue",
-                "Continuar",
+                Loc.T("quiz.continue"),
                 UIKit.Palette.Clay,
                 UIKit.Palette.Parchment,
                 Close);

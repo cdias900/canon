@@ -1,7 +1,6 @@
 [
   {
     "id": "hananias",
-    "display": "Hananias",
     "source_ref": "NEH.3.8",
     "spawn": {
       "x": 12,
@@ -11,7 +10,6 @@
   },
   {
     "id": "salum",
-    "display": "Salum",
     "source_ref": "NEH.3.12",
     "spawn": {
       "x": 11,
@@ -21,7 +19,6 @@
   },
   {
     "id": "baruque",
-    "display": "Baruque",
     "source_ref": "NEH.3.20",
     "spawn": {
       "x": 25,
@@ -31,7 +28,6 @@
   },
   {
     "id": "meremote",
-    "display": "Meremote",
     "source_ref": "NEH.3.4",
     "spawn": {
       "x": 17,
@@ -41,7 +37,6 @@
   },
   {
     "id": "zacur",
-    "display": "Zacur",
     "source_ref": "NEH.3.2",
     "spawn": {
       "x": 28,
@@ -51,7 +46,6 @@
   },
   {
     "id": "malquias",
-    "display": "Malquias",
     "source_ref": "NEH.3.14",
     "spawn": {
       "x": 21,

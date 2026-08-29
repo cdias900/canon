@@ -1,14 +1,19 @@
 #!/usr/bin/env node
 /**
- * Builds Assets/Resources/Data/verses.json from the YouVersion Platform API.
+ * Builds Assets/Resources/Data/locales/<locale>/verses.json from the YouVersion Platform API.
  *
  * This is the only place in the project where biblical text is allowed to exist.
  * Everything else — C#, authored JSON, prompts — carries references only (NEH.4.6).
  * The model never writes scripture; it picks a reference and this script resolves it.
  *
- *   node tools/fetch-verses.mjs                 fetch from YouVersion (needs YOUVERSION_API_KEY)
- *   node tools/fetch-verses.mjs --placeholder   structure-only output, so the game runs pre-licence
- *   node tools/fetch-verses.mjs --version-id N  override the manifest's version_id
+ * One set of references, one translation per locale: the manifest holds the references once and
+ * a version id per language, so a new language is an entry in the manifest rather than a new list
+ * of verses that could drift from the first one.
+ *
+ *   node tools/fetch-verses.mjs                    every locale in the manifest
+ *   node tools/fetch-verses.mjs --locale en        just that one
+ *   node tools/fetch-verses.mjs --placeholder      structure-only output, so the game runs pre-licence
+ *   node tools/fetch-verses.mjs --version-id N     override the version id (needs --locale)
  */
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
@@ -18,13 +23,17 @@ import { fileURLToPath } from 'node:url';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..');
 const MANIFEST_PATH = resolve(HERE, 'verses.manifest.json');
-const OUT_PATH = resolve(ROOT, 'Assets/Resources/Data/verses.json');
+const outPathFor = (locale) => resolve(ROOT, `Assets/Resources/Data/locales/${locale}/verses.json`);
 
 const API_BASE = 'https://api.youversion.com/v1';
 const REQUEST_SPACING_MS = 120;
 
-/** Text shown in-game when a reference could not be resolved. Never invented text. */
-const missingMarker = (ref) => `⟨texto indisponível — ${ref}⟩`;
+/**
+ * Stand-in written into a placeholder build. The real marker a player sees comes from the locale
+ * string table (scripture.unavailable); this one only has to be unmistakably not scripture, which
+ * is why it stays in one form regardless of language.
+ */
+const missingMarker = (ref) => `⟨text unavailable — ${ref}⟩`;
 
 // ---------------------------------------------------------------- environment
 
@@ -210,31 +219,56 @@ async function main() {
   const argv = process.argv.slice(2);
   const placeholder = argv.includes('--placeholder');
   const versionFlag = argv.indexOf('--version-id');
+  const localeFlag = argv.indexOf('--locale');
+  const onlyLocale = localeFlag !== -1 ? argv[localeFlag + 1] : null;
 
   if (!existsSync(MANIFEST_PATH)) throw new Error(`Manifest not found at ${MANIFEST_PATH}`);
   const manifest = JSON.parse(readFileSync(MANIFEST_PATH, 'utf8'));
 
-  const versionId =
-    versionFlag !== -1 ? argv[versionFlag + 1]
-    : process.env.YOUVERSION_VERSION_ID || manifest.version_id;
-
-  if (!placeholder && (!versionId || String(versionId).startsWith('<'))) {
-    throw new Error(
-      'No version_id resolved. Set it in tools/verses.manifest.json, or pass --version-id, or set\n' +
-      '  YOUVERSION_VERSION_ID in .env.local. See docs/youversion-api.md for the available ids.'
-    );
+  const versions = manifest.versions ?? {};
+  const locales = onlyLocale ? [onlyLocale] : Object.keys(versions);
+  if (locales.length === 0) {
+    throw new Error('The manifest lists no versions. Add one under "versions" keyed by locale.');
   }
 
-  const output = await build({ manifest, versionId, placeholder });
+  const overrideId = versionFlag !== -1 ? argv[versionFlag + 1] : null;
+  if (overrideId && locales.length > 1) {
+    throw new Error('--version-id applies to one locale. Pass --locale as well.');
+  }
 
-  mkdirSync(dirname(OUT_PATH), { recursive: true });
-  writeFileSync(OUT_PATH, `${JSON.stringify(output, null, 2)}\n`, 'utf8');
+  for (const locale of locales) {
+    const entry = versions[locale];
+    if (!entry && !overrideId) {
+      throw new Error(
+        `No version is configured for locale "${locale}".\n` +
+        `  Add it under "versions" in tools/verses.manifest.json, or pass --version-id.`
+      );
+    }
 
-  const verseCount = Object.keys(output.verses).length;
-  const chapterCount = Object.keys(output.chapters).length;
-  console.log(`\nWrote ${OUT_PATH}`);
-  console.log(`  ${verseCount} verses, ${chapterCount} chapters, is_placeholder=${output.is_placeholder}`);
-  if (output.version.copyright) console.log(`  ${output.version.copyright.slice(0, 100)}...`);
+    // The manifest is per locale and is the authority. A single YOUVERSION_VERSION_ID in the
+    // environment cannot be right for more than one language, so it is only a fallback for a
+    // locale the manifest does not describe — never an override of one it does.
+    const versionId = overrideId || entry?.id || process.env.YOUVERSION_VERSION_ID;
+    if (!placeholder && (!versionId || String(versionId).startsWith('<'))) {
+      throw new Error(
+        `No version id resolved for "${locale}". Set it in tools/verses.manifest.json, or pass\n` +
+        '  --version-id, or set YOUVERSION_VERSION_ID. See docs/youversion-api.md.'
+      );
+    }
+
+    console.log(`\n== ${locale} ==`);
+    const output = await build({ manifest, versionId, placeholder });
+
+    const outPath = outPathFor(locale);
+    mkdirSync(dirname(outPath), { recursive: true });
+    writeFileSync(outPath, `${JSON.stringify(output, null, 2)}\n`, 'utf8');
+
+    const verseCount = Object.keys(output.verses).length;
+    const chapterCount = Object.keys(output.chapters).length;
+    console.log(`Wrote ${outPath}`);
+    console.log(`  ${verseCount} verses, ${chapterCount} chapters, is_placeholder=${output.is_placeholder}`);
+    if (output.version.copyright) console.log(`  ${output.version.copyright.slice(0, 100)}...`);
+  }
 }
 
 main().catch((err) => {

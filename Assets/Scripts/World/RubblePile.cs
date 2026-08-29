@@ -33,7 +33,7 @@ namespace SheepGate.World
             RubblePile pile = pileObject.AddComponent<RubblePile>();
             pile.Index = index;
             pile.Amount = DefaultAmount;
-            pile.DisplayName = "Entulho";
+            pile.DisplayName = Loc.T("world.rubble");
             pile.Place(tilemap, cell, true, 0f);
             pile.BuildSprite(tilemap != null ? tilemap.Height : 0, cell.y);
             pile.Refresh();

@@ -1,0 +1,162 @@
+{
+  "is_placeholder": false,
+  "generated_by": "tools/fetch-verses.mjs",
+  "version": {
+    "id": "206",
+    "abbrev": "engWEBUS",
+    "copyright": "PUBLIC DOMAIN (not copyrighted)"
+  },
+  "verses": {
+    "1CO.13.13": {
+      "ref_display": "1 Corinthians 13:13",
+      "text": "But now faith, hope, and love remain—these three. The greatest of these is love."
+    },
+    "JHN.21.6": {
+      "ref_display": "John 21:6",
+      "text": "He said to them, “Cast the net on the right side of the boat, and you will find some.” They cast it therefore, and now they weren’t able to draw it in for the multitude of fish."
+    },
+    "NEH.1.3": {
+      "ref_display": "Nehemiah 1:3",
+      "text": "They said to me, “The remnant who are left of the captivity there in the province are in great affliction and reproach. The wall of Jerusalem is also broken down, and its gates are burned with fire.”"
+    },
+    "NEH.1.11": {
+      "ref_display": "Nehemiah 1:11",
+      "text": "Lord, I beg you, let your ear be attentive now to the prayer of your servant, and to the prayer of your servants who delight to fear your name; and please prosper your servant today, and grant him mercy in the sight of this man.” Now I was cup bearer to the king."
+    },
+    "NEH.2.17": {
+      "ref_display": "Nehemiah 2:17",
+      "text": "Then I said to them, “You see the bad situation that we are in, how Jerusalem lies waste, and its gates are burned with fire. Come, let’s build up the wall of Jerusalem, that we won’t be disgraced.”"
+    },
+    "NEH.2.18": {
+      "ref_display": "Nehemiah 2:18",
+      "text": "I told them about the hand of my God which was good on me, and also about the king’s words that he had spoken to me. They said, “Let’s rise up and build.” So they strengthened their hands for the good work."
+    },
+    "NEH.2.20": {
+      "ref_display": "Nehemiah 2:20",
+      "text": "Then I answered them, and said to them, “The God of heaven will prosper us. Therefore we, his servants, will arise and build; but you have no portion, nor right, nor memorial in Jerusalem.”"
+    },
+    "NEH.3.1": {
+      "ref_display": "Nehemiah 3:1",
+      "text": "Then Eliashib the high priest rose up with his brothers the priests, and they built the sheep gate. They sanctified it, and set up its doors. They sanctified it even to the tower of Hammeah, to the tower of Hananel."
+    },
+    "NEH.4.2": {
+      "ref_display": "Nehemiah 4:2",
+      "text": "He spoke before his brothers and the army of Samaria, and said, “What are these feeble Jews doing? Will they fortify themselves? Will they sacrifice? Will they finish in a day? Will they revive the stones out of the heaps of rubbish, since they are burned?”"
+    },
+    "NEH.4.6": {
+      "ref_display": "Nehemiah 4:6",
+      "text": "So we built the wall; and all the wall was joined together to half its height, for the people had a mind to work."
+    },
+    "NEH.4.9": {
+      "ref_display": "Nehemiah 4:9",
+      "text": "But we made our prayer to our God, and set a watch against them day and night because of them."
+    },
+    "NEH.4.17": {
+      "ref_display": "Nehemiah 4:17",
+      "text": "Those who built the wall, and those who bore burdens loaded themselves; everyone with one of his hands did the work, and with the other held his weapon."
+    },
+    "NEH.6.3": {
+      "ref_display": "Nehemiah 6:3",
+      "text": "I sent messengers to them, saying, “I am doing a great work, so that I can’t come down. Why should the work cease while I leave it and come down to you?”"
+    }
+  },
+  "chapters": {
+    "NEH.4": {
+      "ref_display": "Nehemiah 4",
+      "verses": [
+        {
+          "n": 1,
+          "text": "But when Sanballat heard that we were building the wall, he was angry, and was very indignant, and mocked the Jews."
+        },
+        {
+          "n": 2,
+          "text": "He spoke before his brothers and the army of Samaria, and said, “What are these feeble Jews doing? Will they fortify themselves? Will they sacrifice? Will they finish in a day? Will they revive the stones out of the heaps of rubbish, since they are burned?”"
+        },
+        {
+          "n": 3,
+          "text": "Now Tobiah the Ammonite was by him, and he said, “What they are building, if a fox climbed up it, he would break down their stone wall.”"
+        },
+        {
+          "n": 4,
+          "text": "“Hear, our God, for we are despised. Turn back their reproach on their own head. Give them up for a plunder in a land of captivity."
+        },
+        {
+          "n": 5,
+          "text": "Don’t cover their iniquity. Don’t let their sin be blotted out from before you; for they have insulted the builders.”"
+        },
+        {
+          "n": 6,
+          "text": "So we built the wall; and all the wall was joined together to half its height, for the people had a mind to work."
+        },
+        {
+          "n": 7,
+          "text": "But when Sanballat, Tobiah, the Arabians, the Ammonites, and the Ashdodites heard that the repairing of the walls of Jerusalem went forward, and that the breaches began to be filled, they were very angry;"
+        },
+        {
+          "n": 8,
+          "text": "and they all conspired together to come and fight against Jerusalem, and to cause confusion among us."
+        },
+        {
+          "n": 9,
+          "text": "But we made our prayer to our God, and set a watch against them day and night because of them."
+        },
+        {
+          "n": 10,
+          "text": "Judah said, “The strength of the bearers of burdens is fading and there is much rubble, so that we are not able to build the wall.”"
+        },
+        {
+          "n": 11,
+          "text": "Our adversaries said, “They will not know or see, until we come in among them and kill them, and cause the work to cease.”"
+        },
+        {
+          "n": 12,
+          "text": "When the Jews who lived by them came, they said to us ten times from all places, “Wherever you turn, they will attack us.”"
+        },
+        {
+          "n": 13,
+          "text": "Therefore I set guards in the lowest parts of the space behind the wall, in the open places. I set the people by family groups with their swords, their spears, and their bows."
+        },
+        {
+          "n": 14,
+          "text": "I looked, and rose up, and said to the nobles, to the rulers, and to the rest of the people, “Don’t be afraid of them! Remember the Lord, who is great and awesome, and fight for your brothers, your sons, your daughters, your wives, and your houses.”"
+        },
+        {
+          "n": 15,
+          "text": "When our enemies heard that it was known to us, and God had brought their counsel to nothing, all of us returned to the wall, everyone to his work."
+        },
+        {
+          "n": 16,
+          "text": "From that time forth, half of my servants did the work, and half of them held the spears, the shields, the bows, and the coats of mail; and the rulers were behind all the house of Judah."
+        },
+        {
+          "n": 17,
+          "text": "Those who built the wall, and those who bore burdens loaded themselves; everyone with one of his hands did the work, and with the other held his weapon."
+        },
+        {
+          "n": 18,
+          "text": "Among the builders, everyone wore his sword at his side, and so built. He who sounded the trumpet was by me."
+        },
+        {
+          "n": 19,
+          "text": "I said to the nobles, and to the rulers and to the rest of the people, “The work is great and widely spread out, and we are separated on the wall, far from one another."
+        },
+        {
+          "n": 20,
+          "text": "Wherever you hear the sound of the trumpet, rally there to us. Our God will fight for us.”"
+        },
+        {
+          "n": 21,
+          "text": "So we did the work. Half of the people held the spears from the rising of the morning until the stars appeared."
+        },
+        {
+          "n": 22,
+          "text": "Likewise at the same time I said to the people, “Let everyone with his servant lodge within Jerusalem, that in the night they may be a guard to us, and may labor in the day.”"
+        },
+        {
+          "n": 23,
+          "text": "So neither I, nor my brothers, nor my servants, nor the men of the guard who followed me took off our clothes. Everyone took his weapon to the water."
+        }
+      ]
+    }
+  }
+}

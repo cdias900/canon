@@ -1,0 +1,29 @@
+{
+  "1": {
+    "prompt": "The stone you laid today — where did it come from?",
+    "options": [
+      "From the quarry across the valley",
+      "From the burnt ruins of the city itself",
+      "It came by cart, with the man from the capital"
+    ],
+    "note": "From the ruins. The city is put back together out of its own material, which is why clearing rubble and laying stone are one job in two stages. Reference: NEH.4.2."
+  },
+  "2": {
+    "prompt": "Two residents told you different things about the road. How does the game show you which one is right?",
+    "options": [
+      "By the colour of the name above their head",
+      "It doesn't",
+      "By the icon that appears on the line"
+    ],
+    "note": "It doesn't, and it isn't going to. You decide with what you have: who saw it, where they saw it from, and what being wrong costs in each of the two directions."
+  },
+  "3": {
+    "prompt": "The standoff ends when...",
+    "options": [
+      "the other side gives up",
+      "the other side is cut down",
+      "your strength runs out"
+    ],
+    "note": "It ends when somebody gives up. Nobody counts the fallen on this wall, on your side or theirs: the watch exists so the attack isn't worth making. Reference: NEH.4.9."
+  }
+}

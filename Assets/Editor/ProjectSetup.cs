@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using UnityEditor;
+using UnityEditor.Build;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
@@ -54,6 +55,7 @@ namespace SheepGate.EditorTools
             ApplyBuildScenes();
             ApplyPlayerSettings();
             ApplyRenderPipeline();
+            ApplyBundleIdentifiers();
         }
 
         // --- Build scenes ---------------------------------------------------------------
@@ -166,6 +168,44 @@ namespace SheepGate.EditorTools
         }
 
         // --- Render pipeline ------------------------------------------------------------
+
+        /// <summary>
+        /// Bundle identifiers. Unity leaves these empty, and a mobile build fails outright without
+        /// one, so they are set here rather than left to whoever first opens Build Settings.
+        /// Android is not a current build target but keeps its id: the value costs nothing and
+        /// removing it would only mean rediscovering this the next time someone tries.
+        /// </summary>
+        private static void ApplyBundleIdentifiers()
+        {
+            const string packageName = "com.createhack.portadasovelhas";
+
+            TrySetIdentifier(NamedBuildTarget.iOS, packageName);
+            TrySetIdentifier(NamedBuildTarget.Android, packageName);
+
+            try
+            {
+                PlayerSettings.Android.minSdkVersion = AndroidSdkVersions.AndroidApiLevel25;
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning("[Setup] Could not set the Android minimum SDK: " + exception.Message);
+            }
+        }
+
+        private static void TrySetIdentifier(NamedBuildTarget target, string packageName)
+        {
+            try
+            {
+                if (PlayerSettings.GetApplicationIdentifier(target) != packageName)
+                {
+                    PlayerSettings.SetApplicationIdentifier(target, packageName);
+                }
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning("[Setup] Could not set the " + target + " bundle id: " + exception.Message);
+            }
+        }
 
         private static void ApplyRenderPipeline()
         {

@@ -75,6 +75,16 @@ namespace SheepGate.EditorTools
             Run(BuildTarget.StandaloneOSX, BuildTargetGroup.Standalone, "Builds/mac/SheepGate.app");
         }
 
+        /// <summary>
+        /// Produces an Xcode project rather than an installable app: that is what a Unity iOS build
+        /// is. Turning it into something that runs on a device needs Xcode and a signing team, which
+        /// is a decision for whoever owns the Apple account, not something to bake in here.
+        /// </summary>
+        public static void BuildIOS()
+        {
+            Run(BuildTarget.iOS, BuildTargetGroup.iOS, "Builds/ios");
+        }
+
         public static void BuildAndroid()
         {
             Run(BuildTarget.Android, BuildTargetGroup.Android, "Builds/android/SheepGate.apk");

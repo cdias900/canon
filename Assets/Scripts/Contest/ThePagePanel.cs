@@ -317,6 +317,12 @@ namespace SheepGate.Contest
                 state.SetFlag(GameFlags.PageShown);
             }
 
+            // The page is where the game stops being coy: from here every quotation carries
+
+            // its reference.
+
+            ScriptureVisibility.Reveal(WorldStateForReveal());
+
             Telemetry.Track(TelemetryEvents.RevealShown, new Dictionary<string, object>
             {
                 { "turn", turn }
@@ -468,5 +474,12 @@ namespace SheepGate.Contest
 
             return null;
         }
+        /// <summary>The run's state, for turning citations on when the page appears.</summary>
+        static GameState WorldStateForReveal()
+        {
+            GameState state;
+            return ServiceLocator.TryGet(out state) ? state : null;
+        }
+
     }
 }

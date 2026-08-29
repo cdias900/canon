@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using SheepGate.Core;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -184,19 +185,29 @@ namespace SheepGate.Dialogue
             }
 
             bool hasReference = !string.IsNullOrEmpty(refDisplay);
+
+            // Two separate questions, and conflating them would be a mistake: whether to PRINT the
+            // citation, and whether to OFFER the chapter. Early in the game the first is no and the
+            // second is still yes - the reference is withheld from the footer, never taken out of
+            // reach, and one tap on "Saber mais" shows the chapter with its name and numbering.
+            bool showReference = hasReference && ScriptureVisibility.ReferencesVisible();
+            bool offerChapter = hasReference && !string.IsNullOrEmpty(chapterRef);
+
             if (footer != null)
             {
-                footer.SetActive(hasReference);
+                // The footer still carries the chapter affordance once the citation is hidden.
+                footer.SetActive(showReference || offerChapter);
             }
 
             if (refText != null)
             {
-                refText.text = hasReference ? refDisplay : string.Empty;
+                refText.text = showReference ? refDisplay : string.Empty;
+                refText.gameObject.SetActive(showReference);
             }
 
             if (moreButton != null)
             {
-                moreButton.gameObject.SetActive(hasReference && !string.IsNullOrEmpty(chapterRef));
+                moreButton.gameObject.SetActive(offerChapter);
             }
 
             if (hintText != null)

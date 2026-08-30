@@ -30,16 +30,24 @@ namespace SheepGate.Art
     /// `top_2` sprite sit correctly on all 48 body sprites.
     ///
     /// Only three regions animate:
-    ///   - the arms, outside the torso columns
+    ///   - the arms, in columns x7..9 and x22..24, over rows y8..y31. Not y17 and down: the
+    ///     work swing lifts them to y8, so "above ArmY" is not a safe place to put anything.
     ///   - the boots, below the lowest trouser hem
     ///   - the work tool
     /// An overlay stays out of all three, and anything added here must respect that split or the
     /// overlays will drift.
     ///
+    /// IN PRACTICE that gives an overlay two hard edges, and both are one pixel tighter than
+    /// they look, because <see cref="PixelCanvas.OutlineOpaque"/> puts an ink border AROUND
+    /// whatever is drawn:
+    ///   - opaque pixels within x11..20, so the border stays within x10..21 and off the arms;
+    ///   - the topmost opaque row at y15 or below, so the border lands on y14, the neck, and
+    ///     never on y13, which is the jaw.
+    ///
     /// ONE OVERLAY IS EXEMPT, and the exemption is what proves the rule: the wrist beads
-    /// (accessory variant 4) sit ON an arm, because the catalogue puts them on a wrist and a wrist
-    /// is nowhere else. They are allowed there only because they do not assume a row — they read
-    /// the same <see cref="HandTop"/> the arm is drawn from, so they move with it instead of
+    /// (accessory variant 4) sit ON an arm, because the catalogue anchors them to `wrist_r` and a
+    /// wrist is nowhere else. They are allowed there only because they do not assume a row — they
+    /// read the same <see cref="HandTop"/> the arm is drawn from, so they move with it instead of
     /// drifting off it. Any future overlay that wants an animated region owes the same proof.
     /// </summary>
     public static class CharacterArt
@@ -681,44 +689,80 @@ namespace SheepGate.Art
         /// Accessory: a rope coil, a map tube, a tool bag, a ring belt, a bead bracelet, an old
         /// stone seal. Deliberately mundane — the read is a crew at work, never a vestment.
         ///
-        /// THE RULE THIS METHOD EXISTS TO KEEP: every variant sits where its catalogue name and
-        /// description say it sits. A wardrobe puts the words next to the picture, so an item
-        /// called "no pulso direito" that drew a hip pouch read as a bug, and was one.
+        /// THE RULE THIS METHOD EXISTS TO KEEP: every variant sits where its catalogue anchor and
+        /// its description say it sits, IN EVERY FACING. A wardrobe puts the words next to the
+        /// picture, so an item called "no pulso direito" that drew on the left wrist read as a
+        /// bug, and was one.
         ///
-        /// Five of the six live in regions the rig never moves — the torso, the waist, the neck —
-        /// so one sprite lies correctly over any body frame. The wrist beads cannot: the wrist is
-        /// on an arm, and across idle, walk and work the hand rows never once overlap, so no
-        /// static row IS the wrist. That single variant reads the live arm pose, and it is the
-        /// only reason this method takes an animation at all.
+        /// WHY THIS METHOD DOES NOT MIRROR, and every other layer does. Left is drawn as a
+        /// mirrored Right everywhere else because a body, a garment and a hairstyle are
+        /// symmetric: reflecting them costs nothing. An accessory is not. Six of the six are
+        /// anchored to one side or one face of the character — `shoulder_r`, `wrist_r`,
+        /// `back_center`, `waist_front` — and reflecting a right shoulder produces a left
+        /// shoulder. Mirroring made the rope coil change shoulders when the character turned
+        /// round, which is the same defect as drawing it on the wrong side, only intermittent.
+        /// So each Draw* below takes the TRUE facing and switches on all four.
+        ///
+        /// THE ENVELOPE every variant but the bracelet stays inside, and why:
+        ///   - opaque pixels within x11..20, so the ink border OutlineOpaque adds lands within
+        ///     x10..21 and never enters the arm columns (x7..9 and x22..24). Those columns
+        ///     animate over y8..31 — the work swing lifts the arms to y8 — so an overlay pixel
+        ///     there is a mark that stays put while the arm moves out from under it.
+        ///   - top row at y15 or below, so the ink lands on y14, the neck row, and never on
+        ///     y13, which is the jaw.
+        ///
+        /// THE BRACELET IS THE ONE EXEMPTION, and the exemption is what proves the rule: the
+        /// catalogue anchors it to `wrist_r`, a wrist is on an arm, and across idle, walk and
+        /// work the hand rows never once coincide, so no static row IS the wrist. It reads the
+        /// live arm pose instead, which is the only reason this method takes an animation at all.
+        ///
+        /// WHICH PUTS A CONTRACT ON THE CALLER, and it is the one thing here that this file
+        /// cannot keep on its own: <paramref name="anim"/> and <paramref name="frame"/> must be
+        /// the pose the BODY is drawing on the same tick. Resolve the accessory layer once at
+        /// frame 0 and then play the body's two frames under it and the beads land four rows off
+        /// the wrist on every second walk frame, and beside an empty patch of sky on the second
+        /// work frame — the drifting this overload exists to prevent, reintroduced one layer up.
+        /// A caller that animates the body therefore has to ask this layer for both frames too,
+        /// which for the runtime figure is what the per layer frame count in
+        /// <c>CharacterAppearance</c> decides. The other five variants are identical across
+        /// frames, so honouring the contract costs them nothing.
         /// </summary>
         public static PixelCanvas Accessory(int variant, ArtFacing facing, ArtAnim anim, int frame)
         {
             variant = Mathf.Clamp(variant, 0, AccessoryVariants - 1);
             frame = Mathf.Clamp(frame, 0, 1);
-            bool mirrored = facing == ArtFacing.Left;
-            ArtFacing drawn = mirrored ? ArtFacing.Right : facing;
 
             PixelCanvas canvas = new PixelCanvas(Width, Height);
 
             switch (variant)
             {
-                case 1: DrawMapTube(canvas, drawn); break;
-                case 2: DrawToolBag(canvas, drawn); break;
-                case 3: DrawRingBelt(canvas, drawn); break;
-                case 4: DrawBeadBracelet(canvas, drawn, anim, frame); break;
-                case 5: DrawOldSeal(canvas, drawn); break;
-                default: DrawRopeCoil(canvas, drawn); break;
+                case 1: DrawMapTube(canvas, facing); break;
+                case 2: DrawToolBag(canvas, facing); break;
+                case 3: DrawRingBelt(canvas, facing); break;
+                case 4: DrawBeadBracelet(canvas, facing, anim, frame); break;
+                case 5: DrawOldSeal(canvas, facing); break;
+                default: DrawRopeCoil(canvas, facing); break;
             }
 
             canvas.OutlineOpaque(ArtPalette.Ink);
-            if (mirrored) canvas.MirrorHorizontal();
+
+            // Nothing in the accessory catalogue is worn on the head, so any pixel that reached
+            // the head rectangle is spill — in practice the ink border of the bracelet when the
+            // work swing lifts the wrist up beside the cheek. Clearing it here makes "never on
+            // the face" structural instead of a thing each variant has to remember.
+            for (int y = HeadY; y < HeadY + HeadH; y++)
+                for (int x = HeadX; x < HeadX + HeadW; x++)
+                    canvas.Set(x, y, ArtPalette.Transparent);
+
             return canvas;
         }
 
         /// <summary>
-        /// Pose free overload. Stands in until the art library passes the animation it already
-        /// parses through to this layer; only variant 4 differs between poses, so the other five
-        /// are identical either way and this is not a second drawing path.
+        /// Pose free overload. Only variant 4 differs between poses, so the other five are
+        /// identical either way and this is not a second drawing path. It is what the wardrobe
+        /// and the creation screen resolve to, since <c>ArtKeys.Accessory</c> carries no facing
+        /// or animation token — which makes Down / idle / frame 0 the shop window of every
+        /// accessory, and the facing each description has to be truest in.
         /// </summary>
         public static PixelCanvas Accessory(int variant, ArtFacing facing)
         {
@@ -726,164 +770,347 @@ namespace SheepGate.Art
         }
 
         /// <summary>
-        /// acc_rope_coil: three stacked hoops over the character's right shoulder, and Adar's
-        /// signature piece. It has to break the silhouette OUTWARD, because the coil is what tells
-        /// him apart at a distance long after the face has stopped being legible.
+        /// A solid band of <paramref name="width"/> whose left edge runs from (x0, y0) down to
+        /// (x1, y1), stepped one row at a time.
         ///
-        /// Three two pixel bands with a one pixel gap between them need eight rows, so the coil
-        /// runs a row further down the torso than the shoulder alone offers. That is safe: the
-        /// torso columns are static. Only the single wrap at x22 reaches the arm columns, which is
-        /// exactly why that wrap stops above ArmY.
+        /// It exists because the obvious alternative is wrong: two parallel Bresenham lines a
+        /// pixel apart do NOT tile a diagonal band. Wherever the two lines step sideways on
+        /// different rows they leave a transparent hole between them, and OutlineOpaque then
+        /// fills that hole with ink — which is why the map tube used to read as a dotted seam
+        /// rather than a tube.
+        /// </summary>
+        static void DiagonalBand(PixelCanvas canvas, int x0, int y0, int x1, int y1,
+            int width, Color32 near, Color32 far)
+        {
+            int rows = y1 - y0;
+            for (int i = 0; i <= rows; i++)
+            {
+                // Integer division, truncating toward zero, so the shape is exactly reproducible.
+                int x = rows == 0 ? x0 : x0 + (x1 - x0) * i / rows;
+                for (int j = 0; j < width; j++) canvas.Set(x + j, y0 + i, j == 0 ? near : far);
+            }
+        }
+
+        /// <summary>
+        /// acc_rope_coil, catalogue anchor <c>shoulder_r</c>: "Enrolada no ombro direito." Adar's
+        /// signature piece, and the one the eye should catch first at a distance.
+        ///
+        /// Which side of the sprite the character's right shoulder is on depends on where the
+        /// viewer is standing, and getting that backwards is the defect this drawing replaces:
+        /// face on, the character's right is the VIEWER'S LEFT; from behind, the viewer's right.
+        /// In profile it is neither — it is the near shoulder or the far one, and that is a
+        /// difference in how much of the coil you can see, not in where it sits.
+        ///
+        /// The mass is three hoops eight rows tall. It cannot break the silhouette sideways,
+        /// because sideways is the arm columns; it breaks it upward instead, clearing the
+        /// shoulder line at y16 by one row.
         /// </summary>
         static void DrawRopeCoil(PixelCanvas canvas, ArtFacing facing)
         {
-            // Seen from behind, the character's right shoulder is on the viewer's left.
-            bool behind = facing == ArtFacing.Up;
-            int x = behind ? TorsoX : TorsoX + 7;             // x10..14 from behind, x17..21 in front
-            int wrapX = behind ? ArmLX + ArmW - 1 : ArmRX;    // x9 or x22
+            switch (facing)
+            {
+                case ArtFacing.Down:  // the right shoulder is the viewer's left
+                    CoilStack(canvas, 11, 5);
+                    DiagonalBand(canvas, 14, 23, 16, 26, 2, ArtPalette.ClayDark, ArtPalette.ClayDeep);
+                    break;
 
+                case ArtFacing.Up:    // the right shoulder is the viewer's right
+                    CoilStack(canvas, 16, 5);
+                    // Seen from behind, the loose end is not tucked away: it hangs down the back.
+                    DiagonalBand(canvas, 16, 23, 14, 27, 2, ArtPalette.ClayDark, ArtPalette.ClayDeep);
+                    break;
+
+                case ArtFacing.Right: // the right shoulder is the near one: the coil is face on
+                    CoilStack(canvas, 13, 6);
+                    canvas.FillRect(18, 23, 2, 4, ArtPalette.ClayDark);
+                    canvas.HLine(18, 23, 2, ArtPalette.ClayMid);
+                    break;
+
+                default:              // Left: the right shoulder is the far one, behind the body
+                    // Only the bulk clears the shoulder line. That it nearly disappears here is
+                    // the point — a coil on the shoulder you cannot see is a coil you cannot see.
+                    canvas.FillRect(12, 15, 7, 4, ArtPalette.ClayMid);
+                    canvas.HLine(12, 15, 7, ArtPalette.ClayPale);
+                    canvas.HLine(12, 17, 7, ArtPalette.ClayDeep);   // one hoop edge, so it reads coiled
+                    canvas.FillRect(18, 19, 2, 3, ArtPalette.ClayDark);  // a sliver past the back
+                    break;
+            }
+        }
+
+        /// <summary>Three hoops with a shaded edge between them, the top row at y15.</summary>
+        static void CoilStack(PixelCanvas canvas, int x, int width)
+        {
             for (int band = 0; band < 3; band++)
             {
-                int top = NeckY - 1 + band * 3;               // y13, y16, y19
-                canvas.FillRect(x, top, 5, 2, ArtPalette.ClayMid);
-                canvas.HLine(x, top, 5, ArtPalette.ClayPale);
-                if (band < 2) canvas.HLine(x, top + 2, 5, ArtPalette.ClayDeep);  // the gap between hoops
+                int top = 15 + band * 3;
+                canvas.FillRect(x, top, width, 2, ArtPalette.ClayMid);
+                canvas.HLine(x, top, width, ArtPalette.ClayPale);
+                if (band < 2) canvas.HLine(x, top + 2, width, ArtPalette.ClayDeep);
             }
-
-            canvas.FillRect(wrapX, ArmY - 3, 1, 3, ArtPalette.ClayMid);
         }
 
         /// <summary>
-        /// acc_map_tube: a tube on a carrying strap across the back, and Neriah's signature piece.
-        /// Slung across the back is precisely why it shows face on — the strap crosses the chest
-        /// and the tube's head clears the shoulder. Every pixel below ArmY stays inside the torso
-        /// columns, so the strap never crosses an arm.
+        /// acc_map_tube, catalogue anchor <c>back_center</c>: "Atravessado nas costas." Neriah's
+        /// signature piece, carried on a strap over the right shoulder and down to the left hip.
+        ///
+        /// A thing on the back is the clearest case for four separate drawings: from behind it is
+        /// the whole item; face on the body hides it and the STRAP is what you see, with the
+        /// barrel clearing the shoulder; in profile the tube runs down whichever edge of the
+        /// sprite the back happens to be on, which is screen left facing right and screen right
+        /// facing left. It used to draw the barrel at head height in three of the four, over the
+        /// jaw, which is both anatomically wrong and the one place this layer may not go.
         /// </summary>
         static void DrawMapTube(PixelCanvas canvas, ArtFacing facing)
         {
-            if (facing == ArtFacing.Up)
+            switch (facing)
             {
-                // From behind the tube is the whole item, laid across the back.
-                canvas.Line(TorsoX + 1, TorsoY + 4, TorsoX + 9, TorsoY + 12, ArtPalette.StoneDark);
-                canvas.Line(TorsoX + 2, TorsoY + 4, TorsoX + 10, TorsoY + 12, ArtPalette.StoneMid);
-                canvas.Line(TorsoX + 3, TorsoY + 4, TorsoX + 11, TorsoY + 12, ArtPalette.StoneLight);
-                canvas.FillRect(TorsoX + 1, TorsoY + 2, 3, 2, ArtPalette.StoneLight);   // the cap
-                return;
+                case ArtFacing.Up:    // the back faces the viewer: all tube
+                    TubeCap(canvas, 16);
+                    DiagonalBand(canvas, 16, 18, 11, 28, 4, ArtPalette.StoneLight, ArtPalette.StoneMid);
+                    canvas.VLine(19, 15, 4, ArtPalette.ClayDark);   // the strap, over the shoulder
+                    canvas.VLine(20, 15, 4, ArtPalette.ClayDeep);
+                    break;
+
+                case ArtFacing.Down:  // the tube is behind the body: the strap is what shows
+                    TubeCap(canvas, 11);
+                    canvas.FillRect(11, 18, 3, 2, ArtPalette.StoneDark);  // the barrel, before it goes behind
+                    DiagonalBand(canvas, 13, 20, 18, 29, 2, ArtPalette.ClayDark, ArtPalette.ClayDeep);
+                    break;
+
+                case ArtFacing.Right: // the back is screen left
+                    TubeCap(canvas, 11);
+                    TubeBarrel(canvas, 11, ArtPalette.StoneLight, ArtPalette.StoneDark);
+                    DiagonalBand(canvas, 14, 18, 17, 25, 2, ArtPalette.ClayDark, ArtPalette.ClayDeep);
+                    break;
+
+                default:              // Left: the back is screen right
+                    TubeCap(canvas, 18);
+                    TubeBarrel(canvas, 18, ArtPalette.StoneDark, ArtPalette.StoneLight);
+                    DiagonalBand(canvas, 16, 18, 13, 25, 2, ArtPalette.ClayDark, ArtPalette.ClayDeep);
+                    break;
             }
+        }
 
-            canvas.Line(TorsoX + 1, TorsoY + 13, TorsoX + 10, TorsoY + 2, ArtPalette.ClayDark);
-            canvas.Line(TorsoX + 2, TorsoY + 13, TorsoX + 11, TorsoY + 2, ArtPalette.ClayDeep);
-
-            canvas.FillRect(TorsoX + 9, HeadY + 8, 3, 7, ArtPalette.StoneMid);
-            canvas.FillRect(TorsoX + 9, HeadY + 8, 3, 2, ArtPalette.StoneLight);        // the cap ring
+        /// <summary>The tube's capped end, clearing the shoulder line without reaching the jaw.</summary>
+        static void TubeCap(PixelCanvas canvas, int x)
+        {
+            canvas.FillRect(x, 15, 3, 2, ArtPalette.StonePale);
+            canvas.HLine(x, 17, 3, ArtPalette.StoneMid);
         }
 
         /// <summary>
-        /// acc_tool_bag: a pouch hanging at the side of the belt. The cross body strap this shape
-        /// used to carry is gone on purpose — that silhouette belongs to acc_map_tube now, and a
-        /// bag sitting on the belt does not hang from the opposite shoulder.
+        /// The barrel down the back edge in profile. The lit column is the one facing the
+        /// viewer's side of the body, which swaps between the two profiles.
+        /// </summary>
+        static void TubeBarrel(PixelCanvas canvas, int x, Color32 leftEdge, Color32 rightEdge)
+        {
+            canvas.FillRect(x, 17, 3, 11, ArtPalette.StoneMid);
+            canvas.VLine(x, 17, 11, leftEdge);
+            canvas.VLine(x + 2, 17, 11, rightEdge);
+        }
+
+        /// <summary>
+        /// acc_tool_bag, catalogue anchor <c>waist_side</c>: "Na lateral da cintura." It hangs
+        /// from the character's LEFT hip — the anchor names a side without saying which, and
+        /// picking one and keeping it is what stops the bag swapping hips as the player turns.
+        ///
+        /// The cross body strap this shape used to carry is gone on purpose: that silhouette
+        /// belongs to acc_map_tube, and a bag sitting on the belt does not hang from the opposite
+        /// shoulder. It also used to sit at mid torso, which read as a chest pouch; the belt line
+        /// is y28.
         /// </summary>
         static void DrawToolBag(PixelCanvas canvas, ArtFacing facing)
         {
-            bool behind = facing == ArtFacing.Up;
-            int x = behind ? TorsoX : TorsoX + 7;
+            switch (facing)
+            {
+                case ArtFacing.Down:  // the left hip is the viewer's right
+                    BagBody(canvas, 16, 5, false);
+                    BagHanger(canvas, 17);
+                    break;
 
-            canvas.FillRect(x, TorsoY + 9, 5, 6, ArtPalette.ClayMid);
-            canvas.HLine(x, TorsoY + 9, 5, ArtPalette.ClayLight);
-            canvas.HLine(x, TorsoY + 11, 5, ArtPalette.ClayDark);     // the flap
-            canvas.HLine(x, TorsoY + 14, 5, ArtPalette.ClayDeep);
+                case ArtFacing.Up:    // the left hip is the viewer's left
+                    BagBody(canvas, 11, 5, false);
+                    BagHanger(canvas, 13);
+                    break;
 
-            // The hanger, tying the pouch up to the belt line. Offset the other way from behind so
-            // the two facings are a true mirror of each other rather than a pixel apart.
-            canvas.FillRect(x + (behind ? 2 : 1), TorsoY + 7, 2, 2, ArtPalette.ClayDark);
+                case ArtFacing.Left:  // the left hip is the near one: the bag is face on, and widest
+                    BagBody(canvas, 13, 7, true);
+                    BagHanger(canvas, 16);
+                    break;
+
+                default:              // Right: the far hip, so only the back of the bag clears the body
+                    canvas.FillRect(11, 29, 3, 5, ArtPalette.ClayDark);
+                    canvas.HLine(11, 29, 3, ArtPalette.ClayMid);
+                    canvas.HLine(11, 33, 3, ArtPalette.ClayDeep);
+                    break;
+            }
+        }
+
+        static void BagBody(PixelCanvas canvas, int x, int width, bool buckle)
+        {
+            canvas.FillRect(x, 28, width, 7, ArtPalette.ClayMid);
+            canvas.HLine(x, 28, width, ArtPalette.ClayLight);
+            canvas.HLine(x, 30, width, ArtPalette.ClayDark);   // the flap
+            canvas.HLine(x, 34, width, ArtPalette.ClayDeep);
+            if (!buckle) return;
+            canvas.Set(x + width / 2, 32, ArtPalette.StoneLight);
+            canvas.Set(x + width / 2 + 1, 32, ArtPalette.StoneMid);
+        }
+
+        /// <summary>The loop that ties the pouch up to the belt line.</summary>
+        static void BagHanger(PixelCanvas canvas, int x)
+        {
+            canvas.FillRect(x, 26, 2, 2, ArtPalette.ClayDark);
         }
 
         /// <summary>
-        /// acc_ring_belt: a wide band with two iron rings at the front.
+        /// acc_ring_belt, catalogue anchor <c>waist_front</c>: "Argolas de ferro na frente da
+        /// cintura." The band goes all the way round, so it is the only accessory whose main
+        /// shape is the same in every facing — but the RINGS are on the front, and the front is
+        /// somewhere different in each of the four. It used to draw them dead centre in profile,
+        /// where the belly is, and identically front and side.
         ///
-        /// Trimmed to the torso columns, which is a fix and not a restyle: the band used to run a
-        /// pixel into each arm at y28 and y29, breaking the one rule the whole layering scheme
-        /// rests on — no overlay covers a part that animates. The hanging tool loop is gone for a
-        /// second reason: it read as a bag, which is acc_tool_bag's job, and it hung into the legs.
+        /// The band is trimmed to x11..20 rather than the full torso width, which is a fix and
+        /// not a restyle: at the full width its ink border ran a pixel into each arm, breaking
+        /// the one rule the layering scheme rests on.
         /// </summary>
         static void DrawRingBelt(PixelCanvas canvas, ArtFacing facing)
         {
-            canvas.FillRect(TorsoX, TorsoY + 12, TorsoW, 3, ArtPalette.ClayDark);
-            canvas.HLine(TorsoX, TorsoY + 12, TorsoW, ArtPalette.ClayMid);
+            canvas.FillRect(11, 28, 10, 3, ArtPalette.ClayDark);
+            canvas.HLine(11, 28, 10, ArtPalette.ClayMid);
 
-            if (facing == ArtFacing.Up)
+            switch (facing)
             {
-                // The rings are at the front. From behind what shows is where it is tied.
-                canvas.FillRect(TorsoX + 5, TorsoY + 11, 2, 4, ArtPalette.ClayDark);
-                canvas.HLine(TorsoX + 5, TorsoY + 11, 2, ArtPalette.ClayMid);
-                return;
-            }
+                case ArtFacing.Down:
+                    DrawBeltRing(canvas, 13);
+                    DrawBeltRing(canvas, 17);
+                    break;
 
-            DrawBeltRing(canvas, TorsoX + 3);
-            DrawBeltRing(canvas, TorsoX + 7);
+                case ArtFacing.Up:    // the rings are at the front: from behind, the knot is what shows
+                    canvas.FillRect(15, 27, 2, 5, ArtPalette.ClayDark);
+                    canvas.HLine(15, 27, 2, ArtPalette.ClayMid);
+                    break;
+
+                case ArtFacing.Right: // the front is screen right, and one ring occludes the other
+                    DrawBeltRing(canvas, 18);
+                    canvas.FillRect(18, 31, 2, 3, ArtPalette.ClayDark);   // the strap tongue
+                    break;
+
+                default:              // Left: the front is screen left
+                    DrawBeltRing(canvas, 12);
+                    canvas.FillRect(12, 31, 2, 3, ArtPalette.ClayDark);
+                    break;
+            }
         }
 
         static void DrawBeltRing(PixelCanvas canvas, int x)
         {
-            canvas.FillRect(x, TorsoY + 12, 2, 2, ArtPalette.StoneLight);
-            canvas.Set(x + 1, TorsoY + 13, ArtPalette.StoneDeep);   // the hole through it
+            canvas.FillRect(x, 28, 2, 2, ArtPalette.StoneLight);
+            canvas.Set(x + 1, 29, ArtPalette.StoneDeep);   // the hole through it
         }
 
         /// <summary>
-        /// acc_bead_bracelet: clay beads on a cord at the character's right wrist. The one
-        /// accessory that cannot be a still.
+        /// acc_bead_bracelet, catalogue anchor <c>wrist_r</c>: "Contas de barro num cordão, no
+        /// pulso direito." The one accessory that cannot be a still, and the one allowed into an
+        /// arm column.
         ///
-        /// The wrist is immediately above the hand, the hand moves in every pose, and the hand
+        /// The wrist is immediately beside the hand, the hand moves in every pose, and the hand
         /// rows across idle, walk and work share no row at all — so there is no pixel that is the
-        /// wrist in general. The beads therefore take their rows from the same <see cref="ArmPose"/>
-        /// the body draws from: below the hand when the arm hangs, above it when the arm is
-        /// raised, which is where a wrist actually is in each case.
+        /// wrist in general. The beads take their rows from the same <see cref="ArmPose"/> the
+        /// body draws from: below the hand when the arm hangs, above it when the work swing
+        /// raises it, which is where a wrist actually is in each case.
         ///
-        /// KNOWN AND ACCEPTED: build 1 pulls both arms a pixel inward and this layer does not know
-        /// the build, so on the narrower frame the band overhangs the forearm by one pixel. The
-        /// alternatives were a key format change or packing accessory against build the way the
-        /// body packs build against tone, and neither buys enough to be worth it.
+        /// WHICH COLUMN carries the character's right arm is the part that was wrong, and the
+        /// table below is not symmetric, so it is worth reading rather than guessing:
+        ///
+        ///   Down   x7..9    the character's right is the viewer's left
+        ///   Up     x22..24  seen from behind, it is the viewer's right
+        ///   Right  x22..24  the near arm, since the character faces screen right
+        ///   Left   x22..24  the FAR arm — the body mirrors, so the arm the pose offsets as the
+        ///                   left one is the arm that lands on x22..24
+        ///
+        /// and the <c>leftArm</c> flag follows the column rather than the facing, because it
+        /// selects which of ArmPose's two offsets that column was drawn with. Getting it wrong is
+        /// four rows out on every walk frame.
+        ///
+        /// KNOWN AND ACCEPTED: build 1 pulls both arms a pixel inward and this layer does not
+        /// know the build, so on the narrower frame the band overhangs the forearm by one pixel.
+        /// The alternatives were a key format change or packing accessory against build the way
+        /// the body packs build against tone, and neither buys enough to be worth it.
         /// </summary>
         static void DrawBeadBracelet(PixelCanvas canvas, ArtFacing facing, ArtAnim anim, int frame)
         {
-            // From behind, the character's right arm is the one painted on the viewer's left, and
-            // it is THAT arm's offset the beads must follow: a walk swings the two opposite ways.
-            bool behind = facing == ArtFacing.Up;
-            int x = behind ? ArmLX : ArmRX;
+            int x;
+            bool leftArm;
+            if (facing == ArtFacing.Down) { x = ArmLX; leftArm = true; }
+            else if (facing == ArtFacing.Left) { x = ArmRX; leftArm = true; }
+            else { x = ArmRX; leftArm = false; }
 
-            int handTop = HandTop(anim, frame, behind);
+            // Facing left, the beads are on the arm the body itself draws in shade, so they are
+            // shaded too. It is free differentiation, and it is also just correct.
+            bool far = facing == ArtFacing.Left;
+            Color32 bead = far ? ArtPalette.ClayDark : ArtPalette.ClayMid;
+            Color32 lit = far ? ArtPalette.ClayMid : ArtPalette.ClayLight;
+
+            int handTop = HandTop(anim, frame, leftArm);
             int wristTop = HandsRaised(anim, frame) ? handTop + 3 : handTop - 2;
 
             for (int i = 0; i < ArmW; i++)
             {
-                canvas.Set(x + i, wristTop, i % 2 == 0 ? ArtPalette.ClayMid : ArtPalette.ClayLight);
+                canvas.Set(x + i, wristTop, i % 2 == 0 ? bead : lit);
                 canvas.Set(x + i, wristTop + 1, ArtPalette.ClayDeep);
             }
+
+            // The cord is knotted at the back of the wrist, so the knot is visible from behind
+            // and from nowhere else.
+            if (facing == ArtFacing.Up) canvas.Set(x + 1, wristTop - 1, ArtPalette.ClayDeep);
         }
 
         /// <summary>
-        /// acc_old_seal: a small stone seal on a cord, turned up in the foundation. Worn smooth —
-        /// the single dark pixel on the disc is an engraving nobody can read any more, and that is
-        /// both why the piece is interesting and why it carries no symbol of any kind.
+        /// acc_old_seal, catalogue anchor <c>neck</c>: a small stone seal on a cord, turned up in
+        /// the foundation. Worn smooth — the single dark pixel on the disc is an engraving nobody
+        /// can read any more, and that is both why the piece is interesting and why it carries no
+        /// symbol of any kind.
+        ///
+        /// The cord is the constant; the disc is what moves. It hangs on the chest, so in profile
+        /// it swings to whichever edge of the sprite the chest is on, and from behind it is out of
+        /// sight altogether and the knot at the nape is all there is.
         /// </summary>
         static void DrawOldSeal(PixelCanvas canvas, ArtFacing facing)
         {
-            if (facing == ArtFacing.Up)
+            switch (facing)
             {
-                // From behind the disc is against the chest; only the knot at the nape shows.
-                canvas.FillRect(NeckX + 1, NeckY + 1, 2, 2, ArtPalette.ClayDeep);
-                canvas.Line(TorsoX + 2, TorsoY + 2, NeckX + 1, NeckY + 2, ArtPalette.ClayDeep);
-                canvas.Line(TorsoX + 9, TorsoY + 2, NeckX + 2, NeckY + 2, ArtPalette.ClayDeep);
-                return;
+                case ArtFacing.Up:    // the disc is against the chest; only the knot shows
+                    canvas.FillRect(15, 15, 2, 2, ArtPalette.ClayDeep);
+                    canvas.Line(12, 18, 15, 16, ArtPalette.ClayDeep);
+                    canvas.Line(19, 18, 16, 16, ArtPalette.ClayDeep);
+                    break;
+
+                case ArtFacing.Down:  // the cord sits on the collarbones, the disc mid chest
+                    canvas.Line(12, 17, 15, 21, ArtPalette.ClayDeep);
+                    canvas.Line(15, 21, 19, 17, ArtPalette.ClayDeep);
+                    SealDisc(canvas, 14, 21);
+                    break;
+
+                case ArtFacing.Right: // the chest is screen right
+                    canvas.Line(15, 16, 18, 20, ArtPalette.ClayDeep);
+                    canvas.Line(15, 17, 17, 20, ArtPalette.ClayDeep);
+                    SealDisc(canvas, 17, 20);
+                    break;
+
+                default:              // Left: the chest is screen left
+                    canvas.Line(16, 16, 13, 20, ArtPalette.ClayDeep);
+                    canvas.Line(16, 17, 14, 20, ArtPalette.ClayDeep);
+                    SealDisc(canvas, 12, 20);
+                    break;
             }
+        }
 
-            // The cord sits on the collarbones, just below the neck.
-            canvas.Line(TorsoX + 2, TorsoY + 1, TorsoX + 5, TorsoY + 5, ArtPalette.ClayDeep);
-            canvas.Line(TorsoX + 5, TorsoY + 5, TorsoX + 9, TorsoY + 1, ArtPalette.ClayDeep);
-
-            canvas.FillRect(TorsoX + 4, TorsoY + 5, 3, 3, ArtPalette.StoneMid);
-            canvas.HLine(TorsoX + 4, TorsoY + 5, 3, ArtPalette.StoneLight);
-            canvas.Set(TorsoX + 5, TorsoY + 6, ArtPalette.StoneDeep);
+        static void SealDisc(PixelCanvas canvas, int x, int y)
+        {
+            canvas.FillRect(x, y, 3, 3, ArtPalette.StoneMid);
+            canvas.HLine(x, y, 3, ArtPalette.StoneLight);
+            canvas.Set(x + 1, y + 1, ArtPalette.StoneDeep);
         }
     }
 }

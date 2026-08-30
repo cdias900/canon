@@ -1,5 +1,7 @@
 using System;
+using System.Globalization;
 using SheepGate.Core;
+using SheepGate.Economy;
 using SheepGate.Player;
 using UnityEngine;
 using UnityEngine.UI;
@@ -64,18 +66,43 @@ namespace SheepGate.UI
     /// * <b>Rule 2 — never colour alone.</b> Worn is a clay ring <i>and</i> a check; locked is a
     ///   padlock. No state here is carried by a colour on its own.
     /// * <b>Rule 10 — no progress toward anything.</b> Nothing in a row counts, ranks or measures.
-    /// * <b>Rule 18 — nothing is bought.</b> No price, no currency, no timer. The only thing that
-    ///   opens an item is something the player did in the valley.
+    /// * <b>Rule 18 — nothing is bought with money.</b> This entry used to read "nothing is bought:
+    ///   no price, no currency, no timer", and after the extraction that is no longer the whole
+    ///   truth: a locked row in the <i>backpack</i> carries a talent price. The rule it was
+    ///   protecting is intact, and the distinction is the whole point. AGENTS.md's rule 18 forbids
+    ///   <i>selling the shortcut</i> — monetisation may be a new season or a cosmetic, never a
+    ///   resource, never a timer, never a shortcut past the work. Talents are earned by turning up,
+    ///   spend only on cosmetics, and buy no stone, no timber, no stage of wall and no hour of
+    ///   anyone's day. There is still no timer and no "unlock now", and no real money touches a row.
+    ///   <para>
+    ///   <b>Not finished, and knowingly so.</b> The price is displayed; nothing spends it yet. Until
+    ///   the purchase path lands, every locked backpack row shows a number the player cannot pay,
+    ///   which is in tension with rule 7 above — a locked row is supposed to be an invitation, and
+    ///   an unpayable price is closer to a shopfront with the door locked. It is staged deliberately
+    ///   rather than shipped as the finished design. The price is drawn <b>under</b> the unlock
+    ///   sentence and never instead of it, so the route that <i>does</i> work is still the one the
+    ///   row leads with and still its brightest line.
+    ///   </para>
     ///
     /// ==================================================================================
     /// WHAT THE TWO CALLERS DO DIFFERENTLY, AND WHY
     /// ==================================================================================
-    /// The backpack passes <c>showNewBadge: true</c>; <b>character creation passes false</b>. On a
-    /// fresh save every free item is unlocked-and-never-seen, so creation would otherwise draw a
-    /// NOVO badge on every row it lists — and if it also marked them seen, the first backpack open
+    /// Two flags, and both of them are the difference between a wardrobe you are shopping in and a
+    /// wardrobe you are being introduced to.
+    /// <list type="bullet">
+    /// <item><b><c>showNewBadge</c>: the backpack passes true, character creation passes false.</b>
+    /// On a fresh save every free item is unlocked-and-never-seen, so creation would otherwise draw
+    /// a NOVO badge on every row it lists — and if it also marked them seen, the first backpack open
     /// would arrive with no badges and no HUD pill, spending the one moment a badge exists to
     /// announce. Creation therefore shows no badge and marks nothing seen. Gold appears nowhere on
-    /// that screen except the focus ring.
+    /// that screen except the focus ring.</item>
+    /// <item><b><c>showTalentPrice</c>: the backpack passes true, character creation leaves it at
+    /// its default false.</b> Nothing is bought during creation — the player has no talents, no
+    /// check-in has happened, and the screen's whole job is "here is who you are", not "here is what
+    /// it costs". A price there would be worse than a price nowhere: it would open the game on a
+    /// shopfront. False is the default for exactly that reason, so a third caller that has not
+    /// thought about it gets the answer rule 18 would give.</item>
+    /// </list>
     /// </summary>
     public static class WardrobeRow
     {
@@ -278,9 +305,17 @@ namespace SheepGate.UI
         /// badge is still there to read, and this flag is then never recomputed.
         /// </param>
         /// <param name="namePrefix">GameObject name prefix. Both callers pass "Chip_".</param>
+        /// <param name="showTalentPrice">
+        /// True draws the talent price under a locked row's unlock sentence. <b>Defaults to false,
+        /// and the default is the rule rather than a convenience</b> — see the class summary: the
+        /// backpack opts in, character creation does not, and a caller that has not decided gets the
+        /// answer rule 18 would give. Trailing and optional on purpose, so that adding it could not
+        /// silently reorder the three bools above it at an existing call site.
+        /// </param>
         public static View Build(RectTransform content, CatalogItemDef item, CharacterSlot slot,
                                  Metrics metrics, int bodyArtVariant, bool locked, bool showNewBadge,
-                                 bool isNew, string namePrefix, Action<string, CharacterSlot> onTap)
+                                 bool isNew, string namePrefix, Action<string, CharacterSlot> onTap,
+                                 bool showTalentPrice = false)
         {
             if (item == null || string.IsNullOrEmpty(item.id))
             {
@@ -359,6 +394,18 @@ namespace SheepGate.UI
                     DesignTokens.Type.Body, DesignTokens.Ink.Primary, TextAnchor.UpperLeft,
                     DesignTokens.TypeRole.Body);
                 columnHeight += DesignTokens.Space.S12 + PinText(unlock, metrics.TextColumnWidth);
+            }
+
+            if (locked && showTalentPrice)
+            {
+                // Under the unlock sentence, not instead of it. The sentence is still the row's
+                // invitation and still its brightest line; the price is a second route that does
+                // not yet exist, so it must not displace the one that does. The order of these two
+                // blocks IS that promise — this one comes second and its condition says nothing
+                // about whether the sentence was drawn, so a priced row can never be a row with no
+                // way in written on it.
+                columnHeight += DesignTokens.Space.S12
+                    + BuildPriceRow(textColumn, metrics, TalentPrice.For(itemId));
             }
 
             textLayout.minHeight = columnHeight;
@@ -488,6 +535,57 @@ namespace SheepGate.UI
         }
 
         /// <summary>
+        /// The talent price on a locked row: the coin, then the number, in gold. Returns its height.
+        ///
+        /// The same <see cref="UiSpriteKeys.IconCoin"/> the HUD spends for a talent balance, on
+        /// purpose — a second coin glyph invented for prices would read as a second currency. It
+        /// carries no caption for the reason the HUD's talents readout gives: a coin beside a number
+        /// is legible as money without one.
+        ///
+        /// <b>Gold carries two meanings on a sheet that shows this, and they are told apart by
+        /// shape.</b> "Not yet seen" is the NOVO badge and the tab dot — always a filled shape with
+        /// no glyph in it, always cleared by looking. "A talent" is this coin — always the coin
+        /// glyph, always beside a number. The two can never collide in one row:
+        /// <see cref="Wardrobe.IsNew"/> refuses a badge on a locked item, and only a locked item is
+        /// priced.
+        ///
+        /// <b>The known risk, recorded rather than designed away.</b> A coin and a number on a row
+        /// can be misread as "you have 12" instead of "this costs 12". The backpack answers that by
+        /// carrying the balance in its header, on all four tabs; the word that would remove the
+        /// ambiguity outright was left off because the brief asked for the icon and the value. If
+        /// playtesting shows the misread, a label is the fix, not a different glyph.
+        ///
+        /// Mono for the number, like every other quantity in the game, so the digits are tabular and
+        /// a two-digit price does not shuffle the row against a one-digit one.
+        /// </summary>
+        static float BuildPriceRow(RectTransform textColumn, Metrics metrics, int price)
+        {
+            RectTransform row = UIKit.CreateRect("Price", textColumn);
+            UIKit.HorizontalGroup(row.gameObject, NameRowSpacing, new RectOffset(), TextAnchor.MiddleLeft);
+
+            UIKit.CreateIcon(row, "Icon", UiSpriteKeys.IconCoin, DesignTokens.Brand.Secondary,
+                UIKit.IconSize);
+
+            Text amount = UIKit.CreateText(row, "Amount", price.ToString(CultureInfo.InvariantCulture),
+                DesignTokens.Type.Mono, DesignTokens.Brand.Secondary, TextAnchor.MiddleLeft,
+                DesignTokens.TypeRole.Mono);
+
+            float amountHeight = PinText(amount,
+                metrics.TextColumnWidth - (UIKit.IconSize + NameRowSpacing));
+            float height = Mathf.Max(amountHeight, UIKit.IconSize);
+
+            LayoutElement rowLayout = UIKit.Layout(row);
+            rowLayout.minWidth = metrics.TextColumnWidth;
+            rowLayout.preferredWidth = metrics.TextColumnWidth;
+            rowLayout.flexibleWidth = 0f;
+            rowLayout.minHeight = height;
+            rowLayout.preferredHeight = height;
+            rowLayout.flexibleHeight = 0f;
+
+            return height;
+        }
+
+        /// <summary>
         /// The NOVO badge, and the width it took.
         ///
         /// Gold, because gold means "not yet seen" and that is this badge's whole job. It is not a
@@ -561,7 +659,8 @@ namespace SheepGate.UI
             RectTransform figure = CharacterFigure.CreateFigureRect(figureArea, "Figure");
 
             body = CharacterFigure.BuildLayer(figure, "Body");
-            CharacterFigure.ApplyBody(body, bodyArtVariant, 0, FacingDirection.Down);
+            CharacterFigure.ApplyBody(body, bodyArtVariant, ShadeIndexFor(bodyArtVariant),
+                FacingDirection.Down);
 
             // The plain block, never the hooded one: a thumbnail shows the piece itself, and which
             // variant it draws in a set depends on what else is worn, which the row cannot know.
@@ -665,7 +764,30 @@ namespace SheepGate.UI
                 return;
             }
 
-            CharacterFigure.ApplyBody(view.Body, bodyArtVariant, 0, FacingDirection.Down);
+            CharacterFigure.ApplyBody(view.Body, bodyArtVariant, ShadeIndexFor(bodyArtVariant),
+                FacingDirection.Down);
+        }
+
+        /// <summary>
+        /// The fallback shade index a thumbnail's body must degrade to, unpacked from the packed
+        /// variant it is drawn with.
+        ///
+        /// <b>It is the build, and it has to be.</b> A body sprite that is missing degrades to
+        /// <see cref="CharacterFigure.Shade"/> of <c>Neutral.N500</c> walked by an index, and
+        /// <see cref="CharacterFigure.Apply"/> — the painter every full figure in the game goes
+        /// through — walks it by <c>AppearanceState.body</c>, the build. A thumbnail that passed a
+        /// flat 0 instead would draw a build-1 character in a different colour from the stage
+        /// directly above it, on the one code path where nobody would ever notice: the path that
+        /// only runs when an art layer is missing in the first place. That is precisely the "two
+        /// screens drawing the same character differently" bug <see cref="CharacterFigure"/> exists
+        /// to prevent.
+        ///
+        /// <c>BodyArtVariant</c> is <c>build * SkinTones + tone</c>, so the integer division is the
+        /// build back out again, exactly and without the caller having to hand it over separately.
+        /// </summary>
+        static int ShadeIndexFor(int bodyArtVariant)
+        {
+            return Mathf.Max(0, bodyArtVariant) / AppearanceState.SkinTones;
         }
 
         // ------------------------------------------------------------------ the tap

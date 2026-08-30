@@ -707,6 +707,14 @@ namespace SheepGate.Player
         /// hands and land in either order, and a check that ran inside a load would fire on the
         /// build where only one of them had arrived.
         ///
+        /// <b>Who calls it, so that it never stops being called.</b> <c>BootSequence.ApplyLocale</c>
+        /// does, immediately after the two loads it sits between — every boot and every locale
+        /// switch. <c>Wardrobe.EnsurePresetsLoaded</c> does too, and only on the path where the
+        /// wardrobe itself had to load the presets: a scene opened without the boot sequence, where
+        /// nothing else would ask. A change that moves either load has to bring its call with it.
+        /// This method was written and then reached by nothing for a release, which reads in a diff
+        /// exactly like coverage and reports precisely as much as no check at all.
+        ///
         /// It returns 0 and logs nothing while the catalogue is unauthored. That is deliberate. This
         /// file has to be usable before <c>character_catalog.json</c> exists, and an error per field
         /// per preset on every boot is how a log stops being read.

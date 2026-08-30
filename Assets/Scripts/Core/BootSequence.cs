@@ -98,6 +98,20 @@ namespace SheepGate.Core
             // when that call ran, not this one.
             CharacterPresets.LoadAll(Locales.Active);
 
+            // The cross-file audit, here because this is the only place both files are known to
+            // have been read, in the order it needs: it compares character_presets.json against
+            // character_catalog.json and names every field the two disagree on. Its own contract is
+            // "call it once, after both loaders, not from either loader", and this line is that
+            // call site — the one the wardrobe's lazy path was standing in for and could not reach
+            // once the presets were already loaded here.
+            //
+            // It is deliberately not conditional and deliberately not counted. A clean pair of
+            // content files logs nothing at all, so the cost on a healthy boot is a walk over two
+            // characters, and running it again on every locale switch is the point: the files are
+            // reread there too, and a check that only ever ran on the first read would stop
+            // covering the language the player actually switched to.
+            CharacterPresets.VerifyAgainstCatalog();
+
             LoadScripture();
         }
 

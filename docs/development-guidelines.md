@@ -158,8 +158,8 @@ tools/e2e.sh                      # builds a player and plays the opening and a 
 tools/ios-sim.sh                  # the same build on a phone, driven by hand
 ```
 
-The first three are necessary and not sufficient. This project has learned twice that they are not
-enough:
+The first three are necessary and not sufficient. This project has learned three times that they are
+not enough:
 
 - **Correct code that nothing calls.** `MoraleContest.Begin()` and `VocationTracker.Resolve()` once
   had no runtime caller at all, so day 3 was unreachable in a built game while every unit-level rule
@@ -168,6 +168,40 @@ enough:
   fade; four `SpriteRenderer`s on one GameObject where `[DisallowMultipleComponent]` silently
   dropped three. Neither logged anything. Everything in this project is constructed at runtime, so
   the compiler cannot check a single thing about layout.
+- **Merges that lose nothing and break everything.** Two branches both edited `CharacterArt.cs`: one
+  replaced the accessory facing convention with an explicit four-way switch, the other added three
+  new accessories written against the old `behind`/mirror convention. Different regions of the file,
+  so git would have merged them without a single conflict marker, and every gate above would have
+  gone green with six accessories drawn correctly and three silently back on the old logic. This one
+  was caught before it landed, and only because someone compared the two *conventions* rather than
+  the two diffs. *A merge that loses no lines can still lose the agreement the lines were written
+  under.*
+
+### When two branches touched the same thing
+
+The check that catches the third bullet is not a diff. **A merge check that compares two sides
+misses everything both sides touched** — verifying "no method still has the base version" proves
+only that nobody was ignored, and says nothing about which of two edits to the same idea survived.
+Base-vs-current is structurally blind here, so a second reviewer running the same comparison finds
+the same nothing.
+
+**Check a property of the output instead of the inputs.** An output property does not care which
+side of a merge introduced it, which is precisely what makes it survive a merge that a diff cannot
+read. The worked example, for character art:
+
+> Render each sprite facing **Left** and facing **Right** and compare the two images. If they are
+> pixel-identical, that sprite is still on the mirror convention, whoever wrote it and whichever
+> branch it arrived on.
+
+That is one line of intent and it is worth more than any number of careful diff reads, because it
+is a fact about what the player sees.
+
+**And write the agreement down where something reads it.** The same merge also carried an unlock
+rescale that two sessions had agreed in writing and neither applied — `outfit_valley_mantle` was
+unlocking a stage *before* the stage that hands it out, with every gate green. Nothing was
+overruled; the change was simply agreed and never made. **A promise in a message is not a gate.** If
+two people settle a number, a convention or an ordering, it belongs in a file that a script, a test
+or this document can be pointed at — not only in the conversation that settled it.
 
 `tools/e2e.sh` is the answer to both. It builds the real player, launches it per locale, and drives
 it **through the EventSystem** — it raycasts at a control's own screen position and refuses to

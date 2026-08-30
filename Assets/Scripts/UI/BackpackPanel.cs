@@ -616,7 +616,7 @@ namespace SheepGate.UI
         {
             if (_subscribed)
             {
-                Wardrobe.Changed -= Refresh;
+                Wardrobe.Changed -= OnWardrobeChanged;
                 _subscribed = false;
             }
 
@@ -673,7 +673,7 @@ namespace SheepGate.UI
             // cannot drift apart, because there is only one method that produces either.
             SelectTab(TabIndexHair);
 
-            Wardrobe.Changed += Refresh;
+            Wardrobe.Changed += OnWardrobeChanged;
             _subscribed = true;
         }
 
@@ -1656,14 +1656,25 @@ namespace SheepGate.UI
             ShowRefusal(null);
             SettleTab(_tabs[index]);
 
-            // MarkSlotSeen raises Changed, which this panel is subscribed to, and that subscription
-            // already calls Refresh. Calling it again here repainted four segments and eighteen rows
-            // a second time on every tab tap. Refresh is idempotent, so the old form was harmless
-            // rather than wrong — but only one of the two paths can be the one that repaints, and
-            // the event is the one that fires whether the change came from here or from anywhere.
-            if (wardrobe && Wardrobe.MarkSlotSeen(_state, TabSlots[index]))
+            // Exactly one repaint, always. MarkSlotSeen raises Changed and this panel is subscribed
+            // to it, so the naive form repainted four segments and eighteen rows twice per tap.
+            //
+            // The obvious fix — let the event do it and return early — is wrong, and e2e caught it:
+            // Build() calls SelectTab BEFORE it subscribes, so on the very first selection there is
+            // no subscriber to repaint, and the sheet opened with no tab painted as current. That is
+            // the whole failure mode of routing a guarantee through an event: it holds only once
+            // somebody is listening. Suppressing the event and repainting here holds either way.
+            _suppressChangedRepaint = true;
+            try
             {
-                return;
+                if (wardrobe)
+                {
+                    Wardrobe.MarkSlotSeen(_state, TabSlots[index]);
+                }
+            }
+            finally
+            {
+                _suppressChangedRepaint = false;
             }
 
             Refresh();
@@ -1820,6 +1831,24 @@ namespace SheepGate.UI
 
         /// <summary>One report per session. A label that does not fit does not fit on every repaint.</summary>
         static bool _overflowReported;
+
+
+        /// <summary>
+        /// The wardrobe changed somewhere. Repaints, unless this panel is the one that changed it
+        /// and is about to repaint anyway — see <see cref="SelectTab"/>.
+        /// </summary>
+        void OnWardrobeChanged()
+        {
+            if (_suppressChangedRepaint)
+            {
+                return;
+            }
+
+            Refresh();
+        }
+
+        /// <summary>Set only across the one call in <see cref="SelectTab"/> that raises Changed itself.</summary>
+        bool _suppressChangedRepaint;
 
         // ------------------------------------------------------------------ repainting
 

@@ -294,6 +294,13 @@ namespace SheepGate.UI
         static readonly float SheetTop = DesignTokens.Px(72f);
         static readonly float SheetPadding = DesignTokens.Space.S20;
         static readonly float HeaderHeight = DesignTokens.Space.TouchTarget;
+
+        /// <summary>
+        /// Width reserved in the header for the coin, its gap and four mono digits. Reserved rather
+        /// than measured so the title's inset is a constant — see <see cref="BuildHeader"/>.
+        /// </summary>
+        static readonly float BalanceWidth =
+            UIKit.IconSize + DesignTokens.Space.S4 + DesignTokens.Px(52f);
         static readonly float StageHeight = DesignTokens.Px(124f);
         static readonly float FigureBoxHeight = DesignTokens.Px(100f);
         static readonly float ThumbSize = DesignTokens.Px(56f);
@@ -501,6 +508,7 @@ namespace SheepGate.UI
         CanvasGroup _refusalGroup;
         Coroutine _refusalFade;
         Text[] _materialCounts;
+        Text _balanceCount;
 
         /// <summary>
         /// A look to draw when no run is in progress. Never written to the save — it exists so that
@@ -730,6 +738,25 @@ namespace SheepGate.UI
             dismiss.Panel = this;
         }
 
+        /// <summary>
+        /// The sheet's title, the talent balance, and the way out.
+        ///
+        /// <b>The balance is here because the prices are.</b> A locked row shows a coin and a
+        /// number, and a price with no balance anywhere near it can be read as the balance — "you
+        /// have 12" instead of "this costs 12". The Materiais tab does carry the count, but it is
+        /// one tab away from every row that quotes a price, which is exactly when the reader cannot
+        /// check. In the header it is on screen on all four tabs, beside the word that says whose
+        /// pocket it is.
+        ///
+        /// It is not a score. Rule 10 bars progress toward something — a fraction, a bar, a "next
+        /// unlock" — and a currency balance is a quantity the player holds, the same kind of number
+        /// as the stone and timber counts this sheet has always shown.
+        ///
+        /// The width is reserved rather than fitted. A <see cref="ContentSizeFitter"/> here would
+        /// make the title's right inset depend on a width that is zero for the first frame, and the
+        /// title would jump once as the count arrived. Four mono digits is more talents than this
+        /// economy can currently pay in a year of daily check-ins, so the reserve does not clip.
+        /// </summary>
         void BuildHeader(RectTransform sheetRect)
         {
             RectTransform header = UIKit.CreateRect("Header", sheetRect);
@@ -738,7 +765,10 @@ namespace SheepGate.UI
             Text title = UIKit.CreateText(header, "Title", Loc.T(TitleKey), DesignTokens.Type.Title,
                 DesignTokens.Ink.Primary, TextAnchor.MiddleLeft, DesignTokens.TypeRole.Title);
             UIKit.Stretch((RectTransform)title.transform, 0f,
-                          DesignTokens.Space.TouchTarget + DesignTokens.Space.TouchGap, 0f, 0f);
+                          DesignTokens.Space.TouchTarget + DesignTokens.Space.TouchGap
+                              + BalanceWidth + DesignTokens.Space.TouchGap, 0f, 0f);
+
+            BuildBalance(header);
 
             Button close = UIKit.CreateIconButton(header, "CloseButton", UiSpriteKeys.IconClose,
                 Loc.T(CloseKey), Close);
@@ -748,6 +778,32 @@ namespace SheepGate.UI
             closeRect.pivot = new Vector2(1f, 0.5f);
             closeRect.sizeDelta = new Vector2(DesignTokens.Space.TouchTarget, DesignTokens.Space.TouchTarget);
             closeRect.anchoredPosition = Vector2.zero;
+        }
+
+        /// <summary>
+        /// The coin and the count, sitting between the title and the close button. Same coin, same
+        /// gold and same mono digits as every other talent figure in the game, so the number here
+        /// and the number on a price are visibly the same currency.
+        /// </summary>
+        void BuildBalance(RectTransform header)
+        {
+            RectTransform balance = UIKit.CreateRect("Balance", header);
+            UIKit.HorizontalGroup(balance.gameObject, DesignTokens.Space.S4, new RectOffset(),
+                TextAnchor.MiddleRight);
+
+            balance.anchorMin = new Vector2(1f, 0.5f);
+            balance.anchorMax = new Vector2(1f, 0.5f);
+            balance.pivot = new Vector2(1f, 0.5f);
+            balance.sizeDelta = new Vector2(BalanceWidth, DesignTokens.Space.TouchTarget);
+            balance.anchoredPosition =
+                new Vector2(-(DesignTokens.Space.TouchTarget + DesignTokens.Space.TouchGap), 0f);
+
+            UIKit.CreateIcon(balance, "Icon", UiSpriteKeys.IconCoin, DesignTokens.Brand.Secondary,
+                UIKit.IconSize);
+
+            _balanceCount = UIKit.CreateText(balance, "Count", string.Empty, DesignTokens.Type.Mono,
+                DesignTokens.Brand.Secondary, TextAnchor.MiddleRight, DesignTokens.TypeRole.Mono);
+            _balanceCount.horizontalOverflow = HorizontalWrapMode.Overflow;
         }
 
         /// <summary>
@@ -1954,6 +2010,7 @@ namespace SheepGate.UI
         void Refresh()
         {
             RefreshFigure();
+            RefreshBalance();
             RefreshMaterials();
             RefreshSegments();
             RefreshRows();
@@ -1980,6 +2037,21 @@ namespace SheepGate.UI
                 UIKit.GetSprite(SheepGate.Art.ArtKeys.Hair(look.hair,
                     UiSpriteKeys.ToArtFacing(FacingDirection.Down))),
                 Shade(DesignTokens.Ambient.Sky, look.hair), 0.76f, 1f);
+        }
+
+        /// <summary>
+        /// The header's talent count, read straight off <see cref="GameState"/> like the Materiais
+        /// grid below it, so the two readings of the same number cannot disagree.
+        /// </summary>
+        void RefreshBalance()
+        {
+            if (_balanceCount == null)
+            {
+                return;
+            }
+
+            int talents = _state != null ? Mathf.Max(0, _state.talents) : 0;
+            _balanceCount.text = talents.ToString(CultureInfo.InvariantCulture);
         }
 
         void RefreshMaterials()

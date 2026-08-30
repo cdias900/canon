@@ -515,6 +515,23 @@ namespace SheepGate.E2E
             // The rest of it. Nothing is tapped from here on: the day has to end by itself.
             resources.Spend(state.workCapacity);
 
+            // Day one has no morning — it opens in a cutscene — so its check-in is owed at the
+            // evening instead, and it has to arrive BEFORE the split rather than on top of it.
+            // Asserting the order matters as much as asserting it appears: dusk waits on an open
+            // panel, so a check-in that turned up late would hold the night open indefinitely.
+            yield return WaitForObject("Option_0", "the day-one check-in");
+            Record("the first day is checked in before its split", !EndDayPanel.IsOpen,
+                EndDayPanel.IsOpen ? "the split opened over the check-in" : "the split is waiting for it");
+            yield return Capture("06b-check-in");
+            CheckNoMissingStrings();
+
+            GameObject checkInAnswer = Find("Option_0");
+            if (checkInAnswer != null)
+            {
+                yield return TapObject(checkInAnswer, "answer the day-one check-in");
+                yield return Tap("Continue", "close the day-one check-in");
+            }
+
             yield return WaitUntil(() => EndDayPanel.IsOpen, "the split to open itself");
 
             Record("the day ends without being asked to", EndDayPanel.IsOpen,

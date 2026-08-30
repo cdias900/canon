@@ -61,6 +61,13 @@ namespace SheepGate.Player
         private readonly Sprite[][] _frames = new Sprite[LayerCount][];
         private readonly int[] _variants = new int[LayerCount];
 
+        /// <summary>
+        /// The build handed to <see cref="Apply"/>, kept by reference so <see cref="Refresh"/> can
+        /// re-read it. Null until a build has been applied, which is the state an NPC composed
+        /// straight from the art library stays in.
+        /// </summary>
+        private AppearanceState _appliedState;
+
         private FacingDirection _direction = FacingDirection.Down;
         private string _animation = AnimationIdle;
         private Color _tint = Color.white;
@@ -178,21 +185,83 @@ namespace SheepGate.Player
             RebuildFrames();
         }
 
-        /// <summary>Applies a saved character build. Null resets every layer to variant 0.</summary>
+        /// <summary>
+        /// Applies a saved character build. Null resets every layer to variant 0.
+        ///
+        /// The state is kept <b>by reference</b>, which is what makes <see cref="Refresh"/> useful:
+        /// whoever changes the build writes into the same object, and this component re-reads it.
+        /// </summary>
         public void Apply(AppearanceState state)
         {
             Initialize();
+            _appliedState = state;
+            CopyVariants(state);
+            RebuildFrames();
+        }
 
-            _variants[LayerBody] = state != null ? ClampVariant(LayerBody, state.body) : 0;
-            _variants[LayerLegs] = state != null ? ClampVariant(LayerLegs, state.legs) : 0;
-            _variants[LayerTop] = state != null ? ClampVariant(LayerTop, state.top) : 0;
-            _variants[LayerAccessory] = state != null ? ClampVariant(LayerAccessory, state.accessory) : 0;
+        /// <summary>
+        /// Re-reads the <see cref="AppearanceState"/> last handed to <see cref="Apply"/> and
+        /// repaints the five layers where they stand.
+        ///
+        /// This is how a character changes clothes without the scene being rebuilt: the wardrobe
+        /// writes the six ints of that very object and something calls this. Nothing is reloaded,
+        /// nothing is respawned, and the character keeps their position, facing and animation —
+        /// only the sprites under them change.
+        ///
+        /// Two deliberate refusals, and both are the same rule (never take something away):
+        /// <list type="bullet">
+        ///   <item>A component that was never given a build does nothing at all. It does not fall
+        ///   back to <c>Apply(null)</c>, which would blank an NPC composed straight from the art
+        ///   library into variant 0 on every layer.</item>
+        ///   <item>A build whose six ints are unchanged does nothing either. The wardrobe raises
+        ///   its change event for badge state as well as for clothes, and rebuilding frames resets
+        ///   the animation step, so a badge being spent would otherwise stutter every character
+        ///   listening.</item>
+        /// </list>
+        ///
+        /// <b>The name is deliberately not <c>Refresh</c>.</b> GameScene composes this component by
+        /// probing a list of method names — Apply, SetAppearance, Set, Rebuild, Refresh, Build —
+        /// first with an argument and then without, and warns when nothing matched. A public
+        /// zero-argument <c>Refresh</c> would satisfy that second probe every time, so the warning
+        /// could never fire again and a genuinely broken compose would land silently. This method
+        /// stays outside the probe list so that tripwire keeps working.
+        /// </summary>
+        public void Reapply()
+        {
+            if (_appliedState == null) return;
 
-            // Build and skin share the body sprite, so they arrive packed as one art variant.
-            _variants[LayerBody] = state != null ? state.BodyArtVariant : 0;
-            _variants[LayerHair] = state != null ? ClampVariant(LayerHair, state.hair) : 0;
+            Initialize();
+            if (!CopyVariants(_appliedState)) return;
 
             RebuildFrames();
+        }
+
+        /// <summary>
+        /// Reads one build into the five layer variants. Returns true when at least one of them
+        /// actually moved.
+        ///
+        /// The one place the packing lives: build and skin share the body sprite, so they arrive as
+        /// a single art variant, and <see cref="Apply"/> and <see cref="Refresh"/> both come through
+        /// here rather than each spelling that out. Two copies of it is two chances to fix one and
+        /// leave the other drawing the wrong skin tone.
+        /// </summary>
+        private bool CopyVariants(AppearanceState state)
+        {
+            bool changed = false;
+            changed |= SetVariant(LayerBody, state != null ? state.BodyArtVariant : 0);
+            changed |= SetVariant(LayerLegs, state != null ? state.legs : 0);
+            changed |= SetVariant(LayerTop, state != null ? state.top : 0);
+            changed |= SetVariant(LayerAccessory, state != null ? state.accessory : 0);
+            changed |= SetVariant(LayerHair, state != null ? state.hair : 0);
+            return changed;
+        }
+
+        private bool SetVariant(int layer, int value)
+        {
+            int clamped = ClampVariant(layer, value);
+            if (_variants[layer] == clamped) return false;
+            _variants[layer] = clamped;
+            return true;
         }
 
         public void SetDirection(FacingDirection direction)

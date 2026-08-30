@@ -494,6 +494,28 @@ namespace SheepGate.Art
         }
 
         /// <summary>
+        /// The backpack: what the player is carrying and what they are wearing.
+        ///
+        /// Outlined rather than filled, which is the rule that separates the two kinds of icon in
+        /// this game. A filled silhouette is a resource — a thing you have a quantity of, drawn
+        /// beside its number. An outline is somewhere you can go. The backpack is a destination,
+        /// so it is hollow, and it reads as a different kind of thing from the stone and timber
+        /// counts sitting a few points away in the same HUD.
+        ///
+        /// Same construction as <see cref="IconLock"/> deliberately — a strap arc over a rounded
+        /// body — because the two are the only icons here that hang something above a container,
+        /// and drawing them on different geometry would show up as a wobble between them.
+        /// </summary>
+        public static PixelCanvas IconBag()
+        {
+            PixelCanvas canvas = new PixelCanvas(IconGrid, IconGrid);
+            canvas.StrokeArcAA(36f, 30f, 11f, IconStroke, 0f, 180f, Tintable);
+            canvas.StrokeRoundedRectAA(13f, 30f, 46f, 30f, 8f, IconStroke, Tintable);
+            canvas.CapsuleAA(13f, 41f, 59f, 41f, IconStroke, Tintable);
+            return Done(canvas);
+        }
+
+        /// <summary>
         /// Last pass on every Sistema Vale sprite: gives the empty texels the body's colour so a
         /// bilinear sample taken between a lit texel and an empty one does not drag a dark fringe
         /// in with it. It changes nothing that is drawn, only what is hiding under the zeroes.

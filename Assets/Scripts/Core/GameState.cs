@@ -118,6 +118,33 @@ namespace SheepGate.Core
         public int morale = 100;
         public AppearanceState appearance = new AppearanceState();
         public string playerName = "";
+
+        // ---------------------------------------------------------------------- the wardrobe
+        //
+        // Two lists, both purely additive: a save written before the backpack existed carries
+        // neither key, so both keep their field initializer and load empty. Nothing else in the
+        // save changes shape, and in particular AppearanceState keeps its six ints — those stay
+        // the storage the renderer reads, and the wardrobe writes into them rather than beside
+        // them. See SheepGate.Player.Wardrobe, which owns every read and write of both lists.
+
+        /// <summary>
+        /// Catalogue item ids currently worn, in the order they were put on. Order is not
+        /// decoration: <see cref="SheepGate.Player.CharacterCatalog.Compose"/> applies items in
+        /// the order it is handed them, so within one art layer the last one in this list is the
+        /// one that draws.
+        ///
+        /// Empty is a valid, ordinary state — it means the look came from character creation
+        /// rather than from a catalogue item, not that the player is undressed.
+        /// </summary>
+        public List<string> equippedItems = new List<string>();
+
+        /// <summary>
+        /// Item ids whose "new" badge has been spent. An id lands here when the player has
+        /// actually looked at the slot holding it; it never leaves, and an item is never marked
+        /// here while it is still locked — that would spend the badge before the player could
+        /// ever see it. <see cref="SheepGate.Player.Wardrobe.MarkSeen"/> holds both rules.
+        /// </summary>
+        public List<string> seenItems = new List<string>();
         public List<WallSegmentState> segments = new List<WallSegmentState>();
         public Dictionary<string, int> vocationScores = new Dictionary<string, int>();
         public HashSet<string> flags = new HashSet<string>();

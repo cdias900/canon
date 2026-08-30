@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using SheepGate.Player;
 using SheepGate.Scripture;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -86,6 +87,7 @@ namespace SheepGate.Core
             Locales.SetActive(locale, false);
             Loc.Reload();
             GameData.LoadAll(Locales.Active);
+            CharacterCatalog.LoadAll(Locales.Active);
             LoadScripture();
         }
 

@@ -1,5 +1,8 @@
 using System;
+using System.Globalization;
 using SheepGate.Core;
+using SheepGate.Dialogue;
+using SheepGate.Player;
 using SheepGate.World;
 using UnityEngine;
 using UnityEngine.UI;
@@ -8,16 +11,19 @@ namespace SheepGate.UI
 {
     /// <summary>
     /// The permanent overlay: what the player has to spend, how far the wall has come, what day it
-    /// is, and the three buttons that change the frame — the wide patrol camera ("Ronda" on the
-    /// button), the map, and settings.
+    /// is, and the four buttons that change the frame — the wide patrol camera ("Ronda" on the
+    /// button), the map, the backpack, and settings.
     ///
     /// Deliberately small. This is a portrait phone screen where the ground itself is the primary
-    /// control, so the readouts sit in a single glass card at the top and the map hugs the bottom
-    /// left edge. The middle of the screen — where taps move the character — stays empty.
+    /// control, so the readouts sit in a single glass card at the top and the two bottom corners
+    /// hold one square control each. The middle of the screen — where taps move the character —
+    /// stays empty.
     ///
     /// The two bottom corners are the reachable ones on a phone held in one hand, which is why the
-    /// map sits there and settings does not: settings is a thing you visit once, and a control in
-    /// the thumb zone is a control you press by accident.
+    /// map and the backpack sit there and settings does not: settings is a thing you visit once,
+    /// and a control in the thumb zone is a control you press by accident. The two are the whole
+    /// width apart, which is far past the 8 points of clearance the design system asks for between
+    /// touch targets.
     ///
     /// <b>The design system's stated UX risk is this screen.</b> "HUD tampando a cena" is what
     /// Sistema Vale names as the way this project fails, and its priority order is scene, then
@@ -87,6 +93,35 @@ namespace SheepGate.UI
         static readonly float PlateWidth = UIKit.DefaultButtonWidth + 2f * PlatePadding;
         static readonly float PlateHeight = UIKit.ButtonMinHeight + 2f * PlatePadding;
 
+        /// <summary>
+        /// Height of the badge that says how many wardrobe items the player has not looked at yet.
+        /// Its width follows its content, so a two digit count is a wider pill rather than a
+        /// smaller number — the design system's floor on type is a floor everywhere.
+        /// </summary>
+        static readonly float BadgeHeight = DesignTokens.Px(20f);
+
+        /// <summary>Breathing room either side of the count inside the badge.</summary>
+        static readonly float BadgePadding = DesignTokens.Space.S8;
+
+        /// <summary>
+        /// How far the badge hangs off the plate's top right corner. Small on purpose: the plate
+        /// already sits a full gutter in from the screen edge, so this cannot reach the safe area.
+        /// </summary>
+        static readonly float BadgeOverhang = DesignTokens.Space.S4;
+
+        /// <summary>
+        /// How often the badge count is recomputed, in unscaled seconds.
+        ///
+        /// It is polled rather than pushed because an item does not open when the wardrobe changes
+        /// — it opens when the wall reaches a stage or the day turns, which raises no wardrobe
+        /// event at all. Polling is the only way the badge can appear on the day it is earned.
+        /// The interval exists because the answer walks the whole catalogue, and a quarter of a
+        /// second is far below the point where a player would notice a number arriving late.
+        ///
+        /// A wardrobe change still updates it immediately; the interval only bounds the idle cost.
+        /// </summary>
+        const float BadgePollInterval = 0.25f;
+
         static HUD _current;
 
         Canvas _canvas;
@@ -98,9 +133,15 @@ namespace SheepGate.UI
         Image _patrolPlate;
         Button _mapButton;
         Button _settingsButton;
+        Button _backpackButton;
+        Image _backpackBadge;
+        Text _backpackBadgeCount;
         CameraRig _cameraRig;
+        PlayerController _player;
 
         bool _patrolViewActive;
+        int _cachedNewItems = int.MinValue;
+        float _nextBadgePoll;
         int _cachedDay = int.MinValue;
         int _cachedWork = int.MinValue;
         int _cachedWorkMax = int.MinValue;
@@ -163,11 +204,29 @@ namespace SheepGate.UI
 
             _current = this;
             Build();
+
+            // The badge follows the wardrobe as well as polling it: a badge spent inside the
+            // backpack has to be gone the moment the sheet closes, and a quarter of a second of a
+            // stale count on a screen the player just came back to reads as a bug.
+            //
+            // This is also where the world character learns it has been dressed. Subscribing here
+            // rather than from whoever owns the player's sprite stack is safe for one specific
+            // reason: an equip can only happen inside the backpack, the backpack can only be opened
+            // from this HUD's button, and this HUD outlives the modal it opened. It is the same
+            // shape as this component driving the CameraRig itself instead of hoping something
+            // subscribed to PatrolViewToggled.
+            Wardrobe.Changed += OnWardrobeChanged;
+
             Refresh();
         }
 
         void OnDestroy()
         {
+            // A static event outlives the scene, and this scene is rebuilt from scratch on a
+            // language switch. Removing a handler that was never added — the duplicate destroyed
+            // above — is a no-op, so this needs no guard of its own.
+            Wardrobe.Changed -= OnWardrobeChanged;
+
             if (_current == this)
             {
                 _current = null;
@@ -189,11 +248,6 @@ namespace SheepGate.UI
 
             // The opening shows the region once and then leaves; this is the way back to it.
             //
-            // The bottom right used to hold a button that ended the day, and nothing replaced it:
-            // the day now ends when the work runs out, and stopping early is the mat at the door,
-            // in the world. A HUD button asking the player to declare the day over made stopping
-            // a chore performed on the interface instead of a thing done in the village.
-            //
             // SafeAreaBottom is added on top of the safe-area inset rather than instead of it: the
             // inset clears the home indicator, and the design system asks for breathing room above
             // it as well, so a control does not sit flush against the gesture bar.
@@ -202,6 +256,48 @@ namespace SheepGate.UI
             UIKit.AnchorCorner((RectTransform)mapPlate.transform, new Vector2(0f, 0f),
                                new Vector2(PlateWidth, PlateHeight),
                                new Vector2(DesignTokens.Space.Gutter, DesignTokens.Space.SafeAreaBottom));
+
+            BuildBackpack(root);
+        }
+
+        /// <summary>
+        /// The backpack, in the other reachable corner.
+        ///
+        /// The bottom right used to hold a button that ended the day. Nothing replaced it for a
+        /// while — the day now ends when the work runs out, and stopping early is the mat at the
+        /// door, in the world — and this is what took the corner instead. It is the opposite kind
+        /// of control: the end-of-day button asked the player to declare something, and this one
+        /// only opens a drawer.
+        ///
+        /// Square and wordless, which is the one place this HUD spends an icon. The design system
+        /// keeps filled silhouettes for resources and outlines for navigation, and this is
+        /// navigation: it opens a sheet, it counts nothing and it spends nothing. The icon-button
+        /// variant is also the one that will not let the control exist without an accessible name,
+        /// which matters more here than anywhere else on this screen — the other three controls say
+        /// what they are in words.
+        ///
+        /// <b>The glyph is drawn, not borrowed.</b> This button briefly stood in with the menu
+        /// outline, which was wrong in a way worth recording: a hamburger says "more options", and
+        /// the one thing this control must not be confused with is settings. <c>UiArt.IconBag</c>
+        /// exists for it now — outlined rather than filled, because on this HUD a filled silhouette
+        /// is a resource with a number beside it and an outline is somewhere you can go.
+        ///
+        /// It hangs off the HUD's own canvas, so it disappears with the rest of the overlay when
+        /// <see cref="SetVisible"/> is called and there is no second visibility rule to keep in
+        /// step. That is why the opening cutscene, which hides the HUD, needs nothing here.
+        /// </summary>
+        void BuildBackpack(RectTransform root)
+        {
+            Image plate;
+            _backpackButton = BuildPlatedIconButton(root, "BackpackButton", UiSpriteKeys.IconBag,
+                                                    Loc.T("hud.backpack"), OnBackpackClicked, out plate);
+
+            var plateRect = (RectTransform)plate.transform;
+            UIKit.AnchorCorner(plateRect, new Vector2(1f, 0f),
+                               new Vector2(PlateHeight, PlateHeight),
+                               new Vector2(DesignTokens.Space.Gutter, DesignTokens.Space.SafeAreaBottom));
+
+            BuildBackpackBadge(plateRect);
         }
 
         /// <summary>
@@ -398,6 +494,102 @@ namespace SheepGate.UI
             return button;
         }
 
+        /// <summary>
+        /// The same plate, carrying a square icon control instead of a labelled one.
+        ///
+        /// Written beside <see cref="BuildPlatedButton"/> rather than folded into it. The two
+        /// differ in the plate's width and in the variant, and the three controls that already
+        /// exist are laid out against a plate exactly <see cref="PlateWidth"/> wide — a shared
+        /// helper with a width parameter would have put every one of them one argument away from
+        /// moving, for no gain.
+        ///
+        /// <paramref name="label"/> is never drawn. It is the control's accessible name, and
+        /// <see cref="UIKit.CreateIconButton"/> requires it: a square with a glyph on it is
+        /// unreadable to anyone who does not already recognise the shape.
+        /// </summary>
+        Button BuildPlatedIconButton(Transform parent, string name, string iconKey, string label,
+                                     Action onClick, out Image plate)
+        {
+            plate = UIKit.CreateCard(parent, name + "Plate", UIKit.CardStyle.Glass);
+            plate.raycastTarget = false;
+
+            var plateRect = (RectTransform)plate.transform;
+            plateRect.sizeDelta = new Vector2(PlateHeight, PlateHeight);
+
+            LayoutElement plateLayout = UIKit.Layout(plate);
+            plateLayout.minWidth = PlateHeight;
+            plateLayout.preferredWidth = PlateHeight;
+            plateLayout.minHeight = PlateHeight;
+            plateLayout.preferredHeight = PlateHeight;
+
+            // Inset by the plate's own clearance, which leaves the control at exactly the touch
+            // target the design system asks for: the plate is that target plus the padding twice.
+            Button button = UIKit.CreateIconButton(plateRect, name, iconKey, label, onClick);
+            UIKit.Stretch((RectTransform)button.transform, PlatePadding, PlatePadding, PlatePadding, PlatePadding);
+            return button;
+        }
+
+        /// <summary>
+        /// How many things in the backpack the player has not looked at yet.
+        ///
+        /// <b>A count and not a dot.</b> The design system's rule is that an icon never stands on
+        /// its own; a bare dot would say only that something is different, and the player would
+        /// have to open the sheet to find out how different. The number is the whole message.
+        ///
+        /// <b>Where the word is.</b> Rule 8 asks for a quantity to carry its label, and the label
+        /// here rides on the control's accessible name rather than inside the pill — the button is
+        /// one touch target wide, and a pill spelling out the word as well would be nearly as wide
+        /// as the control it sits on and would read as a second control. So the name the button
+        /// answers to changes with the count, and the pill carries the digits. Mono either way, so
+        /// the digits are tabular and 9 becoming 10 does not shuffle the pill sideways.
+        ///
+        /// <b>Why gold.</b> Gold is the system's mark for "this is new", which is exactly and only
+        /// what this says. It does not spend the screen's one gold call to action, because this is
+        /// not a call to action: it is a count on a navigation control, and the control underneath
+        /// it stays an ordinary icon button.
+        ///
+        /// Nothing here is a progress bar and nothing here is a fraction. It counts items already
+        /// open and not yet seen — it never counts how close anything is to opening, which is the
+        /// number this game does not have.
+        /// </summary>
+        void BuildBackpackBadge(RectTransform plate)
+        {
+            Image badge = UIKit.CreatePanel(plate, "BackpackBadge", DesignTokens.Brand.Secondary,
+                                            UiSpriteKeys.FrameSm);
+            badge.raycastTarget = false;
+
+            var badgeRect = (RectTransform)badge.transform;
+            badgeRect.anchorMin = new Vector2(1f, 1f);
+            badgeRect.anchorMax = new Vector2(1f, 1f);
+            badgeRect.pivot = new Vector2(1f, 1f);
+            badgeRect.sizeDelta = new Vector2(BadgeHeight, BadgeHeight);
+            badgeRect.anchoredPosition = new Vector2(BadgeOverhang, BadgeOverhang);
+
+            // The pill measures itself around the digits: a group to centre them, and a fitter on
+            // the horizontal axis only, so the height stays the constant above whatever the count is.
+            UIKit.HorizontalGroup(badge.gameObject, 0f, new RectOffset(
+                Mathf.RoundToInt(BadgePadding), Mathf.RoundToInt(BadgePadding), 0, 0),
+                TextAnchor.MiddleCenter);
+
+            var fitter = badge.gameObject.AddComponent<ContentSizeFitter>();
+            fitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
+            fitter.verticalFit = ContentSizeFitter.FitMode.Unconstrained;
+
+            _backpackBadgeCount = UIKit.CreateText(badgeRect, "Count", string.Empty, DesignTokens.Type.Mono,
+                                                   DesignTokens.Ink.OnSecondary, TextAnchor.MiddleCenter,
+                                                   DesignTokens.TypeRole.Mono);
+            _backpackBadgeCount.raycastTarget = false;
+            _backpackBadgeCount.horizontalOverflow = HorizontalWrapMode.Overflow;
+
+            // A single digit still gets a round pill rather than a narrow slot.
+            LayoutElement countLayout = UIKit.Layout(_backpackBadgeCount);
+            countLayout.minWidth = BadgeHeight - 2f * BadgePadding;
+            countLayout.minHeight = BadgeHeight;
+
+            _backpackBadge = badge;
+            badge.gameObject.SetActive(false);
+        }
+
         // ------------------------------------------------------------------ readouts
 
         void Update()
@@ -407,6 +599,8 @@ namespace SheepGate.UI
             {
                 return;
             }
+
+            PollBackpackBadge(state);
 
             int wallStages;
             int wallTotal;
@@ -449,6 +643,7 @@ namespace SheepGate.UI
             if (state != null)
             {
                 Apply(state);
+                ApplyBackpackBadge(state);
             }
         }
 
@@ -686,6 +881,188 @@ namespace SheepGate.UI
             }
 
             WorldMapView.Open();
+        }
+
+        // ------------------------------------------------------------------ backpack
+
+        /// <summary>
+        /// Opens the backpack, when the frame is the player's to operate.
+        ///
+        /// The gate is spelled out here rather than borrowed from the map's, because the two are
+        /// not the same question and a shared predicate would quietly make them so. It reads the
+        /// four states in which this screen is not the thing in front of the player:
+        /// <list type="bullet">
+        ///   <item>a modal is already up — the backpack is one, and a wardrobe stacked on the
+        ///   quiz would leave two sheets fighting for the same card;</item>
+        ///   <item>something holds the input lock — the same gate the player's own taps on the
+        ///   ground pass through;</item>
+        ///   <item>the opening cutscene is running. It hides this whole overlay for exactly this
+        ///   reason, so the button is already unreachable, and this is the belt to that brace;</item>
+        ///   <item>somebody is talking. Dialogue does not take the input lock, so it has to be
+        ///   asked directly — the same thing <see cref="WorldMapView.CanOpen"/> does, for the same
+        ///   reason. The lookup happens on the tap and never per frame.</item>
+        /// </list>
+        ///
+        /// A refusal is silent and nothing is greyed out, which matches every other control on this
+        /// HUD. There is no disabled state on this screen and this is not the place to invent one:
+        /// during three of those four states the overlay is either hidden or behind something the
+        /// player is reading, and a control that dims itself for a beat and comes back would be a
+        /// new thing to watch rather than a clearer one.
+        /// </summary>
+        void OnBackpackClicked()
+        {
+            if (!CanOpenBackpack())
+            {
+                return;
+            }
+
+            BackpackPanel.Show();
+        }
+
+        /// <summary>Whether the backpack may be opened this instant. See <see cref="OnBackpackClicked"/>.</summary>
+        static bool CanOpenBackpack()
+        {
+            if (ModalRoot.IsOpen || InputLock.IsLocked || IntroCutscene.IsPlaying)
+            {
+                return false;
+            }
+
+            DialogueSystem dialogue = FindFirstObjectByType<DialogueSystem>();
+            return dialogue == null || !dialogue.IsPlaying;
+        }
+
+        /// <summary>
+        /// The wardrobe changed: recount the badge without waiting for the next poll, and repaint
+        /// the character standing in the village.
+        /// </summary>
+        void OnWardrobeChanged()
+        {
+            GameState state = TryGetState();
+            if (state != null)
+            {
+                ApplyBackpackBadge(state);
+            }
+
+            _nextBadgePoll = Time.unscaledTime + BadgePollInterval;
+            RepaintPlayer();
+        }
+
+        /// <summary>Recomputes the badge at most once per <see cref="BadgePollInterval"/>.</summary>
+        void PollBackpackBadge(GameState state)
+        {
+            if (Time.unscaledTime < _nextBadgePoll)
+            {
+                return;
+            }
+
+            _nextBadgePoll = Time.unscaledTime + BadgePollInterval;
+            ApplyBackpackBadge(state);
+        }
+
+        /// <summary>
+        /// Puts the count on the badge, and the same count into the name the control answers to.
+        ///
+        /// Zero hides the pill outright rather than drawing an empty one: there is nothing new, and
+        /// a badge showing 0 is a notice that nothing happened.
+        /// </summary>
+        void ApplyBackpackBadge(GameState state)
+        {
+            int count = Wardrobe.NewCount(state);
+            if (count == _cachedNewItems)
+            {
+                return;
+            }
+
+            _cachedNewItems = count;
+
+            if (_backpackBadgeCount != null)
+            {
+                _backpackBadgeCount.text = count.ToString(CultureInfo.InvariantCulture);
+            }
+
+            if (_backpackBadge != null)
+            {
+                _backpackBadge.gameObject.SetActive(count > 0);
+
+                // The pill sizes itself around the digits, and a fitter on an object that was just
+                // switched on lays out a frame later. Doing it now is what keeps a two digit count
+                // from appearing in a one digit pill for a frame.
+                if (count > 0)
+                {
+                    UIKit.RebuildNow((RectTransform)_backpackBadge.transform);
+                }
+            }
+
+            if (_backpackButton != null)
+            {
+                AccessibleLabel.Apply(_backpackButton.gameObject,
+                                      count > 0 ? Loc.T("hud.backpack_new", count) : Loc.T("hud.backpack"));
+            }
+        }
+
+        /// <summary>
+        /// Repaints the player's sprite stack from the appearance the wardrobe just wrote.
+        ///
+        /// Nothing is respawned and no scene is reloaded: the wardrobe writes the six ints of the
+        /// very <c>AppearanceState</c> the character was built from, and
+        /// <see cref="CharacterAppearance.Refresh"/> re-reads them in place. The character keeps
+        /// their position, their facing and their animation.
+        ///
+        /// A missing player is a warning and not an error. The wardrobe is reachable from screens
+        /// the village is not standing behind, and a run with no player object is not a reason to
+        /// refuse an equip that the save has already accepted.
+        /// </summary>
+        void RepaintPlayer()
+        {
+            PlayerController player = ResolvePlayer();
+            if (player == null)
+            {
+                Debug.LogWarning("[HUD] No PlayerController is in the scene; the wardrobe change " +
+                                 "was saved but nothing was repainted.");
+                return;
+            }
+
+            try
+            {
+                CharacterAppearance appearance = player.Appearance;
+                if (appearance != null)
+                {
+                    appearance.Reapply();
+                }
+            }
+            catch (Exception exception)
+            {
+                Debug.LogError("[HUD] Repainting the character after a wardrobe change failed: " +
+                               exception.Message);
+            }
+        }
+
+        PlayerController ResolvePlayer()
+        {
+            // Compared against null on every use for the reason the camera rig is: a destroyed
+            // component still holds a live C# reference, and Unity's null comparison is what
+            // catches that.
+            if (_player != null)
+            {
+                return _player;
+            }
+
+            PlayerController registered;
+            try
+            {
+                if (ServiceLocator.TryGet(out registered) && registered != null)
+                {
+                    _player = registered;
+                    return _player;
+                }
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning("[HUD] Looking up the PlayerController failed: " + exception.Message);
+            }
+
+            _player = FindFirstObjectByType<PlayerController>();
+            return _player;
         }
 
         // ------------------------------------------------------------------ helpers

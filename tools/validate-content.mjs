@@ -169,6 +169,7 @@ function main() {
   checkLocaleParity(root, locales);
   checkNoHardcodedPlayerStrings(root);
   checkSpeakerNames(root, locales);
+  checkLocaleKeysResolve(root, locales);
 
   console.log("");
   for (const warning of warnings) {
@@ -592,7 +593,7 @@ function checkDialogueReferences(root, scripture, locale) {
  * field by field so that can only be a build failure, never a shipped one.
  */
 function checkLocaleParity(root, locales) {
-  process.stdout.write("[6/8] locale parity           ");
+  process.stdout.write("[6/9] locale parity           ");
 
   const others = locales.filter((locale) => locale !== SOURCE_LOCALE);
   if (others.length === 0) {
@@ -789,7 +790,7 @@ function compareDialogue(locale, source, target) {
  * string that is missing from all of them.
  */
 function checkSpeakerNames(root, locales) {
-  process.stdout.write("[8/8] speaker names           ");
+  process.stdout.write("[8/9] speaker names           ");
 
   const dialoguePath = join(localeDir(root, SOURCE_LOCALE), "dialogue.json");
   const dialogue = readJson(root, dialoguePath);
@@ -890,7 +891,7 @@ function readJson(root, filePath) {
  * careless edit away from now that it ships a second language.
  */
 function checkNoHardcodedPlayerStrings(root) {
-  process.stdout.write("[7/8] hardcoded strings       ");
+  process.stdout.write("[7/9] hardcoded strings       ");
 
   const sources = [];
   for (const filePath of walkFiles(join(root, "Assets"))) {
@@ -1265,6 +1266,159 @@ function lastKeyOf(path) {
   const withoutIndex = path.replace(/\[\d+\]$/, "");
   const parts = withoutIndex.split(".");
   return parts[parts.length - 1] || "";
+}
+
+// ------------------------------------------------------- locale keys resolve
+
+/**
+ * Fails when C# asks Loc.T for a key that no ui.json actually carries.
+ *
+ * This is the check that was missing when the backpack shipped seventeen keys that existed only
+ * in the code. Nothing caught it: parity compares the locales against each other, and two tables
+ * missing the same key are in perfect agreement. The hardcoded-strings check is the mirror image
+ * of this one — it catches words that never became a key — and between them the two say that a
+ * key and its text always exist together.
+ *
+ * A miss here is not cosmetic. Loc.T renders an unknown key as the key itself, so the failure
+ * mode is a player reading "backpack.slot.hair" off a panel, in every language at once.
+ */
+function checkLocaleKeysResolve(root, locales) {
+  process.stdout.write("[9/9] locale keys resolve     ");
+
+  // A key, and nothing else: lowercase segments joined by dots. Sprite keys carry no dot, file
+  // names do not start with a known namespace, and scripture references are uppercase, so none of
+  // the three reach this check.
+  const KEY_SHAPE = /^[a-z][a-z0-9_]*(?:\.[a-z0-9_]+)+$/;
+
+  const sources = [];
+  for (const filePath of walkFiles(join(root, "Assets"))) {
+    if (extname(filePath).toLowerCase() !== ".cs") continue;
+    try {
+      sources.push({ file: relative(root, filePath), content: readFileSync(filePath, "utf8") });
+    } catch (error) {
+      continue;
+    }
+  }
+
+  // Pass 1: string constants, including the ones built by concatenating another constant with a
+  // suffix. Wardrobe spells its refusals that way — KeyRefusalPrefix + "locked" — and reading only
+  // bare literals would see "backpack.refusal." and "locked" and never the key itself.
+  const constants = new Map();
+  const CONST_LITERAL = /\bconst\s+string\s+(\w+)\s*=\s*"((?:[^"\\]|\\.)*)"\s*;/g;
+  const CONST_CONCAT = /\bconst\s+string\s+(\w+)\s*=\s*(\w+)\s*\+\s*"((?:[^"\\]|\\.)*)"\s*;/g;
+  for (const { content } of sources) {
+    CONST_LITERAL.lastIndex = 0;
+    let hit = CONST_LITERAL.exec(content);
+    while (hit !== null) {
+      constants.set(hit[1], { value: hit[2] });
+      hit = CONST_LITERAL.exec(content);
+    }
+    CONST_CONCAT.lastIndex = 0;
+    hit = CONST_CONCAT.exec(content);
+    while (hit !== null) {
+      constants.set(hit[1], { base: hit[2], suffix: hit[3] });
+      hit = CONST_CONCAT.exec(content);
+    }
+  }
+  const resolveConstant = (name, depth) => {
+    if (depth > 8) return null;
+    const entry = constants.get(name);
+    if (!entry) return null;
+    if (entry.value !== undefined) return entry.value;
+    const base = resolveConstant(entry.base, depth + 1);
+    return base === null ? null : base + entry.suffix;
+  };
+
+  // Pass 2: every key-shaped literal in the tree, plus every key-shaped constant, with the line
+  // it sits on so a failure names somewhere to go.
+  const referenced = new Map();
+  const remember = (key, file, line) => {
+    if (!KEY_SHAPE.test(key) || referenced.has(key)) return;
+    referenced.set(key, { file, line });
+  };
+  for (const { file, content } of sources) {
+    const LITERAL = /"((?:[^"\\\n]|\\.)*)"/g;
+    let hit = LITERAL.exec(content);
+    while (hit !== null) {
+      remember(hit[1], file, lineOf(content, hit.index));
+      hit = LITERAL.exec(content);
+    }
+    CONST_CONCAT.lastIndex = 0;
+    hit = CONST_CONCAT.exec(content);
+    while (hit !== null) {
+      const resolved = resolveConstant(hit[1], 0);
+      if (resolved !== null) remember(resolved, file, lineOf(content, hit.index));
+      hit = CONST_CONCAT.exec(content);
+    }
+  }
+
+  // Only keys whose namespace the table already uses. A key-shaped literal that shares no first
+  // segment with anything in ui.json is something else wearing the same punctuation, and guessing
+  // otherwise would fail the build over an asset path.
+  const tables = new Map();
+  const namespaces = new Set();
+  for (const locale of locales) {
+    const table = readJson(root, "Assets/Resources/Data/locales/" + locale + "/ui.json");
+    if (!table) continue;
+    tables.set(locale, table);
+    for (const key of Object.keys(table)) namespaces.add(key.split(".")[0]);
+  }
+
+  if (tables.size === 0) {
+    console.log("SKIP (no ui.json found)");
+    return;
+  }
+
+  // Loc.Plural is handed a stem and appends ".one" or ".other" itself, so the stem is never a key
+  // and both of its branches always are. Checking the stem would fail every plural in the game;
+  // checking neither branch would let a half-translated plural through.
+  const pluralStems = new Map();
+  const PLURAL_CALL = /\bLoc\.Plural\s*\(\s*"((?:[^"\\\n]|\\.)*)"/g;
+  for (const { file, content } of sources) {
+    PLURAL_CALL.lastIndex = 0;
+    let hit = PLURAL_CALL.exec(content);
+    while (hit !== null) {
+      if (!pluralStems.has(hit[1])) {
+        pluralStems.set(hit[1], { file, line: lineOf(content, hit.index) });
+      }
+      hit = PLURAL_CALL.exec(content);
+    }
+  }
+
+  const missing = [];
+  const check = (key, where) => {
+    const absent = [];
+    for (const [locale, table] of tables) {
+      if (!Object.prototype.hasOwnProperty.call(table, key)) absent.push(locale);
+    }
+    if (absent.length > 0) missing.push({ key, where, absent });
+  };
+
+  for (const [key, where] of referenced) {
+    if (!namespaces.has(key.split(".")[0])) continue;
+    if (pluralStems.has(key)) continue;
+    check(key, where);
+  }
+  for (const [stem, where] of pluralStems) {
+    if (!namespaces.has(stem.split(".")[0])) continue;
+    check(stem + ".one", where);
+    check(stem + ".other", where);
+  }
+
+  if (missing.length === 0) {
+    console.log("OK (" + plural(referenced.size, "key") + " referenced from C#, " +
+                plural(pluralStems.size, "plural") + ")");
+    return;
+  }
+
+  console.log("FAIL");
+  for (const { key, where, absent } of missing) {
+    errors.push(
+      'ui.json has no "' + key + '", asked for at ' + where.file + ":" + where.line +
+      " (missing in " + absent.join(", ") + "). Loc.T renders an unknown key as the key itself, " +
+      "so this reaches the player as raw text."
+    );
+  }
 }
 
 function* walkFiles(directory) {

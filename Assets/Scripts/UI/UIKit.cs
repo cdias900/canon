@@ -61,6 +61,7 @@ namespace SheepGate.UI
         public const string IconArrow = SheepGate.Art.ArtKeys.IconArrow;
         public const string IconMenu = SheepGate.Art.ArtKeys.IconMenu;
         public const string IconLock = SheepGate.Art.ArtKeys.IconLock;
+        public const string IconBag = SheepGate.Art.ArtKeys.IconBag;
 
         /// <summary>Body layer, idle pose, in the art module's canonical key form.</summary>
         public static string Body(int index, FacingDirection direction, int frame)

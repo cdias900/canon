@@ -68,8 +68,12 @@ namespace SheepGate.Dialogue
         private static readonly Color BubbleTint = new Color(0.94f, 0.92f, 0.88f, 1f);
         private static readonly Color BodyColor = new Color(0.13f, 0.12f, 0.10f, 1f);
         private static readonly Color SpeakerColor = new Color(0.27f, 0.24f, 0.20f, 1f);
-        private static readonly Color MetadataColor = new Color(0.44f, 0.41f, 0.36f, 1f);
+        // Secondary, not faint. At 0.44 this was about 4.4:1 against the bubble, which is under the
+        // readable threshold for text this size — and the advance hint is the one line that has to
+        // be read by someone who does not yet know the screen wants a tap.
+        private static readonly Color MetadataColor = new Color(0.34f, 0.31f, 0.26f, 1f);
         private static readonly Color SecondaryFill = new Color(0.87f, 0.85f, 0.80f, 1f);
+        private static readonly Color ButtonLabelColor = new Color(0.93f, 0.90f, 0.85f, 1f);
 
         private bool built;
         private GameObject root;
@@ -423,7 +427,14 @@ namespace SheepGate.Dialogue
             catcher = catcherRect.gameObject.AddComponent<DialogueTapCatcher>();
             catcher.Clicked += OnCatcherClicked;
 
-            RectTransform bubbleRect = NewRect("Bubble", rootRect);
+            // The catcher above covers the whole screen so a tap anywhere advances; the bubble
+            // does not, because at the bottom of a modern phone "anywhere" includes the strip the
+            // home indicator sits in, and text under it cannot be read.
+            RectTransform safeRect = NewRect("SafeArea", rootRect);
+            Stretch(safeRect);
+            safeRect.gameObject.AddComponent<SheepGate.UI.SafeAreaFitter>();
+
+            RectTransform bubbleRect = NewRect("Bubble", safeRect);
             bubbleRect.anchorMin = new Vector2(0f, 0f);
             bubbleRect.anchorMax = new Vector2(1f, 0f);
             bubbleRect.pivot = new Vector2(0.5f, 0f);
@@ -486,7 +497,10 @@ namespace SheepGate.Dialogue
 
             RectTransform buttonRect = NewRect("MoreButton", footerRect);
             Image buttonImage = buttonRect.gameObject.AddComponent<Image>();
-            ApplySprite(buttonImage, "ui_button", SecondaryFill);
+            // White, not the pale secondary fill: an Image tint multiplies, and ui_button is clay
+            // chrome, so tinting it cream still renders clay and only darkens it. The pale tint
+            // plus the dark metadata label is what made this button unreadable in the bubble.
+            ApplySprite(buttonImage, "ui_button", Color.white);
             buttonImage.raycastTarget = true;
 
             moreButton = buttonRect.gameObject.AddComponent<Button>();
@@ -498,7 +512,9 @@ namespace SheepGate.Dialogue
             buttonLayout.preferredHeight = 56f;
             buttonLayout.flexibleWidth = 0f;
 
-            Text buttonLabel = NewText("Label", buttonRect, font, MetadataFontSize, MetadataColor,
+            // Parchment, because the button under it is clay. Everything else in the bubble is
+            // dark ink on cream; this is the one control that inverts, and it has to say so.
+            Text buttonLabel = NewText("Label", buttonRect, font, MetadataFontSize, ButtonLabelColor,
                 FontStyle.Normal, TextAnchor.MiddleCenter);
             Stretch(buttonLabel.rectTransform);
             buttonLabel.text = Loc.T(MoreButtonKey);

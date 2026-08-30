@@ -5,6 +5,7 @@
   "hud.patrol": "Ronda",
   "hud.patrol_return": "Voltar",
   "hud.end_day": "Fim do dia",
+  "hud.map": "Mapa",
 
   "creation.title": "Antes de subir a primeira pedra",
   "creation.subtitle": "Escolha como você aparece na obra.",
@@ -113,6 +114,13 @@
 
   "world.map.heading": "As cidades do exílio",
   "world.map.note": "Você voltou para uma delas.",
+  "world.map.close": "Voltar para a cidade",
+  "world.map.north": "N",
+  "world.map.here": "Aqui",
+  "world.map.closed": "Fechada",
+  "world.map.legend.home": "sua cidade",
+  "world.map.legend.closed": "cidade fechada",
+  "world.map.legend.road": "estrada",
   "world.wall_segment": "Trecho da muralha",
   "world.well": "Poço",
   "world.rubble": "Entulho",

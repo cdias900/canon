@@ -88,6 +88,19 @@ namespace SheepGate.World
 
         private CellKind[,] _kinds;
         private readonly Dictionary<CellKind, Tile> _tiles = new Dictionary<CellKind, Tile>();
+
+        /// <summary>
+        /// Colour of the cells outside the built map. Darker than the camera's clear colour at the
+        /// close view, so the edge of the map reads as ground dropping away.
+        ///
+        /// It becomes a problem exactly once: pulled back to the region, those cells are a hard
+        /// black rectangle around the village with the map's own bounds for edges, and no amount of
+        /// framing survives a rectangle. <see cref="SetVoidColor"/> lets the map view flatten it
+        /// into the surrounding field for as long as it is up.
+        /// </summary>
+        private static readonly Color DefaultVoidColor = new Color(0.05f, 0.055f, 0.06f);
+
+        private Color _voidColor = DefaultVoidColor;
         private readonly HashSet<char> _warnedChars = new HashSet<char>();
 
         private void Awake()
@@ -260,7 +273,7 @@ namespace SheepGate.World
                 case CellKind.Void:
                     // Deliberately darker than the camera's clear colour, so the edge of the map
                     // reads as ground dropping away rather than as a rendering gap.
-                    return WorldRuntime.SolidSprite(new Color(0.05f, 0.055f, 0.06f));
+                    return WorldRuntime.SolidSprite(_voidColor);
                 case CellKind.Rubble:
                     return WorldRuntime.GetSprite("tile_rubble") ?? WorldRuntime.SolidSprite(new Color(0.42f, 0.38f, 0.33f));
                 case CellKind.Water:
@@ -273,6 +286,65 @@ namespace SheepGate.World
                 default:
                     return WorldRuntime.GetSprite("tile_ground") ?? WorldRuntime.SolidSprite(new Color(0.50f, 0.46f, 0.39f));
             }
+        }
+
+        /// <summary>
+        /// Repaints every cell outside the map. One shared tile backs all of them, so this is a
+        /// sprite swap and a refresh rather than a walk over the grid.
+        /// </summary>
+        public void SetVoidColor(Color color)
+        {
+            if (_voidColor == color)
+            {
+                return;
+            }
+
+            _voidColor = color;
+
+            Tile tile;
+            if (!_tiles.TryGetValue(CellKind.Void, out tile) || tile == null)
+            {
+                return;
+            }
+
+            tile.sprite = WorldRuntime.SolidSprite(color);
+            if (Tilemap != null)
+            {
+                Tilemap.RefreshAllTiles();
+            }
+        }
+
+        /// <summary>
+        /// Replaces the sprite drawn outside the map. The map view uses it to make those cells the
+        /// same ground the region around them is drawn with, so the village sits on the island
+        /// instead of inside a rectangle cut out of it.
+        /// </summary>
+        public void SetVoidSprite(Sprite sprite)
+        {
+            if (sprite == null)
+            {
+                return;
+            }
+
+            Tile tile;
+            if (!_tiles.TryGetValue(CellKind.Void, out tile) || tile == null)
+            {
+                return;
+            }
+
+            _voidColor = Color.clear;   // forces the next SetVoidColor through
+            tile.sprite = sprite;
+            if (Tilemap != null)
+            {
+                Tilemap.RefreshAllTiles();
+            }
+        }
+
+        /// <summary>Puts the edge of the map back to the colour the close view is built around.</summary>
+        public void RestoreVoidColor()
+        {
+            _voidColor = Color.clear;
+            SetVoidColor(DefaultVoidColor);
         }
 
         public bool InBounds(int x, int y)

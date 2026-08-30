@@ -119,8 +119,21 @@ namespace SheepGate.UI
             const float ChipSpacing = 24f;
             const float SlotRowHeight = 118f;
             const float SlotRowSpacing = 10f;
-            const float SlotRowsTop = 852f;
-            const float NameFieldTop = 736f;
+            /// <summary>Top of the scrolling area, measured from the top of the safe area.</summary>
+            const float OptionsTop = 250f;
+
+            /// <summary>Clearance kept above the two buttons at the bottom.</summary>
+            const float OptionsBottom = 360f;
+
+            const float PreviewTop = 260f - OptionsTop;
+            const float SlotRowsTop = 852f - OptionsTop;
+            const float NameFieldTop = 736f - OptionsTop;
+
+            /// <summary>
+            /// Height of the scrolling content: the last row's bottom edge plus a little air, so a
+            /// drag to the end does not leave the final option flush against the frame.
+            /// </summary>
+            const float OptionsContentHeight = SlotRowsTop + 6f * (SlotRowHeight + SlotRowSpacing) + 40f;
             const int NameCharacterLimit = 16;
 
             int _body;
@@ -150,14 +163,20 @@ namespace SheepGate.UI
 
                 Canvas canvas = UIKit.CreateCanvas("CharacterCreationCanvas", _sortingOrder);
                 _canvas = canvas;
-                var root = (RectTransform)canvas.transform;
+                RectTransform root = UIKit.SafeArea(canvas);
 
                 Image background = UIKit.CreatePanel(root, "Background", UIKit.Palette.Ink);
                 UIKit.Stretch((RectTransform)background.transform);
 
+                // The right margin clears the language chips rather than guessing at one: the title
+                // is left aligned and long enough to run under them in either language, and a
+                // title with two-letter buttons sitting on top of it is the first thing a player
+                // sees.
+                float titleRight = 48f + LanguageToggle.Width + 24f;
+
                 Text title = UIKit.CreateText(root, "Title", Loc.T("creation.title"),
                     UIKit.FontSize.Title, UIKit.Palette.Parchment, TextAnchor.MiddleLeft);
-                UIKit.AnchorTop((RectTransform)title.transform, 80f, 48f, 48f, 90f);
+                UIKit.AnchorTop((RectTransform)title.transform, 80f, 48f, titleRight, 90f);
 
                 Text subtitle = UIKit.CreateText(root, "Subtitle", Loc.T("creation.subtitle"),
                     UIKit.FontSize.Body, UIKit.Palette.Muted, TextAnchor.MiddleLeft);
@@ -173,9 +192,37 @@ namespace SheepGate.UI
                 languageRow.sizeDelta = new Vector2(LanguageToggle.Width, LanguageToggle.Height);
                 languageRow.anchoredPosition = new Vector2(-48f, -96f);
 
-                BuildPreviewStrip(root);
-                BuildNameField(root);
-                BuildSlots(root);
+                // Everything between the subtitle and the buttons scrolls. It used to be absolutely
+                // positioned against the canvas, which fitted only as long as the canvas was the
+                // whole screen: once the layout honours the safe area the phone is ~200 units
+                // shorter, and the last option row ended up underneath the buttons. Scrolling is
+                // the fix that does not need retuning on the next device.
+                ScrollRect options = UIKit.CreateScrollView(root, "Options", out RectTransform optionsContent);
+                var optionsRect = (RectTransform)options.transform;
+                optionsRect.anchorMin = new Vector2(0f, 0f);
+                optionsRect.anchorMax = new Vector2(1f, 1f);
+                optionsRect.offsetMin = new Vector2(0f, OptionsBottom);
+                optionsRect.offsetMax = new Vector2(0f, -OptionsTop);
+
+                // The helper lays its content out with a vertical group; this screen positions by
+                // hand, so the group and its fitter are switched off rather than fought.
+                VerticalLayoutGroup group = optionsContent.GetComponent<VerticalLayoutGroup>();
+                if (group != null)
+                {
+                    group.enabled = false;
+                }
+
+                ContentSizeFitter contentFitter = optionsContent.GetComponent<ContentSizeFitter>();
+                if (contentFitter != null)
+                {
+                    contentFitter.enabled = false;
+                }
+
+                optionsContent.sizeDelta = new Vector2(0f, OptionsContentHeight);
+
+                BuildPreviewStrip(optionsContent);
+                BuildNameField(optionsContent);
+                BuildSlots(optionsContent);
 
                 Button skip = UIKit.CreateButton(root, "QuickStart", Loc.T("creation.quick_start"),
                     UIKit.Palette.PanelSoft, UIKit.Palette.Muted, QuickStart);
@@ -204,7 +251,7 @@ namespace SheepGate.UI
             {
                 Image strip = UIKit.CreatePanel(root, "Preview", UIKit.Palette.Panel);
                 var stripRect = (RectTransform)strip.transform;
-                UIKit.AnchorTop(stripRect, 460f, SideMargin, SideMargin, 260f);
+                UIKit.AnchorTop(stripRect, 460f, SideMargin, SideMargin, PreviewTop);
                 strip.raycastTarget = false;
 
                 for (int i = 0; i < Directions.Length; i++)

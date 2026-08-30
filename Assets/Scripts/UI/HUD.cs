@@ -7,13 +7,16 @@ using UnityEngine.UI;
 namespace SheepGate.UI
 {
     /// <summary>
-    /// The permanent overlay: what the player has to spend, what day it is, and the two buttons
-    /// that change the frame — the wide patrol camera ("Ronda" on the button) and the end of the day.
+    /// The permanent overlay: what the player has to spend, what day it is, and the three buttons
+    /// that change the frame — the wide patrol camera ("Ronda" on the button), the map, and the end
+    /// of the day.
     ///
     /// Deliberately small. This is a portrait phone screen where the ground itself is the primary
-    /// control, so the readouts sit in a single strip at the top and the two buttons sit at the
-    /// right edge. The middle and lower-left of the screen — where a thumb rests and where taps
-    /// move the character — stay empty.
+    /// control, so the readouts sit in a single strip at the top and the buttons hug the bottom and
+    /// right edges. The middle of the screen — where taps move the character — stays empty.
+    ///
+    /// The two bottom corners are the reachable ones on a phone held in one hand, which is why the
+    /// map sits opposite the end of the day rather than under the patrol button.
     ///
     /// State is polled from GameState rather than pushed by events. A HUD that quietly stops
     /// updating because a system forgot to raise a change event is a worse failure than one extra
@@ -51,6 +54,7 @@ namespace SheepGate.UI
         Text _workText;
         Text _rubbleText;
         Button _patrolButton;
+        Button _mapButton;
         Button _settingsButton;
         Button _endDayButton;
         CameraRig _cameraRig;
@@ -133,7 +137,7 @@ namespace SheepGate.UI
         {
             _canvas = UIKit.CreateCanvas("HUDCanvas", CanvasSortingOrder);
             _canvas.transform.SetParent(transform, false);
-            var root = (RectTransform)_canvas.transform;
+            RectTransform root = UIKit.SafeArea(_canvas);
 
             Image bar = UIKit.CreatePanel(root, "TopBar", UIKit.Palette.Panel);
             var barRect = (RectTransform)bar.transform;
@@ -170,6 +174,13 @@ namespace SheepGate.UI
             _endDayButton = UIKit.CreateButton(root, "EndDay", Loc.T("hud.end_day"), UIKit.Palette.Clay, UIKit.Palette.Parchment, OnEndDayClicked);
             var endDayRect = (RectTransform)_endDayButton.transform;
             UIKit.AnchorCorner(endDayRect, new Vector2(1f, 0f), new Vector2(330f, 124f), new Vector2(32f, 44f));
+
+            // The opening shows the region once and then leaves; this is the way back to it. Bottom
+            // left, opposite the end of the day, so the two decisions that leave the village sit in
+            // the two corners a thumb reaches without moving the hand.
+            _mapButton = UIKit.CreateButton(root, "MapButton", Loc.T("hud.map"), UIKit.Palette.PanelSoft, UIKit.Palette.Parchment, OnMapClicked);
+            var mapRect = (RectTransform)_mapButton.transform;
+            UIKit.AnchorCorner(mapRect, new Vector2(0f, 0f), new Vector2(240f, 124f), new Vector2(32f, 44f));
         }
 
         Text BuildReadout(RectTransform parent, string name, float anchorLeft, float anchorRight, TextAnchor alignment)
@@ -380,6 +391,23 @@ namespace SheepGate.UI
 
             _cameraRig = FindFirstObjectByType<CameraRig>();
             return _cameraRig;
+        }
+
+        // ------------------------------------------------------------------ map
+
+        /// <summary>
+        /// Opens the region view. The HUD only asks: <see cref="WorldMapView"/> owns what the map
+        /// is and refuses on its own while a cutscene, a line of dialogue or a modal is running,
+        /// so this never has to know which of those is true.
+        /// </summary>
+        void OnMapClicked()
+        {
+            if (ModalRoot.IsOpen)
+            {
+                return;
+            }
+
+            WorldMapView.Open();
         }
 
         // ------------------------------------------------------------------ end of day

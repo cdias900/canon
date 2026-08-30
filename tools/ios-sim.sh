@@ -51,7 +51,7 @@
 #   which drives the real EventSystem from inside the build and can see the hierarchy.
 set -uo pipefail
 
-UNITY_VERSION="6000.3.23f1"
+UNITY_VERSION="${UNITY_VERSION:-6000.3.23f1}"
 UNITY_BIN="/Applications/Unity/Hub/Editor/${UNITY_VERSION}/Unity.app/Contents/MacOS/Unity"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 EXPORT_DIR="${ROOT}/Builds/ios-sim"

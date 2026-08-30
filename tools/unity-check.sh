@@ -3,7 +3,7 @@
 # Usage: tools/unity-check.sh [--open]
 set -uo pipefail
 
-UNITY_VERSION="6000.3.23f1"
+UNITY_VERSION="${UNITY_VERSION:-6000.3.23f1}"
 UNITY_BIN="/Applications/Unity/Hub/Editor/${UNITY_VERSION}/Unity.app/Contents/MacOS/Unity"
 PROJECT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LOG="${PROJECT_PATH}/Logs/compile.log"

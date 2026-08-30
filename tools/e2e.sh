@@ -14,7 +14,7 @@
 # Screenshots and per-locale results land in Builds/e2e/.
 set -uo pipefail
 
-UNITY_VERSION="6000.3.23f1"
+UNITY_VERSION="${UNITY_VERSION:-6000.3.23f1}"
 UNITY_BIN="/Applications/Unity/Hub/Editor/${UNITY_VERSION}/Unity.app/Contents/MacOS/Unity"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP="${ROOT}/Builds/mac/SheepGate.app"

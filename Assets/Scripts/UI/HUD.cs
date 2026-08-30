@@ -56,7 +56,6 @@ namespace SheepGate.UI
         Button _patrolButton;
         Button _mapButton;
         Button _settingsButton;
-        Button _endDayButton;
         CameraRig _cameraRig;
 
         bool _patrolViewActive;
@@ -171,13 +170,12 @@ namespace SheepGate.UI
             settingsRect.sizeDelta = new Vector2(238f, 104f);
             settingsRect.anchoredPosition = new Vector2(SideMargin, -(TopMargin + TopBarHeight + 18f));
 
-            _endDayButton = UIKit.CreateButton(root, "EndDay", Loc.T("hud.end_day"), UIKit.Palette.Clay, UIKit.Palette.Parchment, OnEndDayClicked);
-            var endDayRect = (RectTransform)_endDayButton.transform;
-            UIKit.AnchorCorner(endDayRect, new Vector2(1f, 0f), new Vector2(330f, 124f), new Vector2(32f, 44f));
-
-            // The opening shows the region once and then leaves; this is the way back to it. Bottom
-            // left, opposite the end of the day, so the two decisions that leave the village sit in
-            // the two corners a thumb reaches without moving the hand.
+            // The opening shows the region once and then leaves; this is the way back to it.
+            //
+            // The bottom right used to hold a button that ended the day, and nothing replaced it:
+            // the day now ends when the work runs out, and stopping early is the mat at the door,
+            // in the world. A HUD button asking the player to declare the day over made stopping
+            // a chore performed on the interface instead of a thing done in the village.
             _mapButton = UIKit.CreateButton(root, "MapButton", Loc.T("hud.map"), UIKit.Palette.PanelSoft, UIKit.Palette.Parchment, OnMapClicked);
             var mapRect = (RectTransform)_mapButton.transform;
             UIKit.AnchorCorner(mapRect, new Vector2(0f, 0f), new Vector2(240f, 124f), new Vector2(32f, 44f));
@@ -408,35 +406,6 @@ namespace SheepGate.UI
             }
 
             WorldMapView.Open();
-        }
-
-        // ------------------------------------------------------------------ end of day
-
-        void OnEndDayClicked()
-        {
-            if (ModalRoot.IsOpen)
-            {
-                return;
-            }
-
-            DayCycle cycle = FindFirstObjectByType<DayCycle>();
-            if (cycle == null)
-            {
-                Debug.LogError("[HUD] No DayCycle is in the scene; the day cannot be ended.");
-                return;
-            }
-
-            // The day cycle owns what ending a day means. The HUD only asks.
-            cycle.RequestEndDay();
-        }
-
-        /// <summary>Greys out the end-of-day button, for stretches where the day must not end.</summary>
-        public void SetEndDayAvailable(bool available)
-        {
-            if (_endDayButton != null)
-            {
-                _endDayButton.interactable = available;
-            }
         }
 
         // ------------------------------------------------------------------ helpers

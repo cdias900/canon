@@ -9,8 +9,8 @@ This file is the part that would otherwise have to be rediscovered.
 
 Three days play end to end. Compiles at 0 errors and 0 warnings across ~60 C# files. Desktop and
 iOS both build. `tools/acceptance.sh` passes every criterion **in both languages**, the content
-validator is clean, and `tools/e2e.sh` plays the opening of a real build in each language and
-screenshots it.
+validator is clean, and `tools/e2e.sh` plays the opening and a whole day of a real build in each
+language and screenshots it.
 
 **The game is bilingual: pt-BR and English.** pt-BR is the authoring locale. No player-facing string
 exists in C# any more; they all live in `Assets/Resources/Data/locales/<locale>/` and are read
@@ -30,6 +30,23 @@ follow him to the gathering → the unnamed man from the capital speaks and send
 
 **Day 3** starts the trial, A Página lands at turn 2 and unlocks *Metade e metade*, the gate closes
 with the player's name on it, then an optional "Saber mais" and the vocation reveal.
+
+**The day ends on its own.** There is no end-of-day button any more. Work capacity is the only thing
+a day is spent on, so the light is that capacity seen a second way: every stone laid pulls it down,
+and when there is nothing left to spend the village goes to dusk and the split opens itself. Stopping
+early is the mat at the door of the house. Three things this must keep doing, all of them easy to
+break by accident:
+
+- **Nothing runs on a wall clock.** Standing still, talking and reading cost nothing. The moment
+  anything charges real time, reading a chapter starts costing the player a day, which is rule 20
+  pointed at its own foot.
+- **A pending night waits for whatever has the screen** — `DayCycle.DuskWaits`, asserted by the
+  acceptance harness. The chapter reader is a panel like any other.
+- **Accepting the day-2 invitation zeroes capacity without ending the day.** `NpcActor` takes a
+  named hold (`DayCycle.HoldPendingBeat`) and gives it back when the resident says the other half
+  of it; the hold is re-derived in `Start`, so a scene rebuild mid-beat restores it. The mat can
+  overrule that hold, and must be able to — a player who never goes back would otherwise have no
+  way to reach tomorrow.
 
 ## What is not finished
 
@@ -85,10 +102,13 @@ persisted preference meant the *next* launch was the one that actually switched.
 
 Still open:
 
-- **`tools/e2e.sh` stops at the HUD.** It plays the opening through character creation and into
-  day 1, and asserts nothing about days 2 and 3, the trial, the Page or the reveal. Extending it is
-  mostly a matter of naming more beats; the machinery for waiting, tapping and screenshotting is
-  there.
+- **`tools/e2e.sh` stops at the second morning.** It plays the opening through character creation
+  into day 1, spends that day, turns the night down once, lets the day end on its own and confirms
+  the split — then stops. Days 2 and 3, the trial, the Page and the reveal are asserted nowhere.
+  Extending it is mostly a matter of naming more beats; the machinery for waiting, tapping and
+  screenshotting is there. Note what it deliberately does *not* drive: it spends the day through
+  `ResourceSystem` rather than walking the player to the wall, so the interaction layer between a
+  tap on the ground and a stone on the wall is still only covered by playing.
 - **Nobody has read the English translation against the passage.** `node tools/list-curation.mjs`
   now queues both languages and `intro_gathering` is in the queue for `en` as well as `pt-BR`. A
   translation of a canonical figure's speech is newly authored speech in that language, so rule 4's
@@ -172,6 +192,13 @@ defects, 5 of them blockers, and nearly all shared one shape: correct code that 
 unreachable in a built game while every unit-level rule about it passed. **Verify reachability, not
 just correctness.**
 
+**A control built this frame raycasts to nothing.** Until a canvas has been through one batch,
+every graphic on it reports `depth == -1` and `GraphicRaycaster` skips it outright — so a live,
+correctly placed, fully interactable button is hit by no ray at all. `E2ERunner.TapObject` judged on
+the first frame and reported the settings panel's language chips as unreachable; it now retries
+until the ray lands or the step times out. The distinction it must preserve: a control genuinely
+under an opaque panel still fails, having spent the timeout proving it.
+
 **The acceptance harness cannot prove a scene works.** It constructs systems directly and never runs
 `Compose()`. It is a good gate on rules; it is not evidence that anything is wired.
 
@@ -196,6 +223,12 @@ path by disabling the component. The live Page beat is still only verified by pl
   turns the route to the wall into a maze.
 - **The name in character creation is optional.** Gating the game on a form field is the opposite of
   "sem cadastro".
+- **Conversation is free, and must stay free.** The obvious way to make time pass is to charge for
+  actions generally. Dialogue is where every citation lives and what `HasSpokenWithEveryNpc` scores,
+  so a talk tax would put a toll on the exact behaviour the product measures.
+- **Resting is optional, never a chore.** The mat exists for the player who is finished before their
+  capacity is, the player who decided to build nothing today, and the player past a held beat. A day
+  always ends without it, which is what stops it becoming the button that was just removed.
 
 ## If picking this up cold
 
@@ -204,7 +237,7 @@ path by disabling the component. The live Page beat is still only verified by pl
 2. `node tools/validate-content.mjs` — scripture integrity, the forbidden-word checklist per
    language, locale parity, and hardcoded player strings.
 3. `tools/acceptance.sh` — asserts the rules from POC-IMPLEMENTATION.md §13, once per language.
-4. `tools/e2e.sh` — builds a player and plays the opening in every language, with screenshots in
+4. `tools/e2e.sh` — builds a player and plays the opening and a day in every language, screenshots in
    `Builds/e2e/`. **Read the screenshots.** A green exit code means nothing was covered and no
    string was missing; it does not mean the screen looks right.
 5. `node tools/list-curation.mjs` — authored canonical speech awaiting a human read, every language.

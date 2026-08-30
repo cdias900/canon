@@ -72,6 +72,7 @@ namespace SheepGate.World
             // 4. Props.
             BuildRubblePiles(map, builder);
             BuildWell(map, builder);
+            BuildRestPoint(map, builder);
 
             // 5. Residents.
             BuildNpcs(builder);
@@ -297,6 +298,23 @@ namespace SheepGate.World
 
             Vector2Int cell = builder.NearestWalkable(builder.ClampCell(new Vector2Int(spot.x, spot.y)));
             Well.Spawn(cell, Root, builder);
+        }
+
+        /// <summary>
+        /// The mat at the door of the house the player sleeps in — the same door the opening walks
+        /// them through — so the one object that ends a day is the one place a day would end.
+        /// </summary>
+        private static void BuildRestPoint(MapDef map, TilemapBuilder builder)
+        {
+            GridPos spot = map != null ? map.player_house_door : null;
+            if (spot == null)
+            {
+                Debug.LogWarning("[World] map.json names no player_house_door; the village has no mat and days can only end when their capacity runs out.");
+                return;
+            }
+
+            Vector2Int cell = builder.NearestWalkable(builder.ClampCell(new Vector2Int(spot.x, spot.y)));
+            RestPoint.Spawn(cell, Root, builder);
         }
 
         private static void BuildNpcs(TilemapBuilder builder)

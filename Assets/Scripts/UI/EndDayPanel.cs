@@ -17,6 +17,12 @@ namespace SheepGate.UI
     /// Second, neither side can be emptied: the slider is bounded by <see cref="MinimumPerSide"/>
     /// on both ends, so there is always someone building and always someone on the wall.
     ///
+    /// Third, it opens itself. The day ends when its work capacity is spent, so this screen is
+    /// not something the player asks for — it is the evening arriving. When it arrives early
+    /// because the player chose the mat rather than because the day ran out, they can still turn
+    /// it down: <see cref="DayCycle.CanDeferDusk"/> is what decides whether that way back exists,
+    /// so the button is offered exactly when the day really could go on.
+    ///
     /// The panel states one rule and no outcomes. The rule is where the watch starts counting,
     /// read live from <see cref="DayCycle.WatchThreshold"/> as the slider moves, because a player
     /// who cannot see the line cannot gamble against it — they can only guess, and a guess is not
@@ -48,6 +54,10 @@ namespace SheepGate.UI
 
         const float CardWidth = 1000f;
         const float CardHeight = 1120f;
+        const float ConfirmWidth = 560f;
+        const float DeferWidth = 300f;
+        const float ButtonHeight = 124f;
+        const float ButtonGap = 24f;
 
         static EndDayPanel _current;
 
@@ -57,6 +67,7 @@ namespace SheepGate.UI
         bool _built;
 
         Action<int, int> _onConfirm;
+        Action _onDefer;
 
         Text _workNumber;
         Text _watchNumber;
@@ -88,7 +99,7 @@ namespace SheepGate.UI
         /// </summary>
         public static EndDayPanel Open()
         {
-            return Open(ResolveCrewSize(), null);
+            return Open(DayCycle.Find());
         }
 
         /// <summary>Opens the split and resolves the night on the day cycle that asked for it.</summary>
@@ -96,17 +107,20 @@ namespace SheepGate.UI
         {
             if (cycle == null)
             {
-                return Open();
+                return Open(ResolveCrewSize(), null, null);
             }
 
-            return Open(ResolveCrewSize(), (workers, watchers) => cycle.EndDay(workers, watchers));
+            // The way back exists only while the day could actually go on, which is the day cycle's
+            // to answer and not this screen's to guess.
+            Action defer = cycle.CanDeferDusk ? (Action)cycle.CancelDusk : null;
+            return Open(ResolveCrewSize(), (workers, watchers) => cycle.EndDay(workers, watchers), defer);
         }
 
         /// <summary>
-        /// Opens the split for an explicit crew size. A null callback falls back to the DayCycle
-        /// in the scene.
+        /// Opens the split for an explicit crew size. A null confirm callback falls back to the
+        /// DayCycle in the scene; a null defer callback means this evening cannot be turned down.
         /// </summary>
-        public static EndDayPanel Open(int totalPeople, Action<int, int> onConfirm)
+        public static EndDayPanel Open(int totalPeople, Action<int, int> onConfirm, Action onDefer)
         {
             if (_current != null && !_current._closed)
             {
@@ -128,7 +142,7 @@ namespace SheepGate.UI
             }
 
             var panel = container.gameObject.AddComponent<EndDayPanel>();
-            panel.Build(totalPeople, onConfirm);
+            panel.Build(totalPeople, onConfirm, onDefer);
             _current = panel;
             return panel;
         }
@@ -147,7 +161,7 @@ namespace SheepGate.UI
 
         // ------------------------------------------------------------------ construction
 
-        void Build(int totalPeople, Action<int, int> onConfirm)
+        void Build(int totalPeople, Action<int, int> onConfirm, Action onDefer)
         {
             if (_built)
             {
@@ -156,6 +170,7 @@ namespace SheepGate.UI
 
             _built = true;
             _onConfirm = onConfirm;
+            _onDefer = onDefer;
             _total = Mathf.Max(MinimumPerSide * 2, Mathf.Max(1, totalPeople));
             _workers = ResolveInitialWorkers(_total);
 
@@ -216,15 +231,39 @@ namespace SheepGate.UI
             Text note = UIKit.CreateText(cardRect, "Note", Loc.T("end_day.note"), UIKit.FontSize.Meta, UIKit.Palette.Muted, TextAnchor.UpperLeft);
             UIKit.AnchorTop((RectTransform)note.transform, 56f, 56f, 56f, 866f);
 
-            Button confirm = UIKit.CreateButton(cardRect, "Confirm", Loc.T("end_day.confirm"), UIKit.Palette.Clay, UIKit.Palette.Parchment, Confirm);
-            var confirmRect = (RectTransform)confirm.transform;
-            confirmRect.anchorMin = new Vector2(0.5f, 0f);
-            confirmRect.anchorMax = new Vector2(0.5f, 0f);
-            confirmRect.pivot = new Vector2(0.5f, 0f);
-            confirmRect.sizeDelta = new Vector2(560f, 124f);
-            confirmRect.anchoredPosition = new Vector2(0f, 52f);
+            BuildActions(cardRect);
 
             Refresh();
+        }
+
+        /// <summary>
+        /// The confirm, and the way back when there is one. With no way back the confirm sits
+        /// centred, alone, exactly as it did when this screen was something the player summoned.
+        /// </summary>
+        void BuildActions(RectTransform cardRect)
+        {
+            bool deferrable = _onDefer != null;
+            float row = deferrable ? DeferWidth + ButtonGap + ConfirmWidth : ConfirmWidth;
+            float left = -row * 0.5f;
+
+            if (deferrable)
+            {
+                Button defer = UIKit.CreateButton(cardRect, "Defer", Loc.T("end_day.defer"), UIKit.Palette.PanelSoft, UIKit.Palette.Parchment, Defer);
+                PlaceAction((RectTransform)defer.transform, DeferWidth, left + DeferWidth * 0.5f);
+                left += DeferWidth + ButtonGap;
+            }
+
+            Button confirm = UIKit.CreateButton(cardRect, "Confirm", Loc.T("end_day.confirm"), UIKit.Palette.Clay, UIKit.Palette.Parchment, Confirm);
+            PlaceAction((RectTransform)confirm.transform, ConfirmWidth, left + ConfirmWidth * 0.5f);
+        }
+
+        static void PlaceAction(RectTransform rect, float width, float centreX)
+        {
+            rect.anchorMin = new Vector2(0.5f, 0f);
+            rect.anchorMax = new Vector2(0.5f, 0f);
+            rect.pivot = new Vector2(0.5f, 0f);
+            rect.sizeDelta = new Vector2(width, ButtonHeight);
+            rect.anchoredPosition = new Vector2(centreX, 52f);
         }
 
         void BuildSplitRow(RectTransform cardRect)
@@ -322,6 +361,27 @@ namespace SheepGate.UI
             if (_watchAccent != null)
             {
                 _watchAccent.color = posted ? UIKit.Palette.Olive : UIKit.Palette.Clay;
+            }
+        }
+
+        /// <summary>
+        /// Turns the evening down and goes back to the day. Nothing is spent and nothing is
+        /// recorded: this is the player saying they are not finished, which is only ever offered
+        /// while that is true.
+        /// </summary>
+        void Defer()
+        {
+            if (_closed)
+            {
+                return;
+            }
+
+            Action callback = _onDefer;
+            Close();
+
+            if (callback != null)
+            {
+                callback();
             }
         }
 

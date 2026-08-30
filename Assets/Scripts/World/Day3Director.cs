@@ -136,7 +136,7 @@ namespace SheepGate.World
                 // nothing replays — and the day cannot be ended again, or each press would resolve
                 // another night on a run that is already over.
                 _sequenceFinished = true;
-                SetEndDayAvailable(false);
+                HoldTheDayOpen();
                 Debug.Log("[World] Day three already ended in this run; the closing sequence stays closed.");
                 return;
             }
@@ -158,7 +158,7 @@ namespace SheepGate.World
             Debug.Log("[World] Day three has started; the assault is scheduled.");
 
             // The day is going to end on its own terms from here.
-            SetEndDayAvailable(false);
+            HoldTheDayOpen();
 
             yield return WaitForTheMorning();
 
@@ -557,23 +557,22 @@ namespace SheepGate.World
         }
 
         /// <summary>
-        /// Turns the end-of-day button off for the rest of day three. Nothing is taken from the
-        /// player: the last day ends on the trial, and a night after it would resolve nothing.
+        /// Stops the daylight clock ending day three, for the rest of day three.
+        ///
+        /// Nothing is taken from the player: the last day ends on the trial, and a night after it
+        /// would resolve nothing. The hold is never released, which is the point — this is the day
+        /// that does not have a tomorrow to divide people over.
         /// </summary>
-        private static void SetEndDayAvailable(bool available)
+        private static void HoldTheDayOpen()
         {
-            HUD hud = HUD.Current;
-            if (hud == null)
+            DayCycle cycle = DayCycle.Find();
+            if (cycle == null)
             {
-                hud = FindFirstObjectByType<HUD>();
-            }
-
-            if (hud == null)
-            {
+                Debug.LogWarning("[World] No DayCycle to hold open; day three could end itself on the daylight clock.");
                 return;
             }
 
-            hud.SetEndDayAvailable(available);
+            cycle.HoldDusk(DayCycle.HoldFinalDay);
         }
     }
 }

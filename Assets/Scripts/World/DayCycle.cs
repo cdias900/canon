@@ -5,11 +5,20 @@ using System.Reflection;
 using UnityEngine;
 using UnityEngine.UI;
 using SheepGate.Core;
+using SheepGate.Player;
+using SheepGate.UI;
 
 namespace SheepGate.World
 {
     /// <summary>
     /// Day into night into the next morning.
+    ///
+    /// <b>The day ends on its own.</b> Work capacity is the only thing a day is spent on, so the
+    /// light is that capacity seen a second way: every stone laid pulls it down, and when there is
+    /// nothing left to spend the village goes to dusk and the split opens itself. Nothing here runs
+    /// on a wall clock, which is the whole point - a player can stand still, talk to everyone and
+    /// read a chapter end to end without the day moving an inch. The one thing still asked of them
+    /// is the split itself, because that is the decision the chapter is about.
     ///
     /// <see cref="NightAmount"/> runs from 0 (day) to 1 (night) and is applied two ways at once: to
     /// a global URP Light2D when the project has one, and to a full screen tint overlay that always
@@ -31,6 +40,36 @@ namespace SheepGate.World
         public const float NightHoldSeconds = 0.9f;
         public const float DawnSeconds = 1.1f;
         public const float MaxTintAlpha = 0.72f;
+
+        /// <summary>
+        /// How dark the village gets by the end of a working day, before the night fade begins.
+        ///
+        /// Deliberately well short of night: the day gets <i>late</i>, not dark, so the drop to a
+        /// full night still reads as an event rather than as more of the same. Short of night, but
+        /// not short of visible — this is the clock, and a clock nobody can read is not one.
+        /// </summary>
+        public const float DuskNightAmount = 0.42f;
+
+        /// <summary>
+        /// How fast the light follows the work that has been spent, in night units per second.
+        /// Laying stone moves the target in a step; this is what turns that step into a slide, so
+        /// the afternoon draws in instead of flicking one shade darker per tap.
+        /// </summary>
+        public const float DaylightFollowSpeed = 0.55f;
+
+        /// <summary>
+        /// Quiet beat between the day running out and the split opening itself, so the panel
+        /// arrives as a consequence of the last stone rather than on the same frame as the tap.
+        /// The wait restarts whenever something else takes the screen, so it always measures a
+        /// clear moment and never a moment spent reading.
+        /// </summary>
+        public const float DuskSettleSeconds = 1.2f;
+
+        /// <summary>Hold taken by the last day, which ends on the trial and not on a night.</summary>
+        public const string HoldFinalDay = "final_day";
+
+        /// <summary>Hold taken while a resident still has something to say before the day may end.</summary>
+        public const string HoldPendingBeat = "pending_beat";
 
         /// <summary>
         /// A watch is half the crew, rounded up. Fewer than that is people awake, not a watch: the
@@ -65,6 +104,12 @@ namespace SheepGate.World
         /// Must match SheepGate.UI.MorningReportUI.NightDamageCounter.
         /// </summary>
         public const string NightDamageCounter = "night_damaged_segments";
+
+        /// <summary>The wash over a working day as it runs out: low sun, and no gold in it.</summary>
+        private static readonly Color EveningTint = new Color(0.42f, 0.22f, 0.10f);
+
+        /// <summary>The wash the night fade carries the village into.</summary>
+        private static readonly Color NightTint = new Color(0.05f, 0.07f, 0.16f);
 
         private const string LightTypeName = "UnityEngine.Rendering.Universal.Light2D";
         private const float LightSearchInterval = 2f;
@@ -105,6 +150,11 @@ namespace SheepGate.World
         private float _nextLightSearch;
         private float _appliedNightAmount = -1f;
 
+        private readonly HashSet<string> _duskHolds = new HashSet<string>();
+        private bool _duskPending;
+        private float _duskPendingSince;
+        private bool _lightOwnedElsewhere;
+
         private void Awake()
         {
             CreateTintOverlay();
@@ -131,7 +181,7 @@ namespace SheepGate.World
             tintObject.transform.SetParent(canvasObject.transform, false);
             _tint = tintObject.AddComponent<Image>();
             _tint.raycastTarget = false;
-            _tint.color = new Color(0.05f, 0.07f, 0.16f, 0f);
+            _tint.color = TintFor(0f);
 
             RectTransform rect = _tint.rectTransform;
             rect.anchorMin = Vector2.zero;
@@ -139,6 +189,260 @@ namespace SheepGate.World
             rect.offsetMin = Vector2.zero;
             rect.offsetMax = Vector2.zero;
         }
+
+        // ------------------------------------------------------------------ the daylight clock
+
+        /// <summary>The day cycle in the scene, or null before the world has been composed.</summary>
+        public static DayCycle Find()
+        {
+            DayCycle cycle = null;
+            try
+            {
+                ServiceLocator.TryGet(out cycle);
+            }
+            catch (Exception)
+            {
+                cycle = null;
+            }
+
+            if (cycle == null)
+            {
+                cycle = FindFirstObjectByType<DayCycle>();
+            }
+
+            return cycle;
+        }
+
+        /// <summary>
+        /// How much of today's work capacity is gone: 0 at first light, 1 once there is nothing
+        /// left to spend. The day's only clock, and the only hand on it is the player's own work.
+        /// </summary>
+        public float DayProgress
+        {
+            get
+            {
+                GameState state = WorldRuntime.State;
+                if (state == null || state.workCapacityMax <= 0)
+                {
+                    return 0f;
+                }
+
+                int max = state.workCapacityMax;
+                int left = Mathf.Clamp(state.workCapacity, 0, max);
+                return 1f - (float)left / max;
+            }
+        }
+
+        /// <summary>True once the day is over and the split is waiting for a clear moment.</summary>
+        public bool IsDuskPending
+        {
+            get { return _duskPending; }
+        }
+
+        /// <summary>True while something has asked the day not to end yet.</summary>
+        public bool IsDuskHeld
+        {
+            get { return _duskHolds.Count > 0; }
+        }
+
+        /// <summary>
+        /// True when the day could still go on: there is capacity left, so the split was asked for
+        /// rather than forced, and the split screen may offer a way back out of it.
+        /// </summary>
+        public bool CanDeferDusk
+        {
+            get
+            {
+                GameState state = WorldRuntime.State;
+                return !IsResolving && state != null && state.workCapacity > 0;
+            }
+        }
+
+        /// <summary>
+        /// Asks the day not to end yet, under a name, so two systems holding at once cannot cancel
+        /// each other. Day three holds for the whole day; the resident who sends the player down
+        /// the valley holds until they are back and have heard the rest of it.
+        /// </summary>
+        public void HoldDusk(string reason)
+        {
+            if (string.IsNullOrEmpty(reason))
+            {
+                return;
+            }
+
+            if (_duskHolds.Add(reason))
+            {
+                Debug.Log("[World] The day is being held open: " + reason + ".");
+            }
+        }
+
+        /// <summary>Releases one named hold. A name that is not held is ignored.</summary>
+        public void ReleaseDusk(string reason)
+        {
+            if (string.IsNullOrEmpty(reason))
+            {
+                return;
+            }
+
+            if (_duskHolds.Remove(reason))
+            {
+                Debug.Log("[World] The day is no longer held open by " + reason + ".");
+            }
+        }
+
+        /// <summary>
+        /// True when stopping for the night is something the player may do right now.
+        ///
+        /// Two cases, and they are not the same one: a day still running, where turning in is the
+        /// player deciding they are finished early; and a dusk that is pending but held, where
+        /// turning in is the player's way past a beat they have decided not to go back for. That
+        /// second case is what keeps day two from stranding anyone — accepting the invitation
+        /// spends the whole day's capacity <i>and</i> holds the evening for the other half of the
+        /// conversation, so without it a player who never went back to the resident would have had
+        /// no way to reach tomorrow at all.
+        ///
+        /// The last day refuses both: it ends on the trial and has no night to divide anyone over.
+        /// </summary>
+        public bool CanRest
+        {
+            get
+            {
+                if (IsResolving || _duskHolds.Contains(HoldFinalDay))
+                {
+                    return false;
+                }
+
+                // An evening already on its way in with nothing in its path is not something to
+                // ask for twice.
+                return !_duskPending || IsDuskHeld;
+            }
+        }
+
+        /// <summary>
+        /// Stops for the night. The mat by the door is the only way in, and it is optional: a day
+        /// ends on its own once its capacity is spent, so this is a player deciding they are done,
+        /// never a chore the game asks them to perform.
+        /// </summary>
+        public void RequestRest()
+        {
+            if (!CanRest)
+            {
+                return;
+            }
+
+            // Turning in forgives a beat that was still owed. The player has decided the day is
+            // over, and a line they chose to walk away from is theirs to walk away from — never a
+            // reason to refuse them the night. The last day's hold survives this, and CanRest has
+            // already refused there.
+            ReleaseDusk(HoldPendingBeat);
+            BeginDusk("the player turned in");
+        }
+
+        /// <summary>Takes back a dusk the player decided against; the light comes back up with it.</summary>
+        public void CancelDusk()
+        {
+            if (!_duskPending)
+            {
+                return;
+            }
+
+            _duskPending = false;
+            Debug.Log("[World] Dusk was called off; the day goes on.");
+        }
+
+        private void BeginDusk(string cause)
+        {
+            if (_duskPending || IsResolving)
+            {
+                return;
+            }
+
+            _duskPending = true;
+            _duskPendingSince = Time.unscaledTime;
+            Debug.Log("[World] Dusk is pending: " + cause + ".");
+        }
+
+        private void Update()
+        {
+            if (IsResolving || _lightOwnedElsewhere)
+            {
+                return;
+            }
+
+            if (!_duskPending && DayProgress >= 1f)
+            {
+                BeginDusk("the day's work is spent");
+            }
+
+            DriveDaylight();
+
+            if (_duskPending)
+            {
+                TryOpenTheSplit();
+            }
+        }
+
+        /// <summary>
+        /// The night level a day this far spent settles at.
+        ///
+        /// Gently superlinear rather than square. The square curve reads better on paper — the
+        /// morning barely moves, the last stones pull the light down hard — but on screen it left
+        /// a half-spent day at 6% wash, which is to say invisible, and a clock the player cannot
+        /// read is not a clock at all. This keeps the late acceleration and buys back an
+        /// afternoon that can actually be seen.
+        ///
+        /// Pure and public so the end-to-end run can assert what the curve is worth in alpha
+        /// rather than only that it moved.
+        /// </summary>
+        public static float DaylightFor(float progress)
+        {
+            float t = Mathf.Clamp01(progress);
+            return DuskNightAmount * t * (0.5f + 0.5f * t);
+        }
+
+        /// <summary>Slides the light toward the level today's spent work implies.</summary>
+        private void DriveDaylight()
+        {
+            float target = DaylightFor(_duskPending ? 1f : DayProgress);
+            ApplyNightAmount(Mathf.MoveTowards(NightAmount, target, DaylightFollowSpeed * Time.deltaTime), false);
+        }
+
+        /// <summary>
+        /// Whether a dusk that is already pending has to keep waiting.
+        ///
+        /// The whole rule, in one pure function, so it can be asserted rather than trusted: a
+        /// night waits for a hold, for a cutscene, and for any open panel. The chapter reader is a
+        /// panel like any other, and that is the point — a night that resolved while somebody was
+        /// reading would charge them for the one thing this game exists to get them to do.
+        /// </summary>
+        public static bool DuskWaits(bool held, bool inputLocked, bool modalOpen)
+        {
+            return held || inputLocked || modalOpen;
+        }
+
+        /// <summary>
+        /// Opens the split once nothing else is going on: no panel up, no cutscene, no
+        /// conversation, and nothing holding the day open.
+        /// </summary>
+        private void TryOpenTheSplit()
+        {
+            if (DuskWaits(IsDuskHeld, InputLock.IsLocked, ModalRoot.IsOpen))
+            {
+                // The settle only ever measures a clear moment, so it restarts rather than
+                // running down behind whatever has the screen.
+                _duskPendingSince = Time.unscaledTime;
+                return;
+            }
+
+            if (Time.unscaledTime - _duskPendingSince < DuskSettleSeconds)
+            {
+                return;
+            }
+
+            RequestEndDay();
+        }
+
+        // ------------------------------------------------------------------ the night
 
         /// <summary>
         /// Asks for the end-of-day split. The UI layer either subscribes to
@@ -284,7 +588,9 @@ namespace SheepGate.World
         {
             IsResolving = true;
 
-            yield return Fade(0f, 1f, DuskSeconds);
+            // From wherever the daylight clock left the light, not from full day: by now the
+            // village is already late, and restarting at noon would flash before it darkened.
+            yield return Fade(NightAmount, 1f, DuskSeconds);
 
             ResolveNightOutcome(workers, watchers);
 
@@ -487,6 +793,10 @@ namespace SheepGate.World
 
         private void AdvanceToMorning()
         {
+            // A new day owns its own light and its own clock, whatever yesterday was holding.
+            _duskPending = false;
+            _lightOwnedElsewhere = false;
+
             GameState state = WorldRuntime.State;
             if (state == null)
             {
@@ -613,10 +923,38 @@ namespace SheepGate.World
             ApplyNightAmount(to, false);
         }
 
-        /// <summary>Sets the night level directly, for scripted moments such as the day three assault.</summary>
+        /// <summary>
+        /// The wash at a given night level, alpha included.
+        ///
+        /// Two colours rather than one: below <see cref="DuskNightAmount"/> it is the low warm
+        /// light of a day running out, and above it the night the fade is carrying the village
+        /// into. A single navy tint made a working afternoon read as an overcast morning.
+        /// </summary>
+        private static Color TintFor(float amount)
+        {
+            float level = Mathf.Clamp01(amount);
+            float toNight = level <= DuskNightAmount ? 0f : Mathf.InverseLerp(DuskNightAmount, 1f, level);
+            Color color = Color.Lerp(EveningTint, NightTint, toNight);
+            color.a = level * MaxTintAlpha;
+            return color;
+        }
+
+        /// <summary>
+        /// Sets the night level directly and takes the light away from the daylight clock, for
+        /// scripted moments such as the day three assault. <see cref="ReleaseLight"/> hands it
+        /// back, and so does the next morning, so a scripted beat can never strand the village
+        /// in the dark.
+        /// </summary>
         public void SetNightAmount(float amount)
         {
+            _lightOwnedElsewhere = true;
             ApplyNightAmount(Mathf.Clamp01(amount), false);
+        }
+
+        /// <summary>Gives the light back to the daylight clock.</summary>
+        public void ReleaseLight()
+        {
+            _lightOwnedElsewhere = false;
         }
 
         private void ApplyNightAmount(float amount, bool force)
@@ -631,9 +969,7 @@ namespace SheepGate.World
 
             if (_tint != null)
             {
-                Color color = _tint.color;
-                color.a = NightAmount * MaxTintAlpha;
-                _tint.color = color;
+                _tint.color = TintFor(NightAmount);
             }
 
             ApplyToLight();

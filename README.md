@@ -35,7 +35,7 @@ tools/unity-check.sh --open      # open the project in the editor, then press Pl
 tools/unity-check.sh             # headless compile, reports C# errors
 node tools/validate-content.mjs  # scripture integrity, locale parity, hardcoded strings
 tools/acceptance.sh              # assert the acceptance criteria, once per language
-tools/e2e.sh                     # build a player and play the opening in every language
+tools/e2e.sh                     # build a player, play the opening and a whole day, every language
 ```
 
 `tools/e2e.sh` is the one that runs a real build. It launches the player per locale, drives it

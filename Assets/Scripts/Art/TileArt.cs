@@ -326,6 +326,66 @@ namespace SheepGate.Art
             return canvas;
         }
 
+        /// <summary>
+        /// A sleeping mat, woven straw, rolled at the head end and left where its owner sleeps.
+        ///
+        /// Deliberately the plainest object in the village: it is the one thing in the world that
+        /// ends the day, and anything more ceremonious than a mat would turn stopping into a rite.
+        /// </summary>
+        public static PixelCanvas PropMat(int seed)
+        {
+            PixelCanvas canvas = new PixelCanvas(Size, Size);
+
+            // The mat lying flat. Narrower at the top edge so it reads as lying away from us.
+            canvas.FillRect(6, 15, 21, 10, ArtPalette.ClayLight);
+            canvas.HLine(7, 14, 19, ArtPalette.ClayLight);
+            canvas.HLine(6, 15, 21, ArtPalette.ClayPale);
+            canvas.HLine(6, 24, 21, ArtPalette.ClayDark);
+
+            // Weave: weft across, warp down, two shades apart so it reads as woven and not as a plank.
+            for (int y = 17; y < 24; y += 2)
+            {
+                canvas.HLine(7, y, 19, ArtPalette.ClayMid);
+            }
+
+            for (int x = 8; x < 26; x += 3)
+            {
+                canvas.VLine(x, 16, 8, ArtPalette.ClayPale);
+            }
+
+            // Fringe worked into the bottom edge rather than hung below it: a strand drawn one row
+            // clear of the body is an island, and OutlineOpaque rings every island in ink, which
+            // turned a woven edge into two specks of dirt under the mat.
+            for (int x = 7; x < 26; x++)
+            {
+                if (ValueNoise.RangeInt(seed, x, 0, 4) != 0)
+                {
+                    continue;
+                }
+
+                canvas.Set(x, 24, ArtPalette.ClayDeep);
+                canvas.Set(x, 16, ArtPalette.ClayPale);
+            }
+
+            // Rolled at the head end: a blanket, or the mat itself turned over on itself. Lit
+            // along the top and shaded under, so the roll reads as round instead of as a crate.
+            canvas.FillRoundedRect(5, 8, 22, 7, 3, ArtPalette.ClayMid);
+            canvas.HLine(7, 8, 18, ArtPalette.ClayPale);
+            canvas.HLine(6, 9, 20, ArtPalette.ClayLight);
+            canvas.HLine(6, 13, 20, ArtPalette.ClayDark);
+            canvas.HLine(7, 14, 18, ArtPalette.ClayDeep);
+
+            // One turn of the roll showing at each end, and a crease where the cloth folds over.
+            canvas.VLine(8, 10, 3, ArtPalette.ClayDark);
+            canvas.VLine(23, 10, 3, ArtPalette.ClayDark);
+            canvas.Set(7, 11, ArtPalette.ClayDeep);
+            canvas.Set(24, 11, ArtPalette.ClayDeep);
+            canvas.Speckle(6, 17, 20, 7, ArtPalette.ClayPale, seed, 0.05f);
+
+            canvas.OutlineOpaque(ArtPalette.Ink);
+            return canvas;
+        }
+
         static void DrawStone(PixelCanvas canvas, int x, int y, int width, int height, Color32[] ramp, int seed, int index)
         {
             int shade = ValueNoise.RangeInt(seed, index * 13 + 3, 1, ramp.Length - 1);

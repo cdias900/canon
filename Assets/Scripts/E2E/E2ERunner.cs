@@ -6,6 +6,8 @@ using System.Text;
 using SheepGate.Core;
 using SheepGate.Dialogue;
 using SheepGate.Scripture;
+using SheepGate.UI;
+using SheepGate.World;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -53,6 +55,7 @@ namespace SheepGate.E2E
         readonly List<string> _shots = new List<string>();
 
         string _outputDirectory;
+        string _runLocale = Locales.Source;
         bool _finished;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
@@ -82,8 +85,16 @@ namespace SheepGate.E2E
             _outputDirectory = ReadFlagValue(OutputFlag) ?? Path.Combine(AppPaths.DataRoot, "e2e");
             Directory.CreateDirectory(_outputDirectory);
 
+            // The locale this run *started* in, held for the whole run.
+            //
+            // Every artefact is named for it, and it must not be read live: the run switches
+            // language halfway through on purpose, so a live read had the pt-BR run writing its
+            // screenshots and its result file under "en" — quietly overwriting the artefacts the
+            // English run had just produced, and reporting itself as the English run in the log.
+            _runLocale = Locales.Active;
+
             Application.logMessageReceived += OnLog;
-            Debug.Log("[E2E] Started. locale=" + Locales.Active + " out=" + _outputDirectory);
+            Debug.Log("[E2E] Started. locale=" + _runLocale + " out=" + _outputDirectory);
 
             StartCoroutine(Watchdog());
             yield return RunScript();
@@ -151,6 +162,157 @@ namespace SheepGate.E2E
             {
                 yield return SwitchLanguageAndVerify();
             }
+
+            // 7. A whole day, ended by nobody.
+            yield return PlayADayToItsEnd();
+        }
+
+        /// <summary>
+        /// Spends the day's work and watches the day end on its own.
+        ///
+        /// This is the only step that exercises <see cref="DayCycle"/>'s Update loop, and it has to
+        /// live here: the acceptance harness drives the night through the component's synchronous
+        /// path with the component disabled, so the daylight clock never runs there at all. What
+        /// this asserts is the shape of the new loop end to end in a real composed scene — the
+        /// light falls as the work is spent, the split arrives with nobody asking for it, and the
+        /// morning that follows is a new day with its capacity back.
+        ///
+        /// The work is spent through the resource system rather than by walking the player to the
+        /// wall and tapping it. Pathing across the village is the interaction layer's business and
+        /// is not what changed; what changed is what the clock does once the capacity is gone.
+        /// </summary>
+        IEnumerator PlayADayToItsEnd()
+        {
+            DayCycle cycle = UnityEngine.Object.FindFirstObjectByType<DayCycle>();
+            ResourceSystem resources = ResourceSystem.Find();
+            GameState state = null;
+            try
+            {
+                state = ServiceLocator.Get<GameState>();
+            }
+            catch (Exception)
+            {
+                state = null;
+            }
+
+            if (cycle == null || resources == null || state == null)
+            {
+                Record("the day can be played", false,
+                    "cycle=" + (cycle != null) + " resources=" + (resources != null) + " state=" + (state != null));
+                yield break;
+            }
+
+            int startingDay = state.day;
+            Record("the day starts with its light up", cycle.NightAmount < 0.02f,
+                "night amount " + cycle.NightAmount.ToString("0.000"));
+
+            // Half the day's work. The light must move, and the split must not arrive yet.
+            int capacity = state.workCapacity;
+            resources.Spend(capacity / 2);
+            yield return WaitForTheLight(cycle);
+
+            float halfway = cycle.NightAmount;
+            Record("spending the day pulls the light down",
+                Mathf.Abs(halfway - DayCycle.DaylightFor(0.5f)) < 0.01f,
+                "night amount " + halfway.ToString("0.000") + " after spending " + (capacity / 2)
+                + ", expected " + DayCycle.DaylightFor(0.5f).ToString("0.000"));
+
+            // The clock has to be legible, not merely present. A half-spent day used to settle at
+            // a 6% wash, which is a number that moved and a screen that did not.
+            float wash = halfway * DayCycle.MaxTintAlpha;
+            Record("half a day is visibly later than dawn", wash > 0.08f,
+                "the wash at half a day is " + wash.ToString("0.000") + " alpha");
+            Record("half a day is not the end of one", !EndDayPanel.IsOpen && !cycle.IsDuskPending,
+                "dusk pending=" + cycle.IsDuskPending + " split open=" + EndDayPanel.IsOpen);
+            yield return Capture("05-afternoon");
+
+            // The mat, and the way back off it. Interact() rather than a walk across the village:
+            // pathing is the interaction layer's business and is not what changed here.
+            RestPoint mat = UnityEngine.Object.FindFirstObjectByType<RestPoint>();
+            Record("there is a mat to turn in on", mat != null && mat.IsAvailable,
+                mat == null ? "no RestPoint in the scene" : "available=" + mat.IsAvailable);
+
+            if (mat != null)
+            {
+                mat.Interact();
+                yield return WaitUntil(() => EndDayPanel.IsOpen, "the split the mat asked for");
+                Record("the mat brings the evening on", EndDayPanel.IsOpen,
+                    "split open=" + EndDayPanel.IsOpen);
+
+                // Turning in early is a choice, so it has to be one that can be taken back.
+                Record("an early night can be turned down", Find("Defer") != null,
+                    Find("Defer") != null ? "the split offers a way back" : "no defer button on a day with work left");
+                yield return Capture("06-turning-in");
+
+                yield return Tap("Defer", "the way back to the day");
+                yield return WaitUntil(() => !EndDayPanel.IsOpen, "the split to close");
+                yield return WaitForTheLight(cycle);
+
+                Record("turning the night down gives the day back",
+                    state.day == startingDay && !cycle.IsDuskPending
+                    && Mathf.Abs(cycle.NightAmount - DayCycle.DaylightFor(0.5f)) < 0.01f,
+                    "day " + state.day + ", dusk pending=" + cycle.IsDuskPending
+                    + ", night amount " + cycle.NightAmount.ToString("0.000"));
+            }
+
+            // The rest of it. Nothing is tapped from here on: the day has to end by itself.
+            resources.Spend(state.workCapacity);
+            yield return WaitUntil(() => EndDayPanel.IsOpen, "the split to open itself");
+
+            Record("the day ends without being asked to", EndDayPanel.IsOpen,
+                "the split opened with no button pressed");
+            Record("dusk is darker than the afternoon was", cycle.NightAmount > halfway,
+                "night amount " + cycle.NightAmount.ToString("0.000") + " vs " + halfway.ToString("0.000"));
+            yield return Capture("07-dusk");
+
+            // A day with nothing left to spend cannot be turned down, so the split has no way back.
+            Record("a spent day offers no way out of the night", Find("Defer") == null,
+                Find("Defer") == null ? "no defer button" : "a defer button is on a forced night");
+
+            yield return Tap("Confirm", "the split");
+            yield return WaitUntil(() => state.day > startingDay && !cycle.IsResolving, "the morning");
+
+            Record("the night rolls the day over", state.day == startingDay + 1,
+                "day " + startingDay + " -> " + state.day);
+            Record("the morning gives the day its work back", state.workCapacity == state.workCapacityMax,
+                "capacity " + state.workCapacity + "/" + state.workCapacityMax);
+            Record("the new day has its light back", cycle.NightAmount < 0.02f,
+                "night amount " + cycle.NightAmount.ToString("0.000"));
+            yield return Capture("08-morning");
+        }
+
+        /// <summary>
+        /// Waits for the daylight to stop moving. The light slides toward its target rather than
+        /// snapping, so reading it a few frames after the work is spent reads a value in transit.
+        /// </summary>
+        IEnumerator WaitForTheLight(DayCycle cycle)
+        {
+            float deadline = Time.realtimeSinceStartup + StepTimeoutSeconds;
+            float previous = float.NaN;
+            int steady = 0;
+
+            while (steady < 3 && Time.realtimeSinceStartup < deadline)
+            {
+                float now = cycle.NightAmount;
+                steady = Mathf.Approximately(now, previous) ? steady + 1 : 0;
+                previous = now;
+                yield return null;
+            }
+        }
+
+        /// <summary>Waits for a condition, and records a failure rather than hanging on it.</summary>
+        IEnumerator WaitUntil(Func<bool> condition, string description)
+        {
+            float deadline = Time.realtimeSinceStartup + StepTimeoutSeconds;
+            while (!condition() && Time.realtimeSinceStartup < deadline)
+            {
+                yield return null;
+            }
+
+            if (!condition())
+            {
+                Record("waited for " + description, false, "it never happened within " + StepTimeoutSeconds + "s");
+            }
         }
 
         /// <summary>
@@ -166,6 +328,14 @@ namespace SheepGate.E2E
         {
             string target = Locales.Next(Locales.Active);
             string before = TextOf("Day");
+
+            // In the village the language lives one tap deeper than it does in character creation:
+            // the HUD carries a settings button and the chips live on the panel it opens. Tapping
+            // straight at a chip here reported a missing control, which read as the toggle being
+            // broken rather than as this run not having opened the panel.
+            yield return Tap("SettingsButton", "the settings button");
+            Record("the settings panel opened", ModalRoot.IsOpen && ModalRoot.TopId == SettingsPanel.ModalId,
+                "top modal is " + (ModalRoot.TopId ?? "nothing"));
 
             yield return Tap("Locale_" + target, "the " + target + " language chip");
 
@@ -283,6 +453,19 @@ namespace SheepGate.E2E
             yield return TapObject(target, "tap " + description);
         }
 
+        /// <summary>
+        /// Raycasts at the control until the ray actually reaches it, then clicks whatever it
+        /// reached.
+        ///
+        /// The retry is not politeness. A panel built this frame has not been through a canvas
+        /// batch yet, and until it has, every graphic on it still reports depth -1 — which the
+        /// graphic raycaster skips outright, so a perfectly live button raycasts to nothing at
+        /// all. Judging on the first frame reported the settings panel's language chips as
+        /// unreachable when they were merely one frame old.
+        ///
+        /// What the retry must not do is soften the verdict: a control genuinely under an opaque
+        /// panel still fails, having spent the timeout proving it.
+        /// </summary>
         IEnumerator TapObject(GameObject target, string label)
         {
             EventSystem events = EventSystem.current;
@@ -299,28 +482,52 @@ namespace SheepGate.E2E
                 yield break;
             }
 
-            Vector2 screenPoint = ScreenCentreOf(rect);
-            var pointer = new PointerEventData(events) { position = screenPoint };
+            float deadline = Time.realtimeSinceStartup + StepTimeoutSeconds;
             var hits = new List<RaycastResult>();
-            events.RaycastAll(pointer, hits);
+            Vector2 screenPoint = Vector2.zero;
+            GameObject reached = null;
+            string reason = null;
 
-            if (hits.Count == 0)
+            while (true)
             {
-                Record(label, false, PathOf(target) + " is not hit by a ray at " + screenPoint);
+                screenPoint = ScreenCentreOf(rect);
+                var probe = new PointerEventData(events) { position = screenPoint };
+                hits.Clear();
+                events.RaycastAll(probe, hits);
+
+                // Only the topmost hit matters: that is the one a finger would reach. Looking
+                // further down the list would find the target under an opaque panel and click it
+                // anyway, which is the exact bug this method exists to catch.
+                if (hits.Count == 0)
+                {
+                    reason = PathOf(target) + " is not hit by a ray at " + screenPoint;
+                }
+                else if (!IsSelfOrDescendant(hits[0].gameObject, target))
+                {
+                    reason = PathOf(target) + " is covered by " + PathOf(hits[0].gameObject)
+                             + " at " + screenPoint;
+                }
+                else
+                {
+                    reached = hits[0].gameObject;
+                    break;
+                }
+
+                if (Time.realtimeSinceStartup >= deadline)
+                {
+                    break;
+                }
+
+                yield return null;
+            }
+
+            if (reached == null)
+            {
+                Record(label, false, reason);
                 yield break;
             }
 
-            // Only the topmost hit matters: that is the one a finger would reach. Looking further
-            // down the list would find the target under an opaque panel and click it anyway, which
-            // is the exact bug this method exists to catch.
-            GameObject reached = hits[0].gameObject;
-            if (!IsSelfOrDescendant(reached, target))
-            {
-                Record(label, false,
-                    PathOf(target) + " is covered by " + PathOf(reached) + " at " + screenPoint);
-                yield break;
-            }
-
+            var pointer = new PointerEventData(events) { position = screenPoint };
             ExecuteEvents.Execute(reached, pointer, ExecuteEvents.pointerClickHandler);
             Record(label, true, "clicked " + PathOf(reached));
             yield return null;
@@ -404,7 +611,7 @@ namespace SheepGate.E2E
 
         IEnumerator Capture(string name)
         {
-            string fileName = name + "-" + Locales.Active + ".png";
+            string fileName = name + "-" + _runLocale + ".png";
             string path = Path.Combine(_outputDirectory, fileName);
 
             yield return new WaitForEndOfFrame();
@@ -524,7 +731,7 @@ namespace SheepGate.E2E
         {
             var report = new StringBuilder();
             report.AppendLine("{");
-            report.AppendLine("  \"locale\": " + Quote(Locales.Active) + ",");
+            report.AppendLine("  \"locale\": " + Quote(_runLocale) + ",");
             report.AppendLine("  \"passed\": " + (_failures.Count == 0 ? "true" : "false") + ",");
             report.AppendLine("  \"steps\": [");
             for (int i = 0; i < _steps.Count; i++)
@@ -546,7 +753,7 @@ namespace SheepGate.E2E
             report.AppendLine("  ]");
             report.AppendLine("}");
 
-            string path = Path.Combine(_outputDirectory, "result-" + Locales.Active + ".json");
+            string path = Path.Combine(_outputDirectory, "result-" + _runLocale + ".json");
             try
             {
                 File.WriteAllText(path, report.ToString());
@@ -558,8 +765,8 @@ namespace SheepGate.E2E
             }
 
             Debug.Log("[E2E] " + (_failures.Count == 0
-                ? "ALL STEPS PASSED (" + Locales.Active + ")"
-                : _failures.Count + " FAILURE(S) (" + Locales.Active + ")"));
+                ? "ALL STEPS PASSED (" + _runLocale + ")"
+                : _failures.Count + " FAILURE(S) (" + _runLocale + ")"));
         }
 
         static string Quote(string value)

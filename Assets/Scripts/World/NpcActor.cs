@@ -158,6 +158,53 @@ namespace SheepGate.World
             return Mathf.Abs(hash) % count;
         }
 
+        /// <summary>
+        /// Puts back the hold on the end of the day when this scene was rebuilt in the middle of
+        /// the trip down the valley — a language switch, a relaunch. The hold is derived from the
+        /// run rather than remembered, so it cannot survive the beat it belongs to.
+        /// </summary>
+        private void Start()
+        {
+            if (!OwesTheReturn())
+            {
+                return;
+            }
+
+            DayCycle cycle = DayCycle.Find();
+            if (cycle != null)
+            {
+                cycle.HoldDusk(DayCycle.HoldPendingBeat);
+            }
+        }
+
+        /// <summary>
+        /// True while this resident sent the player down the valley today and has not yet said the
+        /// other half of it. The trip spends the whole day's capacity, so without this the daylight
+        /// clock would take the village to dusk the moment the player got back — and the line that
+        /// makes the trip mean anything would never be said.
+        /// </summary>
+        private bool OwesTheReturn()
+        {
+            if (NpcId != InviteNpcId)
+            {
+                return false;
+            }
+
+            GameState state = WorldRuntime.State;
+            if (state == null || state.day != InviteDay || !state.HasFlag(GameFlags.AcceptedInvite))
+            {
+                return false;
+            }
+
+            if (string.IsNullOrEmpty(WorldRuntime.FirstExistingNode(InviteReturnNodeId)))
+            {
+                // Nothing authored to come back for; holding the day open would strand it.
+                return false;
+            }
+
+            return DialogueData.TimesSeen(state, InviteReturnNodeId) == 0;
+        }
+
         public override void Interact()
         {
             GameState state = WorldRuntime.State;
@@ -330,6 +377,13 @@ namespace SheepGate.World
                 return;
             }
 
+            if (nodeId == InviteReturnNodeId)
+            {
+                // The day is his to give back: he took it when he sent the player away.
+                SetDuskHold(false);
+                return;
+            }
+
             if (nodeId == DonationNodeId)
             {
                 TakeDonatedRubble();
@@ -356,6 +410,10 @@ namespace SheepGate.World
             }
 
             state.counters[InviteDaySpentKey] = 1;
+
+            // The capacity is about to go to zero, which is what the daylight clock reads as the
+            // end of a day. Hold it: the player still has to walk back and hear the rest of this.
+            SetDuskHold(true);
 
             int remaining = state.workCapacity;
             ResourceSystem resources = ResourceSystem.Find();
@@ -474,6 +532,26 @@ namespace SheepGate.World
             }
 
             WorldRuntime.SaveNow();
+        }
+
+        /// <summary>Takes or gives back the hold that keeps the day from ending on this beat.</summary>
+        private static void SetDuskHold(bool held)
+        {
+            DayCycle cycle = DayCycle.Find();
+            if (cycle == null)
+            {
+                Debug.LogWarning("[World] No DayCycle in the scene; the day could not be held open for the trip down the valley.");
+                return;
+            }
+
+            if (held)
+            {
+                cycle.HoldDusk(DayCycle.HoldPendingBeat);
+            }
+            else
+            {
+                cycle.ReleaseDusk(DayCycle.HoldPendingBeat);
+            }
         }
 
         private void RecordConversation(string nodeId)

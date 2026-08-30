@@ -52,7 +52,7 @@ Assets/
   Scripts/
     Core/        GameState.cs  SaveSystem.cs  Telemetry.cs  ServiceLocator.cs
     Player/      PlayerController.cs  GridPathfinder.cs  CharacterAppearance.cs
-    World/       DayCycle.cs  WallSystem.cs  ResourceSystem.cs  InteractableBase.cs
+    World/       DayCycle.cs  WallSystem.cs  ResourceSystem.cs  InteractableBase.cs  RestPoint.cs
     Dialogue/    DialogueSystem.cs  DialogueUI.cs  DialogueData.cs
     Scripture/   ScriptureService.cs  ChapterReaderUI.cs
     Contest/     MoraleContest.cs  ContestUI.cs
@@ -162,8 +162,8 @@ tools/
 | `PlayerController` | Toque/clique no chão → caminho → move. Toque em interagível → aproxima e dispara `Interact()`. | `MoveTo(Vector2)` |
 | `GridPathfinder` | A* na grade do tilemap. Mapa pequeno; não use pacote externo. | `FindPath(a,b)` |
 | `WallSystem` | Estágios por segmento, consome trabalho, troca sprite, dispara evento de conclusão. | `ApplyWork(id,n)` |
-| `ResourceSystem` | Entulho e capacidade de trabalho diária. Capacidade reseta a cada manhã. | `Spend(n) : bool` |
-| `DayCycle` | Dia → painel de fim de dia → resolução noturna → relatório matinal. Controla `Light2D` global. | `EndDay(split)` |
+| `ResourceSystem` | Entulho e capacidade de trabalho diária. Capacidade reseta a cada manhã. **A capacidade é o relógio do dia** — ver `DayCycle`. | `Spend(n) : bool` |
+| `DayCycle` | **O dia acaba sozinho.** A luz acompanha a capacidade gasta; quando ela zera, anoitece e o painel de divisão se abre por conta própria. Resolução noturna → relatório matinal. Controla `Light2D` global. | `DayProgress`, `HoldDusk(motivo)`, `EndDay(split)` |
 | `DialogueSystem` | Fila de linhas, revelação por digitação (40 car/s), resolve `verse` via ScriptureService, aplica `grants`. | `Play(nodeId)` |
 | `ScriptureService` | Índice em memória de `verses.json`. Nunca vai à rede. | `GetVerse` / `GetChapter` |
 | `ChapterReaderUI` | Painel rolável com o capítulo inteiro. Dispara `deep_read` ao passar 20s **e** 60% de rolagem. | `Open(chapterRef)` |
@@ -190,13 +190,23 @@ Seis moradores, todos nomeados em Neemias 3 e **sem fala registrada no texto**. 
 | `zacur` | Zacur | `NEH.3.2` | Dia 2: diz que não vem ninguém. **Informação errada.** O jogo não avisa. |
 | `malquias` | Malquias | `NEH.3.14` | Governante de distrito. Entrega o convite de fora no dia 2. |
 
+> **O relógio é a obra, e nada mais**
+> Capacidade de trabalho é a única coisa que um dia gasta — assentar pedra, e a viagem do dia 2 que
+> consome o resto dela. Catar entulho é de graça, e **conversar é de graça**: cobrar tempo por
+> diálogo seria cobrar pelas citações, que é exatamente onde mora a métrica-norte. Quem quer parar
+> antes tem a **esteira na porta de casa**; ninguém *precisa* dela, porque o dia acaba sozinho, e é
+> por isso que ela não é tarefa. Nada corre no relógio de parede: parado, conversando ou lendo um
+> capítulo inteiro, o dia não anda um passo. E uma noite **nunca** resolve com painel aberto — o
+> leitor de capítulo é um painel como outro qualquer, e um dia que terminasse durante a leitura
+> cobraria o jogador justamente pela coisa que o jogo existe para provocar (regra 20).
+
 ### Dia 1 — A convocação
 
-- Spawn na aldeia. HUD mínima: capacidade de trabalho, entulho.
+- Spawn na aldeia. HUD mínima: capacidade de trabalho, entulho. **Sem botão de encerrar o dia.**
 - Falar com `hananias`, `salum`, `baruque` destrava o trecho.
 - Citações do dia: `NEH.2.17`, `NEH.2.18`, `NEH.4.6`.
-- Catar entulho (5 pontos no chão) → trabalhar `seg_01`.
-- Fim de dia: dividir gente entre **obra** e **guarda**.
+- Catar entulho (5 pontos no chão) → trabalhar `seg_01`. Cada pedra assentada puxa a luz para baixo.
+- Fim de dia: a capacidade acaba, anoitece, e o painel pede a divisão entre **obra** e **guarda**.
 
 ### Dia 2 — Os que chamam de fora
 
@@ -204,6 +214,7 @@ Seis moradores, todos nomeados em Neemias 3 e **sem fala registrada no texto**. 
 - `meremote` e `zacur` se contradizem. Nenhum indicador de qual crer.
 - `malquias` traz o convite. Aceitar consome o dia inteiro e danifica `seg_01`; recusar cita `NEH.6.3`.
 - Peixe no poço: 2 tentativas falham, na 3ª aparece a dica e cita `JHN.21.6`.
+- Aceitar o convite zera a capacidade **sem** encerrar o dia: `malquias` segura o anoitecer até o jogador voltar e ouvir a outra metade da conversa.
 - Fim de dia: dividir de novo.
 
 ### Dia 3 — A brecha e a leitura
@@ -309,7 +320,7 @@ Nada de arte própria. Tileset CC0 (Kenney ou equivalente) com paleta reduzida a
 **Cenário e UI**
 
 - Tiles: chão, escombro, água, casa, e 4 estágios de muralha
-- Props: 5 pilhas de entulho, 1 poço com peixe
+- Props: 5 pilhas de entulho, 1 poço com peixe, 1 esteira na porta de casa
 - UI: balão de diálogo, painel de fim de dia, HUD, painel de prova, A Página, leitor de capítulo
 - Áudio: 1 ambiente diurno, 1 noturno, 4 efeitos (passo, pedra, confirma, trombeta)
 
@@ -344,3 +355,4 @@ Nada de arte própria. Tileset CC0 (Kenney ou equivalente) com paleta reduzida a
 | 10 | `deep_read` aparece em `telemetry.jsonl` após leitura real de `NEH.4`. |
 | 11 | Vocação revelada corresponde à maior pontuação; nenhuma UI expôs progresso antes. |
 | 12 | Roda offline do início ao fim, em modo avião. |
+| 13 | O dia acaba sozinho quando a capacidade zera; nenhum botão de HUD encerra o dia; nenhuma noite resolve com painel aberto. |

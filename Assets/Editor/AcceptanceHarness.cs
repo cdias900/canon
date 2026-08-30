@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Text;
 using SheepGate.Contest;
 using SheepGate.Core;
@@ -75,6 +76,7 @@ namespace SheepGate.EditorTools
                     ContestRules();
                     VocationResolution();
                     NightDiffers();
+                    DaylightClock();
                 }
                 catch (Exception exception)
                 {
@@ -434,6 +436,70 @@ namespace SheepGate.EditorTools
 
             Check("06 the watch is recorded only when posted", flagWithWatch && !flagWithout,
                 "watch_posted_d1 = " + flagWithWatch + " with a watch, " + flagWithout + " without");
+        }
+
+        // 13 — the day is its own clock, and reading is never what ends it.
+        static void DaylightClock()
+        {
+            GameState state = GameState.NewGame();
+            ServiceLocator.Clear();
+            ServiceLocator.Register(state);
+
+            var host = new GameObject("HarnessDaylight");
+            var cycle = host.AddComponent<DayCycle>();
+            cycle.enabled = false;
+
+            state.workCapacityMax = 12;
+
+            state.workCapacity = 12;
+            float dawn = cycle.DayProgress;
+
+            state.workCapacity = 6;
+            float midday = cycle.DayProgress;
+
+            state.workCapacity = 0;
+            float spent = cycle.DayProgress;
+
+            Check("13 the day is its own clock",
+                Mathf.Approximately(dawn, 0f) && Mathf.Approximately(midday, 0.5f) && Mathf.Approximately(spent, 1f),
+                "day progress at full capacity " + dawn + ", half " + midday + ", spent " + spent);
+
+            // Nothing on the HUD ends a day any more. The button that did was the thing this
+            // whole system replaced, and a reinstated one would quietly restore the chore.
+            Check("13 nothing on the interface ends the day", !HasEndDaySymbol(),
+                "no HUD member named for ending the day");
+
+            // The one that matters: a pending night waits for whatever has the screen. The reader
+            // is a panel, so this is the assertion that a chapter can never cost the player a day.
+            Check("13 a night never resolves over an open panel",
+                DayCycle.DuskWaits(false, false, true)
+                && DayCycle.DuskWaits(false, true, false)
+                && DayCycle.DuskWaits(true, false, false)
+                && !DayCycle.DuskWaits(false, false, false),
+                "dusk waits on a panel, a locked input and a hold, and on nothing else");
+
+            UnityEngine.Object.DestroyImmediate(host);
+        }
+
+        static bool HasEndDaySymbol()
+        {
+            Type hud = typeof(MoraleContest).Assembly.GetType("SheepGate.UI.HUD");
+            if (hud == null)
+            {
+                return false;
+            }
+
+            foreach (var member in hud.GetMembers(BindingFlags.Public | BindingFlags.NonPublic
+                                                  | BindingFlags.Instance | BindingFlags.Static
+                                                  | BindingFlags.DeclaredOnly))
+            {
+                if (member.Name.IndexOf("EndDay", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>

@@ -4,7 +4,6 @@
   "hud.rubble": "Entulho {0}",
   "hud.patrol": "Ronda",
   "hud.patrol_return": "Voltar",
-  "hud.end_day": "Fim do dia",
   "hud.map": "Mapa",
 
   "creation.title": "Antes de subir a primeira pedra",
@@ -31,6 +30,7 @@
   "end_day.split.work": "Obra",
   "end_day.split.watch": "Guarda",
   "end_day.confirm": "Fechar o dia",
+  "end_day.defer": "Ainda não",
   "end_day.work_hint.one": "1 pessoa segue na obra até o sol nascer.",
   "end_day.work_hint.other": "{0} pessoas seguem na obra até o sol nascer.",
   "end_day.watch_hint.one": "1 pessoa fica no muro, de olho na estrada, e não levanta pedra.",
@@ -124,6 +124,7 @@
   "world.wall_segment": "Trecho da muralha",
   "world.well": "Poço",
   "world.rubble": "Entulho",
+  "world.rest_point": "Sua esteira",
   "hud.settings": "Ajustes",
   "settings.title": "Ajustes",
   "settings.language": "Idioma",

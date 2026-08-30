@@ -25,6 +25,7 @@ namespace SheepGate.Art
 
         public const string PropRubble = "prop_rubble";
         public const string PropWell = "prop_well";
+        public const string PropMat = "prop_mat";
 
         public const string UiPanel = "ui_panel";
         public const string UiBubble = "ui_bubble";

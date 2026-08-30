@@ -91,6 +91,22 @@ Arquétipos, não profissões. Testados contra duas temporadas diferentes.
 
 **A decisão que se repete:** cada trabalhador na guarda é um trabalhador fora da obra. Um único controle, e nenhuma das duas pontas pode zerar (`NEH.4.16`).
 
+**Como o tempo passa.** Não existe botão de encerrar o dia. O dia tem um orçamento de obra, a luz da
+aldeia é esse orçamento visto de outro jeito, e cada pedra assentada puxa o sol para baixo — devagar
+de manhã, rápido no fim, do jeito que uma tarde escapa de alguém de verdade. Gasto o orçamento,
+anoitece e a divisão obra/guarda se apresenta sozinha. Quem quer parar antes da hora tem a esteira,
+e é só isso que ela faz.
+
+Três regras seguram esse relógio:
+
+- **Ele só anda quando o jogador age.** Nada de relógio de parede. Ficar parado não custa nada, e
+  conversar também não — o diálogo é onde as citações moram, e cobrar tempo por ele seria cobrar
+  pedágio na métrica-norte.
+- **A noite espera.** Painel aberto, cena, conversa: o anoitecer aguarda. O leitor de capítulo é um
+  painel como outro qualquer, então um dia jamais termina enquanto alguém lê.
+- **Parar cedo é escolha, nunca tarefa.** A esteira existe para quem terminou antes da capacidade, e
+  para quem decidiu não construir nada hoje. O dia acabaria sozinho de qualquer jeito.
+
 ## Quatro vetores de ameaça
 
 O que torna Neemias bom material não é ter inimigos — é que os quatro ataques são de **tipos diferentes**, e cada um exige uma resposta que a anterior não ensina.

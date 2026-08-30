@@ -147,6 +147,7 @@ namespace SheepGate.Art
                 case ArtKeys.TileHouse: return World(key, TileArt.House(seed));
                 case ArtKeys.PropRubble: return World(key, TileArt.PropRubble(seed));
                 case ArtKeys.PropWell: return World(key, TileArt.PropWell(seed));
+                case ArtKeys.PropMat: return World(key, TileArt.PropMat(seed));
                 case ArtKeys.UiPanel: return Ui(key, UiArt.Panel(), UiArt.PanelBorder);
                 case ArtKeys.UiBubble: return Ui(key, UiArt.Bubble(), UiArt.BubbleBorder);
                 case ArtKeys.UiButton: return Ui(key, UiArt.Button(), UiArt.ButtonBorder);

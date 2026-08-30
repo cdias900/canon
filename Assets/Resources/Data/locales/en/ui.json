@@ -4,7 +4,6 @@
   "hud.rubble": "Rubble {0}",
   "hud.patrol": "Patrol",
   "hud.patrol_return": "Back",
-  "hud.end_day": "End the day",
   "hud.map": "Map",
 
   "creation.title": "Before the first stone goes up",
@@ -31,6 +30,7 @@
   "end_day.split.work": "Work",
   "end_day.split.watch": "Watch",
   "end_day.confirm": "Close the day",
+  "end_day.defer": "Not yet",
   "end_day.work_hint.one": "1 person stays on the work until sunrise.",
   "end_day.work_hint.other": "{0} people stay on the work until sunrise.",
   "end_day.watch_hint.one": "1 person stays on the wall, watching the road, and lifts no stone.",
@@ -124,6 +124,7 @@
   "world.wall_segment": "Stretch of wall",
   "world.well": "Well",
   "world.rubble": "Rubble",
+  "world.rest_point": "Your mat",
   "hud.settings": "Settings",
   "settings.title": "Settings",
   "settings.language": "Language",

@@ -133,7 +133,19 @@ namespace SheepGate.Core
         [JsonProperty("height")] public int height;
         [JsonProperty("rows")] public string[] rows;
         [JsonProperty("player_spawn")] public GridPos player_spawn;
+
+        /// <summary>
+        /// Cells that yield stone. Named "rubble" because that is what the file has always called
+        /// them and map.json is content other people edit; the material they hand out is stone.
+        /// </summary>
         [JsonProperty("rubble")] public GridPos[] rubble;
+
+        /// <summary>
+        /// Cells that yield timber, the second half of the block recipe. Optional: a map written
+        /// before the material split simply has none, and the village is stone-only.
+        /// </summary>
+        [JsonProperty("timber")] public GridPos[] timber;
+
         [JsonProperty("well")] public GridPos well;
 
         /// <summary>Open ground at the centre of the city, where the crowd gathers.</summary>

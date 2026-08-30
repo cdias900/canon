@@ -9,6 +9,10 @@ namespace SheepGate.World
     /// Owns wall progress. Four stages per segment, each stage costing the work units declared in
     /// wall_segments.json. Work accumulates inside the current stage and rolls over into the next.
     ///
+    /// A work unit is one block and one point of daily capacity - see
+    /// <see cref="WallSegmentInteractable"/>, which is where the paying happens. This class counts
+    /// work and knows nothing about what it was bought with.
+    ///
     /// Hard product rule: a completed stage NEVER regresses. <see cref="DamageSegment"/> only
     /// clears the work in progress inside the current, unfinished stage.
     /// </summary>
@@ -17,7 +21,12 @@ namespace SheepGate.World
         public const int StagesPerSegment = 4;
         public const int SegmentWidthInCells = 3;
 
-        private static readonly int[] DefaultStageCost = { 3, 3, 4, 4 };
+        /// <summary>
+        /// Used only for a stage wall_segments.json does not price. Kept equal to what that file
+        /// carries, so a missing entry costs what its neighbours cost instead of silently pricing
+        /// one stage at the old, pre-block figure.
+        /// </summary>
+        private static readonly int[] DefaultStageCost = { 1, 1, 1, 1 };
 
         /// <summary>Raised with the segment id and its new stage whenever a stage completes.</summary>
         public event Action<string, int> SegmentStageChanged;
@@ -111,7 +120,7 @@ namespace SheepGate.World
                 WallSegmentDef fallback = new WallSegmentDef();
                 fallback.id = "seg_01";
                 fallback.grid_x = tilemap != null ? Mathf.Max(1, tilemap.Width / 2) : 20;
-                fallback.stage_cost = new int[] { 3, 3, 4, 4 };
+                fallback.stage_cost = new int[] { 1, 1, 1, 1 };
                 fallback.exposed = true;
                 defs = new WallSegmentDef[] { fallback };
             }
@@ -459,12 +468,38 @@ namespace SheepGate.World
     }
 
     /// <summary>
-    /// The tappable wall segment. Turns rubble plus daily work capacity into wall stages.
+    /// The tappable wall segment, and the place where material becomes wall. One work unit costs
+    /// one point of daily capacity and one block; the stage prices come from wall_segments.json.
+    ///
+    /// <b>Blocks are made here</b>, at the foot of the wall, out of the stone and timber the player
+    /// is carrying (<see cref="ResourceSystem.TryCraftBlock"/>). It is the smallest crafting step
+    /// the village can hold today - there is no yard, no bench and no screen to put one on - and it
+    /// means someone holding material never taps a wall that does nothing. Blocks already on hand
+    /// are always spent before any are made, so a dedicated mixing yard can take the job later
+    /// without a line changing here.
+    ///
+    /// <b>Until timber is in the village, the wall takes stone one for one</b>, exactly as it did
+    /// before blocks existed. That is the day-1 pacing rule: the recipe is introduced one half at a
+    /// time, so the first day's course is laid dry. When timber arrives is
+    /// <see cref="RubblePile.TimberFirstDay"/> and it is read from there rather than spelled again
+    /// here, so re-timing the material re-times the wall with it, in one edit instead of two.
+    ///
+    /// The switch also trips on the material itself - a block in hand, or timber enough to make one
+    /// - so a build that hands timber over early needs nothing changed here. And it never switches
+    /// back: reading the timber count live would drop the wall onto the cheaper stone course the
+    /// moment the player spent their last beam, which would pay them for running out.
+    ///
     /// Working the exposed segment scores the zealot vocation once per day, silently.
     /// </summary>
     public sealed class WallSegmentInteractable : InteractableBase
     {
         private const string ExposedWorkDayKey = "zealot_exposed_work_last_day";
+
+        /// <summary>
+        /// Latched the first time the wall is asked for blocks. From then on the wall is raised out
+        /// of blocks and the dry stone course underneath is over, whatever the player is carrying.
+        /// </summary>
+        private const string BlockEconomyKey = "block_economy_started";
 
         private WallSystem _wall;
 
@@ -503,15 +538,27 @@ namespace SheepGate.World
                 return;
             }
 
+            bool blocksRequired = BlocksRequired(resources);
+
+            // Blocks in hand plus the ones the stone and timber in hand could still be made into.
+            // Counting the uncrafted ones here is what makes one tap enough: the material the player
+            // is carrying is the material they can spend.
+            int blocksOnHand = resources.Blocks;
+            int material = blocksRequired
+                ? blocksOnHand + CraftableBlocks(resources)
+                : resources.Stone;
+
             int remaining = _wall.RemainingInStage(SegmentId);
-            int affordable = Mathf.Min(resources.Capacity, resources.Rubble);
+            int affordable = Mathf.Min(resources.Capacity, material);
             int units = Mathf.Min(remaining, affordable);
 
             if (units <= 0)
             {
-                if (resources.Rubble <= 0)
+                if (material <= 0)
                 {
-                    Debug.Log("[World] No rubble left to lay on \"" + SegmentId + "\".");
+                    Debug.Log(blocksRequired
+                        ? "[World] No blocks, and not enough stone and timber to make one, for \"" + SegmentId + "\"."
+                        : "[World] No stone left to lay on \"" + SegmentId + "\".");
                 }
                 else if (resources.Capacity <= 0)
                 {
@@ -526,8 +573,9 @@ namespace SheepGate.World
                 return;
             }
 
-            if (!resources.TryConsumeRubble(units))
+            if (!TakeMaterial(resources, blocksRequired, units, blocksOnHand))
             {
+                // The capacity goes straight back: this tap cost the player nothing at all.
                 resources.AddCapacity(units);
                 return;
             }
@@ -543,6 +591,79 @@ namespace SheepGate.World
                     WorldRuntime.AddVocation(WorldRuntime.VocationZealot, 2);
                 }
             }
+        }
+
+        /// <summary>
+        /// True once the wall is raised out of blocks rather than out of loose stone. Trips on the
+        /// day timber reaches the village, or earlier if the player is somehow already holding a
+        /// block or timber enough for one, and latches so it can never trip back.
+        ///
+        /// The day is not the only test on purpose, and neither is the material on its own: the day
+        /// alone would leave a run that never picked up a beam laying cheap stone forever, which
+        /// would make the whole recipe optional and worse than ignoring it; the material alone would
+        /// hand the same loophole to anyone who simply walked past the timber.
+        ///
+        /// A single stray beam does not count - it would put the wall on a currency the player
+        /// cannot afford yet - which is why the test is a whole block's worth.
+        /// </summary>
+        private static bool BlocksRequired(ResourceSystem resources)
+        {
+            GameState state = WorldRuntime.State;
+            if (state == null)
+            {
+                return false;
+            }
+
+            if (state.Counter(BlockEconomyKey) != 0)
+            {
+                return true;
+            }
+
+            bool timberInTheVillage = state.day >= RubblePile.TimberFirstDay;
+            bool materialInHand = resources.Blocks > 0 || resources.Timber >= ResourceSystem.TimberPerBlock;
+            if (!timberInTheVillage && !materialInHand)
+            {
+                return false;
+            }
+
+            state.counters[BlockEconomyKey] = 1;
+            Debug.Log("[World] Timber is in the village; the wall is raised out of blocks from here on.");
+            return true;
+        }
+
+        /// <summary>Blocks the stone and timber in hand could still be made into.</summary>
+        private static int CraftableBlocks(ResourceSystem resources)
+        {
+            int fromStone = resources.Stone / ResourceSystem.StonePerBlock;
+            int fromTimber = resources.Timber / ResourceSystem.TimberPerBlock;
+            return Mathf.Max(0, Mathf.Min(fromStone, fromTimber));
+        }
+
+        /// <summary>
+        /// Takes the material for <paramref name="units"/> work units. Blocks already on hand go
+        /// first and only the shortfall is crafted, so a stockpile is never bypassed in favour of
+        /// raw material. Returns false when the material could not be taken, having left nothing
+        /// half-spent: crafting is all or nothing, and a block that was made and not laid is still
+        /// a block the player owns.
+        /// </summary>
+        private bool TakeMaterial(ResourceSystem resources, bool blocksRequired, int units, int blocksOnHand)
+        {
+            if (!blocksRequired)
+            {
+                return resources.TryConsumeStone(units);
+            }
+
+            int shortfall = units - blocksOnHand;
+            if (shortfall > 0 && !resources.TryCraftBlock(shortfall))
+            {
+                // Unreachable: the affordability above already counted what is craftable. Guarded
+                // anyway, because a wall raised out of blocks nobody paid for is the kind of bug
+                // that is invisible instead of broken.
+                Debug.LogWarning("[World] Could not craft " + shortfall + " block(s) for \"" + SegmentId + "\".");
+                return false;
+            }
+
+            return resources.TryConsumeBlocks(units);
         }
     }
 }

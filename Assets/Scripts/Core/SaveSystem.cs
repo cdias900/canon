@@ -209,6 +209,59 @@ namespace SheepGate.Core
             {
                 state.workCapacity = 0;
             }
+
+            // Materials. state.rubble is the storage behind state.stone, so clamping it clamps both.
+            if (state.rubble < 0)
+            {
+                state.rubble = 0;
+            }
+
+            if (state.timber < 0)
+            {
+                state.timber = 0;
+            }
+
+            if (state.blocks < 0)
+            {
+                state.blocks = 0;
+            }
+
+            MigrateSchema(state);
+        }
+
+        /// <summary>
+        /// Brings an older save up to <see cref="GameState.CurrentSchemaVersion"/>. It is called
+        /// from <see cref="Repair"/>, which is the one place a save is read back, so a migration
+        /// cannot run anywhere else and cannot run twice: the version is stamped in the same pass
+        /// that applies it.
+        ///
+        /// Rule 7 governs every step written here - progress already made never regresses - so a
+        /// step may add or rename, never drop a unit the player had already collected.
+        ///
+        /// <b>0/1 -> 2, the material split.</b> Stone kept the field that old saves already wrote,
+        /// <c>GameState.rubble</c>, and <c>GameState.stone</c> is a property over that same field.
+        /// So every unit of rubble in an old save is already stone the moment it deserializes:
+        /// there is nothing to copy, and nothing a second run of this method could double. Timber
+        /// and blocks default to 0, which is exactly what a player who never had them should have.
+        /// All this step does is record the shape.
+        ///
+        /// The day someone renames the field for real and makes <c>stone</c> its own storage, this
+        /// step stops being free: it has to gain the actual copy (stone = rubble), still guarded by
+        /// the version so it runs once.
+        /// </summary>
+        static void MigrateSchema(GameState state)
+        {
+            if (state.schemaVersion >= GameState.CurrentSchemaVersion)
+            {
+                // Current, or written by a build newer than this one. Never step a version back:
+                // guessing at a shape from the future is how a save loses material.
+                return;
+            }
+
+            Debug.Log("[SaveSystem] Migrating a save from schema " + state.schemaVersion +
+                      " to " + GameState.CurrentSchemaVersion + "; stone carried over: " + state.stone + ".");
+
+            state.schemaVersion = GameState.CurrentSchemaVersion;
         }
     }
 }

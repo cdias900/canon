@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Tilemaps;
+using SheepGate.Art;
 using SheepGate.Core;
 
 namespace SheepGate.World
@@ -241,7 +242,7 @@ namespace SheepGate.World
                 for (int x = 0; x < Width; x++)
                 {
                     CellKind kind = _kinds[x, y];
-                    Tile tile = TileFor(kind);
+                    Tile tile = kind == CellKind.Ground ? GroundTileFor(x, y) : TileFor(kind);
                     if (tile != null)
                     {
                         Tilemap.SetTile(new Vector3Int(x, y, 0), tile);
@@ -249,6 +250,39 @@ namespace SheepGate.World
                 }
             }
         }
+
+        /// <summary>
+        /// One of several ground tiles, chosen by the cell's own coordinates.
+        ///
+        /// A single ground tile repeated over a map draws a grid: whatever pebble or crack the
+        /// tile happens to carry lands at the same spot in every cell, and the eye finds the
+        /// lattice immediately. Hiding it under louder noise is what made the ground read as
+        /// camouflage, so the fix is more tiles rather than a busier one.
+        ///
+        /// The choice is a hash of the coordinates, not a counter and not a random draw: the same
+        /// cell must pick the same tile every time the map is built, or the ground would shuffle
+        /// itself between the village and the map view.
+        /// </summary>
+        private Tile GroundTileFor(int x, int y)
+        {
+            int hash = x * 73856093 ^ y * 19349663;
+            int variant = Mathf.Abs(hash) % ArtKeys.GroundVariantCount;
+
+            Tile tile;
+            if (_groundTiles.TryGetValue(variant, out tile) && tile != null)
+            {
+                return tile;
+            }
+
+            tile = ScriptableObject.CreateInstance<Tile>();
+            tile.name = "tile_ground_" + variant;
+            tile.colliderType = Tile.ColliderType.None;
+            tile.sprite = WorldRuntime.GetSprite(ArtKeys.GroundVariant(variant)) ?? SpriteFor(CellKind.Ground);
+            _groundTiles[variant] = tile;
+            return tile;
+        }
+
+        private readonly Dictionary<int, Tile> _groundTiles = new Dictionary<int, Tile>();
 
         private Tile TileFor(CellKind kind)
         {

@@ -162,6 +162,13 @@ namespace SheepGate.Art
                 case ArtKeys.UiButton: return Ui(key, UiArt.Button(), UiArt.ButtonBorder);
             }
 
+            // tile_ground_1 .. tile_ground_5. The seed comes from the key, so each variant is a
+            // different draw of the same ground rather than a different kind of ground.
+            if (key.StartsWith(ArtKeys.TileGround, StringComparison.Ordinal))
+            {
+                return World(key, TileArt.Ground(seed));
+            }
+
             if (key.StartsWith(ArtKeys.WallPrefix, StringComparison.Ordinal))
             {
                 int stage;

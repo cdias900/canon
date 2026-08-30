@@ -39,11 +39,17 @@ namespace SheepGate.Art
         // top left, the way the sheet is read rather than the way a texture is stored.
         static readonly Dictionary<string, Vector2Int> Tiles = new Dictionary<string, Vector2Int>
         {
-            { ArtKeys.TileGround, new Vector2Int(6, 21) },   // pale dry ground
-            { ArtKeys.TileRubble, new Vector2Int(19, 19) },  // cracked stone
             { ArtKeys.TileWater, new Vector2Int(11, 23) }    // still water
         };
 
+        // Deliberately not mapped:
+        //
+        // tile_ground, tile_rubble - tiled five by five and looked at as a field, which is the
+        //   only honest way to judge a fill, this sheet has nothing that works outdoors. Its
+        //   seamless fills are pale interior floors that read as washed out over a whole screen,
+        //   and its textured ones are autotile edge pieces that show a seam every tile. The
+        //   generated ground was tuned instead; see TileArt.Ground.
+        //
         // Deliberately not mapped yet:
         //
         // tile_house - every roof on this sheet is a piece of a building several tiles across:

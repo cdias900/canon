@@ -5,6 +5,7 @@ using System.Text;
 using SheepGate.Contest;
 using SheepGate.Core;
 using SheepGate.Economy;
+using SheepGate.Player;
 using SheepGate.Scripture;
 using SheepGate.Vocation;
 using SheepGate.World;
@@ -576,6 +577,42 @@ namespace SheepGate.EditorTools
             int previewAfterStreak3 = DailyCheckIn.TalentsForStreak(3 + 1);
             Check("check-in previews 3 talents for tomorrow once the fourth day is next",
                 previewAfterStreak3 == 3, "claiming at streak 3 previews " + previewAfterStreak3);
+
+            // A price that moves is the failure mode worth guarding: the value looks arbitrary by
+            // design, so a re-roll on every rebuild of the sheet would not look like a bug to
+            // anyone reading the screen. Pinned across the real catalogue rather than one id.
+            bool everyPriceInRange = true;
+            string firstOutOfRange = null;
+            int pricedItems = 0;
+            foreach (CatalogItemDef priced in CharacterCatalog.Items)
+            {
+                if (priced == null || string.IsNullOrEmpty(priced.id))
+                {
+                    continue;
+                }
+
+                pricedItems++;
+                int value = TalentPrice.For(priced.id);
+                if (value < TalentPrice.Min || value > TalentPrice.Max)
+                {
+                    everyPriceInRange = false;
+                    if (firstOutOfRange == null) firstOutOfRange = priced.id + "=" + value;
+                }
+            }
+
+            Check("talent prices sit between 5 and 15 for every catalogue item",
+                everyPriceInRange && pricedItems > 0,
+                firstOutOfRange == null
+                    ? pricedItems + " item(s), all within range"
+                    : "first outside: " + firstOutOfRange);
+
+            // A golden value, not a call compared against itself - the latter passes for any
+            // function at all, including one seeded per process. This is the number FNV-1a gives
+            // for this id, so a switch back to string.GetHashCode (explicitly not stable between
+            // runs) fails here instead of silently repricing the catalogue on every launch.
+            int goldenPrice = TalentPrice.For("hair_short_crop");
+            Check("a talent price is a fixed function of the item id, not a per-run roll",
+                goldenPrice == 9, "hair_short_crop priced at " + goldenPrice + ", expected 9");
         }
     }
 }

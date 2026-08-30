@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using SheepGate.Core;
+using SheepGate.Economy;
 using SheepGate.Player;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -51,8 +52,23 @@ namespace SheepGate.UI
     ///   Four counts on four adjacent tabs read as a scoreboard to clear even though each one is
     ///   individually harmless. The dot answers "is there anything in here I have not seen", which
     ///   is the whole question, and looking spends it.
-    /// * <b>Rule 18 — nothing is bought.</b> No price, no currency, no timer, no "unlock now". The
-    ///   only way an item opens is something the player did in the valley.
+    /// * <b>Rule 18 — nothing is bought with money.</b> This entry used to read "nothing is
+    ///   bought: no price, no currency, no timer, no unlock now", and that is no longer true: a
+    ///   locked row now carries a talent price. The rule it was protecting is intact, and the
+    ///   distinction is the whole point. CLAUDE.md's rule 18 forbids <i>selling the shortcut</i> —
+    ///   monetisation may be a new season or a cosmetic, never a resource, never a timer, never a
+    ///   shortcut past the work. Talents are earned by turning up, spend only on cosmetics, and buy
+    ///   no stone, no timber, no stage of wall and no hour of anyone's day. There is still no
+    ///   timer and no "unlock now", and no real money touches this sheet.
+    ///   <para>
+    ///   <b>Not finished, and knowingly so.</b> The price is displayed; nothing spends it yet.
+    ///   Until the purchase path lands, every locked row shows a number the player cannot pay,
+    ///   which is in tension with rule 7 above — a locked row is supposed to be an invitation, and
+    ///   an unpayable price is closer to a shopfront with the door locked. It is staged
+    ///   deliberately rather than shipped as the finished design. The unlock sentence is still
+    ///   present and still the brightest line on the row, so the route that <i>does</i> work is
+    ///   still the one the row leads with.
+    ///   </para>
     /// * <b>Rule 13 — the smell checklist.</b> No religious iconography anywhere in here; the only
     ///   sprites are the design system's lock, check and dot, and the character's own art layers.
     ///   The tab bar is also silent — see <see cref="BuildSegment"/>.
@@ -83,13 +99,30 @@ namespace SheepGate.UI
     ///    did not cause it, and it is not fixed here.
     ///
     /// ==================================================================================
-    /// COLOUR, AND THE ONE MEANING GOLD IS ALLOWED
+    /// COLOUR, AND THE TWO MEANINGS GOLD IS ALLOWED
     /// ==================================================================================
-    /// <b>Gold means exactly one thing on this sheet: "not yet seen".</b> It is spent by the NOVO
-    /// badge and by the tab dot — the same meaning in two places, both cleared by looking. Equipped
-    /// is therefore <b>clay</b>, not gold: the <c>Selected</c> ring and the check are
+    /// <b>Gold carries two meanings here, and they are told apart by shape.</b> It used to carry
+    /// exactly one — "not yet seen" — and the talent price added the second, so the rule is
+    /// restated rather than quietly broken.
+    /// <list type="number">
+    /// <item><b>"Not yet seen"</b>, spent by the NOVO badge and the tab dot, both cleared by
+    /// looking. Always a filled shape with no glyph in it.</item>
+    /// <item><b>"A talent"</b>, spent by the coin on a locked row's price — the same coin the HUD
+    /// and the Materiais tab use for the same thing. Always the coin glyph, always beside a
+    /// number.</item>
+    /// </list>
+    /// The two never collide on one row: a locked item is never new (<see cref="Wardrobe.IsNew"/>
+    /// refuses a badge on one), so a NOVO badge and a price cannot appear together, and the tab dot
+    /// lives on the tab bar rather than in the list. What keeps this honest is that neither meaning
+    /// is carried by gold <i>alone</i> — one is a bare fill, the other is a coin with a quantity.
+    ///
+    /// Why the single-meaning rule was worth having: before it, gold carried three unrelated jobs
+    /// at once. Adding a second meaning is a real cost, paid here for the talent economy; a third
+    /// would put the sheet back where it started.
+    ///
+    /// Equipped is therefore <b>clay</b>, not gold: the <c>Selected</c> ring and the check are
     /// <c>Brand.Primary</c>, so clay means "the current one" in both places it appears, the tab you
-    /// are on and the piece you are wearing. Before this, gold carried three unrelated jobs at once.
+    /// are on and the piece you are wearing.
     /// The focus ring stays gold as the single accepted exception — design-system rule 5 fixes it
     /// globally across every variant, it is chrome rather than content, and touch never produces it.
     ///
@@ -1240,6 +1273,15 @@ namespace SheepGate.UI
                 columnHeight += DesignTokens.Space.S12 + PinText(unlock, TextColumnWidth);
             }
 
+            if (locked)
+            {
+                // Under the unlock sentence, not instead of it. The sentence is still the row's
+                // invitation and still its brightest line; the price is a second route that does
+                // not yet exist, so it must not displace the one that does.
+                columnHeight += DesignTokens.Space.S12
+                    + BuildPriceRow(textColumn, TalentPrice.For(itemId));
+            }
+
             textLayout.minHeight = columnHeight;
             textLayout.preferredHeight = columnHeight;
             textLayout.flexibleHeight = 0f;
@@ -1301,6 +1343,51 @@ namespace SheepGate.UI
         /// a third locale would be a third length, so the name box is
         /// <c>200 − (icon + 8) − (badge + 8)</c> computed from the badge that was actually built.
         /// </summary>
+        /// <summary>
+        /// The talent price on a locked row: the coin, then the number, in gold.
+        ///
+        /// The same <see cref="UiSpriteKeys.IconCoin"/> the HUD spends for a talent balance, on
+        /// purpose — a second coin glyph invented for prices would read as a second currency. It
+        /// carries no caption for the reason <c>BuildTalentsReadout</c> gives: a coin beside a
+        /// number is legible as money without one.
+        ///
+        /// <b>The known risk, recorded rather than designed away.</b> A coin and a number on a row
+        /// can be misread as "you have 12" instead of "this costs 12", and the sheet has no balance
+        /// beside it to settle the question — the balance lives on the Materiais tab and in the
+        /// drawer. The word that would remove the ambiguity was left off because the brief asked
+        /// for the icon and the value; if playtesting shows the misread, a label is the fix, not a
+        /// different glyph.
+        ///
+        /// Mono for the number, like every other quantity in the game, so the digits are tabular
+        /// and a two-digit price does not shuffle the row against a one-digit one.
+        /// </summary>
+        static float BuildPriceRow(RectTransform textColumn, int price)
+        {
+            RectTransform row = UIKit.CreateRect("Price", textColumn);
+            UIKit.HorizontalGroup(row.gameObject, NameRowSpacing, new RectOffset(),
+                TextAnchor.MiddleLeft);
+
+            UIKit.CreateIcon(row, "Icon", UiSpriteKeys.IconCoin, DesignTokens.Brand.Secondary,
+                UIKit.IconSize);
+
+            Text amount = UIKit.CreateText(row, "Amount", price.ToString(CultureInfo.InvariantCulture),
+                DesignTokens.Type.Mono, DesignTokens.Brand.Secondary, TextAnchor.MiddleLeft,
+                DesignTokens.TypeRole.Mono);
+
+            float amountHeight = PinText(amount, TextColumnWidth - (UIKit.IconSize + NameRowSpacing));
+            float height = Mathf.Max(amountHeight, UIKit.IconSize);
+
+            LayoutElement rowLayout = UIKit.Layout(row);
+            rowLayout.minWidth = TextColumnWidth;
+            rowLayout.preferredWidth = TextColumnWidth;
+            rowLayout.flexibleWidth = 0f;
+            rowLayout.minHeight = height;
+            rowLayout.preferredHeight = height;
+            rowLayout.flexibleHeight = 0f;
+
+            return height;
+        }
+
         static float BuildNameRow(RectTransform textColumn, string itemName, bool isNew, out Image status)
         {
             RectTransform row = UIKit.CreateRect("Name", textColumn);

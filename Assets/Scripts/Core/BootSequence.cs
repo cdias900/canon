@@ -65,7 +65,8 @@ namespace SheepGate.Core
             Debug.Log("[Boot] Ready. Day " + state.day + ", " + (freshStart ? "new run." : "resumed run.") +
                       " Locale " + Locales.Active + "." +
                       " Audio " + (SheepGate.Audio.AudioDirector.Suppressed ? "suppressed" :
-                                   SheepGate.Audio.AudioDirector.Muted ? "muted" : "on") + ".");
+                                   "music " + (SheepGate.Audio.AudioDirector.MusicMuted ? "off" : "on") +
+                                   ", effects " + (SheepGate.Audio.AudioDirector.EffectsMuted ? "off" : "on")) + ".");
 
             // Always the village. Character creation is no longer a screen in front of the game:
             // it is a beat inside the opening, played in the house the neighbour walks you into, so

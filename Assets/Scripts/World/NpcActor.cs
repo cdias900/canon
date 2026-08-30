@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using SheepGate.Core;
 using SheepGate.Dialogue;
+using SheepGate.Player;
 
 namespace SheepGate.World
 {
@@ -19,7 +20,12 @@ namespace SheepGate.World
     {
         private const string TalkedPrefix = "talked_";
         private const string PlayedPrefix = "dialogue_played_";
-        private const string DistinctTalkedKey = "npcs_talked";
+        /// <summary>
+        /// How many distinct residents have been spoken to. Public because it is save state that
+        /// something outside this class now reads: the help panel asks it whether the player has
+        /// talked to anybody yet. The string itself is in existing save files, so it never changes.
+        /// </summary>
+        public const string DistinctTalkedKey = "npcs_talked";
 
         private static readonly string ShepherdFirstNpc = "hananias";
         private static readonly string ShepherdSecondNpc = "salum";
@@ -56,6 +62,13 @@ namespace SheepGate.World
             new Color(0.58f, 0.52f, 0.46f, 1f)
         };
 
+        /// <summary>
+        /// How far above the cell centre a standing person is drawn. Shared with
+        /// <see cref="NpcWander"/>, which has to land a step on exactly the same line the spawn
+        /// used or every resident would sink by a quarter tile the first time they moved.
+        /// </summary>
+        public const float StandingYOffset = 0.25f;
+
         public string NpcId { get; private set; }
 
         /// <summary>Reference the resident's name comes from, such as NEH.3.8. Reference only.</summary>
@@ -85,8 +98,9 @@ namespace SheepGate.World
                 cell = tilemap.NearestWalkable(tilemap.ClampCell(cell));
             }
 
-            actor.Place(tilemap, cell, true, 0.25f);
-            actor.BuildSprites(tilemap != null ? tilemap.Height : 0, cell.y);
+            actor.Place(tilemap, cell, true, StandingYOffset);
+            actor.BuildAppearance(tilemap != null ? tilemap.Height : 0, cell.y);
+            NpcWander.AttachTo(actor, tilemap, cell);
             return actor;
         }
 
@@ -100,40 +114,57 @@ namespace SheepGate.World
 
         private string _paletteKey;
 
-        private void BuildSprites(int mapHeight, int cellY)
+        /// <summary>The five stacked layers this resident is drawn with. Null only before spawn.</summary>
+        public CharacterAppearance Appearance
         {
-            int order = WorldRuntime.SortingOrderForCell(mapHeight, cellY);
-            Color tint = ColorForPalette(_paletteKey, NpcId);
-
-            int bodyIndex = StableIndex(NpcId, 2);
-            int topIndex = StableIndex(NpcId + "_top", 4);
-            int legsIndex = StableIndex(NpcId + "_legs", 4);
-
-            AddLayer("Legs", WorldRuntime.FirstSprite("legs_" + legsIndex), order + 1, tint * 0.85f);
-            AddLayer("Body", WorldRuntime.FirstSprite(
-                "body_" + bodyIndex + "_down_0",
-                "body_" + bodyIndex + "_down",
-                "body_" + bodyIndex + "_0",
-                "body_" + bodyIndex), order + 2, tint);
-            AddLayer("Top", WorldRuntime.FirstSprite("top_" + topIndex), order + 3, tint * 0.92f);
+            get { return _appearance; }
         }
 
-        private void AddLayer(string layerName, Sprite sprite, int sortingOrder, Color tint)
-        {
-            GameObject layer = new GameObject(layerName);
-            layer.transform.SetParent(transform, false);
-            SpriteRenderer renderer = layer.AddComponent<SpriteRenderer>();
-            renderer.sortingOrder = sortingOrder;
+        private CharacterAppearance _appearance;
 
-            if (sprite != null)
+        /// <summary>
+        /// Composes the resident out of the same five-layer component the player and the opening's
+        /// actors already use, rather than out of loose sprite renderers. A resident who walks needs
+        /// a facing and a walk cycle, and that clock exists once in the project; a second copy of it
+        /// living in the world module would be one more pair of things free to drift apart.
+        ///
+        /// The body art is the one the loose layers asked for by hand. Build and skin pack into a
+        /// single art variant, so the old body index goes in as the skin and leaves BodyArtVariant
+        /// equal to the number that used to be spelled into the key.
+        /// </summary>
+        private void BuildAppearance(int mapHeight, int cellY)
+        {
+            _appearance = CharacterAppearance.CreateOn(gameObject);
+            _appearance.Apply(new AppearanceState
             {
-                renderer.sprite = sprite;
-                renderer.color = new Color(tint.r, tint.g, tint.b, 1f);
-            }
-            else
+                body = 0,
+                skin = StableIndex(NpcId, 2),
+                legs = StableIndex(NpcId + "_legs", 4),
+                top = StableIndex(NpcId + "_top", 4),
+                accessory = 0,
+                hair = 0
+            });
+
+            _appearance.Tint = ColorForPalette(_paletteKey, NpcId);
+            _appearance.SortingOrderBase = WorldRuntime.SortingOrderForCell(mapHeight, cellY);
+            _appearance.SetAnimation(CharacterAppearance.AnimationIdle);
+        }
+
+        /// <summary>
+        /// Puts a resident down on a cell they walked to: the interactable's cell, its world
+        /// position and its draw order, in one call, so the three cannot disagree. Draw order is the
+        /// half that is easy to forget — it comes from the row, and a resident still carrying the
+        /// order of the cell they spawned on would walk in front of the house they just stepped
+        /// behind.
+        /// </summary>
+        public void SettleOnCell(TilemapBuilder tilemap, Vector2Int cell)
+        {
+            Place(tilemap, cell, true, StandingYOffset);
+
+            if (_appearance != null)
             {
-                renderer.sprite = WorldRuntime.SolidSprite(new Color(tint.r, tint.g, tint.b, 1f));
-                renderer.enabled = layerName == "Body";
+                _appearance.SortingOrderBase =
+                    WorldRuntime.SortingOrderForCell(tilemap != null ? tilemap.Height : 0, cell.y);
             }
         }
 

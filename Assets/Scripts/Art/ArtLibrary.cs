@@ -45,6 +45,7 @@ namespace SheepGate.Art
     ///     ui_icon_check  ui_icon_close  ui_icon_dot
     ///     ui_icon_arrow  ui_icon_menu   ui_icon_lock
     ///     ui_icon_bag
+    ///     ui_icon_help
     /// Every one of these is painted neutral — white body, form in the alpha channel — so that
     /// Image.color yields the design token colour exactly rather than sprite x tint. See UiArt.
     ///
@@ -208,6 +209,7 @@ namespace SheepGate.Art
                 case ArtKeys.IconMenu: return Icon(key, UiArt.IconMenu());
                 case ArtKeys.IconLock: return Icon(key, UiArt.IconLock());
                 case ArtKeys.IconBag: return Icon(key, UiArt.IconBag());
+                case ArtKeys.IconHelp: return Icon(key, UiArt.IconHelp());
             }
 
             // tile_ground_1 .. tile_ground_5. The seed comes from the key, so each variant is a

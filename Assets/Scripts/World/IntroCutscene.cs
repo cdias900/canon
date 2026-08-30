@@ -247,7 +247,17 @@ namespace SheepGate.World
 
             FacePlayerTowards(_governor.transform.position);
             yield return new WaitForSeconds(BeatPause);
+
+            // The rest of the village turns to him too. The crowd in the square was placed facing
+            // the stone already; this reaches the residents going about their day elsewhere, who
+            // would otherwise carry on with their backs to the one thing happening in the city.
+            NpcWander.Speaker = _governor.transform;
             yield return PlayNode(NodeGathering);
+
+            // Cleared the moment he is done, which is what lets everyone walk back to where they
+            // were standing. Left set, it would hold the whole village facing an empty stone for
+            // the rest of the run.
+            NpcWander.Speaker = null;
 
             // --- 6. Hand over ----------------------------------------------------------------
             GameState state = WorldRuntime.State;

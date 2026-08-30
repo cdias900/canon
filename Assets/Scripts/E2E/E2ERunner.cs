@@ -53,6 +53,13 @@ namespace SheepGate.E2E
         const int MaxDialogueAdvances = 120;
 
         /// <summary>
+        /// How long the run waits for a resident to take a step of their own. Generous next to the
+        /// pause NpcWander draws between steps, because the pause is randomised per resident and the
+        /// village stands still for anything modal that turns up while the run is watching.
+        /// </summary>
+        const float WanderTimeoutSeconds = 20f;
+
+        /// <summary>
         /// Hard ceiling on a whole run. Without it a stalled step is indistinguishable from a slow
         /// one and the process sits there forever, which is worse than a failure: a failure gets
         /// read, a hang gets killed by whoever notices first.
@@ -161,22 +168,33 @@ namespace SheepGate.E2E
             // through the whole cutscene and would screenshot a fade.
             yield return AdvanceDialogueUntil(IsHudVisible, "the HUD");
             yield return Capture("03-hud");
+
+            // The readouts moved into the drawer, so reading one means opening it first.
+            yield return OpenHudMenu();
+            yield return Capture("03b-hud-menu");
             CheckHud();
 
             // 5. The whole-screen sweep. Cheap, and it catches every missing string at once.
             CheckNoMissingStrings();
 
-            // 6. The HUD map is a real progression surface now: generated sprites underneath,
+            // 6. The village is populated, not staged: with nothing on screen asking for anything,
+            // somebody should be walking around out there.
+            yield return VerifyResidentsWander();
+
+            // 7. Help: the one screen that tells a lost player what to do next.
+            yield return VerifyHelpPanel();
+
+            // 8. The HUD map is a real progression surface now: generated sprites underneath,
             // localized state and reward copy above, and catalogue conditions deciding what is
             // actually open. Exercise the public button so a beautiful map hidden behind a broken
             // route cannot pass.
             yield return VerifyProgressMap();
 
-            // 7. The other public button on the HUD, and the only screen in the game where a tap
+            // 9. The other public button on the HUD, and the only screen in the game where a tap
             // changes the character. Nothing automated had ever opened it.
             yield return VerifyBackpack();
 
-            // 8. The toggle, in the authoring locale's run only — one pass is enough to prove the
+            // 10. The toggle, in the authoring locale's run only — one pass is enough to prove the
             // path, and it is the only thing here that exercises a language change at runtime
             // rather than a language pinned at boot. Everything else in this file would pass on a
             // build whose toggle did nothing at all, which is exactly what it once did.
@@ -185,17 +203,123 @@ namespace SheepGate.E2E
                 yield return SwitchLanguageAndVerify();
             }
 
-            // 9. A whole day, ended by nobody.
+            // 11. A whole day, ended by nobody.
             yield return PlayADayToItsEnd();
 
-            // 10. Day two, and the night that follows it.
+            // 12. Day two, and the night that follows it.
             yield return SpendTheDay("day two", "09");
 
-            // 11. Day three: the trial, A Página, the reader and the reveal.
+            // 13. Day three: the trial, A Página, the reader and the reveal.
             yield return PlayDayThree();
         }
 
         // ------------------------------------------------------------------ the rest of the run
+
+        /// <summary>
+        /// Opens help and proves it says something.
+        ///
+        /// The assertion is that an instruction is on screen and that it resolves — a panel whose
+        /// one job is to answer "what now?" fails silently if its string table drifts, and a
+        /// missing-key marker in the one place a lost player looks is the worst place to have one.
+        /// The specific step is not asserted: which instruction is current depends on what this run
+        /// has done by now, and pinning it here would make the panel's own logic untestable from
+        /// the outside.
+        /// </summary>
+        IEnumerator VerifyHelpPanel()
+        {
+            yield return Tap("HelpButton", "the help button");
+            yield return WaitForObject("CurrentStep", "the current instruction");
+
+            string instruction = TextOf("CurrentStep");
+            Record("help says what to do next",
+                !string.IsNullOrEmpty(instruction) && instruction.IndexOf(MissingMarkerOpen) < 0,
+                "instruction=\"" + (instruction ?? "nothing") + "\"");
+
+            yield return Capture("03c-help");
+            yield return Tap("Close", "the help panel's close button");
+        }
+
+        /// <summary>
+        /// Opens the HUD drawer, which is where everything except the menu button now lives.
+        ///
+        /// A step of its own rather than a tap inlined into each caller, because the failure it
+        /// prevents is the confusing kind: tapping straight at a control that is inside a closed
+        /// drawer reports a missing control, which reads as that control being broken rather than
+        /// as this run never having opened the drawer. The language chips already taught this
+        /// project that lesson once, one level up.
+        /// </summary>
+        IEnumerator OpenHudMenu()
+        {
+            HUD hud = UnityEngine.Object.FindFirstObjectByType<HUD>();
+            if (hud != null && hud.IsMenuOpen)
+            {
+                yield break;
+            }
+
+            yield return Tap("MenuButton", "the HUD menu button");
+
+            hud = UnityEngine.Object.FindFirstObjectByType<HUD>();
+            Record("the HUD menu opens", hud != null && hud.IsMenuOpen,
+                hud == null ? "no HUD in the scene" : "IsMenuOpen=" + hud.IsMenuOpen);
+        }
+
+        /// <summary>
+        /// Proves the village is inhabited rather than staged: with nothing asking for the player's
+        /// attention, at least one resident walks off the cell they were spawned on.
+        ///
+        /// Worth a step of its own because the failure mode here is silent rather than broken.
+        /// <see cref="NpcWander"/> holds the whole village still while a modal owns the input, while
+        /// a conversation plays and from dusk onwards, so a hold that never lifted would look
+        /// exactly like the feature having been dropped. Hence the detail on failure: it says
+        /// whether the village was being held at the moment the run gave up, which is the difference
+        /// between a bug in the wander and a bug in what is allowed to hold it.
+        /// </summary>
+        IEnumerator VerifyResidentsWander()
+        {
+            NpcActor[] residents = UnityEngine.Object.FindObjectsByType<NpcActor>(FindObjectsSortMode.None);
+            if (residents.Length == 0)
+            {
+                Record("residents wander", false, "no residents in the scene");
+                yield break;
+            }
+
+            Dictionary<NpcActor, Vector2Int> spawned = new Dictionary<NpcActor, Vector2Int>(residents.Length);
+            for (int i = 0; i < residents.Length; i++)
+            {
+                if (residents[i] != null)
+                {
+                    spawned[residents[i]] = residents[i].Cell;
+                }
+            }
+
+            NpcActor walker = null;
+            float deadline = Time.realtimeSinceStartup + WanderTimeoutSeconds;
+
+            while (walker == null && Time.realtimeSinceStartup < deadline)
+            {
+                foreach (KeyValuePair<NpcActor, Vector2Int> entry in spawned)
+                {
+                    if (entry.Key != null && entry.Key.Cell != entry.Value)
+                    {
+                        walker = entry.Key;
+                        break;
+                    }
+                }
+
+                yield return null;
+            }
+
+            if (walker == null)
+            {
+                Record("residents wander", false,
+                    residents.Length + " resident(s) held their cell for " + WanderTimeoutSeconds +
+                    "s (village held: " + NpcWander.VillageIsHeld() + ")");
+                yield break;
+            }
+
+            Record("residents wander", true,
+                walker.NpcId + " walked " + spawned[walker] + " -> " + walker.Cell);
+        }
 
         /// <summary>
         /// Clears the morning report, spends the day, and confirms the split the spent day opens.
@@ -1261,12 +1385,17 @@ namespace SheepGate.E2E
         IEnumerator SwitchLanguageAndVerify()
         {
             string target = Locales.Next(Locales.Active);
+
+            // Read with the drawer open, because that is where the label is now. Taken before the
+            // switch so the comparison at the end is between two states of the same control.
+            yield return OpenHudMenu();
             string before = TextOf("Day");
 
             // In the village the language lives one tap deeper than it does in character creation:
             // the HUD carries a settings button and the chips live on the panel it opens. Tapping
             // straight at a chip here reported a missing control, which read as the toggle being
             // broken rather than as this run not having opened the panel.
+            yield return OpenHudMenu();
             yield return Tap("SettingsButton", "the settings button");
             Record("the settings panel opened", ModalRoot.IsOpen && ModalRoot.TopId == SettingsPanel.ModalId,
                 "top modal is " + (ModalRoot.TopId ?? "nothing"));
@@ -1290,6 +1419,7 @@ namespace SheepGate.E2E
             // The scene restarts the opening, so getting back to the HUD is the way to read a
             // label that the switch was supposed to change.
             yield return AdvanceDialogueUntil(IsHudVisible, "the HUD again after switching");
+            yield return OpenHudMenu();
             yield return Capture("04-switched");
 
             string after = TextOf("Day");

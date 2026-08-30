@@ -516,6 +516,28 @@ namespace SheepGate.Art
         }
 
         /// <summary>
+        /// Help: what to do next.
+        ///
+        /// A question mark rather than an "i", because the two say different things and this button
+        /// answers the first one. An "i" offers information about what you are looking at; a "?" is
+        /// for somebody who does not know what to do — which is exactly the state this button
+        /// exists for.
+        ///
+        /// Drawn on the same geometry as the rest: an arc for the hook, a stem down from where the
+        /// arc ends, and the dot under it with the gap the letterform needs. The arc stops short of
+        /// a full circle on the lower right, which is what keeps it reading as a hook rather than
+        /// as an "o" with a tail.
+        /// </summary>
+        public static PixelCanvas IconHelp()
+        {
+            PixelCanvas canvas = new PixelCanvas(IconGrid, IconGrid);
+            canvas.StrokeArcAA(36f, 26f, 12f, IconStroke, 0f, 230f, Tintable);
+            canvas.CapsuleAA(36f, 30f, 36f, 45f, IconStroke, Tintable);
+            canvas.FillCircleAA(36f, 56f, 4.5f, Tintable);
+            return Done(canvas);
+        }
+
+        /// <summary>
         /// Last pass on every Sistema Vale sprite: gives the empty texels the body's colour so a
         /// bilinear sample taken between a lit texel and an empty one does not drag a dark fringe
         /// in with it. It changes nothing that is drawn, only what is hiding under the zeroes.

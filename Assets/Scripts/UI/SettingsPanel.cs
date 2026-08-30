@@ -1,3 +1,4 @@
+using System;
 using SheepGate.Core;
 using SheepGate.Audio;
 using UnityEngine;
@@ -6,7 +7,7 @@ using UnityEngine.UI;
 namespace SheepGate.UI
 {
     /// <summary>
-    /// The settings modal. One setting so far, language, and a place to put the next one.
+    /// The settings modal: language, and the two sound switches.
     ///
     /// The language chips used to sit loose in the corner of the HUD, over the village. That put a
     /// permanent control on top of the world for a choice a player makes once, and it read as part
@@ -104,7 +105,12 @@ namespace SheepGate.UI
                 DesignTokens.TypeRole.Title);
 
             BuildLanguageField(cardRect);
-            BuildSoundField(cardRect);
+
+            BuildToggleField(cardRect, "Music", Loc.T("settings.music"),
+                () => AudioDirector.MusicMuted, muted => AudioDirector.MusicMuted = muted);
+
+            BuildToggleField(cardRect, "Effects", Loc.T("settings.effects"),
+                () => AudioDirector.EffectsMuted, muted => AudioDirector.EffectsMuted = muted);
 
             UIKit.CreateButton(cardRect, "Close", Loc.T("settings.close"),
                 UIKit.ButtonVariant.Primary, Close);
@@ -132,36 +138,45 @@ namespace SheepGate.UI
         }
 
         /// <summary>
-        /// The same field shape for sound. The button says what the sound IS, not what pressing it
-        /// would do: a control reading "Desligar" on a game that is already silent is the same
-        /// ambiguity that once made the language chips unreadable.
+        /// One sound channel, in the same field shape as the language row: what it is, then what
+        /// it is currently doing.
+        ///
+        /// Two rows rather than one switch because music and effects are two different complaints.
+        /// A player tired of the theme is not asking for a silent village, and one switch makes
+        /// them pick between the sound they like and the sound they are done with.
+        ///
+        /// The button says what the sound IS, never what pressing it would do: a control reading
+        /// "Desligar" on a game that is already silent is the same ambiguity that once made the
+        /// language chips unreadable. The state is re-read from the setting after the write rather
+        /// than assumed from the click, so the label cannot disagree with what is actually stored.
         /// </summary>
-        static void BuildSoundField(RectTransform cardRect)
+        static void BuildToggleField(RectTransform cardRect, string name, string label,
+                                     Func<bool> isMuted, Action<bool> setMuted)
         {
-            RectTransform field = UIKit.CreateRect("SoundField", cardRect);
+            RectTransform field = UIKit.CreateRect(name + "Field", cardRect);
             UIKit.VerticalGroup(field.gameObject, DesignTokens.Space.S8, new RectOffset());
 
-            UIKit.CreateText(field, "SoundLabel", Loc.T("settings.sound"),
+            UIKit.CreateText(field, name + "Label", label,
                 DesignTokens.Type.Body, DesignTokens.Ink.Secondary, TextAnchor.MiddleLeft);
 
-            Button toggle = UIKit.CreateButton(field, "SoundToggle", SoundLabel(),
+            Button toggle = UIKit.CreateButton(field, name + "Toggle", StateLabel(isMuted()),
                 UIKit.ButtonVariant.Secondary, null);
 
             toggle.onClick.AddListener(() =>
             {
-                AudioDirector.Muted = !AudioDirector.Muted;
+                setMuted(!isMuted());
 
-                Text label = toggle.GetComponentInChildren<Text>();
-                if (label != null)
+                Text text = toggle.GetComponentInChildren<Text>();
+                if (text != null)
                 {
-                    label.text = SoundLabel();
+                    text.text = StateLabel(isMuted());
                 }
             });
         }
 
-        static string SoundLabel()
+        static string StateLabel(bool muted)
         {
-            return AudioDirector.Muted ? Loc.T("settings.sound.off") : Loc.T("settings.sound.on");
+            return muted ? Loc.T("settings.sound.off") : Loc.T("settings.sound.on");
         }
     }
 }

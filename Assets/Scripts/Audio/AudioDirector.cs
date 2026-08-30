@@ -14,15 +14,36 @@ namespace SheepGate.Audio
     /// timer of its own, which keeps rule 20 intact — a player reading a chapter is not being
     /// walked toward nightfall by the soundtrack.
     ///
-    /// Muting is a player setting and lives in PlayerPrefs beside the language, for the same
-    /// reason: it has to survive a deleted run, because wiping a save is not a request to be
-    /// shouted at on the next launch.
+    /// Music and effects are two switches, not one, because they are two complaints. Somebody who
+    /// wants the village audible but the theme off is not asking for silence, and a single switch
+    /// makes them choose between the sound they like and the sound they are tired of. Effects owns
+    /// the one-shots and the ambient beds — wind is a sound the world makes, not a soundtrack.
+    ///
+    /// Both live in PlayerPrefs beside the language, for the same reason: they have to survive a
+    /// deleted run, because wiping a save is not a request to be shouted at on the next launch.
     /// </summary>
     public sealed class AudioDirector : MonoBehaviour
     {
+        /// <summary>
+        /// The single switch this settings screen used to have. Nothing writes it any more: it is
+        /// read as the <b>default</b> of the two that replaced it, so a player who had turned the
+        /// game silent stays silent on the launch that splits the setting in two, without a
+        /// migration step that has to run at exactly the right moment to work.
+        /// </summary>
         public const string MutedPrefKey = "sheepgate.audio.muted";
 
+        public const string MusicMutedPrefKey = "sheepgate.audio.music.muted";
+        public const string EffectsMutedPrefKey = "sheepgate.audio.effects.muted";
+
         const float BedVolume = 0.55f;
+
+        /// <summary>
+        /// Under the beds on purpose. The theme is the thing you stop hearing after a minute; a
+        /// footstep and a block going down are the ones carrying information about what just
+        /// happened, and they have to survive it.
+        /// </summary>
+        const float MusicVolume = 0.34f;
+
         const float CrossfadeSeconds = 1.5f;
 
         static AudioDirector _instance;
@@ -40,7 +61,7 @@ namespace SheepGate.Audio
             set
             {
                 _suppressed = value;
-                AudioListener.volume = value || Muted ? 0f : 1f;
+                AudioListener.volume = value ? 0f : 1f;
             }
         }
 
@@ -68,6 +89,7 @@ namespace SheepGate.Audio
         AudioSource _effects;
         AudioSource _day;
         AudioSource _night;
+        AudioSource _music;
         DayCycle _cycle;
         float _nextBindAttempt;
 
@@ -93,21 +115,37 @@ namespace SheepGate.Audio
             AudioDirector unused = Instance;
         }
 
-        public static bool Muted
+        /// <summary>The theme. Off does not stop the world making noise.</summary>
+        public static bool MusicMuted
         {
-            get { return PlayerPrefs.GetInt(MutedPrefKey, 0) != 0; }
+            get { return PlayerPrefs.GetInt(MusicMutedPrefKey, LegacyMuted) != 0; }
             set
             {
-                PlayerPrefs.SetInt(MutedPrefKey, value ? 1 : 0);
+                PlayerPrefs.SetInt(MusicMutedPrefKey, value ? 1 : 0);
                 PlayerPrefs.Save();
-                AudioListener.volume = value || Suppressed ? 0f : 1f;
             }
+        }
+
+        /// <summary>One-shots and the ambient beds: everything the world itself makes.</summary>
+        public static bool EffectsMuted
+        {
+            get { return PlayerPrefs.GetInt(EffectsMutedPrefKey, LegacyMuted) != 0; }
+            set
+            {
+                PlayerPrefs.SetInt(EffectsMutedPrefKey, value ? 1 : 0);
+                PlayerPrefs.Save();
+            }
+        }
+
+        static int LegacyMuted
+        {
+            get { return PlayerPrefs.GetInt(MutedPrefKey, 0); }
         }
 
         /// <summary>Plays a one-shot. Safe to call before anything is set up, and safe to spam.</summary>
         public static void Play(string key)
         {
-            if (Suppressed)
+            if (Suppressed || EffectsMuted)
             {
                 return;
             }
@@ -134,7 +172,7 @@ namespace SheepGate.Audio
             }
 
             _instance = this;
-            AudioListener.volume = Muted || Suppressed ? 0f : 1f;
+            AudioListener.volume = Suppressed ? 0f : 1f;
 
             _effects = gameObject.AddComponent<AudioSource>();
             _effects.playOnAwake = false;
@@ -142,6 +180,7 @@ namespace SheepGate.Audio
 
             _day = CreateBed(AudioKeys.AmbienceDay);
             _night = CreateBed(AudioKeys.AmbienceNight);
+            _music = CreateBed(AudioKeys.MusicVillage);
         }
 
         AudioSource CreateBed(string key)
@@ -161,6 +200,11 @@ namespace SheepGate.Audio
             return source;
         }
 
+        /// <summary>
+        /// The whole mix, every frame. Each channel walks towards where it should be rather than
+        /// jumping there, so a switch flipped in the settings fades out under the player's thumb
+        /// instead of cutting — and so does the day handing over to the night.
+        /// </summary>
         void Update()
         {
             if (_day == null || _night == null)
@@ -173,9 +217,15 @@ namespace SheepGate.Audio
             // No cycle yet — creation, the opening — is daylight as far as the ear is concerned.
             float night = _cycle != null ? Mathf.Clamp01(_cycle.NightAmount) : 0f;
             float step = Time.unscaledDeltaTime / CrossfadeSeconds;
+            float world = EffectsMuted ? 0f : 1f;
 
-            _night.volume = Mathf.MoveTowards(_night.volume, night * BedVolume, step);
-            _day.volume = Mathf.MoveTowards(_day.volume, (1f - night) * BedVolume, step);
+            _night.volume = Mathf.MoveTowards(_night.volume, night * BedVolume * world, step);
+            _day.volume = Mathf.MoveTowards(_day.volume, (1f - night) * BedVolume * world, step);
+
+            if (_music != null)
+            {
+                _music.volume = Mathf.MoveTowards(_music.volume, MusicMuted ? 0f : MusicVolume, step);
+            }
         }
 
         void BindCycle()

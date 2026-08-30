@@ -4,6 +4,7 @@ using System.Reflection;
 using System.Text;
 using SheepGate.Contest;
 using SheepGate.Core;
+using SheepGate.Economy;
 using SheepGate.Scripture;
 using SheepGate.Vocation;
 using SheepGate.World;
@@ -77,6 +78,7 @@ namespace SheepGate.EditorTools
                     VocationResolution();
                     NightDiffers();
                     DaylightClock();
+                    CheckInSchedule();
                 }
                 catch (Exception exception)
                 {
@@ -525,6 +527,43 @@ namespace SheepGate.EditorTools
 
             UnityEngine.Object.DestroyImmediate(host);
             return watchFlag;
+        }
+
+        // New — the daily check-in's date math: streak advances, escalates at day 4, and resets
+        // (never below 1) on any gap, without ever removing talents already awarded.
+        static void CheckInSchedule()
+        {
+            var today = new DateTime(2026, 1, 10);
+
+            GameState state = GameState.NewGame();
+            DailyCheckIn.Result first = DailyCheckIn.Apply(state, today);
+            Check("check-in first day awards streak 1 / 1 talent",
+                first.Awarded && first.Streak == 1 && first.TalentsAwarded == 1 && state.talents == 1,
+                "streak=" + first.Streak + " awarded=" + first.TalentsAwarded + " talents=" + state.talents);
+
+            DailyCheckIn.Result sameDay = DailyCheckIn.Apply(state, today);
+            Check("check-in does not re-award the same day",
+                !sameDay.Awarded && state.talents == 1,
+                "awarded=" + sameDay.Awarded + " talents=" + state.talents);
+
+            for (int i = 1; i <= 3; i++)
+            {
+                DailyCheckIn.Apply(state, today.AddDays(i));
+            }
+            Check("check-in reaches streak 4 on the fourth consecutive day",
+                state.checkInStreak == 4, "streak=" + state.checkInStreak);
+
+            DailyCheckIn.Result fourth = DailyCheckIn.Apply(state, today.AddDays(4));
+            Check("check-in pays 3 talents at streak 5",
+                fourth.Awarded && fourth.Streak == 5 && fourth.TalentsAwarded == 3,
+                "streak=" + fourth.Streak + " awarded=" + fourth.TalentsAwarded);
+
+            int talentsBeforeGap = state.talents;
+            DailyCheckIn.Result afterGap = DailyCheckIn.Apply(state, today.AddDays(7));
+            Check("check-in resets the streak to 1 after a missed day, without removing earned talents",
+                afterGap.Awarded && afterGap.Streak == 1 && afterGap.TalentsAwarded == 1
+                    && state.talents == talentsBeforeGap + 1,
+                "streak=" + afterGap.Streak + " talents=" + state.talents + " (had " + talentsBeforeGap + ")");
         }
     }
 }

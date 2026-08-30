@@ -137,6 +137,16 @@ namespace SheepGate.Art
 
         static Entry Build(string key)
         {
+            // A drawn tile wins over the generated one. Falling through rather than failing is
+            // what lets the swap happen a key at a time, and what keeps the game running if the
+            // sheet is ever missing.
+            Color32[] drawn;
+            int drawnSize;
+            if (Tileset.TryGetPixels(key, out drawn, out drawnSize))
+            {
+                return Make(key, drawn, drawnSize, drawnSize, TilePivot, NoBorder);
+            }
+
             int seed = ValueNoise.SeedFrom(key);
 
             switch (key)
@@ -151,6 +161,13 @@ namespace SheepGate.Art
                 case ArtKeys.UiPanel: return Ui(key, UiArt.Panel(), UiArt.PanelBorder);
                 case ArtKeys.UiBubble: return Ui(key, UiArt.Bubble(), UiArt.BubbleBorder);
                 case ArtKeys.UiButton: return Ui(key, UiArt.Button(), UiArt.ButtonBorder);
+            }
+
+            // tile_ground_1 .. tile_ground_5. The seed comes from the key, so each variant is a
+            // different draw of the same ground rather than a different kind of ground.
+            if (key.StartsWith(ArtKeys.TileGround, StringComparison.Ordinal))
+            {
+                return World(key, TileArt.Ground(seed));
             }
 
             if (key.StartsWith(ArtKeys.WallPrefix, StringComparison.Ordinal))
@@ -206,12 +223,16 @@ namespace SheepGate.Art
 
         static Entry Make(string key, PixelCanvas canvas, Vector2 pivot, Vector4 border)
         {
-            Color32[] pixels = canvas.ToArray();
+            return Make(key, canvas.ToArray(), canvas.Width, canvas.Height, pivot, border);
+        }
+
+        static Entry Make(string key, Color32[] pixels, int width, int height, Vector2 pivot, Vector4 border)
+        {
             Entry entry = new Entry();
-            entry.sprite = BuildSprite(key, pixels, canvas.Width, canvas.Height, pivot, border);
+            entry.sprite = BuildSprite(key, pixels, width, height, pivot, border);
             entry.pixels = pixels;
-            entry.width = canvas.Width;
-            entry.height = canvas.Height;
+            entry.width = width;
+            entry.height = height;
             entry.pivot = pivot;
             entry.border = border;
             return entry;

@@ -152,9 +152,16 @@ behaviour; every GameObject, sprite and UI element is constructed at runtime fro
 scene YAML with GUID cross-references is the easiest thing to get silently wrong, and the compiler
 cannot check it. Runtime construction moves that whole class of error into code.
 
-**There are no image assets.** All art is generated procedurally in `SheepGate.Art` from a
-three-colour palette. `ArtLibrary.Get(key)` is the only way to obtain a sprite, so replacing the
-placeholder art later means implementing that one seam.
+**Art comes through one seam.** `ArtLibrary.Get(key)` is the only way to obtain a sprite. Most keys
+are still generated procedurally in `SheepGate.Art` from a three-colour palette; the ground, rubble
+and water tiles now come from a drawn CC0 sheet instead, which is what §11 of the implementation
+spec asked for and what that seam existed to allow. A key with no drawn tile behind it falls
+through to the generated one, so the swap happens a key at a time and the game runs with the sheet
+missing.
+
+The sheet is Kenney's Roguelike/RPG pack (CC0, licence in `Assets/Art/`). It ships as a `.bytes`
+file and is decoded at runtime rather than imported as a Unity sprite: no import settings to get
+wrong, no `.meta` to hand-write, and no slicing stored in an asset nobody can review in a diff.
 
 [`docs/architecture-contract.md`](docs/architecture-contract.md) is the frozen interface every
 module was built against — read it before changing a public signature.

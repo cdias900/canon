@@ -23,10 +23,34 @@ namespace SheepGate.Art
 
         // ------------------------------------------------------------------ tiles
 
+        /// <summary>
+        /// Dry ground.
+        ///
+        /// The ramp is deliberately narrow and the noise cells are deliberately large. The shared
+        /// GroundRamp put ClayDark - a saturated brick red - in one of five slots, so a fifth of
+        /// every tile was red pixels sitting against grey ones at a four-pixel cell size. Hue
+        /// contrast plus value contrast at high frequency is the recipe for camouflage, and that
+        /// is exactly what a field of it read as. Clay belongs here as a few deliberate flecks,
+        /// which is what it gets below.
+        /// </summary>
+        static readonly Color32[] DustRamp =
+        {
+            ArtPalette.StoneDark, ArtPalette.StoneMid, ArtPalette.StoneMid,
+            ArtPalette.StoneMid, ArtPalette.StoneLight
+        };
+
         public static PixelCanvas Ground(int seed)
         {
             PixelCanvas canvas = new PixelCanvas(Size, Size);
-            canvas.NoiseFill(0, 0, Size, Size, ArtPalette.GroundRamp, seed, 4f, 8);
+            canvas.NoiseFill(0, 0, Size, Size, DustRamp, seed, 7f, 8);
+
+            // A handful of clay flecks: present, countable, and not a fifth of the tile.
+            for (int i = 0; i < 5; i++)
+            {
+                int fx = ValueNoise.RangeInt(seed, i + 120, 1, Size - 1);
+                int fy = ValueNoise.RangeInt(seed, i + 140, 1, Size - 1);
+                canvas.Set(fx, fy, ArtPalette.ClayDark);
+            }
 
             // Pebbles and hairline cracks, so a large field of ground is not a flat wash.
             for (int i = 0; i < 7; i++)

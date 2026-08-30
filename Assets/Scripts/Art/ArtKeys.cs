@@ -47,6 +47,20 @@ namespace SheepGate.Art
         /// <summary>Animation tokens, in ArtAnim order.</summary>
         public static readonly string[] Animations = { "idle", "walk", "work" };
 
+        /// <summary>
+        /// How many ground tiles the library can produce. One tile repeated over a whole map
+        /// lattices: the noise hides it only while the noise is loud enough to be camouflage, so
+        /// the way out is several tiles, not a busier one.
+        /// </summary>
+        public const int GroundVariantCount = 6;
+
+        /// <summary>Key for one of the ground variants. Variant 0 is the plain key.</summary>
+        public static string GroundVariant(int variant)
+        {
+            int clamped = variant <= 0 ? 0 : variant % GroundVariantCount;
+            return clamped == 0 ? TileGround : TileGround + "_" + clamped;
+        }
+
         public static string Wall(int stage)
         {
             return WallPrefix + Mathf.Clamp(stage, 0, WallStageCount - 1).ToString(CultureInfo.InvariantCulture);

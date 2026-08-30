@@ -54,14 +54,28 @@ break by accident:
   creation screen, the village, rubble, the wall, the mat, the split, the night, the morning report
   and the day-2 quiz all behave. Days 2 and 3, the trial, the Page and the reveal are still unseen
   on a phone.
-- **Driving the Simulator needs a real `CGEvent`, and an unlocked Mac.** `simctl` has no tap.
-  `osascript ... click at` reports success and does nothing — the Simulator's Metal view ignores
-  synthetic AX clicks — which reads exactly like a game that is not responding. `/tmp/simtap.swift`
-  in the session scratch posts `leftMouseDown`/`Up` through `.cghidEventTap`, which works. Two
-  things to know before blaming the build: `simctl io booted screenshot` grabs the framebuffer and
-  is immune to window stacking, whereas `screencapture -R` silently photographs whatever window is
-  on top; and if `System Events` answers a click with `window Login of application process
-  loginwindow`, the Mac is locked and no synthetic input will land at all.
+- **Tapping the Simulator goes through idb, and takes nothing from the user.** `tools/ios-sim.sh
+  setup` once, then `tap`/`press`/`swipe`/`text`/`key` in device points. idb injects through
+  IndigoHID, the path a real device uses, so the cursor does not move, focus stays where it was,
+  and the Simulator window can be hidden the entire time — verified by hiding it and watching a
+  tap land while iTerm kept focus and the pointer did not move a pixel.
+
+  Two dead ends it replaces, both of which cost a session. `osascript ... click at` **reports
+  success and does nothing**, because the Metal view ignores synthetic accessibility clicks, so a
+  run using it looks exactly like a frozen game. A real `CGEvent` posted to `.cghidEventTap` does
+  work, but only by moving the physical pointer and raising the window, which makes the machine
+  unusable while a session plays and fails outright on a locked Mac — if `System Events` answers a
+  click with `window Login of application process loginwindow`, that is what happened.
+
+  Also: read the screen with `xcrun simctl io booted screenshot`, which grabs the framebuffer and
+  cannot be fooled by window stacking. `screencapture -R` silently photographs whatever window is
+  on top, and once returned a picture of the terminal where the game should have been.
+
+  What does not port from the platform repo's version of this: there is no finding an element by
+  its label. `idb ui describe-all` reports one node for the whole application and `describe-point`
+  reports none, because Unity draws into a single Metal view and publishes no accessibility tree.
+  Tap a point, screenshot, look. Anything that needs to assert on the hierarchy belongs in
+  `tools/e2e.sh`, which drives the real EventSystem from inside the build.
 - **The framing of the opening has ~10 px of margin.** `WorldMapOverlay` places the closed cities
   at x ±14 to ±17 world units and the camera half-width at 19.5:9 is 20.2, so the leftmost city
   clears the screen edge by about a third of a world unit. At the 1080×1920 the project nominally

@@ -15,7 +15,7 @@ tools/list-curation.mjs      authored canonical speech awaiting a human read, ev
 tools/unity-check.sh         headless compile
 tools/acceptance.sh          the product rules, asserted once per locale
 tools/e2e.sh                 build a player and play the opening and a day in every locale, with shots
-tools/ios-sim.sh             build, install and run on an iOS simulator
+tools/ios-sim.sh             build, install, run and *drive* an iOS simulator
 ```
 
 One set of references, one translation per language. The references are language independent by

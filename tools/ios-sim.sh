@@ -6,6 +6,10 @@
 # wraps all three because the two settings that make it work are not discoverable from any
 # error message — see BuildScript.BuildIOSSimulator for the architecture trap.
 #
+# Input is driven through idb, which injects events the way a real device does, so nothing
+# on the Mac is touched: the cursor does not move, focus stays where the user left it, and the
+# Simulator window can be hidden behind everything else the whole time. See INPUT below.
+#
 # Usage:
 #   tools/ios-sim.sh                 export, compile, install, launch
 #   tools/ios-sim.sh build           export and compile only
@@ -13,7 +17,38 @@
 #   tools/ios-sim.sh shot [name]     write a screenshot to Logs/
 #   tools/ios-sim.sh reset           uninstall, which clears the save and the telemetry
 #
+#   tools/ios-sim.sh setup           install the input tooling (once per machine)
+#   tools/ios-sim.sh tap X Y         tap a device point
+#   tools/ios-sim.sh press X Y [S]   press and hold for S seconds (default 0.8)
+#   tools/ios-sim.sh swipe X1 Y1 X2 Y2 [S]
+#   tools/ios-sim.sh text "..."      type into whatever has the keyboard
+#   tools/ios-sim.sh key 40          a HID keycode (40 = Return)
+#   tools/ios-sim.sh udid            the booted device's udid
+#
 #   --device "iPhone 17 Pro"         which simulator to boot (default below)
+#
+# INPUT — why idb and not AppleScript
+#
+#   `xcrun simctl` has no tap at all, and the obvious substitute,
+#   `osascript -e 'tell application "System Events" to click at {x, y}'`, is worse than
+#   nothing here: it reports success and does nothing, because the Simulator's Metal view
+#   ignores synthetic accessibility clicks. A run that uses it looks exactly like a frozen
+#   game. Posting a real CGEvent does work, but only by moving the physical cursor and
+#   raising the Simulator, which makes the machine unusable while a session plays.
+#
+#   idb injects through IndigoHID — the same path a real device uses — so it needs neither
+#   the cursor nor focus nor a visible window. It is the iOS equivalent of `adb shell input`.
+#
+#   Coordinates are DEVICE POINTS (iPhone 17 Pro is 402x874), origin top-left. They do not
+#   depend on where the Simulator window is or how big it is, which is the other thing the
+#   cursor-driven approach kept getting wrong.
+#
+#   What does NOT port from a web app: `idb ui describe-all` and `describe-point` return
+#   nothing useful here. Unity draws into one Metal view and publishes no accessibility
+#   tree, so `describe-all` reports a single node for the whole application and
+#   `describe-point` reports none. There is no finding a button by its label: tap a point,
+#   then screenshot to see what happened. Element-level assertions belong in tools/e2e.sh,
+#   which drives the real EventSystem from inside the build and can see the hierarchy.
 set -uo pipefail
 
 UNITY_VERSION="6000.3.23f1"
@@ -25,12 +60,18 @@ PRODUCT="${DERIVED}/Build/Products/Debug-iphonesimulator/PortadasOvelhas.app"
 BUNDLE_ID="com.createhack.portadasovelhas"
 DEVICE="iPhone 17 Pro"
 
+# Deliberately not under /tmp: the venv that the first version of this lived in was cleaned
+# up between sessions, and the tool then failed in a way that read as "idb is broken".
+IDB_VENV="${IDB_VENV:-${HOME}/.cache/create-hack/idbvenv}"
+IDB="${IDB_VENV}/bin/idb"
+
 COMMAND="all"
+ARGS=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --device) DEVICE="${2:-}"; shift 2 ;;
-    build|run|shot|reset|all) COMMAND="$1"; shift ;;
-    *) SHOT_NAME="$1"; shift ;;
+    build|run|shot|reset|all|setup|tap|press|swipe|text|key|udid) COMMAND="$1"; shift ;;
+    *) ARGS+=("$1"); SHOT_NAME="$1"; shift ;;
   esac
 done
 
@@ -51,8 +92,80 @@ ensure_booted() {
   # bootstatus reports a non-zero status on a device it booted itself; it still blocks until
   # the device is up, which is the only reason it is here.
   xcrun simctl bootstatus "${udid}" -b >/dev/null 2>&1
-  open -a Simulator
+  # -g leaves it behind whatever the user is doing. The window is only ever needed to look
+  # at; input goes through idb and screenshots come from the framebuffer.
+  open -g -a Simulator
   echo "${udid}"
+}
+
+# ------------------------------------------------------------------ input, through idb
+
+booted_udid() {
+  xcrun simctl list devices booted -j | python3 -c 'import sys, json
+d = json.load(sys.stdin)
+ids = [x["udid"] for v in d["devices"].values() for x in v if x.get("state") == "Booted"]
+print(ids[0] if ids else "")'
+}
+
+do_setup() {
+  if ! command -v /opt/homebrew/bin/idb_companion >/dev/null 2>&1; then
+    echo "Installing idb-companion..."
+    brew tap facebook/fb 2>/dev/null
+    brew install idb-companion || exit 1
+  fi
+
+  local python
+  python="$(command -v python3.12 || command -v /opt/homebrew/bin/python3.12 || true)"
+  if [[ -z "${python}" ]]; then
+    echo "fb-idb needs Python 3.12: brew install python@3.12" >&2
+    exit 1
+  fi
+
+  if [[ ! -x "${IDB}" ]]; then
+    echo "Creating ${IDB_VENV}..."
+    mkdir -p "$(dirname "${IDB_VENV}")"
+    "${python}" -m venv "${IDB_VENV}" || exit 1
+    "${IDB_VENV}/bin/pip" -q install fb-idb || exit 1
+  fi
+
+  echo "Input tooling ready: ${IDB}"
+}
+
+# Resolves idb and the booted device, and connects. Connecting is idempotent and the
+# companion outlives the call, so only the first one in a session pays for it.
+ensure_idb() {
+  if [[ ! -x "${IDB}" ]]; then
+    echo "The input tooling is not installed. Run: tools/ios-sim.sh setup" >&2
+    exit 127
+  fi
+
+  IDB_UDID="$(booted_udid)"
+  if [[ -z "${IDB_UDID}" ]]; then
+    echo "No booted simulator. Run: tools/ios-sim.sh run" >&2
+    exit 1
+  fi
+
+  export IDB_UDID
+  export PATH="/opt/homebrew/bin:${PATH}"
+  "${IDB}" connect "${IDB_UDID}" >/dev/null 2>&1 || true
+}
+
+do_input() {
+  local needed=2
+  case "${COMMAND}" in text|key) needed=1 ;; swipe) needed=4 ;; esac
+  if [[ ${#ARGS[@]} -lt ${needed} ]]; then
+    echo "${COMMAND} needs ${needed} argument(s). See the usage block at the top of this file." >&2
+    exit 2
+  fi
+
+  ensure_idb
+  case "${COMMAND}" in
+    tap)   "${IDB}" ui tap "${ARGS[0]}" "${ARGS[1]}" ;;
+    press) "${IDB}" ui tap --duration "${ARGS[2]:-0.8}" "${ARGS[0]}" "${ARGS[1]}" ;;
+    swipe) "${IDB}" ui swipe --duration "${ARGS[4]:-0.3}" "${ARGS[0]}" "${ARGS[1]}" "${ARGS[2]}" "${ARGS[3]}" ;;
+    text)  "${IDB}" ui text "${ARGS[0]}" ;;
+    key)   "${IDB}" ui key "${ARGS[0]}" ;;
+  esac
 }
 
 do_build() {
@@ -134,4 +247,7 @@ case "${COMMAND}" in
   shot)  do_shot ;;
   reset) xcrun simctl uninstall booted "${BUNDLE_ID}" && echo "Uninstalled — save and telemetry are gone." ;;
   all)   do_build && do_run ;;
+  setup) do_setup ;;
+  udid)  booted_udid ;;
+  tap|press|swipe|text|key) do_input ;;
 esac

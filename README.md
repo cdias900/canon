@@ -68,6 +68,25 @@ runtime; no signing team, because a simulator build needs none. `--device "iPhon
 picks another simulator. The console, including `[Boot] Save ->`, lands in
 `Logs/ios-sim-console.log`.
 
+Play it without giving up your mouse:
+
+```bash
+tools/ios-sim.sh setup           # once per machine: idb-companion and the fb-idb client
+tools/ios-sim.sh tap 200 800     # device points, origin top-left; iPhone 17 Pro is 402x874
+tools/ios-sim.sh swipe 200 700 200 200
+tools/ios-sim.sh text "Pedro"
+```
+
+Input goes through **idb**, which injects the way a real device does. The pointer does not move,
+focus stays wherever you left it, and the Simulator window can stay hidden behind your editor for
+the whole session — so a play-through can run while you keep working. `simctl` has no tap of its
+own, and `osascript ... click at` is a trap: it reports success and does nothing, because the
+Simulator's Metal view ignores synthetic accessibility clicks.
+
+There is no tapping a button by name. Unity publishes no accessibility tree, so `idb ui
+describe-all` sees one node for the whole app: tap a point, screenshot, look. Assertions about the
+UI hierarchy belong in `tools/e2e.sh`, which drives the real EventSystem from inside the build.
+
 `Builds/ios` (device) and `Builds/ios-sim` (simulator) are separate exports on purpose: the two
 SDKs produce libraries that cannot be linked against each other, so one directory cannot serve
 both.

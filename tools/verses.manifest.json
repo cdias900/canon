@@ -30,6 +30,11 @@
     "NEH.6.3"
   ],
   "chapters": [
-    "NEH.4"
-  ]
+    "NEH.1",
+    "NEH.2",
+    "NEH.4",
+    "NEH.6",
+    "JHN.21"
+  ],
+  "_chapters_note": "Every chapter a CITED verse lives in must appear here, or the reader's 'Saber mais' opens an empty chapter and CLAUDE.md rule 12 is broken: the citation may be deferred, the access never. Only NEH.4 was fetched, so 7 of the game's 9 citations had a dead button and deep_read - the north-star metric - could only fire on two lines. 1CO.13 and NEH.3 are deliberately absent: no line cites them, and fetching a chapter with no beat attached would ship licensed text the game never shows."
 }

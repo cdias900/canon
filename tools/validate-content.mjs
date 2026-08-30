@@ -502,6 +502,21 @@ function checkDialogueReferences(root, scripture, locale) {
   process.stdout.write("  [5/5] referenced verses     ");
 
   const unresolved = new Set();
+
+  // Every citation carries a "Saber mais" button, and that button opens the whole CHAPTER the
+  // verse lives in - not the verse. So a chapter absent from verses.json is a dead button.
+  //
+  // This is an error and not a warning, unlike a missing verse, because of how it fails: a missing
+  // verse shows the unavailable-text marker inline, where anyone reading the line sees it. A
+  // missing chapter renders the citation perfectly and breaks only for the player who taps. It
+  // shipped that way - only NEH.4 was ever fetched, so seven of the game's nine citations had a
+  // dead button, including the first scripture a player ever sees.
+  //
+  // Two rules ride on this, which is why it stops the build. CLAUDE.md rule 12: the citation may
+  // be deferred, the access never. And deep_read - the north-star metric the whole product exists
+  // to move - can only fire from inside the reader this button opens.
+  const missingChapters = new Map();
+
   for (const filePath of playerFacingJsonFiles(root, locale)) {
     let document;
     try {
@@ -518,20 +533,51 @@ function checkDialogueReferences(root, scripture, locale) {
       if (!scripture.verses[reference]) {
         unresolved.add(reference);
       }
+
+      // Mirrors SheepGate.Scripture.ScriptureService.ChapterRefOf: book and chapter, dropping
+      // the verse. If the two ever disagree the reader looks somewhere this check does not.
+      const parts = reference.split(".");
+      if (parts.length < 3) {
+        return;
+      }
+      const chapterRef = parts[0] + "." + parts[1];
+      const chapter = scripture.chapters && scripture.chapters[chapterRef];
+      if (!chapter || !Array.isArray(chapter.verses) || chapter.verses.length === 0) {
+        if (!missingChapters.has(chapterRef)) {
+          missingChapters.set(chapterRef, new Set());
+        }
+        missingChapters.get(chapterRef).add(reference);
+      }
     });
   }
 
-  if (unresolved.size === 0) {
+  if (unresolved.size === 0 && missingChapters.size === 0) {
     console.log("OK");
     return;
   }
 
-  console.log("WARN");
-  warnings.push(
-    locale + ": referenced but absent from verses.json: " + [...unresolved].sort().join(", ") +
-    ". Add them to tools/verses.manifest.json and re-run the fetch, or the player sees the " +
-    "unavailable-text marker."
-  );
+  if (missingChapters.size > 0) {
+    console.log("FAIL");
+    const detail = [...missingChapters.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([chapterRef, refs]) => chapterRef + " (cited by " + [...refs].sort().join(", ") + ")")
+      .join("; ");
+    errors.push(
+      locale + ": cited verses whose chapter is not in verses.json: " + detail +
+      ". Their \"Saber mais\" opens an empty chapter. Add the chapter to the \"chapters\" list in " +
+      "tools/verses.manifest.json and re-run node tools/fetch-verses.mjs."
+    );
+  } else {
+    console.log("WARN");
+  }
+
+  if (unresolved.size > 0) {
+    warnings.push(
+      locale + ": referenced but absent from verses.json: " + [...unresolved].sort().join(", ") +
+      ". Add them to tools/verses.manifest.json and re-run the fetch, or the player sees the " +
+      "unavailable-text marker."
+    );
+  }
 }
 
 // ------------------------------------------------------------- locale parity

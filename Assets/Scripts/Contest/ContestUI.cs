@@ -24,10 +24,16 @@ namespace SheepGate.Contest
     /// <c>Feedback.Error</c> exists for a thing going wrong, not for a person on the other side.
     /// Nothing here flashes on a hit, because there are no hits to flash on.
     ///
-    /// The menu states what each move does in plain words, because the point of the day is that
+    /// The menu states what each move does in plain words, because the point of the beat is that
     /// the player recognises the strongest move when it arrives rather than discovering it by
-    /// trial and error. The move the page unlocks arrives in the gold Quest variant — the design
-    /// system's "this is the new thing" — and gold is the one accent this screen spends.
+    /// trial and error. A move that had to be unlocked arrives in the gold Quest variant — the
+    /// design system's "this is the new thing" — and gold is the accent this screen spends.
+    ///
+    /// A season has more than one contest, and the words are keyed accordingly. Every title and
+    /// ending is looked for under this contest's own id first and falls back to the shared one, so
+    /// a later encounter can end in sentences of its own instead of repeating the first fight's —
+    /// and a contest whose words have not been written yet still ends in a real sentence rather
+    /// than in a missing-key marker.
     /// </summary>
     public sealed class ContestUI : MonoBehaviour
     {
@@ -105,7 +111,7 @@ namespace SheepGate.Contest
 
         /// <summary>
         /// Raised when the screen leaves, which is after the player has read the ending and tapped
-        /// on. Whatever runs the rest of day three can either react to
+        /// on. Whatever runs the rest of the stage can either react to
         /// <see cref="MoraleContest.Finished"/> at once or wait for this and keep the beats in
         /// order.
         /// </summary>
@@ -372,7 +378,7 @@ namespace SheepGate.Contest
             Text title = UIKit.CreateText(
                 titleRow,
                 "Title",
-                Loc.T("contest.title"),
+                Loc.T(Scoped("contest.title")),
                 DesignTokens.Type.Minimum,
                 DesignTokens.Ink.Muted,
                 TextAnchor.MiddleLeft,
@@ -549,11 +555,20 @@ namespace SheepGate.Contest
         /// </summary>
         MoveCard BuildCard(RectTransform parent, ContestMoveDef move)
         {
-            // Gold is "this is the new thing", which is precisely what the move behind the page is.
-            // It is the only gold on this screen — the design system allows one — and it is not on
-            // screen at the same time as the page's own gold, because this card does not become
-            // available until the page has closed.
-            UIKit.ButtonVariant variant = move.id == MoraleContest.MoveHalfAndHalf
+            // Gold is "this is the new thing", and what makes a move new is that it had to be
+            // unlocked — by the page, or by a flag the run raised. Keyed off the condition rather
+            // than off one move's id, because a season has more than one such move and naming them
+            // here would mean the second one arrived looking like the three ordinary ones: no
+            // error, no log, just the strongest move on the board wearing the plainest card.
+            //
+            // It is never on screen at the same time as the page's own gold, because a card gated
+            // by the page does not become available until the page has closed. Two gated cards CAN
+            // be gold together — the boss offers a page-gated move beside a flag-gated one, to a
+            // player who earned both — and that is accepted: the design system's one-accent rule is
+            // about not scattering gold over ordinary controls, and both of these are the thing the
+            // rule exists to point at.
+            bool unlocked = move.unlocked_by_page || !string.IsNullOrEmpty(move.unlocked_by_flag);
+            UIKit.ButtonVariant variant = unlocked
                 ? UIKit.ButtonVariant.Quest
                 : UIKit.ButtonVariant.Secondary;
 
@@ -638,6 +653,9 @@ namespace SheepGate.Contest
         /// On the gold card the dark-surface inks are invisible, so the supporting line is the
         /// on-gold ink held back a little rather than a lighter grey — opacity is the one change
         /// the token file permits, and a fifth grey nobody named is not.
+        ///
+        /// Keyed off the variant and never off a move id, which is what makes it follow the gold
+        /// automatically wherever the unlock rule puts it.
         /// </summary>
         static Color DescriptionInk(UIKit.ButtonVariant variant)
         {
@@ -702,8 +720,8 @@ namespace SheepGate.Contest
                 DesignTokens.Ink.Secondary,
                 TextAnchor.UpperLeft);
 
-            // Clay and not gold: this button ends the day, it does not open anything new, and the
-            // screen has already spent its one gold on the move the page unlocked.
+            // Clay and not gold: this button ends the beat, it does not open anything new, and
+            // gold on this screen belongs to whichever moves had to be unlocked to be offered.
             UIKit.CreateButton(
                 _outcomePanel,
                 "Continue",
@@ -768,34 +786,68 @@ namespace SheepGate.Contest
         }
 
         /// <summary>Three endings, no defeat among them. Nobody counts casualties on this wall.</summary>
-        static string TitleFor(ContestOutcome outcome)
+        string TitleFor(ContestOutcome outcome)
         {
             switch (outcome)
             {
                 case ContestOutcome.EnemyWithdrew:
-                    return Loc.T("contest.outcome.withdrew.title");
+                    return Loc.T(Scoped("contest.outcome.withdrew.title"));
 
                 case ContestOutcome.PlayerBroke:
-                    return Loc.T("contest.outcome.broke.title");
+                    return Loc.T(Scoped("contest.outcome.broke.title"));
 
                 default:
-                    return Loc.T("contest.outcome.limit.title");
+                    return Loc.T(Scoped("contest.outcome.limit.title"));
             }
         }
 
-        static string BodyFor(ContestOutcome outcome)
+        string BodyFor(ContestOutcome outcome)
         {
             switch (outcome)
             {
                 case ContestOutcome.EnemyWithdrew:
-                    return Loc.T("contest.outcome.withdrew.body");
+                    return Loc.T(Scoped("contest.outcome.withdrew.body"));
 
                 case ContestOutcome.PlayerBroke:
-                    return Loc.T("contest.outcome.broke.body");
+                    return Loc.T(Scoped("contest.outcome.broke.body"));
 
                 default:
-                    return Loc.T("contest.outcome.limit.body");
+                    return Loc.T(Scoped("contest.outcome.limit.body"));
             }
+        }
+
+        /// <summary>
+        /// This contest's own version of a shared key, when the locale has written one.
+        ///
+        /// The shared key is passed in and returned unchanged unless a scoped one exists, which is
+        /// what lets a later encounter be given words of its own one sentence at a time instead of
+        /// all at once: a contest that has written none ends in the shared sentences, exactly as
+        /// the only contest in the game always has. The generic form is always spelled out at the
+        /// call site rather than assembled here, so the validator can still see every key this
+        /// screen depends on and fail the build when one is missing from a locale.
+        ///
+        /// <see cref="Loc.Has"/> and not <see cref="Loc.T"/> for the probe: a miss through T is an
+        /// error in the log and a marker on screen, and asking whether an optional string exists
+        /// must not look like a missing translation.
+        /// </summary>
+        string Scoped(string sharedKey)
+        {
+            string id = _contest != null ? _contest.ContestId : null;
+            if (string.IsNullOrEmpty(id) || string.IsNullOrEmpty(sharedKey))
+            {
+                return sharedKey;
+            }
+
+            int firstDot = sharedKey.IndexOf('.');
+            if (firstDot < 0)
+            {
+                return sharedKey;
+            }
+
+            // A shared outcome key becomes the same key with the contest id inserted after its
+            // first segment, which is the shape the locale tables use for every scoped string.
+            string scoped = sharedKey.Substring(0, firstDot + 1) + id + sharedKey.Substring(firstDot);
+            return Loc.Has(scoped) ? scoped : sharedKey;
         }
 
         // ------------------------------------------------------------------ painting
@@ -892,11 +944,16 @@ namespace SheepGate.Contest
         /// <summary>
         /// What happens the first time a move is offered.
         ///
-        /// Only the move the page unlocked gets anything: it is moved to the head of the menu and
-        /// the list is scrolled back to the top, so the strongest move on the board is under the
-        /// thumb rather than three tall cards further down where nobody would find it. Then one
+        /// Only a move that had to be unlocked gets anything: it is moved to the head of the menu
+        /// and the list is scrolled back to the top, so the strongest move on the board is under
+        /// the thumb rather than three tall cards further down where nobody would find it. Then one
         /// scale bump, at the reward duration, and nothing else — no badge, no banner, no
         /// explanation, and no sound. The reward is that the move exists.
+        ///
+        /// Keyed off the gold variant, so it follows the unlock rule rather than a move id. When a
+        /// contest offers two unlocked moves at once they both announce, and the second to be
+        /// painted ends up first in the menu; that is a running order rather than a defect, and
+        /// each still gets the one beat that says it is new.
         /// </summary>
         void Announce(MoveCard card)
         {

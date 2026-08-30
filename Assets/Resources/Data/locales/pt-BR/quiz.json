@@ -6,7 +6,7 @@
       "Dos escombros queimados da própria cidade",
       "Veio de carroça, com o homem da capital"
     ],
-    "note": "Dos escombros. A cidade é remontada com o material dela mesma, e é por isso que catar entulho e assentar pedra são a mesma tarefa em dois tempos. Referência: NEH.4.2."
+    "note": "Dos escombros. A cidade é remontada com o material dela mesma, e é por isso que catar entulho e assentar pedra são a mesma tarefa em dois tempos."
   },
   "2": {
     "prompt": "Dois moradores te contaram coisas diferentes sobre a estrada. Como o jogo mostra quem está certo?",
@@ -24,6 +24,60 @@
       "o outro lado é derrubado",
       "a sua força acaba"
     ],
-    "note": "Termina quando alguém desiste. Não há contagem de baixas nesta muralha, nem do seu lado nem do outro: a guarda existe para o ataque não valer a pena. Referência: NEH.4.9."
+    "note": "Termina quando alguém desiste. Não há contagem de baixas nesta muralha, nem do seu lado nem do outro: a guarda existe para o ataque não valer a pena."
+  },
+  "4": {
+    "prompt": "Na chamada de hoje, como os trechos foram divididos?",
+    "options": [
+      "Por sorteio, para ninguém reclamar",
+      "Cada um ficou com o pedaço em frente à própria casa",
+      "Os melhores pedreiros ficaram com os piores trechos"
+    ],
+    "note": "Cada um perto de casa. É a divisão mais óbvia e a mais difícil de trair: quem levanta o muro da própria porta não precisa de ninguém olhando para fazer direito."
+  },
+  "5": {
+    "prompt": "Os dois homens gritaram da estrada o dia inteiro. Qual jogada responde a isso?",
+    "options": [
+      "Ronda",
+      "Guarda reforçada",
+      "Nenhuma"
+    ],
+    "note": "Nenhuma. A primeira ameaça da temporada é a única sem contra-ataque: ela só some quando o muro sobe na frente dela. Ânimo perdido por palavra sai de graça para quem fala."
+  },
+  "6": {
+    "prompt": "Metade e metade apareceu no meio da investida. O que essa jogada faz?",
+    "options": [
+      "Cada pessoa trabalha e vigia ao mesmo tempo",
+      "Metade da cidade vai embora e metade fica",
+      "Dobra o trabalho de quem já estava na pedra"
+    ],
+    "note": "As duas coisas na mesma pessoa, ao mesmo tempo. É a jogada mais forte porque é a única que não escolhe entre obra e defesa, e o outro lado não tinha resposta pronta para ela."
+  },
+  "7": {
+    "prompt": "Naquele dia a cidade fez duas coisas. Quais?",
+    "options": [
+      "Rezou, e no dia seguinte pôs guarda",
+      "Rezou e pôs guarda, no mesmo dia",
+      "Pôs guarda, e deixou a reza para quando desse"
+    ],
+    "note": "As duas, com um \"e\" no meio. É o eixo da temporada inteira: só reza perde o muro, só guarda perde o motivo de levantá-lo."
+  },
+  "8": {
+    "prompt": "Chegaram cinco cartas. O que separa uma carta verdadeira de uma bem escrita?",
+    "options": [
+      "Quem entregou",
+      "O lacre",
+      "Bater com o que já estava escrito antes"
+    ],
+    "note": "Conferir com o que já estava escrito. Guarda não serve contra papel; contra papel serve ter a versão anterior à mão e comparar as duas."
+  },
+  "9": {
+    "prompt": "O nome de quem reparou cada trecho ficou anotado. Para quê?",
+    "options": [
+      "Para se saber de quem foi a mão em cada pedaço",
+      "Para pagar cada um pelo que fez",
+      "Para escolher quem manda depois"
+    ],
+    "note": "Para constar. A lista de quem levantou este muro é o único lugar onde a maior parte dessa gente aparece: quarenta e poucos nomes, o ofício de cada um ao lado, e nada além disso."
   }
 }

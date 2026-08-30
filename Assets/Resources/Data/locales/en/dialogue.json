@@ -323,7 +323,18 @@
         "profeta": 1
       }
     },
-    "reliable": true
+    "reliable": true,
+    "choices": [
+      {
+        "id": "survey",
+        "text": "You are awake at night. Did you hear anything else this week?",
+        "next": "meremote_d2_survey"
+      },
+      {
+        "id": "leave",
+        "text": "I'll think about what to do with that."
+      }
+    ]
   },
   "zacur_d1": {
     "npc": "zacur",
@@ -543,10 +554,10 @@
     "day": 3,
     "lines": [
       {
-        "text": "They've closed the low road. Nobody in and nobody out today."
+        "text": "Timber came into the square. Proper timber, whole beams. You don't get that out of rubble, out of rubble you get gravel."
       },
       {
-        "text": "I'm staying. It isn't courage, it's that I have nowhere to go and I already know the smell of a burnt house by heart."
+        "text": "Stone and timber make a block, and a block goes up faster than loose stone. My father said the same about resin: put two weak things together and you get one that works."
       }
     ],
     "grants": {
@@ -559,10 +570,10 @@
     "day": 3,
     "lines": [
       {
-        "text": "I sent my daughters inside. They didn't go. I didn't push it."
+        "text": "There's material spare now and people short. It's the first good complaint I've made on this street."
       },
       {
-        "text": "There's no split that helps today. Today it's everyone up top, and whatever stone gets laid, gets laid."
+        "text": "My two are measuring the stretch with a cord. When they've finished I'll tell you how much is really left, not how much it looks like."
       }
     ],
     "grants": {
@@ -575,10 +586,17 @@
     "day": 3,
     "lines": [
       {
-        "text": "It's on my stretch. It was always going to be my stretch, and I knew that when I picked it."
+        "text": "People came down the low road early. They didn't come up. They just laughed, loud enough to carry this far."
       },
       {
-        "text": "Come with me. Today doesn't have to be the day you learn to look at open ground, but it would be a good time for it."
+        "text": "They asked whether we were going to raise this in a day. They asked whether burnt stone goes back to being stone."
+      },
+      {
+        "frame": "The man from the capital answered before I had thought of an answer. It was set down like this:",
+        "verse": "NEH.2.20"
+      },
+      {
+        "text": "I wouldn't have put it that way. But it was said, and they left without waiting for the second half."
       }
     ],
     "grants": {
@@ -626,10 +644,17 @@
     "day": 3,
     "lines": [
       {
-        "text": "I came with eleven men from my district. It's what I have and it's what I brought."
+        "text": "The timber was not bought here. It was asked for by letter, long before any of us picked up a stone."
       },
       {
-        "text": "If this place goes, my side of the valley is next in line. I'm not being generous, I'm being practical."
+        "frame": "Asked of a man who looks after the king's woodland. The request was recorded with a name on it and a purpose:",
+        "verse": "NEH.2.8"
+      },
+      {
+        "text": "It's the only thing on this job that didn't come out of the ground here. Everything else we scavenge, break and lay."
+      },
+      {
+        "text": "Keep that in mind: not every door opens with a stone in your hand. Some open with paper, and paper takes months."
       }
     ],
     "grants": {
@@ -669,5 +694,939 @@
         "text": "Nobody introduced you to him and you won't get near him now."
       }
     ]
+  },
+  "meremote_d2_survey": {
+    "npc": "meremote",
+    "day": 2,
+    "lines": [
+      {
+        "text": "I did. And I kept that one to myself, because at the time it didn't seem worth telling."
+      },
+      {
+        "text": "His first night here a horse went down the lower street, slow, on its own. I took it for a thief and stayed quiet."
+      },
+      {
+        "frame": "I only understood when he spoke in the square. He said himself that he told nobody before he went:",
+        "verse": "NEH.2.12"
+      },
+      {
+        "text": "He went towards the valley, along the bottom, where the rubble closes in and no animal gets through. On foot for the rest of it, I'd guess."
+      },
+      {
+        "frame": "He said as well what he went to look at, and how far he got:",
+        "verse": "NEH.2.13"
+      },
+      {
+        "text": "He was back before first light and spent the next day saying nothing. He only opened his mouth once he knew the size of it on his own feet."
+      },
+      {
+        "text": "I tell you and nobody else. You do the same thing: look first, give the order after."
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "escriba": 1
+      }
+    },
+    "reliable": true
+  },
+  "gathering_d4": {
+    "npc": "governador",
+    "day": 4,
+    "cutscene": true,
+    "lines": [
+      {
+        "text": "The square was full at first light. Today isn't a working day: it's the day the work gets divided, and nobody wants to arrive after the dividing."
+      },
+      {
+        "text": "The man from the capital has a list in his hand and a scribe beside him. This is not a speech. It is a roll call."
+      },
+      {
+        "frame": "He starts at the north gate, the sheep gate, with the ones who were already there before anybody gave an order. It was set down like this:",
+        "verse": "NEH.3.1"
+      },
+      {
+        "text": "— This stretch already has its people. The next ones go to whoever puts a hand up."
+      },
+      {
+        "frame": "The men of Jericho come in next to them, and after them Zaccur son of Imri, who you have already met. The list goes on in the same tone, without one adjective:",
+        "verse": "NEH.3.2"
+      },
+      {
+        "text": "— I'm not going to ask where you came from. I'm going to ask where you live, and you'll take the piece in front of it."
+      },
+      {
+        "text": "A goldsmith puts himself forward. A perfumer behind him. Neither of them works in stone and neither of them is here by mistake."
+      },
+      {
+        "frame": "The two go into the list under the trade they have, not the one they are doing today:",
+        "verse": "NEH.3.8"
+      },
+      {
+        "text": "Shallum puts a hand up and says his daughters lay with him. Nobody laughs and nobody argues."
+      },
+      {
+        "frame": "It was written down with the daughters in it, and that is not a common thing to find written down:",
+        "verse": "NEH.3.12"
+      },
+      {
+        "text": "The men of one town come forward and take their stretch. The leading men of that same town stay behind them and do not put a hand up. The scribe records both."
+      },
+      {
+        "frame": "He recorded it the way it happened:",
+        "verse": "NEH.3.5"
+      },
+      {
+        "text": "After that he reads out the four stretches left on this end of the city, one at a time, saying each one aloud so it is clear which is which."
+      },
+      {
+        "text": "— Whoever takes a stretch answers for it. That isn't a punishment. It's so that when it's standing, it's known whose hands did it."
+      },
+      {
+        "text": "The square breaks up on its own. Everyone walks off towards the piece that is theirs now."
+      }
+    ],
+    "canonical_speaker": true,
+    "needs_curation": true
+  },
+  "hananias_d4": {
+    "npc": "hananias",
+    "day": 4,
+    "lines": [
+      {
+        "text": "A perfumer took a stretch today. A perfumer. I laughed, and then I was ashamed of having laughed."
+      },
+      {
+        "text": "My father would have taken one too. He never raised anything in his life, but he never let anything fall on its own either."
+      },
+      {
+        "text": "Today is the lightest day we're going to get. Make the most of it and talk to everyone. Tomorrow nobody has the time."
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "pastor": 1
+      }
+    },
+    "reliable": true
+  },
+  "salum_d4": {
+    "npc": "salum",
+    "day": 4,
+    "lines": [
+      {
+        "text": "It's on the record: my two with me. I didn't ask for it to be put down and it was put down."
+      },
+      {
+        "text": "Twenty years laying stone and it's the first time anyone has written down who did it, and not just what was done."
+      },
+      {
+        "text": "Today won't produce much. Today is for people to look around and see how many of them there are. That counts, and it counts tomorrow."
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "mordomo": 1
+      }
+    },
+    "reliable": true
+  },
+  "baruque_d4": {
+    "npc": "baruque",
+    "day": 4,
+    "lines": [
+      {
+        "text": "I counted the stretches on this end: four. Mine is the second, the one facing the open ground."
+      },
+      {
+        "text": "I knew already. It's just that today it was said in front of everyone, and it's a different thing once it's said."
+      },
+      {
+        "text": "Rest today. That isn't lazy advice: the ones who don't rest before they start are the ones who stop halfway."
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "zelote": 1
+      }
+    },
+    "reliable": true
+  },
+  "meremote_d4": {
+    "npc": "meremote",
+    "day": 4,
+    "lines": [
+      {
+        "text": "Nobody is watching the road today. They're all looking inwards, at the list."
+      },
+      {
+        "text": "I'll watch anyway. It isn't suspicion. It's habit, and it costs little."
+      },
+      {
+        "text": "If I see anything you're the first to know. As always, without my knowing whether it's nothing."
+      }
+    ],
+    "grants": {
+      "vocation": {}
+    },
+    "reliable": true
+  },
+  "zacur_d4": {
+    "npc": "zacur",
+    "day": 4,
+    "lines": [
+      {
+        "text": "My name came out near the top of the list, next to the men of Jericho. That's no credit to me: it's the order of who lived here first."
+      },
+      {
+        "text": "I got it wrong with you the other day. I took a stretch so I wouldn't only be the one who talks."
+      },
+      {
+        "text": "If I tell you one more thing I haven't seen, you have the right to laugh at me in front of the others."
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "escriba": 1
+      }
+    },
+    "reliable": false
+  },
+  "malquias_d4": {
+    "npc": "malquias",
+    "day": 4,
+    "lines": [
+      {
+        "text": "The whole of Beth Haccherem is written down under my name. One district, one stretch, and eleven men who are not obliged to be here."
+      },
+      {
+        "text": "Today I'm not handling letters. Today I'm counting people, which is my real job."
+      },
+      {
+        "text": "Count as well. It's the only number in this city that is going up this week."
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "exilado": 1
+      }
+    },
+    "reliable": true
+  },
+  "sanballat_d5": {
+    "npc": "sanballat",
+    "day": 5,
+    "lines": [
+      {
+        "text": "They stop on the upper road, where the wind carries a voice into the city. Where they can be seen and not reached."
+      },
+      {
+        "frame": "The one up there is the man from Samaria. Word of the work reached him before we had laid the first course, and what that did to him was set down:",
+        "verse": "NEH.4.1"
+      },
+      {
+        "frame": "Then he spoke, in front of his brothers and the army of Samaria. What he said was written down whole:",
+        "verse": "NEH.4.2"
+      },
+      {
+        "text": "— Are you listening? You're meant to. I don't need anything more than this: I talk, and you stop on your own."
+      },
+      {
+        "frame": "The Ammonite is beside him. He adds a short joke, and the joke was written down too:",
+        "verse": "NEH.4.3"
+      },
+      {
+        "text": "On this side nobody answers. There is nobody to answer: they are too far off to hear and too close to ignore."
+      },
+      {
+        "text": "There is nothing to be done about it today except lay stone in front of them until they tire of talking to themselves."
+      },
+      {
+        "frame": "That is what was done, and what was done fitted into a single line:",
+        "verse": "NEH.4.6"
+      }
+    ],
+    "canonical_speaker": true,
+    "needs_curation": true
+  },
+  "hananias_d5": {
+    "npc": "hananias",
+    "day": 5,
+    "lines": [
+      {
+        "text": "You can hear it from here. You can't make out all of it, which is worse: we fill in the rest ourselves, and we fill it in badly."
+      },
+      {
+        "text": "I laid nine stones today counting out loud, just so I was not counting what they were saying."
+      }
+    ],
+    "grants": {
+      "vocation": {}
+    },
+    "reliable": true
+  },
+  "salum_d5": {
+    "npc": "salum",
+    "day": 5,
+    "lines": [
+      {
+        "text": "There's no split that helps with this. It isn't an attack. There is no guard against a joke."
+      },
+      {
+        "text": "My youngest asked whether they're right. I said I don't know, and that we raise it anyway."
+      }
+    ],
+    "grants": {
+      "vocation": {}
+    },
+    "reliable": true
+  },
+  "baruque_d5": {
+    "npc": "baruque",
+    "day": 5,
+    "lines": [
+      {
+        "text": "I'm on the stretch that faces them. I hear it first hand and I don't pass it on, because passing it on is their job, not mine."
+      },
+      {
+        "text": "Bring stone and stand next to me for an hour. Two people saying nothing together goes further than one saying nothing alone."
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "zelote": 1
+      }
+    },
+    "reliable": true,
+    "choices": [
+      {
+        "id": "listen",
+        "text": "Come up with me. I want to hear what they're shouting.",
+        "next": "sanballat_d5"
+      },
+      {
+        "id": "leave",
+        "text": "I don't want to hear it. Hand me a stone."
+      }
+    ]
+  },
+  "zacur_d5": {
+    "npc": "zacur",
+    "day": 5,
+    "lines": [
+      {
+        "text": "Two men off my block didn't come today. It wasn't fear of an army. It was shame at standing next to something people are laughing at."
+      },
+      {
+        "text": "That is exactly what they want, and it's free for them. Shouting from a distance costs nothing."
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "escriba": 1
+      }
+    },
+    "reliable": false
+  },
+  "sanballat_d6": {
+    "npc": "sanballat",
+    "day": 6,
+    "lines": [
+      {
+        "text": "They aren't alone today. The upper road is full, and they're coming in from four sides."
+      },
+      {
+        "frame": "Samaria, the Ammonites, the Arabs and the men of Ashdod heard that the gaps were closing. What that stirred in them was recorded:",
+        "verse": "NEH.4.7"
+      },
+      {
+        "frame": "And what they agreed among themselves was recorded too, all of them at once:",
+        "verse": "NEH.4.8"
+      },
+      {
+        "text": "— Last time I only talked, and you carried on. Today I brought the ones who do not talk."
+      },
+      {
+        "text": "He doesn't come forward. He stays where the whole city can see him, which is where he has always been."
+      }
+    ],
+    "canonical_speaker": true,
+    "needs_curation": true,
+    "choices": [
+      {
+        "id": "count",
+        "text": "Look at who else came down with him.",
+        "next": "tobiah_d6"
+      },
+      {
+        "id": "leave",
+        "text": "Go back to the stone."
+      }
+    ]
+  },
+  "tobiah_d6": {
+    "npc": "tobiah",
+    "day": 6,
+    "lines": [
+      {
+        "text": "The Ammonite comes a little lower than the rest. He knows this road: he has been here as a guest, back when there was anyone to invite him."
+      },
+      {
+        "frame": "What the ones outside were saying among themselves came in through the people who live near them, and it came in ten times over:",
+        "verse": "NEH.4.11"
+      },
+      {
+        "text": "— You have too many people on the wall and too few at home. One of the two is open right now, and I have all day to find out which."
+      },
+      {
+        "text": "Nobody on this side answers. One man on this side comes down off the wall and goes home, and that was the point."
+      }
+    ],
+    "canonical_speaker": true,
+    "needs_curation": true
+  },
+  "meremote_d6": {
+    "npc": "meremote",
+    "day": 6,
+    "lines": [
+      {
+        "text": "I counted wrong once and you listened to me anyway. I am counting again: there are a lot of them, and they are from different places."
+      },
+      {
+        "text": "People from different places don't fight side by side for long. Only today they are still in one piece."
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "profeta": 1
+      }
+    },
+    "reliable": true
+  },
+  "salum_d6": {
+    "npc": "salum",
+    "day": 6,
+    "lines": [
+      {
+        "text": "The ones who live near them came in ten times today to warn us. Ten times the same sentence, with more fear inside it each time."
+      },
+      {
+        "text": "I haven't sent anyone home. Let one go and the whole line goes, and I'd have no way of calling them back."
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "mordomo": 1
+      }
+    },
+    "reliable": true
+  },
+  "baruque_d6": {
+    "npc": "baruque",
+    "day": 6,
+    "lines": [
+      {
+        "text": "This is it. I said it would be my stretch and it isn't: it's all of them at once, and that is what they want us to feel."
+      },
+      {
+        "text": "Choose where you stand. There's no choosing again halfway through."
+      }
+    ],
+    "grants": {
+      "vocation": {}
+    },
+    "reliable": true,
+    "choices": [
+      {
+        "id": "look",
+        "text": "Show me the upper road.",
+        "next": "sanballat_d6"
+      },
+      {
+        "id": "leave",
+        "text": "I'll stay on my stretch. Get to yours."
+      }
+    ]
+  },
+  "guard_d7": {
+    "npc": "narrator",
+    "day": 7,
+    "cutscene": true,
+    "lines": [
+      {
+        "text": "Morning came and nobody with it. The upper road is as empty today as it was full yesterday."
+      },
+      {
+        "text": "The city did not relax because of that. It did two things on the same day, and both of them ended up in the same sentence."
+      },
+      {
+        "frame": "One sentence with an \"and\" in the middle. The \"and\" is the whole sentence:",
+        "verse": "NEH.4.9"
+      },
+      {
+        "text": "Both, by the same people, on the same day. Neither instead of the other, and neither because the other failed."
+      },
+      {
+        "frame": "When the fear tightened, what was said to the people was set down like this:",
+        "verse": "NEH.4.14"
+      },
+      {
+        "text": "Nobody told anyone to be brave. They were told to remember who sleeps on the inside."
+      },
+      {
+        "frame": "And the day's arithmetic was written down. It is a simple division, and the most expensive this city has ever made:",
+        "verse": "NEH.4.16"
+      },
+      {
+        "text": "From here on it is like this every day. It produces less. It's the only way that doesn't stop."
+      },
+      {
+        "frame": "They agreed on a signal as well, because the city is too long for shouting. Wherever the trumpet sounds, that is where everyone runs:",
+        "verse": "NEH.4.20"
+      }
+    ]
+  },
+  "hananias_d7": {
+    "npc": "hananias",
+    "day": 7,
+    "lines": [
+      {
+        "text": "Today I worked with one hand and held something I don't know how to use in the other."
+      },
+      {
+        "text": "It produces less. It produces. It's the first time in a week I haven't had to choose between the two."
+      }
+    ],
+    "grants": {
+      "vocation": {}
+    },
+    "reliable": true
+  },
+  "salum_d7": {
+    "npc": "salum",
+    "day": 7,
+    "lines": [
+      {
+        "text": "The arithmetic has changed. It's not who goes up and who lays any more: it's each person doing both, and neither of the two going to zero."
+      },
+      {
+        "text": "I argued against it all week. I was wrong, and I'm saying so out loud so I don't have to say it twice."
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "mordomo": 2
+      }
+    },
+    "reliable": true,
+    "choices": [
+      {
+        "id": "account",
+        "text": "Show me the whole day's arithmetic.",
+        "next": "guard_d7"
+      },
+      {
+        "id": "leave",
+        "text": "I'll look later. I have a course to close."
+      }
+    ]
+  },
+  "meremote_d7": {
+    "npc": "meremote",
+    "day": 7,
+    "lines": [
+      {
+        "text": "They agreed a signal on the trumpet. Wherever it sounds, everyone drops what they are doing and runs there."
+      },
+      {
+        "text": "It's the first thing since I got here that works for people spread out. Until today all we had was shouting, and shouting doesn't turn a corner."
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "profeta": 1
+      }
+    },
+    "reliable": true
+  },
+  "malquias_d7": {
+    "npc": "malquias",
+    "day": 7,
+    "lines": [
+      {
+        "text": "My eleven are split: six on the stone, five up top. Tomorrow it swaps, so nobody gets good at only one of the two."
+      },
+      {
+        "text": "And not a single letter came today. That worries me more than when one does."
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "exilado": 1
+      }
+    },
+    "reliable": true
+  },
+  "malquias_d8": {
+    "npc": "malquias",
+    "day": 8,
+    "lines": [
+      {
+        "text": "Four came. Four times the same letter, with the same village on the plain and the same day named in it."
+      },
+      {
+        "frame": "The first one asked for the meeting like this, and the other three repeated it without moving a comma:",
+        "verse": "NEH.6.2"
+      },
+      {
+        "frame": "This invitation has been made once already, and the answer given at the time was recorded. It has not changed since:",
+        "verse": "NEH.6.3"
+      },
+      {
+        "text": "And a fifth came, open, with no seal on it. Open on purpose: so that everybody reads it on the way before it reaches you."
+      },
+      {
+        "frame": "That fifth one accuses the work of something else, and says outright what it wants the accusation to achieve:",
+        "verse": "NEH.6.9"
+      },
+      {
+        "text": "I read all five. Not one of them is about a wall. All of them are about you."
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "exilado": 1
+      }
+    },
+    "reliable": true,
+    "choices": [
+      {
+        "id": "read",
+        "text": "Read the fifth one aloud. I want it the way the city got it.",
+        "next": "letters_d8"
+      },
+      {
+        "id": "leave",
+        "text": "Keep all five. I will read them after sundown."
+      }
+    ]
+  },
+  "letters_d8": {
+    "npc": "narrator",
+    "day": 8,
+    "cutscene": true,
+    "lines": [
+      {
+        "text": "The open letter went round the city before it reached your hand. Half the work stopped to listen to somebody read it aloud."
+      },
+      {
+        "text": "Nobody is coming up the road today. What is coming is paper, and paper gets in over any wall."
+      },
+      {
+        "text": "This is not answered with a guard. A guard is no use against a sentence that is already going round."
+      },
+      {
+        "text": "What is any use is checking what is written now against what was written before. It is the only thing that tells a true letter from a well-made one."
+      }
+    ],
+    "choices": [
+      {
+        "id": "signature",
+        "text": "See who signs it at the bottom.",
+        "next": "sanballat_d8"
+      },
+      {
+        "id": "leave",
+        "text": "I have heard enough."
+      }
+    ]
+  },
+  "sanballat_d8": {
+    "npc": "sanballat",
+    "day": 8,
+    "lines": [
+      {
+        "text": "The fifth letter has his name at the bottom of it and no seal on the top."
+      },
+      {
+        "text": "— Come and talk. A day on the road, a village, an afternoon. Nobody needs to know you came."
+      },
+      {
+        "text": "— I've asked four times with the letter closed. This one I left open, and you'll understand why before the day is out."
+      },
+      {
+        "text": "— Name the day. I can wait. I have always waited."
+      }
+    ],
+    "canonical_speaker": true,
+    "needs_curation": true
+  },
+  "hananias_d8": {
+    "npc": "hananias",
+    "day": 8,
+    "lines": [
+      {
+        "text": "Look at the wall. End to end, now, before anyone tells you what to look at."
+      },
+      {
+        "frame": "When there was no gap left in it, and before the doors were hung, it was written down like this:",
+        "verse": "NEH.6.1"
+      },
+      {
+        "text": "The doors are missing. That's all. A city with no doors isn't a city yet, but it isn't rubble any more."
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "pastor": 1
+      }
+    },
+    "reliable": true
+  },
+  "salum_d8": {
+    "npc": "salum",
+    "day": 8,
+    "lines": [
+      {
+        "text": "I asked the scribe how many days it took, first to last. He counted twice before he answered."
+      },
+      {
+        "frame": "He read the count out the way it was written, with the day and the month it closed on:",
+        "verse": "NEH.6.15"
+      },
+      {
+        "text": "Fifty-two. It took me longer than that to redo my own kitchen, and the kitchen had nobody shouting at it from outside."
+      },
+      {
+        "frame": "And it was written down what the ones outside felt when they heard the count:",
+        "verse": "NEH.6.16"
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "mordomo": 1
+      }
+    },
+    "reliable": true
+  },
+  "baruque_d8": {
+    "npc": "baruque",
+    "day": 8,
+    "lines": [
+      {
+        "text": "I read the open letter. It's well written, and that's the problem: badly made things we throw out on our own."
+      },
+      {
+        "text": "Check it against what was written before. If it matches, it's true. If it doesn't, it's only well made."
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "escriba": 2
+      }
+    },
+    "reliable": true
+  },
+  "zacur_d8": {
+    "npc": "zacur",
+    "day": 8,
+    "lines": [
+      {
+        "text": "I was going to repeat it. I picked the letter up, opened my mouth, and remembered my brother-in-law and the low road."
+      },
+      {
+        "text": "I didn't repeat it. It's the first thing I've done properly in this city."
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "escriba": 1
+      }
+    },
+    "reliable": true
+  },
+  "dedication_d9": {
+    "npc": "narrator",
+    "day": 9,
+    "cutscene": true,
+    "lines": [
+      {
+        "text": "The door arrived in two leaves of timber, four men under each. Nobody spoke while they were going up."
+      },
+      {
+        "text": "Bars, bolts, and the sound a door makes the first time it closes. Half the city heard it from a distance and stopped what they were doing."
+      },
+      {
+        "frame": "For the day the wall was to be handed over, they sent for the ones who can sing, from every village around. It was recorded like this:",
+        "verse": "NEH.12.27"
+      },
+      {
+        "text": "They came. They came from places nobody here visits, and they came on foot, with an instrument on their back."
+      },
+      {
+        "frame": "Then they all went up onto the wall and split into two companies, which set off in opposite directions:",
+        "verse": "NEH.12.31"
+      },
+      {
+        "text": "One company went right. The other went left. The two halves went out of sight, one to each side of the city."
+      },
+      {
+        "text": "You stay where you are. Your stretch is the one that closes the circle, and it is over your stretch that the two halves meet again."
+      },
+      {
+        "frame": "When they met, you could hear it a long way off. It was set down how far it carried:",
+        "verse": "NEH.12.43"
+      },
+      {
+        "text": "Afterwards somebody comes up with a shard of clay and a nail and writes on the stone of your stretch who repaired this piece."
+      },
+      {
+        "frame": "It is what was done with the first door of this city, the north one, the sheep gate, and with the name of whoever raised it:",
+        "verse": "NEH.3.1"
+      },
+      {
+        "text": "It isn't a tribute. It's a record. In a hundred years somebody reads it and knows there were people here."
+      }
+    ]
+  },
+  "hananias_d9": {
+    "npc": "hananias",
+    "day": 9,
+    "lines": [
+      {
+        "text": "My sister comes back tomorrow. She sent to ask whether there is a door. I sent back that there is, and I sent it twice."
+      },
+      {
+        "text": "It's the stupidest thing to get emotional about. I got emotional anyway."
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "pastor": 1
+      }
+    },
+    "reliable": true
+  },
+  "salum_d9": {
+    "npc": "salum",
+    "day": 9,
+    "lines": [
+      {
+        "text": "My two laid the last course of our stretch. I stood and watched and corrected nothing."
+      },
+      {
+        "text": "Twenty years. It isn't the biggest wall I've raised. It's the only one with the name of who raised it written on it."
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "mordomo": 1
+      }
+    },
+    "reliable": true
+  },
+  "baruque_d9": {
+    "npc": "baruque",
+    "day": 9,
+    "lines": [
+      {
+        "text": "The open ground is still there. The difference is that now it is on the outside of something."
+      },
+      {
+        "text": "Remember the first day, when I said there was room on my side? There still is. Come back whenever you like."
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "zelote": 1
+      }
+    },
+    "reliable": true
+  },
+  "malquias_d9": {
+    "npc": "malquias",
+    "day": 9,
+    "lines": [
+      {
+        "text": "I go back to Beth Haccherem in the morning, with the eleven, and not one of the eleven wants to go."
+      },
+      {
+        "text": "I will take the news as it is: it worked, and it worked slowly."
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "exilado": 1
+      }
+    },
+    "reliable": true
+  },
+  "meremote_d5": {
+    "npc": "meremote",
+    "day": 5,
+    "lines": [
+      {
+        "text": "The low road is clear. I went down it twice and saw no sign of anything."
+      },
+      {
+        "text": "All the noise is from up top, off the ridge. I prefer noise from up top: noise from up top I can see the source of."
+      }
+    ],
+    "grants": {
+      "vocation": {}
+    },
+    "reliable": true
+  },
+  "malquias_d5": {
+    "npc": "malquias",
+    "day": 5,
+    "lines": [
+      {
+        "text": "No letters today, not for you and not for me. My eleven are all on the stone and I have nothing to send on."
+      },
+      {
+        "text": "So I carried stone. First time in twenty years. Tomorrow I will not be able to lift my arm, and it was worth it."
+      }
+    ],
+    "grants": {
+      "vocation": {}
+    },
+    "reliable": true
+  },
+  "baruque_d7": {
+    "npc": "baruque",
+    "day": 7,
+    "lines": [
+      {
+        "text": "On my stretch the arithmetic is worse than average: facing open ground, it needs more people up top and leaves fewer for the stone."
+      },
+      {
+        "text": "I'm not going to ask to borrow anyone. I'll produce less, and I won't pretend I'm not producing less."
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "zelote": 1
+      }
+    },
+    "reliable": true
+  },
+  "meremote_d9": {
+    "npc": "meremote",
+    "day": 9,
+    "lines": [
+      {
+        "text": "I haven't looked at the road once today. Not once. I noticed when the sun was already high."
+      },
+      {
+        "text": "It isn't that the danger is over. It's that today there is a door, and a door is the first thing since I got here that watches while I sleep."
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "profeta": 1
+      }
+    },
+    "reliable": true
   }
 }

@@ -352,6 +352,25 @@
       "replaces_shoulder": false
     },
     {
+      "id": "outfit_watch_wool",
+      "slot": "outfit",
+      "anchor": "",
+      "unlock_condition": {
+        "type": "day_reached",
+        "value": 7
+      },
+      "incompatible_with": [],
+      "tint_channels": [
+        "fabric"
+      ],
+      "art": {
+        "top": 1,
+        "legs": 3
+      },
+      "hides_slots": [],
+      "replaces_shoulder": false
+    },
+    {
       "id": "acc_rope_coil",
       "slot": "accessory",
       "anchor": "shoulder_r",
@@ -449,6 +468,60 @@
       ],
       "art": {
         "accessory": 5
+      },
+      "hides_slots": [],
+      "replaces_shoulder": false
+    },
+    {
+      "id": "acc_watch_horn",
+      "slot": "accessory",
+      "anchor": "shoulder_l",
+      "unlock_condition": {
+        "type": "day_reached",
+        "value": 5
+      },
+      "incompatible_with": [],
+      "tint_channels": [
+        "fabric"
+      ],
+      "art": {
+        "accessory": 6
+      },
+      "hides_slots": [],
+      "replaces_shoulder": false
+    },
+    {
+      "id": "acc_plumb_line",
+      "slot": "accessory",
+      "anchor": "waist_side",
+      "unlock_condition": {
+        "type": "segments_complete",
+        "value": 3
+      },
+      "incompatible_with": [],
+      "tint_channels": [
+        "fabric"
+      ],
+      "art": {
+        "accessory": 7
+      },
+      "hides_slots": [],
+      "replaces_shoulder": false
+    },
+    {
+      "id": "acc_gate_key",
+      "slot": "accessory",
+      "anchor": "neck",
+      "unlock_condition": {
+        "type": "day_reached",
+        "value": 9
+      },
+      "incompatible_with": [],
+      "tint_channels": [
+        "fabric"
+      ],
+      "art": {
+        "accessory": 8
       },
       "hides_slots": [],
       "replaces_shoulder": false

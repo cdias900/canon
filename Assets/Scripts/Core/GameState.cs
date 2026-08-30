@@ -91,12 +91,39 @@ namespace SheepGate.Core
         public int schemaVersion;
 
         /// <summary>
-        /// The shape this build writes. 1 was rubble-only; 2 is stone/timber/blocks. Bump it in the
-        /// same change that adds a migration to SaveSystem, never on its own.
+        /// The shape this build writes. 1 was rubble-only; 2 is stone/timber/blocks; 3 is the
+        /// nine-stage season, in which <see cref="day"/> stopped meaning "one of three" and started
+        /// meaning "one of nine". Bump it in the same change that adds a migration to SaveSystem,
+        /// never on its own.
         /// </summary>
-        public const int CurrentSchemaVersion = 2;
+        public const int CurrentSchemaVersion = 3;
 
-        public int day = 1;                                   // 1..3
+        /// <summary>
+        /// Which stage of the season the run is on, and it IS the stage number: there is no second
+        /// progression axis anywhere in this project. 1..9 today, and the real bound is whatever
+        /// stages.json declares, which is why nothing here hardcodes the length.
+        ///
+        /// Everything already hangs off this one monotonic int — the calendar, the dialogue
+        /// selector, the quiz selector, the map node, and the daily-reset token that ResourceSystem,
+        /// RubblePile and WallSystem each compare against. That is the reason a stage is a day
+        /// rather than a thing beside one.
+        /// </summary>
+        public int day = 1;
+
+        /// <summary>
+        /// Which season's content this run belongs to. Stamped by <see cref="NewGame"/> and never
+        /// branched on by the game itself; the one decision it drives is in BootSequence, which
+        /// keeps a save from a season it does not recognise rather than discarding it.
+        ///
+        /// It is here now, folded into a schema bump the day numbering already required, purely so
+        /// that a second season does not have to spend a schema bump of its own on one string.
+        /// The field initializer means every save ever written already reads back as this season,
+        /// which is correct — there has only been one.
+        /// </summary>
+        public string seasonId = DefaultSeasonId;
+
+        /// <summary>The only season that exists. Season 2 is explicitly out of scope.</summary>
+        public const string DefaultSeasonId = "nehemiah";
 
         // ---------------------------------------------------------------------- materials
         //
@@ -314,6 +341,7 @@ namespace SheepGate.Core
         {
             var state = new GameState();
             state.schemaVersion = CurrentSchemaVersion;
+            state.seasonId = DefaultSeasonId;
             state.workCapacity = state.workCapacityMax;
 
             var definitions = GameData.WallSegments;
@@ -346,8 +374,18 @@ namespace SheepGate.Core
     }
 
     /// <summary>
-    /// Every flag name the POC writes. Constants exist so no system spells a flag by hand.
+    /// Every flag name the game writes. Constants exist so no system spells a flag by hand.
     /// Values are lowercase snake_case and are what lands in the save file.
+    ///
+    /// Not quite every one: <see cref="ScriptureVisibility.RevealedFlag"/> is a flag in this same
+    /// namespace and lives on that class instead, because the rule about when references appear is
+    /// that class's whole subject and splitting the name from the rule would be worse than the
+    /// inconsistency. This doc is the pointer, so the list can be read as complete again.
+    ///
+    /// Three families are computed rather than constant, because their count follows the stage
+    /// table rather than being fixed. THE VALUES ARE UNCHANGED where they overlap: WatchPostedForDay
+    /// reproduces the two legacy spellings byte for byte, which is why a longer season needed no
+    /// key rename and no save migration for flags at all.
     /// </summary>
     public static class GameFlags
     {
@@ -363,5 +401,40 @@ namespace SheepGate.Core
         public const string ContestResolved = "contest_resolved";
         public const string VocationRevealed = "vocation_revealed";
         public const string ReachedMapEdge = "reached_map_edge";
+
+        /// <summary>
+        /// A watch was posted on the night of this stage. Equals <see cref="WatchPostedD1"/> and
+        /// <see cref="WatchPostedD2"/> exactly for days 1 and 2, which is deliberate and is what
+        /// makes this migration-free: those two constants stay valid, the acceptance harness keeps
+        /// reading them symbolically, and no persisted key is renamed.
+        ///
+        /// It exists because the write side used to set one of two flags and write nothing on any
+        /// later day, so every night after the second left no record and the following morning
+        /// reported "no watch" as fact — silently, and for most of a nine-stage season.
+        /// </summary>
+        public static string WatchPostedForDay(int day)
+        {
+            return "watch_posted_d" + day;
+        }
+
+        /// <summary>
+        /// This contest has been fought. Keyed by contest id, because a season with two encounters
+        /// cannot share one boolean: the flat <see cref="ContestResolved"/> would short-circuit the
+        /// second contest with the first one's ending, which is a failure that logs nothing and
+        /// looks like a design decision.
+        /// </summary>
+        public static string ContestResolvedFor(string contestId)
+        {
+            return "contest_resolved_" + contestId;
+        }
+
+        /// <summary>
+        /// Counter key, not a flag: how many times this stage has been played to its end. Keyed by
+        /// stage id rather than by day so it survives the day a stage moves in the running order.
+        /// </summary>
+        public static string StageDoneCounter(string stageId)
+        {
+            return "stage_done_" + stageId;
+        }
     }
 }

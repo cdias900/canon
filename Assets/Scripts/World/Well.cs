@@ -10,6 +10,10 @@ namespace SheepGate.World
     /// The hint itself is an authored dialogue node (by convention "well_fish", which carries the
     /// JHN.21.6 reference), so the text is resolved by the dialogue and scripture layers and never
     /// assembled here.
+    ///
+    /// The three attempts are a run-wide count, not a per-day one, and only a day with authored
+    /// lines can spend one — so the beat happens once in a season, on whichever stage the content
+    /// actually lives on, and never as a silent counter ticking somewhere else.
     /// </summary>
     public sealed class Well : InteractableBase
     {
@@ -67,53 +71,66 @@ namespace SheepGate.World
                 return;
             }
 
+            // The attempt is resolved before it is spent, and spent only if it has something to say.
+            //
+            // That ordering is what the day-specific lookup below costs. With a borrowed fallback in
+            // the chain there was always a line, so a counter written first could never be written
+            // for nothing; without one, a stage with no well content would have burned attempts in
+            // silence and — on the third — set the fish caught with no line at all, quietly spending
+            // the one beat in the game that carries JHN.21.6.
             int attempts = state.Counter(AttemptsKey) + 1;
-            state.counters[AttemptsKey] = attempts;
 
             if (attempts < AttemptsBeforeCatch)
             {
                 // Authored content names these per day and attempt (well_d2_1), matching the
                 // <npc>_d<day> convention used everywhere else; the older well_miss_* names are
                 // kept as fallbacks so either naming resolves.
+                //
+                // What is deliberately NOT in this list any more is a hard-coded well_d2_ rung. It
+                // meant every day that had nothing authored for the well silently borrowed the
+                // second day's lines, so the beat that carries JHN.21.6 read the same wherever the
+                // player happened to fish. The generalised rung above already scales to any stage
+                // that gets its own lines; the day-agnostic names below are the deliberate catch-all
+                // for the ones that do not.
                 string missNode = WorldRuntime.FirstExistingNode(
                     "well_d" + day + "_" + attempts,
-                    "well_d2_" + attempts,
                     "well_miss_" + attempts,
                     "well_miss",
                     "well_try");
 
-                if (!string.IsNullOrEmpty(missNode))
+                if (string.IsNullOrEmpty(missNode))
                 {
-                    WorldRuntime.PlayDialogue(missNode);
-                }
-                else
-                {
-                    Debug.LogWarning("[World] No failed-attempt node authored for the well; attempt " + attempts + " passed silently.");
+                    Debug.Log("[World] Nothing is authored for the well on day " + day
+                              + "; the attempt was not spent.");
+                    return;
                 }
 
+                state.counters[AttemptsKey] = attempts;
+                WorldRuntime.PlayDialogue(missNode);
                 WorldRuntime.SaveNow();
                 return;
             }
 
-            state.SetFlag(WorldRuntime.FlagFishCaught);
-            WorldRuntime.AwardOnce("exile_fish_awarded", WorldRuntime.VocationExile, 2);
-
-            // The catch is the third attempt's node, and it is the one carrying JHN.21.6.
+            // The catch is the third attempt's node, and it is the one carrying JHN.21.6. Same rule
+            // as the misses above: this stage's own node, then the day-agnostic names, and never a
+            // borrowed one from a stage that happens to have content.
             string catchNode = WorldRuntime.FirstExistingNode(
                 "well_d" + day + "_" + AttemptsBeforeCatch,
-                "well_d2_" + AttemptsBeforeCatch,
                 "well_fish",
                 "well_catch",
                 "well");
-            if (!string.IsNullOrEmpty(catchNode))
+
+            if (string.IsNullOrEmpty(catchNode))
             {
-                WorldRuntime.PlayDialogue(catchNode);
-            }
-            else
-            {
-                Debug.LogWarning("[World] No \"well_fish\" dialogue node is authored; the catch happened without its line.");
+                Debug.LogWarning("[World] No catch node is authored for the well on day " + day
+                                 + "; the fish stays in the water rather than being caught off screen.");
+                return;
             }
 
+            state.counters[AttemptsKey] = attempts;
+            state.SetFlag(WorldRuntime.FlagFishCaught);
+            WorldRuntime.AwardOnce("exile_fish_awarded", WorldRuntime.VocationExile, 2);
+            WorldRuntime.PlayDialogue(catchNode);
             WorldRuntime.SaveNow();
         }
     }

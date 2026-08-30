@@ -41,6 +41,12 @@ namespace SheepGate.World
         const string NodeDressed = "intro_dressed";
         const string NodeGathering = "intro_gathering";
 
+        // The three people the opening leaves standing in the square, and what they answer with
+        // once it is over. A stage may add its own band by suffixing "_d<stage>"; see AfterNodeFor.
+        const string NodeGovernorAfter = "governador_after";
+        const string NodeNeighbourAfter = "vizinho_after";
+        const string NodeCrowdAfter = "multidao_after";
+
         const float WorldMapHold = 1.1f;
         const float ZoomSeconds = 2.2f;
         const float FadeSeconds = 0.45f;
@@ -537,7 +543,8 @@ namespace SheepGate.World
         }
 
         /// <summary>
-        /// Puts the gathering back after the opening has already been played.
+        /// Puts the gathering back after the opening has already been played, speaking whatever the
+        /// stage the run is standing in has authored for it.
         ///
         /// The cutscene leaves the village full of people, and until this existed they were only
         /// runtime objects: a scene reload wiped them, so the square emptied when the player
@@ -546,6 +553,25 @@ namespace SheepGate.World
         /// function of the map, so there is nothing about them worth writing to a save file.
         /// </summary>
         public static void RestoreGathering(Transform parent, TilemapBuilder map)
+        {
+            GameState state = WorldRuntime.State;
+            RestoreGathering(parent, map, state != null ? state.day : 1);
+        }
+
+        /// <summary>
+        /// The same tableau, addressed to one stage of the season.
+        ///
+        /// The square is the same square and the layout is the same pure function of the map — what
+        /// a stage gets to change is what the people in it SAY. The stages that gather the village
+        /// again (the roll call, the dedication) reuse the crowd that is already standing here
+        /// rather than building a second one on top of it, and the director plays their set piece;
+        /// this is what makes the same three figures answer with that stage's lines afterwards
+        /// instead of repeating the opening's for the rest of the season.
+        ///
+        /// A stage with nothing authored falls back to the opening's nodes rather than going mute,
+        /// which is the same coverage policy the residents use.
+        /// </summary>
+        public static void RestoreGathering(Transform parent, TilemapBuilder map, int day)
         {
             GameState state = WorldRuntime.State;
             if (state == null || !state.HasFlag(SeenFlag) || map == null || parent == null)
@@ -564,21 +590,36 @@ namespace SheepGate.World
             governor.SortingOrderBase = SortingOrderForRow(plaza, plaza.y);
             governor.FaceTowards(map.CellToWorldCenter(plaza + new Vector2Int(0, -3)));
             BuildStoneUnder(plaza, map, parent);
-            governor.PersistAs(map, "governador_after", Loc.T("world.speaker.governor"));
+            governor.PersistAs(map, AfterNodeFor(NodeGovernorAfter, day), Loc.T("world.speaker.governor"));
 
             CutsceneActor neighbour = CutsceneActor.Spawn("Neighbour", layout.NeighbourSpot, map, parent, 1,
                 new Color(0.62f, 0.53f, 0.44f, 1f));
             neighbour.SortingOrderBase = SortingOrderForRow(plaza, layout.NeighbourSpot.y);
             neighbour.FaceTowards(governor.transform.position);
-            neighbour.PersistAs(map, "vizinho_after", Loc.T("world.speaker.neighbour"));
+            neighbour.PersistAs(map, AfterNodeFor(NodeNeighbourAfter, day), Loc.T("world.speaker.neighbour"));
 
             for (int i = 0; i < layout.CrowdSpots.Count; i++)
             {
                 Vector2Int cell = layout.CrowdSpots[i];
                 CutsceneActor person = SpawnVillager(i, cell, plaza, map, parent, palettes);
                 person.FaceTowards(governor.transform.position);
-                person.PersistAs(map, "multidao_after", Loc.T("world.speaker.crowd"));
+                person.PersistAs(map, AfterNodeFor(NodeCrowdAfter, day), Loc.T("world.speaker.crowd"));
             }
+        }
+
+        /// <summary>
+        /// This stage's band for one of the people the opening left standing, or the opening's own
+        /// if the stage has none.
+        ///
+        /// The same "&lt;who&gt;_d&lt;stage&gt;" convention the residents use, and the same coverage
+        /// policy: an unauthored stage repeats the most recent line rather than leaving a tap target
+        /// that does nothing. It resolves against the dialogue file rather than assuming, so adding
+        /// a band for a stage is a content change and nothing here has to be told about it.
+        /// </summary>
+        static string AfterNodeFor(string baseNodeId, int day)
+        {
+            string node = WorldRuntime.FirstExistingNode(baseNodeId + "_d" + day, baseNodeId);
+            return string.IsNullOrEmpty(node) ? baseNodeId : node;
         }
 
         static readonly Color[] CrowdPalettes =

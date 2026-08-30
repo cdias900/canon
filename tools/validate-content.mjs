@@ -3,19 +3,29 @@
 //
 // Deterministic layer-1 content validator. Runs outside Unity, Node 20+, zero deps.
 //
-// Checks 1-5 run once per shipped locale; 6 and 7 run once over the repository.
+// Checks 1-6 run once per shipped locale; 7-11 run once over the repository.
 //
 // Fails the build (exit 1) when:
-//   1. a manifest reference is missing from a locale's verses.json, or its text is empty;
-//   2. a locale's verses.json is a placeholder build and --allow-placeholder was not passed;
+//   1. a locale's verses.json is a placeholder build and --allow-placeholder was not passed;
+//   2. a manifest reference is missing from a locale's verses.json, or its text is empty;
 //   3. a file under Assets/ or tools/ repeats 8+ consecutive words that also appear in that
 //      locale's verses.json - an accidental paraphrase or a hand-copied verse;
 //   4. a player-facing string in that locale uses a term from its forbidden checklist;
-//   5. a locale is missing a string the source locale has, or its dialogue disagrees with the
+//   5. a cited verse, or the chapter it lives in, is absent from that locale's verses.json - the
+//      first shows the unavailable-text marker inline, the second gives "Saber mais" nothing to
+//      open;
+//   6. a player-facing string in that locale writes a scripture reference into its own prose,
+//      which puts chapter-and-verse on screen behind ScriptureVisibility's back and with no way
+//      into the reader;
+//   7. a locale is missing a string the source locale has, or its dialogue disagrees with the
 //      source locale about anything that is not words - nodes, line counts, verse references,
 //      grants, flags;
-//   6. a C# file passes a string literal where a player-facing string belongs. Every such string
-//      goes through Loc.T so that adding a language is a content change, never a code change.
+//   8. a C# file passes a string literal where a player-facing string belongs. Every such string
+//      goes through Loc.T so that adding a language is a content change, never a code change;
+//   9. a dialogue speaker has no authored display name in some locale;
+//  10. C# asks Loc.T for a key that no ui.json carries;
+//  11. a dialogue node is marked canonical_speaker without needs_curation, which would route
+//      authored speech for a real figure past the human read rule 4 requires.
 //
 // Warns (exit 0) for the same 8+ word overlap under docs/, where quoting in design
 // prose is expected and is not a build artifact.
@@ -96,6 +106,28 @@ const IDENTIFIER_KEYS = new Set(["id", "npc", "verse", "source_ref", "palette", 
 
 const REFERENCE_PATTERN = /^[A-Z0-9]{3}\.\d+(\.\d+)?$/;
 
+/**
+ * Keys whose value IS a reference the game resolves, renders as a citation and opens a reader on.
+ * Each one owes a verse that resolves and a chapter that was fetched.
+ *
+ * source_ref is deliberately absent. It records which verse a resident's NAME comes from; it is
+ * never rendered, never given a "Saber mais" and never opened, so demanding its chapter would make
+ * the build ask for licensed text the game does not show - the exact thing the manifest's own note
+ * says not to fetch.
+ */
+const CITATION_KEYS = new Set(["verse", "page_verse"]);
+
+/**
+ * A scripture reference as this repository spells one, found anywhere inside a string rather than
+ * anchored to the whole of it: an OSIS book code (three characters, optionally opening with a digit
+ * for 1CO), a chapter, and optionally a verse.
+ *
+ * Deliberately narrower than REFERENCE_PATTERN, whose [A-Z0-9]{3} is safe only because that pattern
+ * is anchored. Unanchored, the same alphabet would fire on "123.45" in the middle of a sentence,
+ * and a check that cries wolf on ordinary prose is a check people learn to route around.
+ */
+const EMBEDDED_REFERENCE_PATTERN = /(?:[1-9][A-Z]{2}|[A-Z]{3})\.\d{1,3}(?:\.\d{1,3})?/;
+
 /** Fields of a dialogue node that are structure, not words. These must be identical everywhere. */
 const DIALOGUE_STRUCTURE_FIELDS = ["npc", "day", "cutscene", "reliable", "canonical_speaker", "needs_curation"];
 const CHOICE_STRUCTURE_FIELDS = ["id", "next", "requires_rubble", "hidden_if_flag"];
@@ -163,6 +195,7 @@ function main() {
     checkScriptureOverlap(root, scripture, locale);
     checkForbiddenTerms(root, locale);
     checkDialogueReferences(root, scripture, locale);
+    checkBareReferences(root, locale);
     console.log("");
   }
 
@@ -170,6 +203,7 @@ function main() {
   checkNoHardcodedPlayerStrings(root);
   checkSpeakerNames(root, locales);
   checkLocaleKeysResolve(root, locales);
+  checkCurationFlags(root, locales);
 
   console.log("");
   for (const warning of warnings) {
@@ -271,25 +305,41 @@ function discoverLocales(root) {
   return [SOURCE_LOCALE, ...locales.filter((locale) => locale !== SOURCE_LOCALE)];
 }
 
-/** Every JSON file a player can read in this locale: the locale's own files plus shared content. */
+/**
+ * Every JSON file a player can read in this locale: the shared content under Resources/Data plus
+ * this locale's own files, walked to the bottom of the tree.
+ *
+ * RECURSIVE MATTERS MORE THAN IT LOOKS. This one list feeds three checks - forbidden terms, verse
+ * resolution and chapter access - so the readdirSync of a single directory level that used to stand
+ * here meant that grouping content into a subfolder would drop it out of all three at once,
+ * silently, and silently as a PASS. Nine stages add files. The day someone tidies them into a
+ * folder must not be the day the checks quietly stop looking.
+ *
+ * The other locales' directories are skipped rather than walked. Each locale's prose is measured
+ * against its own forbidden-term checklist and its own verses.json, so reading pt-BR while
+ * validating en would test Portuguese against an English list and resolve its references in an
+ * English scripture file: noise in one direction, false confidence in the other. A stray file
+ * directly under locales/ belongs to no locale and is skipped by the same rule.
+ */
 function playerFacingJsonFiles(root, locale) {
-  const files = [];
+  const localesRoot = join(root, LOCALES_RELATIVE_DIR);
+  const thisLocale = localeDir(root, locale);
 
-  for (const directory of [join(root, DATA_RELATIVE_DIR), localeDir(root, locale)]) {
-    let entries;
-    try {
-      entries = readdirSync(directory);
-    } catch (error) {
-      continue;
-    }
-    for (const entry of entries.sort()) {
-      if (extname(entry).toLowerCase() !== ".json") continue;
-      if (entry === "verses.json") continue;
-      files.push(join(directory, entry));
-    }
+  const files = [];
+  for (const filePath of walkFiles(join(root, DATA_RELATIVE_DIR))) {
+    if (extname(filePath).toLowerCase() !== ".json") continue;
+    if (isVersesFile(filePath)) continue;
+    if (isInside(filePath, localesRoot) && !isInside(filePath, thisLocale)) continue;
+    files.push(filePath);
   }
 
-  return files;
+  return files.sort();
+}
+
+/** True when a path sits inside a directory, rather than merely starting with the same letters. */
+function isInside(filePath, directory) {
+  const rel = relative(directory, filePath);
+  return rel.length > 0 && !rel.startsWith("..") && !isAbsolute(rel);
 }
 
 // -------------------------------------------------------------------- loading
@@ -348,7 +398,7 @@ function normalizeReference(value) {
 // ------------------------------------------------------------------- checks
 
 function checkPlaceholderGate(scripture, allowPlaceholder, locale) {
-  process.stdout.write("  [1/5] placeholder gate      ");
+  process.stdout.write("  [1/6] placeholder gate      ");
   if (scripture.isPlaceholder && !allowPlaceholder) {
     console.log("FAIL");
     errors.push(
@@ -362,7 +412,7 @@ function checkPlaceholderGate(scripture, allowPlaceholder, locale) {
 }
 
 function checkManifestCoverage(scripture, manifest, locale) {
-  process.stdout.write("  [2/5] manifest coverage     ");
+  process.stdout.write("  [2/6] manifest coverage     ");
 
   const missing = [];
   const empty = [];
@@ -407,7 +457,7 @@ function checkManifestCoverage(scripture, manifest, locale) {
 }
 
 function checkScriptureOverlap(root, scripture, locale) {
-  process.stdout.write("  [3/5] scripture overlap     ");
+  process.stdout.write("  [3/6] scripture overlap     ");
 
   const scriptureNgrams = buildScriptureNgrams(scripture);
   if (scriptureNgrams.size === 0) {
@@ -448,7 +498,7 @@ function checkScriptureOverlap(root, scripture, locale) {
 }
 
 function checkForbiddenTerms(root, locale) {
-  process.stdout.write("  [4/5] forbidden terms       ");
+  process.stdout.write("  [4/6] forbidden terms       ");
 
   const terms = FORBIDDEN_TERMS_BY_LOCALE[locale];
   if (!terms) {
@@ -500,7 +550,7 @@ function checkForbiddenTerms(root, locale) {
 }
 
 function checkDialogueReferences(root, scripture, locale) {
-  process.stdout.write("  [5/5] referenced verses     ");
+  process.stdout.write("  [5/6] referenced verses     ");
 
   const unresolved = new Set();
 
@@ -527,7 +577,11 @@ function checkDialogueReferences(root, scripture, locale) {
     }
 
     walkStrings(document, "", (path, key, value) => {
-      if (key !== "verse") {
+      // Every key that renders as a citation, not just the dialogue line's. A Pagina carries its
+      // reference under page_verse, and that panel is where the reveal happens and where the first
+      // "Saber mais" of the run is tapped - the single door the north-star metric fires through.
+      // Checking only "verse" left the most load-bearing citation in the build unchecked.
+      if (!CITATION_KEYS.has(key)) {
         return;
       }
       const reference = normalizeReference(value);
@@ -557,8 +611,9 @@ function checkDialogueReferences(root, scripture, locale) {
     return;
   }
 
+  console.log("FAIL");
+
   if (missingChapters.size > 0) {
-    console.log("FAIL");
     const detail = [...missingChapters.entries()]
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([chapterRef, refs]) => chapterRef + " (cited by " + [...refs].sort().join(", ") + ")")
@@ -568,15 +623,84 @@ function checkDialogueReferences(root, scripture, locale) {
       ". Their \"Saber mais\" opens an empty chapter. Add the chapter to the \"chapters\" list in " +
       "tools/verses.manifest.json and re-run node tools/fetch-verses.mjs."
     );
-  } else {
-    console.log("WARN");
   }
 
+  // A missing verse used to be a warning, and at nine citations that was defensible: the marker is
+  // visible inline, so a run of the game would show it to whoever looked. A season of thirty-five
+  // citations is not something anybody looks at end to end, and a warning in a passing build is a
+  // line of console output nobody reads twice. The two halves of one citation - the verse and the
+  // chapter behind its button - now fail the same way, which is also the honest description of
+  // what they are.
   if (unresolved.size > 0) {
-    warnings.push(
+    errors.push(
       locale + ": referenced but absent from verses.json: " + [...unresolved].sort().join(", ") +
-      ". Add them to tools/verses.manifest.json and re-run the fetch, or the player sees the " +
-      "unavailable-text marker."
+      ". Add them to the \"verses\" list in tools/verses.manifest.json and re-run node " +
+      "tools/fetch-verses.mjs, or the player reads the unavailable-text marker where the " +
+      "quotation should be."
+    );
+  }
+}
+
+/**
+ * Fails when a player-facing string writes a scripture reference into its own prose.
+ *
+ * Chapter and verse reach the screen exactly one way: a citation resolves the reference out of
+ * verses.json, ScriptureVisibility decides whether the ref_display footer under it is drawn yet,
+ * and a "Saber mais" beside it opens the whole chapter in the internal reader. A "NEH.4.2." typed
+ * into a sentence goes round all three. It shows chapter-and-verse whether the reveal has happened
+ * or not, and it offers nothing to tap - which is the one half of rule 12 that has no exception:
+ * the citation may be deferred, the ACCESS never.
+ *
+ * This is not hypothetical. Two day-1 quiz notes ended in a bare reference, in both locales,
+ * printing chapter-and-verse on the first stage of the run, five stages before the reveal, with no
+ * way into the reader from there. Every other check passed the whole time it was on screen.
+ *
+ * The check keys off the KEY, not the file, because a file has no opinion: quiz.json is all prose
+ * and dialogue.json is both. A value under one of CITATION_KEYS is a reference doing its job.
+ * A reference under any other key is one that got out.
+ *
+ * WHAT IT DOES NOT CATCH, stated so nobody mistakes it for a complete gate: this finds the code
+ * form, NEH.4.2. A book name written out in the locale's own language followed by numbers is the
+ * same leak and is invisible here, because the book names are per-language prose and matching them
+ * would fire on any sentence that mentions the man. That one stays a human judgement, and the
+ * curation read is where it gets made.
+ */
+function checkBareReferences(root, locale) {
+  process.stdout.write("  [6/6] bare references       ");
+
+  const hits = [];
+  for (const filePath of playerFacingJsonFiles(root, locale)) {
+    let document;
+    try {
+      document = JSON.parse(readFileSync(filePath, "utf8"));
+    } catch (error) {
+      continue; // already reported by the forbidden-term pass
+    }
+
+    walkStrings(document, "", (path, key, value) => {
+      if (CITATION_KEYS.has(key) || IDENTIFIER_KEYS.has(key)) {
+        return;
+      }
+      const match = EMBEDDED_REFERENCE_PATTERN.exec(value);
+      if (match !== null) {
+        hits.push({ file: relative(root, filePath), path, reference: match[0] });
+      }
+    });
+  }
+
+  if (hits.length === 0) {
+    console.log("OK");
+    return;
+  }
+
+  console.log("FAIL");
+  for (const hit of hits) {
+    errors.push(
+      locale + ": the reference " + hit.reference + " is written into a player-facing string - " +
+      hit.file + " at " + (hit.path || "(root)") + ". A citation is gated by ScriptureVisibility " +
+      "and carries a way into the reader; prose that names a reference does neither. Take it out " +
+      "of the sentence, or - if this key genuinely holds a reference the game resolves - add the " +
+      "key to CITATION_KEYS in tools/validate-content.mjs so it is checked as one."
     );
   }
 }
@@ -593,7 +717,7 @@ function checkDialogueReferences(root, scripture, locale) {
  * field by field so that can only be a build failure, never a shipped one.
  */
 function checkLocaleParity(root, locales) {
-  process.stdout.write("[6/9] locale parity           ");
+  process.stdout.write("[7/11] locale parity          ");
 
   const others = locales.filter((locale) => locale !== SOURCE_LOCALE);
   if (others.length === 0) {
@@ -603,7 +727,29 @@ function checkLocaleParity(root, locales) {
 
   const before = errors.length;
 
-  for (const fileName of ["ui.json", "npcs.json", "vocations.json", "contest.json", "quiz.json"]) {
+  // WHICH FILES ARE COMPARED IS DERIVED, NEVER LISTED. The list that used to sit here named five
+  // files and the locale directory held seven, so catalog.json - every wardrobe string in the game -
+  // had no parity gate at all: a missing English translation shipped as a bare key on a panel, with
+  // nothing but a console line behind it. A list is a second place to remember, and this one was
+  // already behind. Whatever the authoring locale carries is what the other locales owe.
+  //
+  // Two exclusions, each for its own reason. verses.json is generated per locale from one shared
+  // manifest and is licensed text, not a translation of ours. dialogue.json is excluded here only
+  // because compareDialogue below reads it far more strictly than key equality ever could.
+  const parityFiles = localeFileNames(localeDir(root, SOURCE_LOCALE))
+    .filter((name) => name !== "verses.json" && name !== "dialogue.json");
+
+  if (parityFiles.length === 0) {
+    console.log("FAIL");
+    errors.push(
+      "Nothing to compare in " + relative(root, localeDir(root, SOURCE_LOCALE)) + ". This check " +
+      "derives its file list from that directory, so an empty one is not a pass - it is the check " +
+      "covering nothing."
+    );
+    return;
+  }
+
+  for (const fileName of parityFiles) {
     const source = readJson(root, join(localeDir(root, SOURCE_LOCALE), fileName));
     if (source === null) continue;
 
@@ -790,7 +936,7 @@ function compareDialogue(locale, source, target) {
  * string that is missing from all of them.
  */
 function checkSpeakerNames(root, locales) {
-  process.stdout.write("[8/9] speaker names           ");
+  process.stdout.write("[9/11] speaker names          ");
 
   const dialoguePath = join(localeDir(root, SOURCE_LOCALE), "dialogue.json");
   const dialogue = readJson(root, dialoguePath);
@@ -871,6 +1017,20 @@ function speakerStringKeys(root) {
   return found.size === 0 ? null : found;
 }
 
+/**
+ * Every JSON file in a locale directory, as paths relative to it so a subdirectory still counts.
+ * Relative paths rather than bare names because the same string then addresses the file in any
+ * other locale, and names the file in an error a person has to go and fix.
+ */
+function localeFileNames(directory) {
+  const names = [];
+  for (const filePath of walkFiles(directory)) {
+    if (extname(filePath).toLowerCase() !== ".json") continue;
+    names.push(relative(directory, filePath));
+  }
+  return names.sort();
+}
+
 function readJson(root, filePath) {
   if (!existsSync(filePath)) return null;
   try {
@@ -891,7 +1051,7 @@ function readJson(root, filePath) {
  * careless edit away from now that it ships a second language.
  */
 function checkNoHardcodedPlayerStrings(root) {
-  process.stdout.write("[7/9] hardcoded strings       ");
+  process.stdout.write("[8/11] hardcoded strings      ");
 
   const sources = [];
   for (const filePath of walkFiles(join(root, "Assets"))) {
@@ -1283,7 +1443,7 @@ function lastKeyOf(path) {
  * mode is a player reading "backpack.slot.hair" off a panel, in every language at once.
  */
 function checkLocaleKeysResolve(root, locales) {
-  process.stdout.write("[9/9] locale keys resolve     ");
+  process.stdout.write("[10/11] locale keys resolve   ");
 
   // A key, and nothing else: lowercase segments joined by dots. Sprite keys carry no dot, file
   // names do not start with a known namespace, and scripture references are uppercase, so none of
@@ -1417,6 +1577,62 @@ function checkLocaleKeysResolve(root, locales) {
       'ui.json has no "' + key + '", asked for at ' + where.file + ":" + where.line +
       " (missing in " + absent.join(", ") + "). Loc.T renders an unknown key as the key itself, " +
       "so this reaches the player as raw text."
+    );
+  }
+}
+
+/**
+ * Fails on a dialogue node marked canonical_speaker without needs_curation.
+ *
+ * Rule 4 lets a figure the text actually names - Sanballat, Tobiah, the governor - be given
+ * authored words, on one condition: a person reads those words against the passage first and
+ * decides whether they assert an event, a motive or a claim it does not carry. No script can make
+ * that judgement, and this one does not try. What a script CAN do is guarantee the judgement was
+ * queued, and tools/list-curation.mjs builds its queue from needs_curation and nothing else.
+ *
+ * So the hole this closes is a quiet one, and quiet in the worst direction. A node flagged
+ * canonical_speaker and nothing else is invisible to the queue; the queue then comes back short,
+ * which reads exactly like a queue that has been worked through; and a named figure ships saying
+ * something nobody weighed. Nine stages put authored speech in three canonical mouths, so one
+ * forgotten flag is the entire safeguard.
+ *
+ * Every locale is checked, not only the authoring one. A translation of a canonical figure's
+ * speech is newly authored speech in that language and owes its own read.
+ */
+function checkCurationFlags(root, locales) {
+  process.stdout.write("[11/11] curation flags        ");
+
+  const hits = [];
+  let queued = 0;
+
+  for (const locale of locales) {
+    // A missing dialogue.json is the parity check's failure to report, not this one's. Saying it
+    // twice would only make the real message harder to find.
+    const dialogue = readJson(root, join(localeDir(root, locale), "dialogue.json"));
+    if (dialogue === null) continue;
+
+    for (const [id, node] of Object.entries(dialogue)) {
+      if (!node || node.canonical_speaker !== true) continue;
+      if (node.needs_curation === true) {
+        queued += 1;
+        continue;
+      }
+      hits.push(locale + " node \"" + id + "\" (speaker: " + (node.npc || "(none)") + ")");
+    }
+  }
+
+  if (hits.length === 0) {
+    console.log("OK (" + plural(queued, "node") + " queued for a human read)");
+    return;
+  }
+
+  console.log("FAIL");
+  for (const hit of hits) {
+    errors.push(
+      "canonical_speaker without needs_curation: " + hit + ". A figure the text names is being " +
+      "given words, and tools/list-curation.mjs queues by needs_curation alone, so this node would " +
+      "never reach the read rule 4 requires - and the short queue would read as a finished one. " +
+      "Add \"needs_curation\": true in every locale."
     );
   }
 }

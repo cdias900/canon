@@ -9,8 +9,17 @@ using UnityEngine.UI;
 namespace SheepGate.UI
 {
     /// <summary>
-    /// The first of the two closing screens of day three: the gate is shut, and the segment says
-    /// who repaired it — the one thing Nehemiah 3 does with every name it lists.
+    /// The first of the two closing screens of the season's last stage: the gate is shut, and the
+    /// segment says who repaired it — the one thing Nehemiah 3 does with every name it lists.
+    ///
+    /// WHICH CHAPTER IT OPENS IS THE CALLER'S, NOT THIS CLASS'S. The panel used to hold one
+    /// chapter and one record plate as constants, which was true while exactly one stage could
+    /// ever show it. A season declares its closing stage in stages.json, and that stage's own
+    /// chapter is the one the player should land in, so the four-argument
+    /// <see cref="Show(string, string, string, Action)"/> takes both references and
+    /// <see cref="ChapterRef"/> / <see cref="RecordRef"/> are demoted to the defaults the
+    /// two-argument overload supplies. Nothing here parses a stage table; the director that knows
+    /// which stage it is running passes the pair down.
     ///
     /// It also carries the only affordance the whole POC is built to measure: a plainly secondary
     /// way into the chapter. It is secondary on purpose — narrow, muted, above the button that
@@ -31,10 +40,20 @@ namespace SheepGate.UI
         /// <summary>Id this screen occupies in the modal stack.</summary>
         public const string ModalId = "gate_closed";
 
-        /// <summary>Chapter the secondary affordance opens, in the in-app reader.</summary>
+        /// <summary>
+        /// Chapter the secondary affordance opens, in the in-app reader, when the caller names
+        /// none. It is the trial's chapter rather than the dedication's because that is what this
+        /// panel opened on for its whole life before a caller could choose; a stage that means a
+        /// different chapter passes it.
+        /// </summary>
         public const string ChapterRef = "NEH.4";
 
-        /// <summary>Where the naming of builders comes from. Shown as a reference, never as text.</summary>
+        /// <summary>
+        /// Where the naming of builders comes from, when the caller names none. Shown as a
+        /// reference, never as text. This one is a genuine default rather than a placeholder: the
+        /// roll call of builders is in Nehemiah 3 whatever stage records the player's name on a
+        /// stretch, so a caller overriding it is the exception.
+        /// </summary>
         public const string RecordRef = "NEH.3";
 
         /// <summary>Telemetry trigger, so a player-chosen open is never confused with a prompted one.</summary>
@@ -56,6 +75,13 @@ namespace SheepGate.UI
         static GateClosedPanel _current;
 
         Action _onContinue;
+
+        /// <summary>Chapter this instance opens. Set before <see cref="Build"/>, never after.</summary>
+        string _chapterRef = ChapterRef;
+
+        /// <summary>Reference printed on the record plate. Set before <see cref="Build"/>.</summary>
+        string _recordRef = RecordRef;
+
         bool _built;
         bool _closed;
 
@@ -66,11 +92,30 @@ namespace SheepGate.UI
         }
 
         /// <summary>
-        /// Shows the panel and calls back once the player moves on, whichever way the panel went
-        /// away — the continue button, the hardware back button, or a scene change. Returns null
-        /// only when there is no modal root to build into.
+        /// Shows the panel on its default chapter and record plate, and calls back once the player
+        /// moves on, whichever way the panel went away — the continue button, the hardware back
+        /// button, or a scene change. Returns null only when there is no modal root to build into.
+        ///
+        /// This signature is kept rather than replaced. It is what the existing director calls,
+        /// and a caller that has no opinion about which chapter the ending belongs to should not
+        /// have to invent one; it delegates to the overload below with the two constants.
         /// </summary>
         public static GateClosedPanel Show(string builderName, Action onContinue)
+        {
+            return Show(builderName, ChapterRef, RecordRef, onContinue);
+        }
+
+        /// <summary>
+        /// Shows the panel on a chapter and a record plate the caller names, and calls back once
+        /// the player moves on. Returns null only when there is no modal root to build into.
+        ///
+        /// Either reference may be null or blank, and then the matching constant stands in. That
+        /// is deliberate fail-soft rather than laxity: a stage whose chapter has not been authored
+        /// yet still shows a working ending with a working way into the reader, which is better
+        /// than a Saber mais that opens nothing on the one screen the whole build exists to
+        /// measure.
+        /// </summary>
+        public static GateClosedPanel Show(string builderName, string chapterRef, string recordRef, Action onContinue)
         {
             if (_current != null && !_current._closed)
             {
@@ -92,6 +137,8 @@ namespace SheepGate.UI
 
             var panel = container.gameObject.AddComponent<GateClosedPanel>();
             panel._onContinue = onContinue;
+            panel._chapterRef = string.IsNullOrEmpty(chapterRef) ? ChapterRef : chapterRef;
+            panel._recordRef = string.IsNullOrEmpty(recordRef) ? RecordRef : recordRef;
             panel.Build(builderName);
             _current = panel;
             return panel;
@@ -171,7 +218,7 @@ namespace SheepGate.UI
 
             BuildRecord(cardRect, builderName);
 
-            UIKit.CreateText(cardRect, "ReaderCaption", Loc.T("vocation.reader_caption", ScriptureService.ChapterDisplay(ChapterRef)),
+            UIKit.CreateText(cardRect, "ReaderCaption", Loc.T("vocation.reader_caption", ScriptureService.ChapterDisplay(_chapterRef)),
                 DesignTokens.Type.Mono, DesignTokens.Ink.Muted, TextAnchor.UpperLeft);
 
             BuildSecondaryRow(cardRect);
@@ -205,7 +252,7 @@ namespace SheepGate.UI
 
             // Mono, because the design system reserves it for quantities, counts and references,
             // and this is a reference. Never the verse text: only the reference ever travels.
-            UIKit.CreateText(plateRect, "Reference", ScriptureService.ChapterDisplay(RecordRef),
+            UIKit.CreateText(plateRect, "Reference", ScriptureService.ChapterDisplay(_recordRef),
                 DesignTokens.Type.Mono, DesignTokens.Ink.Muted, TextAnchor.UpperLeft,
                 DesignTokens.TypeRole.Mono);
         }
@@ -266,10 +313,10 @@ namespace SheepGate.UI
         /// </summary>
         void OnKnowMoreClicked()
         {
-            ChapterReaderUI reader = ChapterReaderUI.Open(ChapterRef, OpenTrigger);
+            ChapterReaderUI reader = ChapterReaderUI.Open(_chapterRef, OpenTrigger);
             if (reader == null)
             {
-                Debug.LogWarning("[GateClosedPanel] The chapter reader could not open on " + ChapterRef + ".");
+                Debug.LogWarning("[GateClosedPanel] The chapter reader could not open on " + _chapterRef + ".");
             }
         }
 

@@ -14,5 +14,9 @@
   "half_and_half": {
     "display": "Metade e metade",
     "description": "Ninguém larga a colher de pedreiro para pegar a lança. Cada um faz as duas coisas ao mesmo tempo, e é isso que eles não esperavam."
+  },
+  "keep_working": {
+    "display": "Continuar a obra",
+    "description": "Você já disse não uma vez e não vai descer agora. Não há resposta a dar: a obra continua, e eles seguem esperando."
   }
 }

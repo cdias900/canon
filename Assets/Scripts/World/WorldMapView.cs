@@ -11,11 +11,18 @@ using UnityEngine.UI;
 namespace SheepGate.World
 {
     /// <summary>
-    /// The map the player opens from the HUD: the three-day road through this POC.
+    /// The map the player opens from the HUD: the road through the season, one stop per stage.
     ///
-    /// It is a progression surface, not level selection: the road shows compact selectable days,
-    /// while one fixed card below the map reveals the selected day's title, reward and condition.
-    /// Selecting a day changes information only; it never skips the game.
+    /// It is a progression surface, not level selection: the road shows compact selectable stages,
+    /// while one fixed card below the map reveals the selected stage's title, reward and condition.
+    /// Selecting a stage changes information only; it never skips the game.
+    ///
+    /// How many stops there are is read from the stage table through
+    /// <see cref="MapChartArt.JourneyCount"/>, and where each one sits is read from the road traced
+    /// through the painted background. Nothing here counts the season itself: this file used to
+    /// carry three title keys and three reward ids beside three anchors, and the quiet
+    /// <c>Mathf.Min</c> over those three lengths meant a fourth stage could be declared and simply
+    /// not drawn, with nothing logged. The lengths are now checked against each other out loud.
     ///
     /// The opening keeps <see cref="WorldMapOverlay"/>. That beat has to push the camera in from the
     /// region to the city in one continuous move; this view is what the HUD reopens afterwards.
@@ -33,21 +40,54 @@ namespace SheepGate.World
         static readonly float HeaderHeight = DesignTokens.Px(112f);
         static readonly float StatusHeight = DesignTokens.Px(150f);
         static readonly float ControlsHeight = UIKit.ButtonMinHeight;
-        static readonly float NodeMarkerSize = DesignTokens.Px(72f);
         static readonly float RewardIconSize = DesignTokens.Px(38f);
 
+        /// <summary>
+        /// The marker at its largest, which is the size a three-stop road draws at and the size
+        /// this map shipped with. A longer season draws smaller markers; see
+        /// <see cref="MarkerSizeFor"/>.
+        /// </summary>
+        static readonly float MaxNodeMarkerSize = DesignTokens.Px(72f);
+
+        /// <summary>
+        /// The marker at its smallest. Well under the design system's touch floor as a length on
+        /// the sheet, and comfortably over it on screen: the map content is never drawn below about
+        /// 1.4x, so the smallest marker still lands around 56 points under a finger.
+        /// </summary>
+        static readonly float MinNodeMarkerSize = DesignTokens.Px(40f);
+
+        /// <summary>
+        /// The share of the gap between two stops a marker may occupy. Below one, so consecutive
+        /// markers keep clear air between them instead of touching.
+        /// </summary>
+        const float NodeMarkerClearance = 0.7f;
+
+        /// <summary>Selection ring, as a multiple of the marker. Px(72) + Px(12) at full size.</summary>
+        const float SelectionRingRatio = 84f / 72f;
+
+        /// <summary>Current-location ring, as a multiple of the marker. Px(72) + Px(20) at full size.</summary>
+        const float CurrentRingRatio = 92f / 72f;
+
+        /// <summary>
+        /// One title key per stage, written out.
+        ///
+        /// They stay literals rather than being composed from a stage id at runtime, because the
+        /// content validator's locale-key check reads key-shaped literals out of .cs files. A key
+        /// assembled from a loop counter is invisible to it, and the first anyone would learn that
+        /// a stage title is missing from ui.json is a player reading
+        /// "world.progress_map.day.7.title" off the place card, in both languages at once.
+        /// </summary>
         static readonly string[] DayTitleKeys =
         {
             "world.progress_map.day.1.title",
             "world.progress_map.day.2.title",
-            "world.progress_map.day.3.title"
-        };
-
-        static readonly string[] DayRewardItemIds =
-        {
-            "acc_tool_bag",
-            "hair_headscarf",
-            "outfit_valley_mantle"
+            "world.progress_map.day.3.title",
+            "world.progress_map.day.4.title",
+            "world.progress_map.day.5.title",
+            "world.progress_map.day.6.title",
+            "world.progress_map.day.7.title",
+            "world.progress_map.day.8.title",
+            "world.progress_map.day.9.title"
         };
 
         static WorldMapView _current;
@@ -58,6 +98,13 @@ namespace SheepGate.World
         GameState _state;
         int _currentDay;
         int _selectedDay;
+
+        /// <summary>How many stops this build of the map actually drew. See <see cref="NodeCount"/>.</summary>
+        int _dayCount;
+
+        /// <summary>Marker side for this build, sized so nine stops do not overlap. See <see cref="MarkerSizeFor"/>.</summary>
+        float _nodeMarkerSize;
+
         readonly List<Image> _selectionRings = new List<Image>();
 
         Text _detailState;
@@ -194,7 +241,11 @@ namespace SheepGate.World
 
             RectTransform root = UIKit.SafeArea(_canvas);
             _state = WorldRuntime.State;
-            _currentDay = _state != null ? Mathf.Clamp(_state.day, 1, MapChartArt.JourneyCount) : 1;
+
+            // Settled before anything reads a day, because the current stop, the selection clamp
+            // and the place card all have to agree with the number of markers actually drawn.
+            _dayCount = NodeCount();
+            _currentDay = _state != null ? Mathf.Clamp(_state.day, 1, _dayCount) : 1;
             BuildTitle(root);
 
             RectTransform viewport = BuildViewport(root);
@@ -249,7 +300,36 @@ namespace SheepGate.World
         }
 
         /// <summary>
-        /// The three actual days of this POC, laid over the clearings painted into the road.
+        /// How many stops to draw, and a complaint when the two sources disagree.
+        ///
+        /// The season declares its length in stages.json; this file declares one title key per
+        /// stage. They are meant to be the same number, and when they are not the map can only draw
+        /// the shorter of the two — but it says so, which is the whole change. What stood here was
+        /// a bare <c>Mathf.Min</c> over three lengths: adding a stage without adding its title drew
+        /// the old count and logged nothing, so the failure arrived as a map that looked finished
+        /// and simply stopped one stage early.
+        ///
+        /// The complaint is gated on the stage table having loaded. With no stages the count falls
+        /// back to the three painted clearings, which disagrees with nine title keys on purpose and
+        /// which GameData has already reported as the real fault.
+        /// </summary>
+        int NodeCount()
+        {
+            int declared = MapChartArt.JourneyCount;
+            int drawn = Mathf.Min(declared, DayTitleKeys.Length);
+            if (declared != DayTitleKeys.Length && GameData.Stages.Length > 0)
+            {
+                Debug.LogError("[WorldMap] The stage table declares " + declared +
+                    " stage(s) and WorldMapView carries " + DayTitleKeys.Length +
+                    " title key(s), so the progression map can only draw " + drawn +
+                    ". Add or remove a world.progress_map.day.<n>.title key to match stages.json.");
+            }
+
+            return drawn;
+        }
+
+        /// <summary>
+        /// The stops of the season, spaced along the road painted into the background.
         ///
         /// The terrain carries only annotation-sized information: marker, day and state. Selecting
         /// one updates the single detail card below the viewport. That progressive disclosure keeps
@@ -257,11 +337,50 @@ namespace SheepGate.World
         /// </summary>
         void BuildJourney(RectTransform sheet, GameState state)
         {
-            int count = Mathf.Min(MapChartArt.JourneyCount, DayTitleKeys.Length, DayRewardItemIds.Length);
-            for (int i = 0; i < count; i++)
+            var anchors = new Vector2[_dayCount];
+            for (int i = 0; i < anchors.Length; i++)
             {
-                BuildJourneyNode(sheet, state, i + 1, MapChartArt.JourneyAnchor(i), DayTitleKeys[i]);
+                anchors[i] = MapChartArt.JourneyAnchor(i);
             }
+
+            _nodeMarkerSize = MarkerSizeFor(anchors);
+
+            for (int i = 0; i < anchors.Length; i++)
+            {
+                BuildJourneyNode(sheet, state, i + 1, anchors[i], DayTitleKeys[i]);
+            }
+        }
+
+        /// <summary>
+        /// A marker small enough that two neighbouring stops do not overlap.
+        ///
+        /// The markers travel with the map, so their size is a length on the sheet and the gap
+        /// between two stops shrinks as the season gets longer: three stops leave about 566 units
+        /// between them, nine leave about 154, and the marker this map shipped with is 199. Fixing
+        /// the size would have nine circles growing through each other. Fixing the season length
+        /// instead is worse — the whole point of the stage table is that the length is data.
+        ///
+        /// The clamp's upper bound is the shipped size, so a three-stop road draws exactly what it
+        /// drew before, and the rings scale with the marker rather than adding a fixed inset that
+        /// would reach into the neighbouring stop at the small end.
+        /// </summary>
+        static float MarkerSizeFor(Vector2[] anchors)
+        {
+            float closest = float.MaxValue;
+            for (int i = 1; i < anchors.Length; i++)
+            {
+                var step = new Vector2(
+                    (anchors[i].x - anchors[i - 1].x) * MapChartArt.ContentSize.x,
+                    (anchors[i].y - anchors[i - 1].y) * MapChartArt.ContentSize.y);
+                closest = Mathf.Min(closest, step.magnitude);
+            }
+
+            if (closest == float.MaxValue)
+            {
+                return MaxNodeMarkerSize;
+            }
+
+            return Mathf.Clamp(closest * NodeMarkerClearance, MinNodeMarkerSize, MaxNodeMarkerSize);
         }
 
         void BuildJourneyNode(RectTransform sheet, GameState state, int day, Vector2 anchor,
@@ -273,7 +392,7 @@ namespace SheepGate.World
             marker.anchorMin = anchor;
             marker.anchorMax = anchor;
             marker.pivot = new Vector2(0.5f, 0.5f);
-            marker.sizeDelta = new Vector2(NodeMarkerSize, NodeMarkerSize);
+            marker.sizeDelta = new Vector2(_nodeMarkerSize, _nodeMarkerSize);
 
             var markerImage = marker.gameObject.AddComponent<Image>();
             markerImage.sprite = MapChartArt.NodeSprite(nodeState);
@@ -294,7 +413,7 @@ namespace SheepGate.World
             selected.anchorMin = anchor;
             selected.anchorMax = anchor;
             selected.pivot = new Vector2(0.5f, 0.5f);
-            float selectedSize = NodeMarkerSize + DesignTokens.Px(12f);
+            float selectedSize = _nodeMarkerSize * SelectionRingRatio;
             selected.sizeDelta = new Vector2(selectedSize, selectedSize);
 
             var selectedImage = selected.gameObject.AddComponent<Image>();
@@ -315,10 +434,15 @@ namespace SheepGate.World
             RectTransform label = (RectTransform)labelImage.transform;
             label.anchorMin = anchor;
             label.anchorMax = anchor;
-            bool below = day == 3;
+
+            // Which side the card hangs on is the node's own position, not its number. A stop high
+            // on the sheet hangs its label below so the card does not run off the top edge of the
+            // map; the old `day == 3` said the same thing about the only high stop there was, and
+            // stopped being true the moment there were nine.
+            bool below = anchor.y > 0.5f;
             label.pivot = below ? new Vector2(0.5f, 1f) : new Vector2(0.5f, 0f);
             label.anchoredPosition = new Vector2(0f,
-                (NodeMarkerSize * 0.5f + DesignTokens.Space.S4) * (below ? -1f : 1f));
+                (_nodeMarkerSize * 0.5f + DesignTokens.Space.S4) * (below ? -1f : 1f));
 
             UIKit.HorizontalGroup(label.gameObject, 0f,
                 Inset(DesignTokens.Space.S8, DesignTokens.Space.S4), TextAnchor.MiddleCenter);
@@ -347,7 +471,7 @@ namespace SheepGate.World
             ring.anchorMin = anchor;
             ring.anchorMax = anchor;
             ring.pivot = new Vector2(0.5f, 0.5f);
-            float ringSize = NodeMarkerSize + DesignTokens.Px(20f);
+            float ringSize = _nodeMarkerSize * CurrentRingRatio;
             ring.sizeDelta = new Vector2(ringSize, ringSize);
 
             var ringImage = ring.gameObject.AddComponent<Image>();
@@ -361,9 +485,18 @@ namespace SheepGate.World
             RectTransform label = (RectTransform)labelImage.transform;
             label.anchorMin = anchor;
             label.anchorMax = anchor;
-            label.pivot = new Vector2(0.5f, 1f);
+
+            // The opposite side from the node's own DIA N card, whose side is chosen in
+            // BuildJourneyNode by the same test inverted. Both cards are glass, both are about the
+            // same height, and their offsets differ by four points — put them on one side and the
+            // second is a smudge over the first. Only day three ever sat high enough on the sheet
+            // to hang its card downwards, and the player leaves it after one session; on a
+            // nine-stop road the top half of the map is stages five through nine, which is most of
+            // the season and every screenshot of it.
+            bool below = anchor.y <= 0.5f;
+            label.pivot = below ? new Vector2(0.5f, 1f) : new Vector2(0.5f, 0f);
             label.anchoredPosition = new Vector2(0f,
-                -(NodeMarkerSize * 0.5f + DesignTokens.Space.S8));
+                (_nodeMarkerSize * 0.5f + DesignTokens.Space.S8) * (below ? -1f : 1f));
 
             UIKit.HorizontalGroup(label.gameObject, 0f,
                 Inset(DesignTokens.Space.S8, DesignTokens.Space.S4), TextAnchor.MiddleCenter);
@@ -381,7 +514,9 @@ namespace SheepGate.World
 
         void SelectDay(int day)
         {
-            _selectedDay = Mathf.Clamp(day, 1, MapChartArt.JourneyCount);
+            // Clamped to the stops this build drew, not to the stages declared: when the two
+            // disagree the extra stages have no marker, no title and no ring to light up.
+            _selectedDay = Mathf.Clamp(day, 1, Mathf.Max(1, _dayCount));
             for (int i = 0; i < _selectionRings.Count; i++)
             {
                 Image ring = _selectionRings[i];
@@ -414,8 +549,12 @@ namespace SheepGate.World
                 _detailTitle.text = Loc.T(DayTitleKeys[index]);
             }
 
-            string itemId = DayRewardItemIds[Mathf.Clamp(index, 0, DayRewardItemIds.Length - 1)];
-            CatalogItemDef item = CharacterCatalog.Item(itemId);
+            // The featured item comes from the stage table, which is the file that decides what a
+            // stage is about. A stage may feature any catalogue entry whether or not that entry
+            // happens to open here — it is a signpost, not a grant — and a stage that names an item
+            // the catalogue has not got yet still shows a card, with the stand-in image.
+            string itemId = GameData.Stage(_selectedDay).reward_item;
+            CatalogItemDef item = string.IsNullOrEmpty(itemId) ? null : CharacterCatalog.Item(itemId);
             bool unlocked = item == null || UnlockEvaluator.IsUnlocked(_state, item);
 
             string display = item != null && !string.IsNullOrEmpty(item.display)
@@ -444,16 +583,36 @@ namespace SheepGate.World
             }
         }
 
-        static JourneyNodeState StateForDay(GameState state, int day)
+        /// <summary>
+        /// What one stop shows: behind us, here, or not yet.
+        ///
+        /// The clamp is the number of stops drawn, not a literal season length — this method used
+        /// to clamp against 3 while the two clamps either side of it already asked the map how long
+        /// the road was, and that lone 3 is what would have pinned every save past stage 3 onto
+        /// stage 3's marker.
+        ///
+        /// The vocation flag still means "this run reached its end", and it still turns the stop the
+        /// player is standing on from AGORA into CONCLUÍDO so a finished season reads as finished.
+        /// What it no longer does is complete the stops AHEAD: a save migrated from the three-day
+        /// build resumes mid-season with that flag already earned, and marking all nine stops
+        /// complete for it would tell the player they had finished a season they have five stages
+        /// left of. Rule 7 is untouched either way — nothing here ever moves a stop backwards.
+        /// </summary>
+        JourneyNodeState StateForDay(GameState state, int day)
         {
-            int currentDay = state != null ? Mathf.Clamp(state.day, 1, 3) : 1;
-            bool journeyComplete = state != null && state.HasFlag(GameFlags.VocationRevealed);
-            if (day < currentDay || journeyComplete)
+            int currentDay = state != null ? Mathf.Clamp(state.day, 1, Mathf.Max(1, _dayCount)) : 1;
+            if (day < currentDay)
             {
                 return JourneyNodeState.Complete;
             }
 
-            return day == currentDay ? JourneyNodeState.Current : JourneyNodeState.Locked;
+            if (day == currentDay)
+            {
+                bool journeyComplete = state != null && state.HasFlag(GameFlags.VocationRevealed);
+                return journeyComplete ? JourneyNodeState.Complete : JourneyNodeState.Current;
+            }
+
+            return JourneyNodeState.Locked;
         }
 
         static string StateLocaleKey(JourneyNodeState state)

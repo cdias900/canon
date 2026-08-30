@@ -323,7 +323,18 @@
         "profeta": 1
       }
     },
-    "reliable": true
+    "reliable": true,
+    "choices": [
+      {
+        "id": "survey",
+        "text": "Você fica acordado de noite. Ouviu mais alguma coisa esta semana?",
+        "next": "meremote_d2_survey"
+      },
+      {
+        "id": "leave",
+        "text": "Vou pensar no que fazer com isso."
+      }
+    ]
   },
   "zacur_d1": {
     "npc": "zacur",
@@ -543,10 +554,10 @@
     "day": 3,
     "lines": [
       {
-        "text": "Fecharam a estrada baixa. Hoje ninguém entra e ninguém sai."
+        "text": "Chegou madeira na praça. Madeira de verdade, viga inteira. Do entulho não sai isso, do entulho sai cascalho."
       },
       {
-        "text": "Eu fico. Não é coragem, é que eu não tenho para onde ir e já sei de cor o cheiro de casa queimada."
+        "text": "Pedra com madeira vira bloco, e bloco sobe mais rápido que pedra solta. Meu pai dizia isso de resina: junta duas coisas fracas e sai uma que presta."
       }
     ],
     "grants": {
@@ -559,10 +570,10 @@
     "day": 3,
     "lines": [
       {
-        "text": "Mandei as minhas filhas para dentro. Elas não foram. Eu não insisti muito."
+        "text": "Agora tem material sobrando e gente faltando. É a primeira reclamação boa que eu faço nesta rua."
       },
       {
-        "text": "Hoje não tem divisão que resolva. Hoje é todo mundo em cima, e a pedra que der, deu."
+        "text": "As minhas duas estão medindo o trecho com corda. Quando acabarem eu te digo quanto falta de verdade, não quanto parece."
       }
     ],
     "grants": {
@@ -575,10 +586,17 @@
     "day": 3,
     "lines": [
       {
-        "text": "É no meu trecho. Sempre ia ser no meu trecho, e eu sabia disso quando escolhi."
+        "text": "Passou gente na estrada de baixo hoje cedo. Não desceram. Só riram, alto o bastante para chegar aqui em cima."
       },
       {
-        "text": "Vem comigo. Não precisa ser hoje o dia em que você aprende a olhar para o campo aberto, mas seria uma boa hora."
+        "text": "Perguntaram se a gente ia levantar isto num dia. Perguntaram se pedra queimada volta a ser pedra."
+      },
+      {
+        "frame": "O homem da capital respondeu antes de eu pensar em resposta. Ficou anotado assim:",
+        "verse": "NEH.2.20"
+      },
+      {
+        "text": "Eu não teria dito daquele jeito. Mas foi dito, e eles foram embora sem esperar a segunda parte."
       }
     ],
     "grants": {
@@ -626,10 +644,17 @@
     "day": 3,
     "lines": [
       {
-        "text": "Vim com onze homens do meu distrito. É o que eu tenho e é o que eu trouxe."
+        "text": "A madeira não foi comprada aqui. Foi pedida por carta, muito antes de qualquer um de nós pegar em pedra."
       },
       {
-        "text": "Se isto aqui cair, o meu lado do vale é o próximo da fila. Não estou sendo generoso, estou sendo prático."
+        "frame": "Pedida a um homem que toma conta de mata do rei. O pedido ficou registrado com nome e finalidade:",
+        "verse": "NEH.2.8"
+      },
+      {
+        "text": "É a única coisa nesta obra que não saiu do chão daqui. Todo o resto a gente cata, quebra e assenta."
+      },
+      {
+        "text": "Guarda isso: nem toda porta abre com pedra na mão. Algumas abrem com papel, e o papel leva meses."
       }
     ],
     "grants": {
@@ -669,5 +694,939 @@
         "text": "Ninguém te apresentou a ele e você não vai conseguir chegar perto agora."
       }
     ]
+  },
+  "meremote_d2_survey": {
+    "npc": "meremote",
+    "day": 2,
+    "lines": [
+      {
+        "text": "Ouvi. E essa eu guardei, porque na hora não parecia coisa de contar."
+      },
+      {
+        "text": "Na primeira noite dele aqui passou um cavalo na rua de baixo, devagar, sozinho. Achei que era ladrão e fiquei quieto."
+      },
+      {
+        "frame": "Só entendi quando ele falou na praça. Ele mesmo contou depois que não avisou ninguém antes de ir:",
+        "verse": "NEH.2.12"
+      },
+      {
+        "text": "Foi para o lado do vale, por baixo, onde o entulho fecha e não passa montaria. A pé, na certa, o resto do caminho."
+      },
+      {
+        "frame": "Contou também o que foi ver, e até onde deu para ir:",
+        "verse": "NEH.2.13"
+      },
+      {
+        "text": "Voltou antes de clarear e passou o dia seguinte calado. Só abriu a boca quando já sabia o tamanho do estrago pelo próprio pé."
+      },
+      {
+        "text": "Eu conto isso para você e para mais ninguém. Você faz igual: olha primeiro, manda depois."
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "escriba": 1
+      }
+    },
+    "reliable": true
+  },
+  "gathering_d4": {
+    "npc": "governador",
+    "day": 4,
+    "cutscene": true,
+    "lines": [
+      {
+        "text": "A praça amanheceu cheia. Hoje não é dia de obra: é o dia de dividir a obra, e ninguém quer chegar depois da divisão."
+      },
+      {
+        "text": "O homem da capital está com uma lista na mão e um escriba do lado. Não é discurso. É chamada."
+      },
+      {
+        "frame": "Começa pelo portão do norte, o das ovelhas, com os que já estavam ali antes de alguém mandar. Ficou anotado assim:",
+        "verse": "NEH.3.1"
+      },
+      {
+        "text": "— Este trecho já tem dono. Os próximos são de quem levantar a mão."
+      },
+      {
+        "frame": "Ao lado deles entram os homens de Jericó, e depois Zacur, filho de Inri, que você já conhece. A lista segue no mesmo tom, sem um adjetivo:",
+        "verse": "NEH.3.2"
+      },
+      {
+        "text": "— Não vou perguntar de onde vocês vieram. Vou perguntar onde vocês moram, e vocês levantam o pedaço que fica na frente."
+      },
+      {
+        "text": "Um ourives se apresenta. Um perfumista atrás dele. Nenhum dos dois trabalha com pedra e nenhum dos dois está aqui por engano."
+      },
+      {
+        "frame": "Os dois entram na lista pelo ofício que têm, não pelo que sabem fazer hoje:",
+        "verse": "NEH.3.8"
+      },
+      {
+        "text": "Salum levanta a mão e diz que as filhas assentam com ele. Ninguém acha graça e ninguém contesta."
+      },
+      {
+        "frame": "Ficou escrito com as filhas dentro, e não é comum ficar:",
+        "verse": "NEH.3.12"
+      },
+      {
+        "text": "Os de uma cidade se apresentam e pegam o trecho. Os chefes dessa mesma cidade ficam parados atrás e não levantam a mão. O escriba anota os dois."
+      },
+      {
+        "frame": "Anotou do jeito que aconteceu:",
+        "verse": "NEH.3.5"
+      },
+      {
+        "text": "Depois ele lê os quatro trechos que sobraram desta ponta da cidade, um por um, e diz cada um em voz alta para que fique claro qual é qual."
+      },
+      {
+        "text": "— Quem pegar um trecho responde por ele. Não é castigo. É para que, quando estiver de pé, se saiba de quem foi a mão."
+      },
+      {
+        "text": "A praça se desfaz sozinha. Cada um vai andando para o pedaço que agora é seu."
+      }
+    ],
+    "canonical_speaker": true,
+    "needs_curation": true
+  },
+  "hananias_d4": {
+    "npc": "hananias",
+    "day": 4,
+    "lines": [
+      {
+        "text": "Um perfumista pegou trecho hoje. Perfumista. Eu ri, e depois fiquei com vergonha de ter rido."
+      },
+      {
+        "text": "Meu pai teria pegado também. Ele nunca levantou nada na vida, mas nunca deixou nada cair sozinho."
+      },
+      {
+        "text": "Hoje é o dia mais leve que a gente vai ter. Aproveita e fala com todo mundo. Amanhã ninguém tem tempo."
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "pastor": 1
+      }
+    },
+    "reliable": true
+  },
+  "salum_d4": {
+    "npc": "salum",
+    "day": 4,
+    "lines": [
+      {
+        "text": "Ficou no papel: as minhas duas comigo. Eu não pedi para constar e constou."
+      },
+      {
+        "text": "Vinte anos assentando pedra e é a primeira vez que anotam quem fez, e não só o que foi feito."
+      },
+      {
+        "text": "Hoje não rende muito. Hoje é para o povo se olhar e ver que é muita gente. Isso conta, e conta amanhã."
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "mordomo": 1
+      }
+    },
+    "reliable": true
+  },
+  "baruque_d4": {
+    "npc": "baruque",
+    "day": 4,
+    "lines": [
+      {
+        "text": "Contei os trechos desta ponta: quatro. O meu é o segundo, o virado para o descampado."
+      },
+      {
+        "text": "Eu já sabia. Só que hoje ficou dito na frente de todo mundo, e é outra coisa quando fica dito."
+      },
+      {
+        "text": "Descansa hoje. Não é conselho de preguiçoso: quem não descansa antes de começar para no meio."
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "zelote": 1
+      }
+    },
+    "reliable": true
+  },
+  "meremote_d4": {
+    "npc": "meremote",
+    "day": 4,
+    "lines": [
+      {
+        "text": "Hoje ninguém está olhando a estrada. Estão todos olhando para dentro, para a lista."
+      },
+      {
+        "text": "Eu vou olhar assim mesmo. Não é desconfiança. É costume, e custa pouco."
+      },
+      {
+        "text": "Se eu vir alguma coisa você é o primeiro a saber. Como sempre, sem eu saber se é nada."
+      }
+    ],
+    "grants": {
+      "vocation": {}
+    },
+    "reliable": true
+  },
+  "zacur_d4": {
+    "npc": "zacur",
+    "day": 4,
+    "lines": [
+      {
+        "text": "Meu nome saiu logo no começo da lista, junto com os homens de Jericó. Não é mérito: é ordem de quem morava aqui antes."
+      },
+      {
+        "text": "Eu errei com você no outro dia. Peguei trecho para não ser só o que fala."
+      },
+      {
+        "text": "Se eu disser mais alguma coisa que eu não vi, você tem o direito de rir da minha cara na frente dos outros."
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "escriba": 1
+      }
+    },
+    "reliable": false
+  },
+  "malquias_d4": {
+    "npc": "malquias",
+    "day": 4,
+    "lines": [
+      {
+        "text": "Bete-Haquerem inteiro está anotado no meu nome. Um distrito, um trecho, e onze homens que não são obrigados a estar aqui."
+      },
+      {
+        "text": "Hoje eu não trato de carta. Hoje eu conto gente, que é o meu trabalho de verdade."
+      },
+      {
+        "text": "Conta também. É o único número desta cidade que está subindo esta semana."
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "exilado": 1
+      }
+    },
+    "reliable": true
+  },
+  "sanballat_d5": {
+    "npc": "sanballat",
+    "day": 5,
+    "lines": [
+      {
+        "text": "Eles param na estrada de cima, onde o vento leva a voz para dentro da cidade. Onde dá para ver e não dá para alcançar."
+      },
+      {
+        "frame": "Quem está lá em cima é o de Samaria. A notícia da obra chegou nele antes de a gente subir a primeira fiada, e ficou anotado o que isso fez com ele:",
+        "verse": "NEH.4.1"
+      },
+      {
+        "frame": "Depois ele falou, na frente dos irmãos dele e do exército de Samaria. A fala ficou por escrito, inteira:",
+        "verse": "NEH.4.2"
+      },
+      {
+        "text": "— Vocês estão ouvindo? É para ouvirem. Eu não preciso de mais nada além disto: eu falo, e vocês param sozinhos."
+      },
+      {
+        "frame": "O amonita está ao lado dele. Emenda uma piada curta, e a piada também ficou anotada:",
+        "verse": "NEH.4.3"
+      },
+      {
+        "text": "Do lado de cá ninguém responde. Não há a quem responder: eles estão longe demais para ouvir e perto demais para ignorar."
+      },
+      {
+        "text": "Não há nada a fazer com isto hoje a não ser assentar pedra na frente deles, até eles cansarem de falar sozinhos."
+      },
+      {
+        "frame": "Foi o que se fez, e o que se fez coube numa linha só:",
+        "verse": "NEH.4.6"
+      }
+    ],
+    "canonical_speaker": true,
+    "needs_curation": true
+  },
+  "hananias_d5": {
+    "npc": "hananias",
+    "day": 5,
+    "lines": [
+      {
+        "text": "Dá para ouvir daqui. Não dá para entender tudo, e é pior: a gente completa o resto sozinho, e completa para o lado ruim."
+      },
+      {
+        "text": "Eu assentei nove pedras hoje contando alto, só para não contar o que eles estavam dizendo."
+      }
+    ],
+    "grants": {
+      "vocation": {}
+    },
+    "reliable": true
+  },
+  "salum_d5": {
+    "npc": "salum",
+    "day": 5,
+    "lines": [
+      {
+        "text": "Não tem divisão que resolva isto. Não é ataque. Não existe guarda contra piada."
+      },
+      {
+        "text": "A minha mais nova perguntou se eles têm razão. Eu disse que não sei, e que a gente levanta assim mesmo."
+      }
+    ],
+    "grants": {
+      "vocation": {}
+    },
+    "reliable": true
+  },
+  "baruque_d5": {
+    "npc": "baruque",
+    "day": 5,
+    "lines": [
+      {
+        "text": "Eu estou no trecho virado para eles. Ouço em primeira mão e não repasso, porque repassar é o trabalho deles, não o meu."
+      },
+      {
+        "text": "Traz pedra e fica do meu lado uma hora. Duas pessoas calando junto rendem mais que uma calando sozinha."
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "zelote": 1
+      }
+    },
+    "reliable": true,
+    "choices": [
+      {
+        "id": "listen",
+        "text": "Sobe comigo. Quero ouvir o que eles estão gritando.",
+        "next": "sanballat_d5"
+      },
+      {
+        "id": "leave",
+        "text": "Não quero ouvir. Me dá pedra."
+      }
+    ]
+  },
+  "zacur_d5": {
+    "npc": "zacur",
+    "day": 5,
+    "lines": [
+      {
+        "text": "Dois homens do meu quarteirão não vieram hoje. Não foi medo de exército. Foi vergonha de estar do lado de uma coisa de que estão rindo."
+      },
+      {
+        "text": "É exatamente o que eles querem, e é de graça para eles. Não custa nada gritar de longe."
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "escriba": 1
+      }
+    },
+    "reliable": false
+  },
+  "sanballat_d6": {
+    "npc": "sanballat",
+    "day": 6,
+    "lines": [
+      {
+        "text": "Hoje não estão sozinhos. A estrada de cima está cheia, e vem gente de quatro lados diferentes."
+      },
+      {
+        "frame": "Samaria, os amonitas, os árabes e os de Asdode souberam que as brechas estavam fechando. Ficou registrado o que isso causou neles:",
+        "verse": "NEH.4.7"
+      },
+      {
+        "frame": "E ficou registrado o que combinaram entre si, todos de uma vez:",
+        "verse": "NEH.4.8"
+      },
+      {
+        "text": "— Da outra vez eu só falei, e vocês continuaram. Hoje eu trouxe quem não fala."
+      },
+      {
+        "text": "Ele não avança. Fica onde a cidade inteira consegue ver, que é onde ele sempre esteve."
+      }
+    ],
+    "canonical_speaker": true,
+    "needs_curation": true,
+    "choices": [
+      {
+        "id": "count",
+        "text": "Olhar quem mais desceu com ele.",
+        "next": "tobiah_d6"
+      },
+      {
+        "id": "leave",
+        "text": "Voltar para a pedra."
+      }
+    ]
+  },
+  "tobiah_d6": {
+    "npc": "tobiah",
+    "day": 6,
+    "lines": [
+      {
+        "text": "O amonita desce um pouco mais que os outros. Ele conhece esta estrada: já veio aqui convidado, quando ainda havia quem convidasse."
+      },
+      {
+        "frame": "O que os de fora andavam dizendo entre eles chegou pelos que moram perto deles, e chegou repetido dez vezes:",
+        "verse": "NEH.4.11"
+      },
+      {
+        "text": "— Vocês têm gente demais no muro e gente de menos em casa. Uma das duas está aberta agora, e eu tenho o dia inteiro para descobrir qual."
+      },
+      {
+        "text": "Ninguém do lado de cá responde. Um do lado de cá desce do muro e vai para casa, e era esse o objetivo."
+      }
+    ],
+    "canonical_speaker": true,
+    "needs_curation": true
+  },
+  "meremote_d6": {
+    "npc": "meremote",
+    "day": 6,
+    "lines": [
+      {
+        "text": "Eu contei errado uma vez e você me ouviu assim mesmo. Hoje eu conto de novo: são muitos, e são de lugares diferentes."
+      },
+      {
+        "text": "Gente de lugares diferentes não briga junto por muito tempo. Só que hoje eles ainda estão inteiros."
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "profeta": 1
+      }
+    },
+    "reliable": true
+  },
+  "salum_d6": {
+    "npc": "salum",
+    "day": 6,
+    "lines": [
+      {
+        "text": "Os que moram perto deles vieram avisar dez vezes hoje. Dez vezes a mesma frase, cada vez com mais medo dentro."
+      },
+      {
+        "text": "Eu não mandei ninguém para casa. Se soltar um, solta a fila inteira, e eu não teria como chamar de volta."
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "mordomo": 1
+      }
+    },
+    "reliable": true
+  },
+  "baruque_d6": {
+    "npc": "baruque",
+    "day": 6,
+    "lines": [
+      {
+        "text": "É agora. Eu disse que ia ser no meu trecho e não é: é em todos ao mesmo tempo, e é isso que eles querem que a gente sinta."
+      },
+      {
+        "text": "Escolhe onde você fica. Depois não dá para escolher de novo no meio."
+      }
+    ],
+    "grants": {
+      "vocation": {}
+    },
+    "reliable": true,
+    "choices": [
+      {
+        "id": "look",
+        "text": "Me mostra a estrada de cima.",
+        "next": "sanballat_d6"
+      },
+      {
+        "id": "leave",
+        "text": "Fico no meu trecho. Vai para o seu."
+      }
+    ]
+  },
+  "guard_d7": {
+    "npc": "narrator",
+    "day": 7,
+    "cutscene": true,
+    "lines": [
+      {
+        "text": "Amanheceu e não veio ninguém. A estrada de cima está tão vazia hoje quanto estava cheia ontem."
+      },
+      {
+        "text": "A cidade não relaxou por causa disso. Fez duas coisas no mesmo dia, e as duas ficaram na mesma frase."
+      },
+      {
+        "frame": "Uma frase com um \"e\" no meio. O \"e\" é a frase inteira:",
+        "verse": "NEH.4.9"
+      },
+      {
+        "text": "As duas, pelas mesmas pessoas, no mesmo dia. Nenhuma no lugar da outra, e nenhuma porque a outra falhou."
+      },
+      {
+        "frame": "Quando o medo apertou, o que se disse ao povo ficou anotado assim:",
+        "verse": "NEH.4.14"
+      },
+      {
+        "text": "Ninguém mandou ninguém ter coragem. Mandaram lembrar de quem dorme do lado de dentro."
+      },
+      {
+        "frame": "E a conta do dia ficou escrita. É uma divisão simples, e é a mais cara que esta cidade já fez:",
+        "verse": "NEH.4.16"
+      },
+      {
+        "text": "Daqui para a frente é assim todo dia. Rende menos. É o único jeito que não para."
+      },
+      {
+        "frame": "Combinaram também um sinal, porque a cidade é comprida demais para grito. Onde a trombeta tocar, é para lá que todo mundo corre:",
+        "verse": "NEH.4.20"
+      }
+    ]
+  },
+  "hananias_d7": {
+    "npc": "hananias",
+    "day": 7,
+    "lines": [
+      {
+        "text": "Hoje eu trabalhei com uma mão e com a outra segurei uma coisa que eu não sei usar."
+      },
+      {
+        "text": "Rende menos. Rende. É a primeira vez em uma semana que eu não precisei escolher entre as duas."
+      }
+    ],
+    "grants": {
+      "vocation": {}
+    },
+    "reliable": true
+  },
+  "salum_d7": {
+    "npc": "salum",
+    "day": 7,
+    "lines": [
+      {
+        "text": "A conta mudou. Não é mais quem sobe e quem assenta: é cada um fazendo as duas, e nenhuma das duas indo a zero."
+      },
+      {
+        "text": "Eu fui contra a semana inteira. Estava errado, e estou dizendo em voz alta para não ter que dizer duas vezes."
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "mordomo": 2
+      }
+    },
+    "reliable": true,
+    "choices": [
+      {
+        "id": "account",
+        "text": "Me mostra a conta do dia inteiro.",
+        "next": "guard_d7"
+      },
+      {
+        "id": "leave",
+        "text": "Depois eu vejo. Tenho fiada para fechar."
+      }
+    ]
+  },
+  "meremote_d7": {
+    "npc": "meremote",
+    "day": 7,
+    "lines": [
+      {
+        "text": "Combinaram um sinal com trombeta. Onde tocar, todo mundo larga o que está fazendo e corre para lá."
+      },
+      {
+        "text": "É a primeira coisa desde que eu cheguei que serve para gente espalhada. Até hoje a gente só tinha grito, e grito não dobra esquina."
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "profeta": 1
+      }
+    },
+    "reliable": true
+  },
+  "malquias_d7": {
+    "npc": "malquias",
+    "day": 7,
+    "lines": [
+      {
+        "text": "Os meus onze estão divididos: seis na pedra, cinco em cima. Amanhã inverte, para ninguém ficar bom só numa das duas."
+      },
+      {
+        "text": "E hoje não chegou carta nenhuma. Isso me preocupa mais do que quando chega."
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "exilado": 1
+      }
+    },
+    "reliable": true
+  },
+  "malquias_d8": {
+    "npc": "malquias",
+    "day": 8,
+    "lines": [
+      {
+        "text": "Chegaram quatro. Quatro vezes a mesma carta, com o mesmo povoado na planície e o mesmo dia marcado."
+      },
+      {
+        "frame": "A primeira pedia o encontro assim, e as outras três repetiram sem mudar uma vírgula:",
+        "verse": "NEH.6.2"
+      },
+      {
+        "frame": "Este convite já foi feito uma vez, e a resposta que se deu na ocasião ficou registrada. Não mudou desde então:",
+        "verse": "NEH.6.3"
+      },
+      {
+        "text": "E chegou uma quinta, aberta, sem lacre nenhum. Aberta de caso pensado: é para todo mundo ler no caminho antes de chegar em você."
+      },
+      {
+        "frame": "Essa quinta acusa a obra de outra coisa, e diz sem rodeio o que quer conseguir com a acusação:",
+        "verse": "NEH.6.9"
+      },
+      {
+        "text": "Eu li as cinco. Nenhuma delas fala de muro. Todas falam de você."
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "exilado": 1
+      }
+    },
+    "reliable": true,
+    "choices": [
+      {
+        "id": "read",
+        "text": "Lê a quinta em voz alta. Quero ouvir do jeito que a cidade ouviu.",
+        "next": "letters_d8"
+      },
+      {
+        "id": "leave",
+        "text": "Guarda as cinco. Eu leio depois do sol descer."
+      }
+    ]
+  },
+  "letters_d8": {
+    "npc": "narrator",
+    "day": 8,
+    "cutscene": true,
+    "lines": [
+      {
+        "text": "A carta aberta correu a cidade antes de chegar na sua mão. Metade da obra parou para ouvir alguém ler em voz alta."
+      },
+      {
+        "text": "Hoje não vem ninguém pela estrada. O que está vindo é papel, e papel entra por cima de qualquer muro."
+      },
+      {
+        "text": "Isto não se responde com guarda. Guarda não serve contra uma frase que já está circulando."
+      },
+      {
+        "text": "Serve conferir o que está escrito agora com o que já estava escrito antes. É a única coisa que separa uma carta verdadeira de uma carta bem feita."
+      }
+    ],
+    "choices": [
+      {
+        "id": "signature",
+        "text": "Ver quem assina embaixo.",
+        "next": "sanballat_d8"
+      },
+      {
+        "id": "leave",
+        "text": "Já ouvi o bastante."
+      }
+    ]
+  },
+  "sanballat_d8": {
+    "npc": "sanballat",
+    "day": 8,
+    "lines": [
+      {
+        "text": "A quinta carta traz o nome dele embaixo e nenhum lacre em cima."
+      },
+      {
+        "text": "— Vem conversar. Um dia de estrada, um povoado, uma tarde. Ninguém precisa saber que você veio."
+      },
+      {
+        "text": "— Já pedi quatro vezes com a carta fechada. Esta eu deixei aberta, e você vai entender por quê antes do fim do dia."
+      },
+      {
+        "text": "— Marca o dia. Eu espero. Eu sempre esperei."
+      }
+    ],
+    "canonical_speaker": true,
+    "needs_curation": true
+  },
+  "hananias_d8": {
+    "npc": "hananias",
+    "day": 8,
+    "lines": [
+      {
+        "text": "Olha o muro. De ponta a ponta, agora, antes que alguém te diga o que olhar."
+      },
+      {
+        "frame": "Quando não sobrou brecha nenhuma, e antes de as portas serem penduradas, ficou escrito assim:",
+        "verse": "NEH.6.1"
+      },
+      {
+        "text": "Falta porta. Só isso. Uma cidade sem porta ainda não é uma cidade, mas já não é entulho."
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "pastor": 1
+      }
+    },
+    "reliable": true
+  },
+  "salum_d8": {
+    "npc": "salum",
+    "day": 8,
+    "lines": [
+      {
+        "text": "Perguntei ao escriba quantos dias deram, do primeiro ao último. Ele contou duas vezes antes de responder."
+      },
+      {
+        "frame": "Leu a conta do jeito que estava anotada, com o dia e o mês em que fechou:",
+        "verse": "NEH.6.15"
+      },
+      {
+        "text": "Cinquenta e dois. Eu levei mais tempo que isso para refazer a minha própria cozinha, e a cozinha não tinha ninguém gritando de fora."
+      },
+      {
+        "frame": "E ficou anotado o que os de fora sentiram quando souberam da conta:",
+        "verse": "NEH.6.16"
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "mordomo": 1
+      }
+    },
+    "reliable": true
+  },
+  "baruque_d8": {
+    "npc": "baruque",
+    "day": 8,
+    "lines": [
+      {
+        "text": "Eu li a carta aberta. Está bem escrita, e é esse o problema: coisa mal feita a gente descarta sozinho."
+      },
+      {
+        "text": "Confere com o que já estava escrito antes. Se bater, é verdade. Se não bater, é só bem feita."
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "escriba": 2
+      }
+    },
+    "reliable": true
+  },
+  "zacur_d8": {
+    "npc": "zacur",
+    "day": 8,
+    "lines": [
+      {
+        "text": "Eu ia repetir. Peguei a carta, abri a boca, e lembrei do meu cunhado e da estrada baixa."
+      },
+      {
+        "text": "Não repeti. É a primeira coisa que eu faço direito nesta cidade."
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "escriba": 1
+      }
+    },
+    "reliable": true
+  },
+  "dedication_d9": {
+    "npc": "narrator",
+    "day": 9,
+    "cutscene": true,
+    "lines": [
+      {
+        "text": "A porta chegou em duas folhas de madeira, cada uma com quatro homens embaixo. Ninguém falou enquanto elas subiam."
+      },
+      {
+        "text": "Trancas, ferrolhos, e o barulho que uma porta faz quando fecha pela primeira vez. Metade da cidade ouviu de longe e parou o que estava fazendo."
+      },
+      {
+        "frame": "Para o dia em que o muro fosse entregue, mandaram buscar os que sabem cantar, de todos os povoados em volta. Ficou registrado assim:",
+        "verse": "NEH.12.27"
+      },
+      {
+        "text": "Eles vieram. Vieram de lugares que ninguém aqui visita, e vieram a pé, com instrumento nas costas."
+      },
+      {
+        "frame": "Aí subiram todos no muro e se dividiram em dois grupos, que foram andando em direções contrárias:",
+        "verse": "NEH.12.31"
+      },
+      {
+        "text": "Um grupo foi pela direita. O outro pela esquerda. As duas metades foram sumindo, cada uma para um lado da cidade."
+      },
+      {
+        "text": "Você fica onde está. O seu trecho é o que fecha o círculo, e é por cima dele que as duas metades voltam a se encontrar."
+      },
+      {
+        "frame": "Quando se encontraram, deu para ouvir de longe. Ficou anotado até onde chegou:",
+        "verse": "NEH.12.43"
+      },
+      {
+        "text": "Depois alguém sobe com um caco de barro e um prego e escreve na pedra do seu trecho quem reparou este pedaço."
+      },
+      {
+        "frame": "É o que se fez com a primeira porta desta cidade, a do norte, a das ovelhas, e com o nome de quem a levantou:",
+        "verse": "NEH.3.1"
+      },
+      {
+        "text": "Não é homenagem. É registro. Daqui a cem anos alguém lê e sabe que teve gente aqui."
+      }
+    ]
+  },
+  "hananias_d9": {
+    "npc": "hananias",
+    "day": 9,
+    "lines": [
+      {
+        "text": "Minha irmã volta amanhã. Ela mandou perguntar se tem porta. Eu mandei dizer que tem, e mandei dizer duas vezes."
+      },
+      {
+        "text": "É a coisa mais boba de se emocionar. Eu me emocionei assim mesmo."
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "pastor": 1
+      }
+    },
+    "reliable": true
+  },
+  "salum_d9": {
+    "npc": "salum",
+    "day": 9,
+    "lines": [
+      {
+        "text": "As minhas duas assentaram a última fiada do nosso trecho. Eu fiquei olhando e não corrigi nada."
+      },
+      {
+        "text": "Vinte anos. Não é o maior muro que eu levantei. É o único com o nome de quem levantou escrito nele."
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "mordomo": 1
+      }
+    },
+    "reliable": true
+  },
+  "baruque_d9": {
+    "npc": "baruque",
+    "day": 9,
+    "lines": [
+      {
+        "text": "O descampado continua lá. A diferença é que agora ele fica do lado de fora de alguma coisa."
+      },
+      {
+        "text": "Lembra do primeiro dia, quando eu disse que sobrava espaço do meu lado? Sobra até hoje. Volta quando quiser."
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "zelote": 1
+      }
+    },
+    "reliable": true
+  },
+  "malquias_d9": {
+    "npc": "malquias",
+    "day": 9,
+    "lines": [
+      {
+        "text": "Eu volto para Bete-Haquerem amanhã cedo, com os onze, e nenhum dos onze quer ir."
+      },
+      {
+        "text": "Vou levar a notícia do jeito que ela é: deu certo, e deu certo devagar."
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "exilado": 1
+      }
+    },
+    "reliable": true
+  },
+  "meremote_d5": {
+    "npc": "meremote",
+    "day": 5,
+    "lines": [
+      {
+        "text": "A estrada de baixo está limpa. Passei duas vezes e não vi rastro de nada."
+      },
+      {
+        "text": "O barulho todo vem de cima, da crista. Eu prefiro barulho de cima: barulho de cima eu consigo ver de onde vem."
+      }
+    ],
+    "grants": {
+      "vocation": {}
+    },
+    "reliable": true
+  },
+  "malquias_d5": {
+    "npc": "malquias",
+    "day": 5,
+    "lines": [
+      {
+        "text": "Nenhuma carta hoje, nem para você nem para mim. Os meus onze estão todos na pedra e eu não tenho o que despachar."
+      },
+      {
+        "text": "Então eu carreguei pedra. Fazia vinte anos. Amanhã eu não levanto o braço, e valeu a pena."
+      }
+    ],
+    "grants": {
+      "vocation": {}
+    },
+    "reliable": true
+  },
+  "baruque_d7": {
+    "npc": "baruque",
+    "day": 7,
+    "lines": [
+      {
+        "text": "No meu trecho a conta é pior que na média: virado para o descampado, precisa de mais gente em cima e sobra menos para a pedra."
+      },
+      {
+        "text": "Eu não vou pedir gente emprestada. Vou render menos e não vou fingir que não estou rendendo menos."
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "zelote": 1
+      }
+    },
+    "reliable": true
+  },
+  "meremote_d9": {
+    "npc": "meremote",
+    "day": 9,
+    "lines": [
+      {
+        "text": "Hoje eu não olhei a estrada uma vez. Nem uma. Descobri isso quando o sol já estava alto."
+      },
+      {
+        "text": "Não é que acabou o perigo. É que hoje tem porta, e porta é a primeira coisa desde que eu cheguei que olha por mim enquanto eu durmo."
+      }
+    ],
+    "grants": {
+      "vocation": {
+        "profeta": 1
+      }
+    },
+    "reliable": true
   }
 }

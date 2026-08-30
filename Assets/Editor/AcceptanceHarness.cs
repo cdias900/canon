@@ -19,6 +19,20 @@ namespace SheepGate.EditorTools
     /// MVP-SCOPE.md §13 that cannot be checked by playing for a minute — the ones about
     /// rules rather than about pixels.
     ///
+    /// NUMBERED CRITERIA COME FROM §13; the letter-prefixed ones do not, and the prefix is how you
+    /// tell. <c>L1</c>-<c>L3</c> are the localization checks that arrived with the content split,
+    /// and <c>S1</c>-<c>S2</c> are the two the nine-stage season needed: that the stage table holds
+    /// together, and that a save written by the three-day build comes forward without losing
+    /// anything. Reusing a §13 number for a check §13 does not contain would make the report
+    /// unreadable against the document it is named for.
+    ///
+    /// EVERY CHECK THAT USED TO NAME A DAY NOW READS THE SEASON. The old shape — day 3 for the
+    /// contest, night 1 for the watch, NEH.4 for the reader — passed happily on a season in which
+    /// six of the nine stages could not be reached at all, because it was asking about the part
+    /// that had not moved. Where a criterion is about a stage, it loops the stages; where it is
+    /// about a night, it loops the nights; where it is about a chapter, it derives the chapters
+    /// from what the content actually cites.
+    ///
     /// Run with:
     ///   -executeMethod SheepGate.EditorTools.AcceptanceHarness.RunAll
     /// Exits non-zero when a criterion fails, so it works as a build gate.
@@ -73,6 +87,7 @@ namespace SheepGate.EditorTools
 
                     LocalizationIntegrity(sourceDialogue);
                     ScriptureIntegrity();
+                    SeasonIsWhole();
                     WallProgressNeverRegresses();
                     SaveRoundTrip();
                     ContestRules();
@@ -130,14 +145,22 @@ namespace SheepGate.EditorTools
                 if (string.IsNullOrEmpty(vocation.reveal_line)) gaps.Add("vocation.reveal_line:" + vocation.id);
             }
 
-            ContestMoveDef[] moves = GameData.Contest != null ? GameData.Contest.moves : null;
-            if (moves != null)
+            // Every contest, not just the one GameData.Contest happens to resolve to. The season has
+            // two now and they draw overlapping but different move sets, so a move that exists only
+            // in the second fight had no string check at all while this read a single config — which
+            // is exactly the shape of the keep_working interlock: a move in the shared table with no
+            // entry in either locale's file, invisible until the fight opens.
+            if (GameData.Contests != null)
             {
-                foreach (ContestMoveDef move in moves)
+                foreach (KeyValuePair<string, ContestConfig> pair in GameData.Contests)
                 {
-                    if (move == null) continue;
-                    if (string.IsNullOrEmpty(move.display)) gaps.Add("move.display:" + move.id);
-                    if (string.IsNullOrEmpty(move.description)) gaps.Add("move.description:" + move.id);
+                    if (pair.Value == null || pair.Value.moves == null) continue;
+                    foreach (ContestMoveDef move in pair.Value.moves)
+                    {
+                        if (move == null) continue;
+                        if (string.IsNullOrEmpty(move.display)) gaps.Add("move.display:" + pair.Key + "/" + move.id);
+                        if (string.IsNullOrEmpty(move.description)) gaps.Add("move.description:" + pair.Key + "/" + move.id);
+                    }
                 }
             }
 
@@ -204,9 +227,205 @@ namespace SheepGate.EditorTools
             Check("04 not a placeholder build", !ScriptureService.IsPlaceholderBuild,
                 "version " + (ScriptureService.Version != null ? ScriptureService.Version.abbrev : "?"));
 
-            ChapterEntry chapter = ScriptureService.GetChapter("NEH.4");
-            Check("10 chapter is readable", chapter != null && chapter.verses != null && chapter.verses.Length > 1,
-                "NEH.4 has " + (chapter?.verses?.Length ?? 0) + " verses");
+            EveryReachableChapterIsReadable();
+        }
+
+        /// <summary>
+        /// 10 — every chapter a player can reach opens on a whole chapter, not on one verse.
+        ///
+        /// This used to name <c>NEH.4</c> and nothing else, while the season shipped several more —
+        /// and the ones the check never looked at were the ones that could fail: a citation renders
+        /// perfectly from <c>verses</c> while its chapter is absent, so Saber mais opens on a shell
+        /// and the tap the entire product is measured by leads nowhere. The manifest's own note
+        /// records that exact failure having shipped once, with most citations carrying a dead door.
+        ///
+        /// The set is DERIVED, so a chapter added by content is covered the day it is cited: the
+        /// chapter of every <c>verse</c> in every dialogue line, the chapter of every contest's
+        /// <c>page_verse</c>, and the two chapters the ending's gate panel opens — those last read
+        /// off <see cref="SheepGate.World.StageDirector"/>'s own fields rather than spelled again
+        /// here, because a copy of a constant is a copy that goes stale on the day the original
+        /// moves and reports green while it does.
+        ///
+        /// A placeholder build is tolerated EXPLICITLY. Its generator synthesizes chapters with
+        /// exactly one verse, so "more than one verse" could never pass on one — by accident rather
+        /// than by decision, which meant the tolerance looked like a bug and the failure looked like
+        /// missing content. The door still has to exist there; only how much is behind it is relaxed.
+        /// </summary>
+        static void EveryReachableChapterIsReadable()
+        {
+            var chapters = new SortedSet<string>(StringComparer.Ordinal);
+
+            foreach (var pair in GameData.Dialogue)
+            {
+                if (pair.Value?.lines == null) continue;
+                foreach (var line in pair.Value.lines)
+                {
+                    AddChapterOf(chapters, line?.verse);
+                }
+            }
+
+            if (GameData.Contests != null)
+            {
+                foreach (KeyValuePair<string, ContestConfig> pair in GameData.Contests)
+                {
+                    if (pair.Value != null) AddChapterOf(chapters, pair.Value.page_verse);
+                }
+            }
+
+            var gateRefs = new List<string>();
+            AddDirectorChapter(chapters, gateRefs, "GateChapterRef");
+            AddDirectorChapter(chapters, gateRefs, "GateRecordRef");
+            Check("10 the ending's chapters are readable from the code that opens them", gateRefs.Count == 2,
+                gateRefs.Count == 2
+                    ? "StageDirector opens [" + string.Join(", ", gateRefs) + "]"
+                    : "StageDirector no longer declares GateChapterRef and GateRecordRef as string constants; " +
+                      "found [" + string.Join(", ", gateRefs) + "] — the ending's chapters are now unchecked");
+
+            bool placeholder = ScriptureService.IsPlaceholderBuild;
+            int minimumVerses = placeholder ? 1 : 2;
+            var thin = new List<string>();
+
+            foreach (string chapterRef in chapters)
+            {
+                ChapterEntry chapter = null;
+                try
+                {
+                    chapter = ScriptureService.GetChapter(chapterRef);
+                }
+                catch (Exception exception)
+                {
+                    thin.Add(chapterRef + " (" + exception.Message + ")");
+                    continue;
+                }
+
+                int verses = chapter != null && chapter.verses != null ? chapter.verses.Length : 0;
+                if (verses < minimumVerses)
+                {
+                    thin.Add(chapterRef + " (" + verses + " verse(s))");
+                }
+            }
+
+            Check("10 every reachable chapter is readable", chapters.Count > 0 && thin.Count == 0,
+                chapters.Count + " chapter(s) reachable from content [" + string.Join(", ", chapters) + "]" +
+                (placeholder ? ", placeholder build so one verse is enough" : "") +
+                (thin.Count > 0 ? " — too thin to read: [" + string.Join(", ", thin) + "]" : ""));
+        }
+
+        static void AddChapterOf(SortedSet<string> chapters, string verseRef)
+        {
+            if (string.IsNullOrEmpty(verseRef)) return;
+
+            string chapterRef = ScriptureService.ChapterRefOf(verseRef.Trim());
+            if (!string.IsNullOrEmpty(chapterRef)) chapters.Add(chapterRef);
+        }
+
+        /// <summary>
+        /// Reads one of the director's private chapter constants and adds it to the set.
+        ///
+        /// Reflection rather than a second copy of the literal: the whole point of checking the
+        /// ending's chapters is that the gate panel can be handed the wrong one silently — the older
+        /// two-argument overload still compiles and still opens a reader — so a check that carried
+        /// its own copy of the expected value would agree with itself forever.
+        /// </summary>
+        static void AddDirectorChapter(SortedSet<string> chapters, List<string> found, string fieldName)
+        {
+            try
+            {
+                FieldInfo field = typeof(SheepGate.World.StageDirector).GetField(
+                    fieldName, BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Public);
+                string value = field != null && field.IsLiteral ? field.GetRawConstantValue() as string : null;
+                if (string.IsNullOrEmpty(value)) return;
+
+                found.Add(value);
+                chapters.Add(value);
+            }
+            catch (Exception exception)
+            {
+                Report.AppendLine("  note  could not read StageDirector." + fieldName + " — " + exception.Message);
+            }
+        }
+
+        /// <summary>
+        /// Every stage the season declares holds together, checked outside the runtime that loads it.
+        ///
+        /// <see cref="GameData"/> asserts these at load and logs an error per miss, which the e2e
+        /// run promotes to a failure — but only for someone who has already built and launched a
+        /// player. This is the same set of invariants where a content author meets them: a table
+        /// with two terminal stages, or a reveal on no stage at all, is a season that plays wrong
+        /// rather than a season that crashes, and the symptom is a run that quietly never ends.
+        /// </summary>
+        static void SeasonIsWhole()
+        {
+            StageDef[] stages = GameData.Stages;
+            if (stages == null || stages.Length == 0)
+            {
+                Check("S1 the season declares its stages", false, "stages.json is missing or empty");
+                return;
+            }
+
+            var faults = new List<string>();
+            int terminal = 0;
+            int closesGate = 0;
+            int revealsPage = 0;
+            int revealsVocation = 0;
+            int finishesWall = -1;
+            int gateStage = -1;
+
+            for (int i = 0; i < stages.Length; i++)
+            {
+                StageDef stage = stages[i];
+                if (stage == null || string.IsNullOrEmpty(stage.id))
+                {
+                    faults.Add("entry " + i + " has no id");
+                    continue;
+                }
+
+                if (stage.day != i + 1) faults.Add(stage.id + " is day " + stage.day + " at position " + (i + 1));
+
+                if (stage.terminal) { terminal++; if (i != stages.Length - 1) faults.Add(stage.id + " is terminal but not last"); }
+                if (stage.closes_gate)
+                {
+                    closesGate++;
+                    gateStage = i;
+                    if (string.IsNullOrEmpty(stage.gate_segment)) faults.Add(stage.id + " closes the gate but names no segment");
+                }
+                if (stage.reveals_page) revealsPage++;
+                if (stage.reveals_vocation) revealsVocation++;
+                if (stage.finishes_wall) finishesWall = i;
+
+                if (!string.IsNullOrEmpty(stage.contest) &&
+                    (GameData.Contests == null || !GameData.Contests.ContainsKey(stage.contest)))
+                {
+                    faults.Add(stage.id + " names contest \"" + stage.contest + "\", which contest.json does not define");
+                }
+
+                if (!string.IsNullOrEmpty(stage.cutscene_node) && !GameData.Dialogue.ContainsKey(stage.cutscene_node))
+                {
+                    faults.Add(stage.id + " names gathering \"" + stage.cutscene_node + "\", which this locale does not carry");
+                }
+
+                if (!string.IsNullOrEmpty(stage.reward_item) && CharacterCatalog.Item(stage.reward_item) == null)
+                {
+                    faults.Add(stage.id + " features item \"" + stage.reward_item + "\", which the catalogue does not carry");
+                }
+
+                if (stage.map_anchor == null || stage.map_anchor.Length != 2) faults.Add(stage.id + " has no two-entry map_anchor");
+                if (stage.map_focus == null || stage.map_focus.Length != 2) faults.Add(stage.id + " has no two-entry map_focus");
+            }
+
+            if (terminal != 1) faults.Add(terminal + " stage(s) declare terminal, expected exactly 1");
+            if (closesGate != 1) faults.Add(closesGate + " stage(s) close the gate, expected exactly 1");
+            if (revealsPage != 1) faults.Add(revealsPage + " stage(s) reveal the page, expected exactly 1");
+            if (revealsVocation != 1) faults.Add(revealsVocation + " stage(s) reveal the vocation, expected exactly 1");
+            if (finishesWall >= 0 && gateStage >= 0 && finishesWall >= gateStage)
+            {
+                faults.Add("the wall is finished at position " + (finishesWall + 1) +
+                    ", which is not before the gate at " + (gateStage + 1));
+            }
+
+            Check("S1 every stage is reachable and whole", faults.Count == 0,
+                stages.Length + " stage(s)" +
+                (faults.Count == 0 ? ", every invariant holds" : " — " + string.Join("; ", faults)));
         }
 
         static WallSystem NewWallSystem(out GameState state)
@@ -225,17 +444,27 @@ namespace SheepGate.EditorTools
         {
             GameState state;
             WallSystem wall = NewWallSystem(out state);
-            const string id = "seg_01";
 
-            if (!wall.Contains(id))
+            // The first segment the data declares, not a name typed here. A wall that is re-cut into
+            // different segments is a data change, and a check that hardcodes one of the old ids
+            // fails for a reason that has nothing to do with the rule it is defending.
+            string id = GameData.WallSegments != null && GameData.WallSegments.Length > 0
+                ? GameData.WallSegments[0].id
+                : null;
+
+            if (string.IsNullOrEmpty(id) || !wall.Contains(id))
             {
-                Check("05 seg_01 exists", false, "wall_segments.json has no seg_01");
+                Check("05 the wall has a first segment", false,
+                    "wall_segments.json declares " +
+                    (GameData.WallSegments != null ? GameData.WallSegments.Length : 0) +
+                    " segment(s) and the wall could not build \"" + (id ?? "nothing") + "\"");
+                UnityEngine.Object.DestroyImmediate(wall.gameObject);
                 return;
             }
 
             for (int i = 0; i < 200 && wall.StageOf(id) < 2; i++) wall.ApplyWork(id, 1);
             int reached = wall.StageOf(id);
-            Check("05 work advances stages", reached >= 2, "seg_01 reached stage " + reached);
+            Check("05 work advances stages", reached >= 2, id + " reached stage " + reached);
 
             wall.ApplyWork(id, 1); // partial progress into the next stage
             wall.DamageSegment(id);
@@ -244,7 +473,7 @@ namespace SheepGate.EditorTools
                 "stage " + reached + " before damage, " + afterDamage + " after");
 
             for (int i = 0; i < 500 && !wall.IsComplete(id); i++) wall.ApplyWork(id, 1);
-            Check("05 segment completes", wall.IsComplete(id), "seg_01 stage " + wall.StageOf(id));
+            Check("05 segment completes", wall.IsComplete(id), id + " stage " + wall.StageOf(id));
 
             wall.DamageSegment(id);
             Check("09 a completed segment stays completed", wall.IsComplete(id),
@@ -265,6 +494,7 @@ namespace SheepGate.EditorTools
             try
             {
                 SaveRoundTripBody();
+                ThreeDaySaveMigratesForward();
             }
             finally
             {
@@ -283,7 +513,14 @@ namespace SheepGate.EditorTools
         static void SaveRoundTripBody()
         {
             GameState original = GameState.NewGame();
-            original.day = 2;
+
+            // A stage in the middle of the season rather than the second one. A round trip that only
+            // ever wrote a low day would keep passing on a build whose day clamp had a ceiling set
+            // against the old three-day season — the save would come back clamped, the assertion
+            // would compare it against the same small number, and a player resuming at stage seven
+            // would silently be handed stage three.
+            int day = MiddleStageDay();
+            original.day = day;
             original.rubble = 7;
             original.SetFlag(GameFlags.WatchPostedD1);
             original.Bump("talked_hananias", 2);
@@ -297,7 +534,7 @@ namespace SheepGate.EditorTools
             GameState loaded = SaveSystem.Load();
 
             bool ok = loaded != null
-                      && loaded.day == 2
+                      && loaded.day == day
                       && loaded.rubble == 7
                       && loaded.HasFlag(GameFlags.WatchPostedD1)
                       && loaded.Counter("talked_hananias") == 2
@@ -306,67 +543,276 @@ namespace SheepGate.EditorTools
 
             Check("05 save round-trips", ok,
                 loaded == null ? "load returned null"
-                    : "day=" + loaded.day + " rubble=" + loaded.rubble +
+                    : "day=" + loaded.day + " (wrote " + day + ") rubble=" + loaded.rubble +
                       " flag=" + loaded.HasFlag(GameFlags.WatchPostedD1) +
                       " stage=" + (loaded.segments.Count > 0 ? loaded.segments[0].stage : -1));
         }
 
-        // 07 + 08 + 09 — the contest is earned by days 1-2, the Page unlocks the strong move,
-        // and losing is not a game over.
+        /// <summary>A stage past the middle of the season, or the second day if the table is unreadable.</summary>
+        static int MiddleStageDay()
+        {
+            StageDef[] stages = GameData.Stages;
+            return stages != null && stages.Length > 2 ? (stages.Length / 2) + 1 : 2;
+        }
+
+        /// <summary>
+        /// S2 — a save written by the three-day build comes forward without losing anything.
+        ///
+        /// This gets a criterion of its own because the migration is the single piece of the season
+        /// change that can silently destroy a run somebody has already played. Everything else in
+        /// this plan fails loudly or not at all; a migration that clears a flag, walks a day
+        /// backwards or resets a course does its damage once, quietly, on somebody else's machine.
+        ///
+        /// The expected day is written here as a LITERAL and deliberately not derived from the stage
+        /// table. A migration step is a fixed historical mapping from one named schema to the next:
+        /// deriving the answer from live data would mean this check agreed with any future edit that
+        /// made the mapping data-driven, which is precisely the change that would break it.
+        /// SaveSystem's own consistency check warns if the table moves the trial out from under the
+        /// literals, so the two guards cover each other.
+        /// </summary>
+        static void ThreeDaySaveMigratesForward()
+        {
+            const int LegacySchemaVersion = 2;
+            const int LegacyFinalDay = 3;
+
+            // Where the migration lands a finished three-day run: the stage AFTER the trial, because
+            // that trial was already fought and replaying it would hand the player a day they have
+            // already seen. See SaveSystem.MigrateToNineStageSeason for the whole argument.
+            const int ExpectedDayWhenTheTrialWasFought = 7;
+
+            GameState before = GameState.NewGame();
+            before.schemaVersion = LegacySchemaVersion;
+            before.day = LegacyFinalDay;
+            before.SetFlag(GameFlags.VocationRevealed);
+            before.SetFlag(GameFlags.ContestResolved);
+            before.SetFlag(GameFlags.WatchPostedD1);
+            before.SetFlag(GameFlags.WatchPostedD2);
+            before.SetFlag(GameFlags.PageShown);
+            before.Bump("talked_hananias", 3);
+
+            var stagesBefore = new Dictionary<string, int>();
+            for (int i = 0; i < before.segments.Count; i++)
+            {
+                WallSegmentState segment = before.segments[i];
+                if (segment == null || string.IsNullOrEmpty(segment.id)) continue;
+                segment.stage = i == 0 ? 4 : 2;
+                stagesBefore[segment.id] = segment.stage;
+            }
+
+            var flagsBefore = new List<string>(before.flags);
+
+            SaveSystem.Save(before);
+            GameState after = SaveSystem.Load();
+
+            if (after == null)
+            {
+                Check("S2 a three-day save migrates forward", false, "load returned null");
+                return;
+            }
+
+            var faults = new List<string>();
+
+            if (after.schemaVersion != GameState.CurrentSchemaVersion)
+            {
+                faults.Add("schemaVersion is " + after.schemaVersion +
+                    ", expected " + GameState.CurrentSchemaVersion);
+            }
+
+            if (after.day != ExpectedDayWhenTheTrialWasFought)
+            {
+                faults.Add("day is " + after.day + ", expected " + ExpectedDayWhenTheTrialWasFought +
+                    " (the stage after the trial, because the trial had already been fought)");
+            }
+
+            if (after.day < before.day)
+            {
+                faults.Add("the season walked backwards, from day " + LegacyFinalDay + " to " + after.day);
+            }
+
+            foreach (string flag in flagsBefore)
+            {
+                if (!after.HasFlag(flag)) faults.Add("the flag \"" + flag + "\" was cleared");
+            }
+
+            if (!after.HasFlag(GameFlags.ContestResolvedFor("raid")))
+            {
+                faults.Add("the legacy contest_resolved was not raised to its keyed name, so the raid replays");
+            }
+
+            foreach (KeyValuePair<string, int> pair in stagesBefore)
+            {
+                WallSegmentState segment = after.Segment(pair.Key);
+                if (segment == null)
+                {
+                    faults.Add("the segment \"" + pair.Key + "\" is gone");
+                }
+                else if (segment.stage < pair.Value)
+                {
+                    faults.Add("the segment \"" + pair.Key + "\" fell from course " +
+                        pair.Value + " to " + segment.stage);
+                }
+            }
+
+            if (string.IsNullOrEmpty(after.seasonId)) faults.Add("the save carries no seasonId");
+
+            Check("S2 a three-day save migrates forward", faults.Count == 0,
+                faults.Count == 0
+                    ? "day " + LegacyFinalDay + " -> " + after.day + ", schema " + LegacySchemaVersion +
+                      " -> " + after.schemaVersion + ", " + flagsBefore.Count +
+                      " flag(s) kept, no course lowered"
+                    : string.Join("; ", faults));
+        }
+
+        /// <summary>
+        /// 07 + 08 + 09 — the days before a fight decide it, the Page unlocks the strong move, and
+        /// losing is not a game over.
+        ///
+        /// RUN ONCE PER CONTEST THE SEASON DECLARES, not once at the literal day the only contest
+        /// used to be on. The preparation flags are read per stage too, from
+        /// <see cref="GameFlags.WatchPostedForDay"/> against that stage's own previous night, which
+        /// is the flag the contest actually reads — a check that set <c>watch_posted_d2</c> by name
+        /// went on passing while the boss on stage eight was being tuned against a night that had
+        /// nothing to do with it, because a flag for a night nobody played is simply absent and the
+        /// absence reads as "no guard stood".
+        /// </summary>
         static void ContestRules()
         {
-            // Harder run: no watch on day 2 and the invitation accepted.
-            GameState harsh = GameState.NewGame();
-            harsh.day = 3;
-            harsh.SetFlag(GameFlags.AcceptedInvite);
-            ServiceLocator.Clear();
-            ServiceLocator.Register(harsh);
-            var harshHost = new GameObject("HarnessContestHarsh");
-            harshHost.AddComponent<WallSystem>().Build(null);
-            var harshContest = harshHost.AddComponent<MoraleContest>();
-            harshContest.Begin();
-            int harshResolve = harshContest.EnemyResolveMax;
+            var fought = new List<string>();
 
-            // Kinder run: watch posted, invitation refused.
-            GameState kind = GameState.NewGame();
-            kind.day = 3;
-            kind.SetFlag(GameFlags.WatchPostedD2);
-            kind.SetFlag(GameFlags.RefusedInvite);
-            ServiceLocator.Clear();
-            ServiceLocator.Register(kind);
-            var kindHost = new GameObject("HarnessContestKind");
-            kindHost.AddComponent<WallSystem>().Build(null);
-            var kindContest = kindHost.AddComponent<MoraleContest>();
-            kindContest.Begin();
-            int kindResolve = kindContest.EnemyResolveMax;
-
-            Check("07 days 1-2 decide the trial", harshResolve > kindResolve,
-                "enemy resolve " + harshResolve + " (neglected) vs " + kindResolve + " (prepared)");
-
-            Check("08 half-and-half is locked before the Page",
-                !kindContest.IsMoveAvailable(MoraleContest.MoveHalfAndHalf),
-                "available at turn " + kindContest.Turn + ": " +
-                kindContest.IsMoveAvailable(MoraleContest.MoveHalfAndHalf));
-
-            // The turn loop is a coroutine, which EditMode cannot pump, so the live Page beat is
-            // covered by the PlayMode test. What is checkable here is its configuration.
-            Check("08 the Page is set for turn 2", MoraleContest.PageTurn == 2,
-                "PageTurn = " + MoraleContest.PageTurn);
-
-            ContestMoveDef gated = null;
-            foreach (var move in kindContest.Moves)
+            foreach (StageDef stage in GameData.Stages ?? Array.Empty<StageDef>())
             {
-                if (move != null && move.id == MoraleContest.MoveHalfAndHalf) gated = move;
+                if (stage == null || string.IsNullOrEmpty(stage.contest)) continue;
+                if (stage.type != StageTypes.Battle && stage.type != StageTypes.Boss) continue;
+
+                fought.Add(stage.contest);
+                ContestPreparationDecidesTheFight(stage);
             }
-            Check("08 half-and-half is gated by the Page", gated != null && gated.unlocked_by_page,
-                gated == null ? "half_and_half missing from contest.json"
-                    : "unlocked_by_page = " + gated.unlocked_by_page);
+
+            Check("07 the season has a contest to check", fought.Count > 0,
+                fought.Count > 0 ? "checked [" + string.Join(", ", fought) + "]"
+                    : "no stage declares a battle or a boss");
+
+            ThePageGatesItsMove();
 
             Check("09 no game over exists", !HasGameOverSymbol(),
                 "no type or member named GameOver in the assembly");
+        }
 
-            UnityEngine.Object.DestroyImmediate(harshHost);
-            UnityEngine.Object.DestroyImmediate(kindHost);
+        /// <summary>Two runs into the same fight, one prepared and one not, differing only in the flags.</summary>
+        static void ContestPreparationDecidesTheFight(StageDef stage)
+        {
+            string previousNight = GameFlags.WatchPostedForDay(stage.day - 1);
+
+            MoraleContest harsh = BuildContestAt(stage, "HarnessContestHarsh", delegate(GameState state)
+            {
+                // No guard on the night before, and the invitation down to the plain accepted.
+                state.SetFlag(GameFlags.AcceptedInvite);
+            });
+
+            MoraleContest kind = BuildContestAt(stage, "HarnessContestKind", delegate(GameState state)
+            {
+                state.SetFlag(previousNight);
+                state.SetFlag(GameFlags.RefusedInvite);
+            });
+
+            Check("07 the days before \"" + stage.contest + "\" decide it",
+                harsh != null && kind != null && harsh.EnemyResolveMax > kind.EnemyResolveMax,
+                harsh == null || kind == null ? "the contest could not be built"
+                    : "enemy resolve " + harsh.EnemyResolveMax + " (neglected) vs " +
+                      kind.EnemyResolveMax + " (prepared), reading " + previousNight);
+
+            if (harsh != null) UnityEngine.Object.DestroyImmediate(harsh.gameObject);
+            if (kind != null) UnityEngine.Object.DestroyImmediate(kind.gameObject);
+        }
+
+        static MoraleContest BuildContestAt(StageDef stage, string hostName, Action<GameState> prepare)
+        {
+            GameState state = GameState.NewGame();
+            state.day = stage.day;
+            if (prepare != null) prepare(state);
+
+            ServiceLocator.Clear();
+            ServiceLocator.Register(state);
+
+            var host = new GameObject(hostName);
+            host.AddComponent<WallSystem>().Build(null);
+            var contest = host.AddComponent<MoraleContest>();
+            contest.Begin(stage.contest);
+            return contest;
+        }
+
+        /// <summary>
+        /// 08 — the reveal lands inside the fight that carries it, and the move behind it is shut
+        /// until it does.
+        ///
+        /// Asserted against the DATA rather than against <c>MoraleContest.PageTurn</c>. That
+        /// constant is a self-heal for a contest that names a passage and forgets its turn, so
+        /// checking it proves the recovery value is what it always was and says nothing at all about
+        /// whether the shipped season's reveal can happen. What has to be true is that the stage
+        /// declaring the reveal names a contest whose page turn falls inside its own turn limit and
+        /// whose passage resolves — a page scheduled for turn nine of an eight-turn fight is a
+        /// season whose one payoff silently never arrives.
+        /// </summary>
+        static void ThePageGatesItsMove()
+        {
+            StageDef revealing = null;
+            foreach (StageDef stage in GameData.Stages ?? Array.Empty<StageDef>())
+            {
+                if (stage != null && stage.reveals_page) revealing = stage;
+            }
+
+            if (revealing == null)
+            {
+                Check("08 one stage carries the reveal", false, "no stage declares reveals_page");
+                return;
+            }
+
+            ContestConfig config = null;
+            if (GameData.Contests != null && !string.IsNullOrEmpty(revealing.contest))
+            {
+                GameData.Contests.TryGetValue(revealing.contest, out config);
+            }
+
+            if (config == null)
+            {
+                Check("08 the reveal has a fight to happen in", false,
+                    "stage \"" + revealing.id + "\" declares the reveal but names contest \"" +
+                    (revealing.contest ?? "nothing") + "\", which contest.json does not define");
+                return;
+            }
+
+            Check("08 the Page arrives inside the fight that carries it",
+                config.page_turn > 0 && config.page_turn <= config.turn_limit,
+                "\"" + config.id + "\" puts the page on turn " + config.page_turn +
+                " of a fight that lasts " + config.turn_limit);
+
+            VerseEntry verse;
+            bool resolves = !string.IsNullOrEmpty(config.page_verse)
+                            && ScriptureService.TryGetVerse(config.page_verse, out verse);
+            Check("08 the Page's passage resolves", resolves,
+                "\"" + config.id + "\" shows " + (config.page_verse ?? "no reference"));
+
+            ContestMoveDef gated = null;
+            foreach (ContestMoveDef move in config.moves ?? Array.Empty<ContestMoveDef>())
+            {
+                if (move != null && move.unlocked_by_page) gated = move;
+            }
+
+            if (gated == null)
+            {
+                Check("08 the Page unlocks something", false,
+                    "no move in \"" + config.id + "\" declares unlocked_by_page, so the reveal changes nothing");
+                return;
+            }
+
+            MoraleContest contest = BuildContestAt(revealing, "HarnessContestPage", null);
+            Check("08 the move the Page unlocks is shut before it",
+                contest != null && !contest.IsMoveAvailable(gated.id),
+                contest == null ? "the contest could not be built"
+                    : gated.id + " available at turn " + contest.Turn + ": " +
+                      contest.IsMoveAvailable(gated.id));
+
+            if (contest != null) UnityEngine.Object.DestroyImmediate(contest.gameObject);
         }
 
         static bool HasGameOverSymbol()
@@ -427,18 +873,72 @@ namespace SheepGate.EditorTools
         // 06 — a night with a watch posted must not resolve like a night without one.
         static void NightDiffers()
         {
-            string damagedWithWatch;
-            string damagedWithout;
-            bool flagWithWatch = ResolveNight(true, out damagedWithWatch);
-            bool flagWithout = ResolveNight(false, out damagedWithout);
+            StageDef[] stages = GameData.Stages;
+            if (stages == null || stages.Length == 0)
+            {
+                Check("06 the season has nights to resolve", false, "stages.json is missing or empty");
+                return;
+            }
 
-            Check("06 only the unwatched night damages the wall",
-                damagedWithWatch == null && damagedWithout != null,
-                "watched night damaged [" + (damagedWithWatch ?? "nothing") +
-                "], unwatched night damaged [" + (damagedWithout ?? "nothing") + "]");
+            var damageFaults = new List<string>();
+            var flagFaults = new List<string>();
+            var quiet = new List<string>();
+            int nights = 0;
 
-            Check("06 the watch is recorded only when posted", flagWithWatch && !flagWithout,
-                "watch_posted_d1 = " + flagWithWatch + " with a watch, " + flagWithout + " without");
+            // EVERY NIGHT, not only the first. The rule used to be proven on night one and assumed
+            // for the rest, which is exactly how the write side came to record the watch on two
+            // nights out of nine while every check about it passed: night one was the one being
+            // asked. A night that damages nothing is checked here too, because night_threat is a
+            // graft onto the one and only end-of-day path and the way it fails is by resolving a
+            // night that should have been quiet — or by turning the whole season quiet.
+            foreach (StageDef stage in stages)
+            {
+                if (stage == null || stage.terminal) continue;
+
+                nights++;
+                string damagedWithWatch;
+                string damagedWithout;
+                bool flagWithWatch = ResolveNight(stage, true, out damagedWithWatch);
+                bool flagWithout = ResolveNight(stage, false, out damagedWithout);
+
+                if (damagedWithWatch != null)
+                {
+                    damageFaults.Add("night " + stage.day + " damaged \"" + damagedWithWatch + "\" with a watch posted");
+                }
+
+                if (stage.night_threat)
+                {
+                    if (damagedWithout == null)
+                    {
+                        damageFaults.Add("night " + stage.day + " threatens the wall but damaged nothing unwatched");
+                    }
+                }
+                else
+                {
+                    quiet.Add(stage.id);
+                    if (damagedWithout != null)
+                    {
+                        damageFaults.Add("night " + stage.day + " declares no threat but damaged \"" +
+                            damagedWithout + "\"");
+                    }
+                }
+
+                if (!flagWithWatch || flagWithout)
+                {
+                    flagFaults.Add("night " + stage.day + ": " + GameFlags.WatchPostedForDay(stage.day) +
+                        " = " + flagWithWatch + " with a watch, " + flagWithout + " without");
+                }
+            }
+
+            Check("06 only the unwatched night damages the wall", nights > 0 && damageFaults.Count == 0,
+                nights + " night(s) resolved, " + quiet.Count + " of them declaring no threat [" +
+                string.Join(", ", quiet) + "]" +
+                (damageFaults.Count > 0 ? " — " + string.Join("; ", damageFaults) : ""));
+
+            Check("06 the watch is recorded on every night it is posted",
+                nights > 0 && flagFaults.Count == 0,
+                flagFaults.Count == 0 ? nights + " night(s) recorded their watch correctly"
+                    : string.Join("; ", flagFaults));
         }
 
         // 13 — the day is its own clock, and reading is never what ends it.
@@ -510,10 +1010,10 @@ namespace SheepGate.EditorTools
         /// was set. DayCycle defers to a coroutine while it is active so it can fade; EditMode
         /// cannot pump coroutines, so the component is disabled to take its synchronous path.
         /// </summary>
-        static bool ResolveNight(bool postWatch, out string damagedSegment)
+        static bool ResolveNight(StageDef stage, bool postWatch, out string damagedSegment)
         {
             GameState state = GameState.NewGame();
-            state.day = 1;
+            state.day = stage.day;
             ServiceLocator.Clear();
             ServiceLocator.Register(state);
 
@@ -524,7 +1024,7 @@ namespace SheepGate.EditorTools
             cycle.EndDay(postWatch ? 6 : 12, postWatch ? 6 : 0);
 
             damagedSegment = cycle.LastNightDamagedSegment;
-            bool watchFlag = state.HasFlag(GameFlags.WatchPostedD1);
+            bool watchFlag = state.HasFlag(GameFlags.WatchPostedForDay(stage.day));
 
             UnityEngine.Object.DestroyImmediate(host);
             return watchFlag;

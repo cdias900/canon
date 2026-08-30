@@ -63,7 +63,7 @@ namespace SheepGate.Art
 
         public const int TopVariants = 4;
         public const int LegsVariants = 4;
-        public const int AccessoryVariants = 6;
+        public const int AccessoryVariants = 9;
 
         // ---- Rig, in top-left origin coordinates. Every rectangle is symmetric about x 15.5,
         //      so MirrorHorizontal() maps the rig onto itself exactly.
@@ -707,6 +707,9 @@ namespace SheepGate.Art
                 case 3: DrawRingBelt(canvas, drawn); break;
                 case 4: DrawBeadBracelet(canvas, drawn, anim, frame); break;
                 case 5: DrawOldSeal(canvas, drawn); break;
+                case 6: DrawWatchHorn(canvas, drawn); break;
+                case 7: DrawPlumbLine(canvas, drawn); break;
+                case 8: DrawGateKey(canvas, drawn); break;
                 default: DrawRopeCoil(canvas, drawn); break;
             }
 
@@ -866,6 +869,101 @@ namespace SheepGate.Art
         /// the single dark pixel on the disc is an engraving nobody can read any more, and that is
         /// both why the piece is interesting and why it carries no symbol of any kind.
         /// </summary>
+        /// <summary>
+        /// acc_watch_horn: the warning horn, slung on the character's LEFT shoulder.
+        ///
+        /// Left, because the copy says left, and because acc_rope_coil already owns the right — two
+        /// shoulder pieces on the same shoulder read as one muddled shape at 32x48, which is the
+        /// whole reason the catalogue bothers to say where a thing sits. It is the stage-six reward
+        /// and it has to be legible as a HORN and not as another bag: the silhouette breaks outward
+        /// at the top and tapers to a point, the one shape in this set that gets wider as it rises.
+        /// </summary>
+        static void DrawWatchHorn(PixelCanvas canvas, ArtFacing facing)
+        {
+            // Seen from behind, the character's left shoulder is on the viewer's right.
+            bool behind = facing == ArtFacing.Up;
+            int bellX = behind ? TorsoX + 7 : TorsoX;
+            int step = behind ? -1 : 1;
+
+            // The strap, running across the chest from the opposite shoulder.
+            canvas.Line(bellX + (behind ? 4 : 0), TorsoY + 1,
+                        bellX + (behind ? 0 : 4), TorsoY + 7, ArtPalette.ClayDeep);
+
+            // The bell at the shoulder, tapering down the ribs to the tip.
+            for (int row = 0; row < 6; row++)
+            {
+                int width = 5 - row;
+                if (width < 1) width = 1;
+                int x = behind ? bellX + (5 - width) : bellX;
+                canvas.FillRect(x, TorsoY + 2 + row, width, 1, ArtPalette.ClayMid);
+                canvas.Set(x + (step > 0 ? 0 : width - 1), TorsoY + 2 + row, ArtPalette.ClayPale);
+            }
+
+            // The rim, which is what says "open end" rather than "wedge".
+            canvas.HLine(bellX, TorsoY + 2, 5, ArtPalette.ClayLight);
+            canvas.Set(bellX + (behind ? 0 : 4), TorsoY + 7, ArtPalette.ClayDeep);
+        }
+
+        /// <summary>
+        /// acc_plumb_line: lead on a cord, hanging from the belt.
+        ///
+        /// It hangs rather than sits, and that is the point of the piece — the tool tells you the
+        /// course is out of true by doing nothing at all while everything else moves. Drawn against
+        /// the same belt row acc_ring_belt uses so the two read as living on one waist, and short
+        /// enough to stay clear of the leg rows, where a dangling line would otherwise be read as
+        /// part of the walk cycle.
+        /// </summary>
+        static void DrawPlumbLine(PixelCanvas canvas, ArtFacing facing)
+        {
+            // The knot at the belt, on whichever hip is facing the viewer.
+            int hipX = facing == ArtFacing.Up ? TorsoX + 3 : TorsoX + 8;
+
+            canvas.FillRect(hipX, TorsoY + 12, 2, 2, ArtPalette.ClayDeep);
+
+            // The cord. Vertical on purpose: a plumb line that is not vertical is a broken tool.
+            canvas.VLine(hipX + 1, TorsoY + 14, 3, ArtPalette.ClayMid);
+
+            // The bob: heavier at the top, pointed at the bottom.
+            canvas.FillRect(hipX, TorsoY + 17, 2, 2, ArtPalette.StoneMid);
+            canvas.HLine(hipX, TorsoY + 17, 2, ArtPalette.StoneLight);
+            canvas.Set(hipX + 1, TorsoY + 19, ArtPalette.StoneDeep);
+        }
+
+        /// <summary>
+        /// acc_gate_key: bent iron on a leather cord, worn at the neck.
+        ///
+        /// The ending's reward, and the only accessory whose meaning is a fact about the world
+        /// rather than about the wearer: the door it opens did not exist until the season closed
+        /// it. Iron against the Stone ramp, on a Clay cord, so it reads as metal on leather and not
+        /// as a second seal — acc_old_seal is a disc on the same cord, so the two are separated by
+        /// the shaft and the teeth, which is the whole silhouette difference at this size.
+        /// </summary>
+        static void DrawGateKey(PixelCanvas canvas, ArtFacing facing)
+        {
+            if (facing == ArtFacing.Up)
+            {
+                // From behind, the key hangs against the chest and only the knot shows.
+                canvas.FillRect(NeckX + 1, NeckY + 1, 2, 2, ArtPalette.ClayDeep);
+                canvas.Line(TorsoX + 2, TorsoY + 2, NeckX + 1, NeckY + 2, ArtPalette.ClayDeep);
+                canvas.Line(TorsoX + 9, TorsoY + 2, NeckX + 2, NeckY + 2, ArtPalette.ClayDeep);
+                return;
+            }
+
+            // The cord, on the collarbones.
+            canvas.Line(TorsoX + 2, TorsoY + 1, TorsoX + 5, TorsoY + 4, ArtPalette.ClayDeep);
+            canvas.Line(TorsoX + 5, TorsoY + 4, TorsoX + 9, TorsoY + 1, ArtPalette.ClayDeep);
+
+            // The bow, then the shaft down the sternum.
+            canvas.FillRect(TorsoX + 4, TorsoY + 4, 3, 2, ArtPalette.StoneMid);
+            canvas.Set(TorsoX + 5, TorsoY + 4, ArtPalette.StoneDark);
+            canvas.VLine(TorsoX + 5, TorsoY + 6, 4, ArtPalette.StoneMid);
+            canvas.Set(TorsoX + 5, TorsoY + 6, ArtPalette.StoneLight);
+
+            // Two teeth at the foot, which is the half a player actually recognises as a key.
+            canvas.HLine(TorsoX + 5, TorsoY + 9, 2, ArtPalette.StoneMid);
+            canvas.HLine(TorsoX + 5, TorsoY + 7, 2, ArtPalette.StoneDeep);
+        }
+
         static void DrawOldSeal(PixelCanvas canvas, ArtFacing facing)
         {
             if (facing == ArtFacing.Up)

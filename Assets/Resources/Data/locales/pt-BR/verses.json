@@ -7,10 +7,6 @@
     "copyright": "Bíblia Sagrada, Nova Versão Internacional®, NVI® © 1993, 2000, 2011, 2023 por Biblica, Inc. Usado com permissão. Todos os direitos reservados mundialmente. Bíblia Sagrada, Nova Versão Internacional®, NVI® Copyright © 1993, 2000, 2011, 2023 by Biblica, Inc. Used with permission. All rights reserved worldwide."
   },
   "verses": {
-    "1CO.13.13": {
-      "ref_display": "1Coríntios 13:13",
-      "text": "Assim, permanecem agora estes três: a fé, a esperança e o amor. O maior destes, porém, é o amor."
-    },
     "JHN.21.6": {
       "ref_display": "João 21:6",
       "text": "Ele disse: ― Lancem a rede do lado direito do barco e vocês encontrarão. Assim fizeram, mas não conseguiam recolher a rede por causa da quantidade de peixes."
@@ -22,6 +18,18 @@
     "NEH.1.11": {
       "ref_display": "Neemias 1:11",
       "text": "Ah! Senhor, suplico que os teus ouvidos estejam atentos à oração deste teu servo e à oração dos teus servos que têm prazer em temer o teu nome. Faz que hoje este teu servo seja bem-sucedido, concedendo‑lhe a benevolência deste homem. Nessa época, eu era o copeiro do rei."
+    },
+    "NEH.2.8": {
+      "ref_display": "Neemias 2:8",
+      "text": "Além disso, uma carta para Asafe, guarda da floresta do rei, a fim de que ele me forneça madeira para fazer batentes para as portas da cidadela que fica junto do templo, para os muros da cidade e para a residência que irei ocupar. Visto que a bondosa mão de Deus estava sobre mim, o rei atendeu aos meus pedidos."
+    },
+    "NEH.2.12": {
+      "ref_display": "Neemias 2:12",
+      "text": "saí de noite com alguns homens. Eu não havia contado a ninguém o que o meu Deus me havia posto no coração para fazer por Jerusalém. Não levava animal algum além daquele em que eu estava montado."
+    },
+    "NEH.2.13": {
+      "ref_display": "Neemias 2:13",
+      "text": "De noite, saí pela porta do Vale na direção da fonte do Dragão e da porta do Esterco, examinando o muro de Jerusalém, que havia sido derrubado e cujas portas haviam sido destruídas pelo fogo."
     },
     "NEH.2.17": {
       "ref_display": "Neemias 2:17",
@@ -39,25 +47,105 @@
       "ref_display": "Neemias 3:1",
       "text": "Então, o sumo sacerdote Eliasibe se levantou com os seus parentes sacerdotes, e eles começaram o seu trabalho e reconstruíram a porta das Ovelhas. Eles a consagraram e colocaram as portas no lugar. Depois, construíram o muro até a torre dos Cem, que consagraram, e até a torre de Hananeel."
     },
+    "NEH.3.2": {
+      "ref_display": "Neemias 3:2",
+      "text": "Os homens de Jericó construíram o trecho seguinte, e Zacur, filho de Inri, construiu logo adiante."
+    },
+    "NEH.3.5": {
+      "ref_display": "Neemias 3:5",
+      "text": "O trecho seguinte foi reparado pelos homens de Tecoa, mas os nobres dessa cidade não quiseram se juntar ao serviço, rejeitando a orientação dos seus supervisores."
+    },
+    "NEH.3.8": {
+      "ref_display": "Neemias 3:8",
+      "text": "Uziel, filho de Haraías, um dos ourives, fez os reparos do trecho seguinte; e Hananias, um dos perfumistas, fez os reparos ao seu lado. Eles reconstruíram Jerusalém até o muro Largo."
+    },
+    "NEH.3.12": {
+      "ref_display": "Neemias 3:12",
+      "text": "Salum, filho de Haloés, governador da outra metade do distrito de Jerusalém, fez os reparos do trecho seguinte com a ajuda das suas filhas."
+    },
+    "NEH.4.1": {
+      "ref_display": "Neemias 4:1",
+      "text": "Quando Sambalate soube que estávamos reconstruindo o muro, ficou furioso. Ridicularizou os judeus"
+    },
     "NEH.4.2": {
       "ref_display": "Neemias 4:2",
       "text": "e, na presença dos seus compatriotas e dos poderosos de Samaria, disse: ― O que aqueles frágeis judeus estão fazendo? Será que vão restaurar o seu muro? Irão oferecer sacrifícios? Irão terminar a obra em um só dia? Será que vão conseguir ressuscitar pedras de construção daqueles montes de entulho e de pedras queimadas?"
+    },
+    "NEH.4.3": {
+      "ref_display": "Neemias 4:3",
+      "text": "Tobias, o amonita, que estava ao seu lado, completou: ― Pois que construam! Basta que uma raposa suba lá, para que esse muro de pedras desabe!"
     },
     "NEH.4.6": {
       "ref_display": "Neemias 4:6",
       "text": "Nesse meio-tempo, fomos reconstruindo o muro, até que chegamos à metade da sua altura em toda a sua extensão, pois o povo trabalhava com disposição."
     },
+    "NEH.4.7": {
+      "ref_display": "Neemias 4:7",
+      "text": "Quando, porém, Sambalate, Tobias, os árabes, os amonitas e os homens de Asdode souberam que os reparos nos muros de Jerusalém tinham avançado e que as brechas estavam sendo fechadas, ficaram furiosos."
+    },
+    "NEH.4.8": {
+      "ref_display": "Neemias 4:8",
+      "text": "Todos juntos planejaram atacar Jerusalém e causar confusão."
+    },
     "NEH.4.9": {
       "ref_display": "Neemias 4:9",
       "text": "Nós, porém, oramos ao nosso Deus e pusemos guardas de dia e de noite para proteger‑nos deles."
+    },
+    "NEH.4.11": {
+      "ref_display": "Neemias 4:11",
+      "text": "Os nossos inimigos diziam: “Antes que descubram qualquer coisa ou nos vejam, estaremos bem ali no meio deles; vamos matá‑los e acabar com o trabalho deles”."
+    },
+    "NEH.4.14": {
+      "ref_display": "Neemias 4:14",
+      "text": "Fiz uma rápida inspeção e imediatamente disse aos nobres, aos oficiais e ao restante do povo: ― Não tenham medo deles. Lembrem‑se de que o Senhor é grande e temível e lutem pelos seus irmãos, pelos seus filhos e filhas, pelas suas esposas e pelos lares de vocês."
+    },
+    "NEH.4.16": {
+      "ref_display": "Neemias 4:16",
+      "text": "Daquele dia em diante, enquanto a metade dos meus homens fazia o trabalho, a outra metade permanecia armada de lanças, escudos, arcos e couraças. Os oficiais davam apoio a todo o povo de Judá"
     },
     "NEH.4.17": {
       "ref_display": "Neemias 4:17",
       "text": "que estava reconstruindo o muro. Aqueles que transportavam material faziam o trabalho com uma das mãos e com a outra seguravam uma arma."
     },
+    "NEH.4.20": {
+      "ref_display": "Neemias 4:20",
+      "text": "Do lugar de onde ouvirem o som da trombeta, juntem‑se a nós ali. O nosso Deus lutará por nós!"
+    },
+    "NEH.6.1": {
+      "ref_display": "Neemias 6:1",
+      "text": "Quando Sambalate, Tobias, Gesém, o árabe, e o restante dos nossos inimigos souberam que eu havia reconstruído o muro e que não havia ficado nenhuma brecha, embora, até então, eu ainda não tivesse colocado as portas nos seus lugares,"
+    },
+    "NEH.6.2": {
+      "ref_display": "Neemias 6:2",
+      "text": "Sambalate e Gesém mandaram‑me a seguinte mensagem: “Venha, vamos nos encontrar em um dos povoados da planície de Ono”. Eles, contudo, estavam tramando fazer‑me mal;"
+    },
     "NEH.6.3": {
       "ref_display": "Neemias 6:3",
       "text": "por isso, enviei‑lhes mensageiros com esta resposta: “Estou executando uma grande obra e não posso descer. Por que parar a obra para ir encontrar‑me com vocês?”."
+    },
+    "NEH.6.9": {
+      "ref_display": "Neemias 6:9",
+      "text": "Estavam todos tentando intimidar‑nos, pensando: “Eles serão enfraquecidos e não concluirão a obra”. Eu, porém, orei pedindo: “Agora, pois, fortalece as minhas mãos!”."
+    },
+    "NEH.6.15": {
+      "ref_display": "Neemias 6:15",
+      "text": "O muro ficou pronto no vigésimo quinto dia de elul, em cinquenta e dois dias."
+    },
+    "NEH.6.16": {
+      "ref_display": "Neemias 6:16",
+      "text": "Quando todos os nossos inimigos ouviram sobre isso, todas as nações vizinhas ficaram atemorizadas e com o orgulho ferido, pois perceberam que essa obra havia sido executada com a ajuda do nosso Deus."
+    },
+    "NEH.12.27": {
+      "ref_display": "Neemias 12:27",
+      "text": "Por ocasião da dedicação do muro de Jerusalém, os levitas foram procurados e trazidos de onde moravam a Jerusalém para celebrarem a dedicação alegremente, com cânticos e ações de graças, ao som de címbalos, harpas e liras."
+    },
+    "NEH.12.31": {
+      "ref_display": "Neemias 12:31",
+      "text": "Ordenei aos líderes de Judá que subissem ao alto do muro. Também designei dois grandes coros para darem graças. Um deles avançou em cima do muro, para a direita, até a porta do Esterco,"
+    },
+    "NEH.12.43": {
+      "ref_display": "Neemias 12:43",
+      "text": "Naquele dia, contentes como estavam, ofereceram grandes sacrifícios, pois Deus os enchera de grande alegria. As mulheres e as crianças também se alegraram, e os sons da alegria de Jerusalém podiam ser ouvidos de longe."
     }
   },
   "chapters": {
@@ -192,6 +280,139 @@
         {
           "n": 20,
           "text": "Eu lhes respondi: ― O Deus dos céus fará que sejamos bem-sucedidos. Nós, os seus servos, começaremos a reconstrução, mas, no que lhes diz respeito, vocês não têm porção nem direito, nem são parte da história de Jerusalém!"
+        }
+      ]
+    },
+    "NEH.3": {
+      "ref_display": "Neemias 3",
+      "verses": [
+        {
+          "n": 1,
+          "text": "Então, o sumo sacerdote Eliasibe se levantou com os seus parentes sacerdotes, e eles começaram o seu trabalho e reconstruíram a porta das Ovelhas. Eles a consagraram e colocaram as portas no lugar. Depois, construíram o muro até a torre dos Cem, que consagraram, e até a torre de Hananeel."
+        },
+        {
+          "n": 2,
+          "text": "Os homens de Jericó construíram o trecho seguinte, e Zacur, filho de Inri, construiu logo adiante."
+        },
+        {
+          "n": 3,
+          "text": "A porta dos Peixes foi reconstruída pelos filhos de Hassenaá. Eles puseram os batentes e colocaram as portas, os ferrolhos e as trancas no lugar."
+        },
+        {
+          "n": 4,
+          "text": "Meremote, filho de Urias, neto de Hacoz, fez os reparos do trecho seguinte. Ao seu lado, Mesulão, filho de Berequias, neto de Mesezabel, fez os reparos, e, ao seu lado, Zadoque, filho de Baaná, também fez os reparos."
+        },
+        {
+          "n": 5,
+          "text": "O trecho seguinte foi reparado pelos homens de Tecoa, mas os nobres dessa cidade não quiseram se juntar ao serviço, rejeitando a orientação dos seus supervisores."
+        },
+        {
+          "n": 6,
+          "text": "A porta Jesana foi consertada por Joiada, filho de Paseia, e por Mesulão, filho de Besodias. Eles puseram os batentes e colocaram as portas, os ferrolhos e as trancas no lugar."
+        },
+        {
+          "n": 7,
+          "text": "No trecho seguinte, os reparos foram feitos por Melatias de Gibeom e Jadom de Meronote, homens de Gibeom e de Mispá, localidades que estavam sob a autoridade do governador da província do Trans-Eufrates."
+        },
+        {
+          "n": 8,
+          "text": "Uziel, filho de Haraías, um dos ourives, fez os reparos do trecho seguinte; e Hananias, um dos perfumistas, fez os reparos ao seu lado. Eles reconstruíram Jerusalém até o muro Largo."
+        },
+        {
+          "n": 9,
+          "text": "Refaías, filho de Hur, governador da metade do distrito de Jerusalém, fez os reparos do trecho seguinte."
+        },
+        {
+          "n": 10,
+          "text": "Ao seu lado, Jedaías, filho de Harumafe, fez os reparos em frente da sua casa, e Hatus, filho de Hasabneias, fez os reparos ao seu lado."
+        },
+        {
+          "n": 11,
+          "text": "Malquias, filho de Harim, e Hassube, filho de Paate-Moabe, repararam outro trecho e a torre dos Fornos."
+        },
+        {
+          "n": 12,
+          "text": "Salum, filho de Haloés, governador da outra metade do distrito de Jerusalém, fez os reparos do trecho seguinte com a ajuda das suas filhas."
+        },
+        {
+          "n": 13,
+          "text": "A porta do Vale foi reparada por Hanum e pelos moradores de Zanoa. Eles a reconstruíram e colocaram as portas, os ferrolhos e as trancas no lugar. Também repararam mil côvados do muro, até a porta do Esterco."
+        },
+        {
+          "n": 14,
+          "text": "A porta do Esterco foi reparada por Malquias, filho de Recabe, governador do distrito de Bete-Haquerém. Ele a reconstruiu e colocou as portas, os ferrolhos e as trancas no lugar."
+        },
+        {
+          "n": 15,
+          "text": "A porta da Fonte foi reparada por Salum, filho de Col-Hozé, governador do distrito de Mispá. Ele a reconstruiu, cobriu‑a e colocou as portas, os ferrolhos e as trancas no lugar. Também fez os reparos do muro do tanque de Siloé, junto do jardim do Rei, até os degraus que descem da Cidade de Davi."
+        },
+        {
+          "n": 16,
+          "text": "Além dele, Neemias, filho de Azbuque, governador de meio distrito de Bete-Zur, fez os reparos até em frente dos túmulos de Davi, até o açude artificial e a casa dos soldados."
+        },
+        {
+          "n": 17,
+          "text": "Depois dele, os reparos foram feitos pelos levitas que estavam sob a responsabilidade de Reum, filho de Bani. Junto dele, Hasabias, governador da metade do distrito de Queila, fez os reparos no seu distrito."
+        },
+        {
+          "n": 18,
+          "text": "Depois dele, os reparos foram feitos pelos seus compatriotas que estavam sob a responsabilidade de Binui, filho de Henadade, governador da metade do distrito de Queila."
+        },
+        {
+          "n": 19,
+          "text": "Ao seu lado, Ézer, filho de Jesua, governador de Mispá, reconstruiu outro trecho, começando de um ponto que fica em frente da subida para a casa das armas, indo até a esquina do muro."
+        },
+        {
+          "n": 20,
+          "text": "Depois dele, Baruque, filho de Zabai, reparou com zelo outro trecho, desde a esquina do muro até a entrada da casa do sumo sacerdote Eliasibe."
+        },
+        {
+          "n": 21,
+          "text": "Em seguida, Meremote, filho de Urias, neto de Hacoz, reparou outro trecho, desde a entrada da casa de Eliasibe até o fim dela."
+        },
+        {
+          "n": 22,
+          "text": "Os demais reparos foram feitos pelos sacerdotes das redondezas."
+        },
+        {
+          "n": 23,
+          "text": "Depois, Benjamim e Hassube fizeram os reparos em frente da sua casa, e, ao lado deles, Azarias, filho de Maaseias, filho de Ananias, fez os reparos ao lado da sua casa."
+        },
+        {
+          "n": 24,
+          "text": "Depois dele, Binui, filho de Henadade, reparou outro trecho, desde a casa de Azarias até a esquina do muro,"
+        },
+        {
+          "n": 25,
+          "text": "e Palal, filho de Uzai, trabalhou em frente da esquina do muro e da torre que sai do palácio real superior, perto do pátio da guarda. Junto dele, Pedaías, filho de Parós,"
+        },
+        {
+          "n": 26,
+          "text": "e os servidores do templo que viviam na colina de Ofel fizeram os reparos até em frente da porta das Águas, na direção do leste e da torre que ali sobressaía."
+        },
+        {
+          "n": 27,
+          "text": "Depois dele, os homens de Tecoa repararam outro trecho, desde a grande torre até o muro de Ofel."
+        },
+        {
+          "n": 28,
+          "text": "Acima da porta dos Cavalos, os sacerdotes fizeram os reparos, cada um em frente da sua própria casa."
+        },
+        {
+          "n": 29,
+          "text": "Depois deles, Zadoque, filho de Imer, fez os reparos em frente da sua casa. Ao seu lado, Semaías, filho de Secanias, o guarda da porta Leste, fez os reparos."
+        },
+        {
+          "n": 30,
+          "text": "Depois, Hananias, filho de Selemias, e Hanum, o sexto filho de Zalafe, fizeram os reparos do outro trecho. Ao seu lado, Mesulão, filho de Berequias, fez os reparos em frente da sua moradia."
+        },
+        {
+          "n": 31,
+          "text": "Depois dele, Malquias, um dos ourives, fez os reparos do muro até a casa dos servos do templo e dos comerciantes, em frente da porta da Inspeção, até a sala superior da esquina."
+        },
+        {
+          "n": 32,
+          "text": "Entre a sala superior da esquina e a porta das Ovelhas, os ourives e os comerciantes fizeram os reparos."
         }
       ]
     },
@@ -370,6 +591,199 @@
         {
           "n": 19,
           "text": "Até ousavam elogiá‑lo na minha presença e iam contar‑lhe o que eu dizia. Tobias continuou a enviar‑me cartas para me intimidar."
+        }
+      ]
+    },
+    "NEH.12": {
+      "ref_display": "Neemias 12",
+      "verses": [
+        {
+          "n": 1,
+          "text": "Estes foram os sacerdotes e os levitas que voltaram com Zorobabel, filho de Sealtiel, e com Jesua: Seraías, Jeremias, Esdras,"
+        },
+        {
+          "n": 2,
+          "text": "Amarias, Maluque, Hatus,"
+        },
+        {
+          "n": 3,
+          "text": "Secanias, Reum, Meremote,"
+        },
+        {
+          "n": 4,
+          "text": "Ido, Ginetom, Abias,"
+        },
+        {
+          "n": 5,
+          "text": "Miamim, Maadias, Bilga,"
+        },
+        {
+          "n": 6,
+          "text": "Semaías, Joiaribe, Jedaías,"
+        },
+        {
+          "n": 7,
+          "text": "Salu, Amoque, Hilquias e Jedaías. Estes foram os chefes dos sacerdotes e os seus parentes nos dias de Jesua."
+        },
+        {
+          "n": 8,
+          "text": "Os levitas foram Jesua, Binui, Cadmiel, Serebias, Judá e também Matanias, o qual, com os seus parentes, estava encarregado dos cânticos de ações de graças."
+        },
+        {
+          "n": 9,
+          "text": "Baquebuquias e Uni, os seus parentes, ficavam em frente deles durante as ministrações."
+        },
+        {
+          "n": 10,
+          "text": "Jesua foi o pai de Joiaquim, Joiaquim foi o pai de Eliasibe, Eliasibe foi o pai de Joiada,"
+        },
+        {
+          "n": 11,
+          "text": "Joiada foi o pai de Jônatas, Jônatas foi o pai de Jadua."
+        },
+        {
+          "n": 12,
+          "text": "Nos dias de Joiaquim, estes foram os chefes das famílias dos sacerdotes: da família de Seraías, Meraías; da família de Jeremias, Hananias;"
+        },
+        {
+          "n": 13,
+          "text": "da família de Esdras, Mesulão; da família de Amarias, Joanã;"
+        },
+        {
+          "n": 14,
+          "text": "da família de Maluqui, Jônatas; da família de Secanias, José;"
+        },
+        {
+          "n": 15,
+          "text": "da família de Harim, Adna; da família de Meremote, Helcai;"
+        },
+        {
+          "n": 16,
+          "text": "da família de Ido, Zacarias; da família de Ginetom, Mesulão;"
+        },
+        {
+          "n": 17,
+          "text": "da família de Abias, Zicri; da família de Miniamim e de Moadias, Piltai;"
+        },
+        {
+          "n": 18,
+          "text": "da família de Bilga, Samua; da família de Semaías, Jônatas;"
+        },
+        {
+          "n": 19,
+          "text": "da família de Joiaribe, Matenai; da família de Jedaías, Uzi;"
+        },
+        {
+          "n": 20,
+          "text": "da família de Salai, Calai; da família de Amoque, Héber;"
+        },
+        {
+          "n": 21,
+          "text": "da família de Hilquias, Hasabias; da família de Jedaías, Natanael."
+        },
+        {
+          "n": 22,
+          "text": "Nos dias de Eliasibe, Joiada, Joanã e Jadua, bem como os chefes das famílias dos levitas e dos sacerdotes, foram registrados durante o reinado de Dario, o persa."
+        },
+        {
+          "n": 23,
+          "text": "Os chefes das famílias dos descendentes de Levi até a época de Joanã, filho de Eliasibe, foram registrados no livro das crônicas."
+        },
+        {
+          "n": 24,
+          "text": "Os líderes dos levitas foram Hasabias, Serebias, Jesua, filho de Cadmiel, e os seus parentes, que ficavam em frente deles quando entoavam louvores e ações de graças; um grupo respondia ao outro, conforme ordenado por Davi, homem de Deus."
+        },
+        {
+          "n": 25,
+          "text": "Matanias, Baquebuquias, Obadias, Mesulão, Talmom e Acube eram porteiros; vigiavam os depósitos localizados às portas."
+        },
+        {
+          "n": 26,
+          "text": "Eles serviram nos dias de Joiaquim, filho de Jesua, filho de Jozadaque, e nos dias do governador Neemias e de Esdras, o sacerdote e escriba."
+        },
+        {
+          "n": 27,
+          "text": "Por ocasião da dedicação do muro de Jerusalém, os levitas foram procurados e trazidos de onde moravam a Jerusalém para celebrarem a dedicação alegremente, com cânticos e ações de graças, ao som de címbalos, harpas e liras."
+        },
+        {
+          "n": 28,
+          "text": "Os cantores foram trazidos dos arredores de Jerusalém, dos povoados dos netofatitas,"
+        },
+        {
+          "n": 29,
+          "text": "de Bete-Gilgal e das regiões de Geba e de Azmavete, pois esses cantores haviam construído povoados para si ao redor de Jerusalém."
+        },
+        {
+          "n": 30,
+          "text": "Os sacerdotes e os levitas se purificaram cerimonialmente e depois purificaram também o povo, as portas e os muros."
+        },
+        {
+          "n": 31,
+          "text": "Ordenei aos líderes de Judá que subissem ao alto do muro. Também designei dois grandes coros para darem graças. Um deles avançou em cima do muro, para a direita, até a porta do Esterco,"
+        },
+        {
+          "n": 32,
+          "text": "seguido de Hosaías e metade dos líderes de Judá,"
+        },
+        {
+          "n": 33,
+          "text": "Azarias, Esdras, Mesulão,"
+        },
+        {
+          "n": 34,
+          "text": "Judá, Benjamim, Semaías e Jeremias,"
+        },
+        {
+          "n": 35,
+          "text": "bem como alguns sacerdotes com trombetas: Zacarias, filho de Jônatas, neto de Semaías, bisneto de Matanias, que era filho de Micaías, neto de Zacur, bisneto de Asafe,"
+        },
+        {
+          "n": 36,
+          "text": "e os seus parentes Semaías, Azarel, Milalai, Gilalai, Maai, Natanael, Judá e Hanani, que tocavam os instrumentos musicais prescritos por Davi, homem de Deus. Esdras, o escriba, ia à frente deles."
+        },
+        {
+          "n": 37,
+          "text": "À porta da Fonte, eles subiram diretamente pelos degraus da Cidade de Davi, na subida para o muro, e passaram sobre a casa de Davi até a porta das Águas, a leste."
+        },
+        {
+          "n": 38,
+          "text": "O segundo coro avançou no sentido oposto. Eu os acompanhei, quando iam sobre o muro, levando comigo a metade do povo; passamos pela torre dos Fornos até o muro Largo,"
+        },
+        {
+          "n": 39,
+          "text": "por sobre a porta de Efraim, a porta Jesana, a porta dos Peixes, a torre de Hananeel e a torre dos Cem, indo até a porta das Ovelhas. À porta da Guarda, paramos."
+        },
+        {
+          "n": 40,
+          "text": "Os dois coros encarregados das ações de graças assumiram os seus lugares no templo de Deus, o que também fiz, acompanhado da metade dos oficiais"
+        },
+        {
+          "n": 41,
+          "text": "e dos sacerdotes Eliaquim, Maaseias, Miniamim, Micaías, Elioenai, Zacarias e Hananias, com as suas trombetas,"
+        },
+        {
+          "n": 42,
+          "text": "além de Maaseias, Semaías, Eleazar, Uzi, Joanã, Malquias, Elão e Ézer. Os coros cantaram sob a regência de Israías."
+        },
+        {
+          "n": 43,
+          "text": "Naquele dia, contentes como estavam, ofereceram grandes sacrifícios, pois Deus os enchera de grande alegria. As mulheres e as crianças também se alegraram, e os sons da alegria de Jerusalém podiam ser ouvidos de longe."
+        },
+        {
+          "n": 44,
+          "text": "Naquela ocasião, foram designados alguns encarregados dos depósitos onde se recebiam as contribuições gerais, os primeiros frutos e os dízimos. Das lavouras que havia ao redor das cidades eles deveriam trazer para os depósitos as porções exigidas pela lei para os sacerdotes e para os levitas. De fato, o povo de Judá estava satisfeito com os sacerdotes e com os levitas que ministravam no templo."
+        },
+        {
+          "n": 45,
+          "text": "Eles celebravam o culto ao seu Deus e o ritual de purificação, dos quais também participavam os cantores e os porteiros, de acordo com as ordens de Davi e de Salomão, o seu filho."
+        },
+        {
+          "n": 46,
+          "text": "Pois muito tempo antes, nos dias de Davi e de Asafe, havia regentes para os cantores e para os cânticos de louvor e de ações de graças a Deus."
+        },
+        {
+          "n": 47,
+          "text": "Assim, nos dias de Zorobabel e de Neemias, todo o Israel contribuía com ofertas diárias para os cantores e para os porteiros. Também separavam a parte pertencente aos outros levitas, e os levitas separavam a porção dos descendentes de Arão."
         }
       ]
     },

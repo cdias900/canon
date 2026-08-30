@@ -56,8 +56,29 @@ UNITY_BIN="/Applications/Unity/Hub/Editor/${UNITY_VERSION}/Unity.app/Contents/Ma
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 EXPORT_DIR="${ROOT}/Builds/ios-sim"
 DERIVED="${EXPORT_DIR}/DerivedData"
-PRODUCT="${DERIVED}/Build/Products/Debug-iphonesimulator/PortadasOvelhas.app"
-BUNDLE_ID="com.createhack.portadasovelhas"
+PRODUCTS_DIR="${DERIVED}/Build/Products/Debug-iphonesimulator"
+
+# The .app is DERIVED, never spelled here. Xcode names the bundle from PlayerSettings
+# productName with the spaces stripped, so writing the name in this file means a product rename
+# turns a build that SUCCEEDED into "XCODE BUILD FAILED" with no error line under it — which is
+# exactly what "A Cidade Quebrada" did to "PortadasOvelhas.app". tools/e2e.sh already learned
+# this lesson for the macOS binary; this is the same fix on the iOS side.
+resolve_product() {
+  find "${PRODUCTS_DIR}" -maxdepth 1 -type d -name "*.app" 2>/dev/null | head -1
+}
+
+# Likewise the bundle id: read it off the built Info.plist when there is one, so install and
+# launch can never disagree with what was actually compiled. The literal is only the fallback
+# for `reset` before anything has been built.
+BUNDLE_ID_FALLBACK="com.createhack.portadasovelhas"
+resolve_bundle_id() {
+  local app
+  app="$(resolve_product)"
+  if [[ -n "${app}" && -f "${app}/Info.plist" ]]; then
+    /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "${app}/Info.plist" 2>/dev/null && return
+  fi
+  echo "${BUNDLE_ID_FALLBACK}"
+}
 DEVICE="iPhone 17 Pro"
 
 # Deliberately not under /tmp: the venv that the first version of this lived in was cleaned
@@ -214,27 +235,31 @@ do_build() {
     CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
     build > "${ROOT}/Logs/ios-sim-xcodebuild.log" 2>&1
 
-  if [[ ! -d "${PRODUCT}" ]]; then
+  local product
+  product="$(resolve_product)"
+  if [[ -z "${product}" ]]; then
     echo "XCODE BUILD FAILED — see Logs/ios-sim-xcodebuild.log" >&2
     grep -E "error:" "${ROOT}/Logs/ios-sim-xcodebuild.log" | head -10 >&2
     exit 1
   fi
-  echo "Built ${PRODUCT}"
+  echo "Built ${product}"
 }
 
 do_run() {
-  if [[ ! -d "${PRODUCT}" ]]; then
+  local product
+  product="$(resolve_product)"
+  if [[ -z "${product}" ]]; then
     echo "Nothing built yet. Run: tools/ios-sim.sh build" >&2
     exit 1
   fi
 
   ensure_booted >/dev/null
-  xcrun simctl install booted "${PRODUCT}" || exit 1
+  xcrun simctl install booted "${product}" || exit 1
 
   # --console-pty keeps Unity's Debug.Log in the foreground stream, which is where the boot
   # health line lives. Backgrounded so the shell comes back while the game runs.
   local log="${ROOT}/Logs/ios-sim-console.log"
-  xcrun simctl launch --console-pty booted "${BUNDLE_ID}" > "${log}" 2>&1 &
+  xcrun simctl launch --console-pty booted "$(resolve_bundle_id)" > "${log}" 2>&1 &
 
   for _ in $(seq 1 30); do
     grep -q "\[Boot\] Ready" "${log}" 2>/dev/null && break
@@ -268,7 +293,7 @@ case "${COMMAND}" in
   build) do_build ;;
   run)   do_run ;;
   shot)  do_shot ;;
-  reset) xcrun simctl uninstall booted "${BUNDLE_ID}" && echo "Uninstalled — save and telemetry are gone." ;;
+  reset) xcrun simctl uninstall booted "$(resolve_bundle_id)" && echo "Uninstalled — save and telemetry are gone." ;;
   all)   do_build && do_run ;;
   setup) do_setup ;;
   udid)  booted_udid ;;

@@ -111,6 +111,17 @@ namespace SheepGate.Player
 
         static readonly CatalogItemDef[] NoItems = Array.Empty<CatalogItemDef>();
 
+        // The slots the backpack actually draws, and therefore the only slots a badge can live in.
+        // Both badge counts are sums over exactly this array — NewCount explains why that has to be
+        // one set and not two, and why CharacterSlot.Base is absent from it rather than filtered out
+        // further down.
+        static readonly CharacterSlot[] BadgedSlots =
+        {
+            CharacterSlot.Hair,
+            CharacterSlot.Outfit,
+            CharacterSlot.Accessory
+        };
+
         // One warning per unresolvable id per session. A worn id that is not in the catalogue is a
         // content mistake worth seeing once; repeating it on every recompose would bury the log
         // under the same line and hide the next problem.
@@ -143,7 +154,7 @@ namespace SheepGate.Player
             for (int i = 0; i < all.Length; i++)
             {
                 CatalogItemDef item = all[i];
-                if (item != null && !string.IsNullOrEmpty(item.id) && item.Slot == slot)
+                if (BelongsToSlot(item, slot))
                 {
                     matching.Add(item);
                 }
@@ -322,6 +333,10 @@ namespace SheepGate.Player
         ///
         /// A locked item is never new — its moment is the one where it opens, and announcing it
         /// early would spend the only surprise the wardrobe has.
+        ///
+        /// The test itself lives in <c>CarriesBadge</c>, which is also what the two counts below
+        /// walk, so there is no reading of "new" that can be true for one item and false for the
+        /// number that is supposed to include it.
         /// </summary>
         public static bool IsNew(GameState state, string itemId)
         {
@@ -330,13 +345,7 @@ namespace SheepGate.Player
                 return false;
             }
 
-            CatalogItemDef item = CharacterCatalog.Item(itemId);
-            if (item == null || !UnlockEvaluator.IsUnlocked(state, item))
-            {
-                return false;
-            }
-
-            return !Contains(Seen(state), item.id);
+            return CarriesBadge(state, Seen(state), CharacterCatalog.Item(itemId));
         }
 
         /// <summary>
@@ -400,36 +409,76 @@ namespace SheepGate.Player
         /// It is here because <c>character_presets.json</c> already names <c>base_adar</c> and
         /// <c>base_neriah</c>, so the first person to author one would otherwise ship the stuck pill
         /// and have no obvious place to look for it.
+        ///
+        /// <b>Which is why this is no longer a sweep of its own.</b> The total is
+        /// <see cref="NewCountForSlot"/> added up over <see cref="BadgedSlots"/> — the same array the
+        /// panel draws a tab from — rather than a second walk of the catalogue that happens to agree
+        /// with the per-slot one today. Two sweeps agree until someone edits one of them, and the
+        /// failure that follows is silent: a pill that counts an item no tab can show, and no tab
+        /// that can spend it. As a sum there is no arrangement of this file in which the HUD pill and
+        /// the tab dots disagree. A slot leaves both numbers at once or enters both at once, and
+        /// "skips <see cref="CharacterSlot.Base"/>" became a fact about the set instead of a
+        /// <c>continue</c> inside a loop that a tidy-up could delete without noticing.
         /// </summary>
         public static int NewCount(GameState state)
         {
-            if (state == null)
+            int count = 0;
+            for (int i = 0; i < BadgedSlots.Length; i++)
+            {
+                count += NewCountForSlot(state, BadgedSlots[i]);
+            }
+
+            return count;
+        }
+
+        /// <summary>
+        /// How many items in one slot still carry a badge. This is the number behind a tab's dot.
+        ///
+        /// The same question <see cref="NewCount"/> asks, narrowed to one slot: unlocked, and never
+        /// looked at. It is the half the total is built from, so the two cannot drift apart — the
+        /// reasoning is written out in full over there and is the reason this method exists as the
+        /// primitive rather than as a convenience beside a second sweep.
+        ///
+        /// Answers 0, without throwing, for a null run, an unloaded or empty catalogue, a slot that
+        /// holds nothing, <see cref="CharacterSlot.Base"/>, and any value cast into
+        /// <see cref="CharacterSlot"/> from outside its four names. Base is not a special case so
+        /// much as an absence: it is not in <see cref="BadgedSlots"/>, the catalogue authors nothing
+        /// into it, and <see cref="AppearanceState"/> has no base layer, so a badge there could never
+        /// be looked at and therefore never spent. It answers 0 and always will.
+        ///
+        /// It hands back a count rather than a bool because the caller owns how it is said — but note
+        /// what the sheet does with it, and keep doing that: a dot, never a numeral. Four numerals on
+        /// four adjacent tabs read as a scoreboard to clear, which is the shape rule 10 keeps off the
+        /// screen even when each number is individually harmless. The count is here to answer "is
+        /// there anything in this tab I have not seen", and the panel spends it by looking.
+        ///
+        /// Allocates nothing. It walks the catalogue in place instead of through
+        /// <see cref="ItemsForSlot"/>, because the HUD polls the total four times a second and three
+        /// throwaway arrays per poll is a cost with no reader. The two still agree on which rows
+        /// belong to a slot: both ask <c>BelongsToSlot</c>, which is the only place that test is
+        /// written.
+        /// </summary>
+        public static int NewCountForSlot(GameState state, CharacterSlot slot)
+        {
+            if (state == null || !IsBadgedSlot(slot))
             {
                 return 0;
             }
 
             CatalogItemDef[] all = CharacterCatalog.Items;
-            if (all == null)
+            if (all == null || all.Length == 0)
             {
                 return 0;
             }
 
+            // The seen list is read once and passed down: touching it per item would re-run its
+            // repair sweep eighteen times for one number.
             List<string> seen = Seen(state);
             int count = 0;
             for (int i = 0; i < all.Length; i++)
             {
                 CatalogItemDef item = all[i];
-                if (item == null || string.IsNullOrEmpty(item.id))
-                {
-                    continue;
-                }
-
-                if (item.Slot == CharacterSlot.Base)
-                {
-                    continue;
-                }
-
-                if (UnlockEvaluator.IsUnlocked(state, item) && !Contains(seen, item.id))
+                if (BelongsToSlot(item, slot) && CarriesBadge(state, seen, item))
                 {
                     count++;
                 }
@@ -530,6 +579,52 @@ namespace SheepGate.Player
         }
 
         // ------------------------------------------------------------------ internals
+
+        // What counts as a row of a slot, asked in the same words by the list a tab draws
+        // (ItemsForSlot) and by the number on that tab's dot (NewCountForSlot). Written twice, this
+        // is exactly how a slot ends up with a badge for an item its own tab never shows — the
+        // stranded badge NewCount's note is about, arriving through the other door.
+        static bool BelongsToSlot(CatalogItemDef item, CharacterSlot slot)
+        {
+            return item != null && !string.IsNullOrEmpty(item.id) && item.Slot == slot;
+        }
+
+        // Membership of the rendered set. Reading it as a lookup rather than as an inequality is what
+        // makes CharacterSlot.Base — and any int cast into the enum from outside its four names —
+        // answer zero here, instead of being filtered somewhere later by a rule that has to be
+        // remembered.
+        static bool IsBadgedSlot(CharacterSlot slot)
+        {
+            for (int i = 0; i < BadgedSlots.Length; i++)
+            {
+                if (BadgedSlots[i] == slot)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        // The badge test itself, in one place: unlocked, and not in the seen list. Everything that
+        // asks about a badge — one item (IsNew), one slot (NewCountForSlot), the HUD total
+        // (NewCount) — comes through here.
+        //
+        // The null guard is load-bearing and not defensive noise: UnlockEvaluator.IsUnlocked answers
+        // true for a null item, so an unresolvable id would otherwise count as new forever and be
+        // spendable by nothing, which is the stuck pill again.
+        //
+        // The seen list arrives as an argument rather than being read here, so a sweep pays its
+        // repair pass once for the slot instead of once per item.
+        static bool CarriesBadge(GameState state, List<string> seen, CatalogItemDef item)
+        {
+            if (item == null || string.IsNullOrEmpty(item.id))
+            {
+                return false;
+            }
+
+            return UnlockEvaluator.IsUnlocked(state, item) && !Contains(seen, item.id);
+        }
 
         // The refusal reasons, one key each. SlotOccupied is deliberately absent: the catalogue's
         // own comment says a wardrobe must read it as "swap", and TryEquip has already done the swap

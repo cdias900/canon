@@ -343,11 +343,19 @@ namespace SheepGate.UI
     /// the interface on their behalf. The design system's rule is that an icon-only control always
     /// carries an accessible name, so this holds it.
     ///
-    /// Unity draws the whole game into one Metal view and publishes no accessibility tree, so
-    /// nothing consumes this today. It is still worth carrying: the string is a real localised
-    /// name rather than a comment, it is greppable, and <c>tools/acceptance.sh</c> can assert that
-    /// every icon button has one. The alternative — a Text with zero alpha — would be a lie that
-    /// looks like a fix.
+    /// Unity draws the whole game into one Metal view, and this project used to note that the
+    /// engine published no accessibility tree at all. That stopped being true: the project is on
+    /// 6000.3.23f1 with <c>com.unity.modules.accessibility</c> 1.0.0 in the manifest, and Unity 6's
+    /// Accessibility module drives VoiceOver over uGUI. Nothing consumes this label yet only
+    /// because no one has built the <c>AccessibilityHierarchy</c> — that is engine-wide work, not
+    /// this type's. It is still worth carrying meanwhile: the string is a real localised name
+    /// rather than a comment, it is greppable, and <c>tools/acceptance.sh</c> can assert that every
+    /// icon button has one. The alternative — a Text with zero alpha — would be a lie that looks
+    /// like a fix.
+    ///
+    /// When someone does build that hierarchy: a locked wardrobe row must NOT map to a
+    /// disabled-style state. <c>AGENTS.md</c> rule 7 keeps it fully interactable, and its
+    /// accessible name already carries the unlock sentence whole.
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class AccessibleLabel : MonoBehaviour

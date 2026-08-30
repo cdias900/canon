@@ -112,6 +112,179 @@ if it looks right.
 9. **One gold call-to-action per screen, at most.**
 10. **No confetti, no loud sound on reward.** The reward is that the world changed.
 11. **The world's stage is derived from wall percentage**, never set by content by hand.
+12. **A row that has to print a sentence is full width.** The authored source specifies
+    `InventoryItem` as *Grid 2 col mobile* and points one component at *resource · gear · lore*.
+    That holds for a card carrying a label and a number. It does not hold for a locked wardrobe
+    item, because `AGENTS.md` rule 7 makes a locked item an invitation rather than a void: it keeps
+    its art, its name, its description **and its unlock condition, spelled out whole**. That is a
+    sentence, and a two-column card cannot hold one at or above `Type.Minimum` without truncating
+    it — which is the single thing that rule forbids. So the split is by what the row must say, not
+    by what the row contains: **prose gets one full-width column; the grid is for label-plus-number
+    cards.** The backpack is both at once and divides accordingly — wardrobe rows are full width,
+    the materials cards keep the two-column grid. Nobody should later "correct" the wardrobe into a
+    grid: the grid is what the document says, and the sentence is what the rule requires.
+
+## Segmented tabs
+
+Sistema Vale has no tab component. The treatment below was derived for the backpack sheet, where
+four sibling lists share one modal surface, and is recorded here as the system's answer. **The next
+screen that needs tabs reuses this one instead of inventing a second one.**
+
+### Placement
+
+The row is bottom-anchored **inside the card it belongs to**, never pinned to the screen:
+`AnchorBottom(Space.TouchTarget, Space.S12, Space.S12, Space.S20)`. On the backpack sheet that
+leaves 20 between the row and the card's own bottom edge, and that edge is itself
+`Space.SafeAreaBottom` above the safe area — 42 of clearance from the home indicator.
+
+Bottom, because that is where the thumb is and this is the most-tapped control on its surface; a
+tall sheet puts a top-anchored row in the stretch zone. The obvious objection — that a bottom row
+impersonates the OS tab bar — does not survive the specifics. This row sits inside a modal card that
+is already inset from both screen edges, it is **text only** and never the icon-over-label stack
+that is the bottom-nav signature, and the platform's own tab-bar guidance exempts a modal from the
+persistent-bar expectation to begin with.
+
+The band is inset `Space.S12`, **not** the surrounding sheet's `Space.S20`, and is therefore
+deliberately not aligned with the content above it. At S20 the backpack's four cells are 77 wide and
+the widest label clears the cell edge by 4.05; at S12 they are 81 and it clears by 6.05. Six points
+of label width is the entire reason the band is wider than the column above it. The misalignment is
+paid for by drawing the divider above the band at **full card width**: a rule the band sits under
+reads as a region boundary, while a rule narrower than the band reads as a mistake.
+
+### Geometry
+
+Cells are **equal, fixed and touching**. Row width is the card minus two `Space.S12`; divide by the
+cell count and pin each cell's `LayoutElement` min and preferred width to the result, with
+`flexibleWidth = 0` and `childForceExpandWidth = false`. The fixed widths are load-bearing rather
+than tidy: the selected label changes weight, and content-driven cells would re-measure the whole
+row on every tap.
+
+**Derive the card from `UIKit.CanvasWidth()`, never from `UIKit.ReferenceWidth`.** The canvas is
+1080 units across only on a device whose aspect is exactly 1080×1920; the scaler's match-0.5 rule
+gives a taller phone *fewer* units, and an iPhone 17 Pro reports about 976. A width pinned to the
+reference overflows its parent there by the difference. Measured on that phone: backpack rows ran
+past the scroll viewport and clipped a description mid-word, and the widest tab label spilled off
+the card. **`tools/e2e.sh` cannot see this** — the macOS player is launched at exactly 1080×1920,
+where the reference and the truth agree — which is why every layout change also gets a pass on
+`tools/ios-sim.sh`.
+
+So the numbers are ratios, not constants. At the reference width the backpack's row is 324 across
+four cells, so 81 each; on the phone the card is 310 points and the cells are 71.6. What the
+contract fixes is the derivation, and every width below it — row, text column, name box, material
+card — comes off the same measured card.
+
+There is no `Space.TouchGap` between cells, and this is the one place in the system where the second
+half of rule 3 is deliberately not applied. The 8-point spacing exception exists for targets below
+24×24; these clear the criterion outright at any width this card can have, and every platform draws
+a segmented control as touching segments. The 48×48 half of the rule is exceeded, not bent.
+
+There is **no track behind the row**, because this palette cannot draw one. Measured: parchment ink
+at 8% over `Surface.Card` is 1.24:1, `Surface.Panel` is 1.11:1, `Neutral.N800` is 1.20:1. Nothing is
+subtle and visible at the same time, so nothing is drawn. The row reads as one control from the
+full-width divider above it, four equal cells, and one of them filled.
+
+### Selected and unselected
+
+| | Fill | Rim | Label ink | Label role |
+|---|---|---|---|---|
+| Selected | `Brand.PrimaryDark` on `UiSpriteKeys.FrameMd` | `Brand.Primary` on `UiSpriteKeys.FocusRing`, stretched to the cell's own rect | `Ink.OnPrimary` | `TypeRole.BodyStrong` |
+| Unselected | none | none | `Ink.Secondary` | `TypeRole.Body` |
+
+Three channels separate the two states and only one of them is colour: the fill is present or
+absent, the weight is 700 or 400, the ink changes. Rule 2 is satisfied without adding a word or an
+icon. Draw the fill, the rim and the label as your own children — never recolour the kit's Label,
+Border or button fill, which `VariantButton` owns and repaints on the next pointer event.
+
+**The fill is two tokens because no single one can carry the state.** `Ink.OnPrimary` on
+`Brand.Primary` is 3.82:1 and fails SC 1.4.3 — a 15.17 bold label is normal text, since the
+large-text exception begins at 14 point bold, which is 18.67 in these units. `Brand.PrimaryDark` on
+`Surface.Card` is 2.56:1 and fails SC 1.4.11 for a state indicator. Solving for one fill that does
+both needs a relative luminance between 0.14965 and 0.16964, and no Brand token lands there
+(`Primary` is 0.20889, `PrimaryDark` is 0.12062). So the fill carries the label — `Ink.OnPrimary` on
+`PrimaryDark` is 5.79:1, AA — and the rim carries the boundary — `Brand.Primary` on `Surface.Card`
+is 3.89:1, which clears SC 1.4.11. Pressing an already-selected cell raises its fill to
+`Brand.Primary`, which is the other reason `Primary` stays in the pair.
+
+That `Ink.OnPrimary` on `Brand.Primary` fails at all is a defect of the system rather than of this
+component: **every Primary-variant button in the game has a failing label.** The fix belongs in
+`UIKit.SkinFor`, where the blast radius is, and is not this component's to make.
+
+**The selected tab is clay, not gold.** Gold means one thing — *not yet seen* — and it is spent on
+the NOVO badge and on the tab's own dot, both of which clear by being looked at. Clay means *the
+current one*: the tab you are on, and the piece you are wearing. Before this, gold was carrying
+new, worn and focused at once, which is three meanings on one accent and the reason none of them
+read. The focus ring stays gold as the single accepted exception, because rule 5 fixes it globally
+and it is chrome rather than content.
+
+### The badge
+
+A tab whose list holds something unseen carries a **dot, never a number**: `UiSpriteKeys.IconDot` in
+`Brand.Secondary` at `DesignTokens.Px(8)`, pinned to the cell's top-right corner with
+`anchoredPosition = (-Space.S8, -Space.S4)` and `raycastTarget = false`. The vertical offset is the
+component, not a detail — a corner dot without it lands on top of a wide label. Contrast is 8.31:1
+on `Surface.Card` and 3.24:1 on `Brand.PrimaryDark`, so it survives a selected cell too.
+
+Never a count. Four numbers on four adjacent cells read as a scoreboard to clear even when each one
+is individually legal, and `AGENTS.md` rule 10 is about precisely that reading. A dot is spent the
+moment its tab is looked at — including the tab that is selected on open — while an unvisited tab
+keeps its dot until someone goes there. A dot that survives being looked at is the nagging version.
+
+### Focus, and the label-fit rule
+
+The focus ring is untouched: the system's gold 2-point ring at `-UIKit.FocusRingOutset`, identical
+across variants per rule 5. It extends outside the cell and so overlaps a neighbour when focused,
+which is accepted because touch never produces focus. Build the fill and the rim first, then send
+the kit's own `FocusRing` child back to the front.
+
+**A tab label must fit its cell at `TypeRole.BodyStrong`, in every locale, on the narrowest device
+the game ships to.** The label rect is flush to the cell — no `Space.S4` inset. The inset is what
+the layout contract asked for and it was dropped for a measured reason: on the phone the cell is
+71.6 points, and eight points of inset leave a 63.6-point box for a label whose widest word,
+*Materiais* / *Materials*, is 68.91 at Manrope Bold. Flush, the box is the full 71.6 and that word
+clears it by 2.7. The labels are centred and every other word is far shorter, so the inset was
+buying nothing the centring does not already give.
+
+**The working limit is therefore the cell width itself, and on the phone that is about 71.** That is
+an acceptance criterion, not a comfort, and it is worth saying out loud in review — the row is one
+re-translation away from failing, and the margin is smaller than the 348-point design frame implies.
+
+When it does fail, it fails loudly. The label keeps the kit's wrapping default inside a one-line
+rect, so an over-limit word breaks and spills **below** the cell into the sheet's bottom padding: it
+never clips silently and never ellipsises, and the e2e screenshot catches it in both locales. The
+remedy is to re-author the word as a real word in both locales, and there is no second remedy. Do
+not shrink the type — `Type.Minimum` would fit anything, and 12 on the most-tapped control of a
+surface is the wrong trade. Do not make the cells unequal. This is why the backpack's accessory tab
+reads *Detalhes* / *Details*: *Acessórios* is 81.72 and *Accessories* is 90.20, both wider than the
+cell itself at any inset the card can offer, and `creation.slot.accessory` has called that slot
+*Detalhe* since character creation was written.
+
+### The row's name line, and the second thing a narrow card broke
+
+A wardrobe row's name line holds three things: the name, the NOVO badge when the item is new, and a
+permanently-reserved status slot for the tick or the padlock. **The gaps between them, and the
+badge's own side padding, are `Space.S4` and not the `Space.S8` the layout contract asked for.**
+
+Same cause as the tab label, one level down. The contract sized the name box off a 200-point text
+column; on the phone that column is 162.6, and after the status slot and a badge at `S8` gaps the
+name had 72.7 points — narrower than a single word of some item names. Legacy `Text` breaks a word
+it cannot fit, so *Túnica de carregador* rendered as **"Túnica de / carregad / or"**: nothing
+clipped, no pinned height was wrong, and it was simply unreadable. Sixteen points come back at `S4`
+— two gaps and two paddings — putting the box at 88.7, clear of the two longest words in the
+catalogue, *carregador* (77) and *ferramentas* (84).
+
+The status slot's width stays reserved on every row whether or not it shows anything, and it is
+hidden with `Image.enabled` rather than by deactivating it. A layout group drops an inactive child;
+the name would widen, a one-line name could rewrap, and the height pinned at build time would then
+clip — which is the one failure the whole pinning policy exists to prevent, and it would only show
+on rows nobody is wearing.
+
+### Silence
+
+Tab switching makes **no sound**. `UIKit.CreateButton` wraps any handler it is given in
+`AudioDirector.Play(AudioKeys.Confirm)`, so a segment is built with a null handler and wired with
+`onClick.AddListener` afterwards. A player comparing two pieces crosses the row a dozen times, and a
+cue on every crossing has stopped being feedback. Selecting a row still confirms — an equip is a
+confirm — but changing tabs is not.
 
 ## What this system does not cover
 

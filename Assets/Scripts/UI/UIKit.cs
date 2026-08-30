@@ -140,6 +140,46 @@ namespace SheepGate.UI
         public const float ReferenceHeight = 1920f;
 
         /// <summary>
+        /// The <see cref="CanvasScaler.matchWidthOrHeight"/> every canvas here is created with.
+        ///
+        /// Named rather than written twice, because <see cref="CanvasWidth"/> has to compute the
+        /// same number the scaler does and a second literal is how those two silently disagree.
+        /// </summary>
+        public const float CanvasMatch = 0.5f;
+
+        /// <summary>
+        /// The width, in canvas units, that a screen actually gets — which is <b>not</b>
+        /// <see cref="ReferenceWidth"/> on any real phone.
+        ///
+        /// With <see cref="CanvasScaler.ScreenMatchMode.MatchWidthOrHeight"/> at 0.5, a device that
+        /// is taller in proportion than 1080x1920 is scaled up more than its width alone would ask
+        /// for, and the canvas therefore reports FEWER than 1080 units across. An iPhone 17 Pro
+        /// (1206x2622) reports about 976. Any layout that derives a fixed child width from
+        /// <see cref="ReferenceWidth"/> overflows its parent there by the difference, and the
+        /// overflow is invisible to tools/e2e.sh because the macOS player runs at exactly
+        /// 1080x1920, where the two numbers agree.
+        ///
+        /// This is the scaler's own formula — a log-space lerp between the two axis ratios — and
+        /// not a reading of a RectTransform, deliberately: a canvas created this frame has not had
+        /// its rect sized yet, so a screen that measured its container during its first Build()
+        /// would read the reference size back and be wrong in exactly the case that matters.
+        /// </summary>
+        public static float CanvasWidth()
+        {
+            float width = Screen.width;
+            float height = Screen.height;
+            if (width <= 0f || height <= 0f)
+            {
+                return ReferenceWidth;
+            }
+
+            float logWidth = Mathf.Log(width / ReferenceWidth, 2f);
+            float logHeight = Mathf.Log(height / ReferenceHeight, 2f);
+            float scale = Mathf.Pow(2f, Mathf.Lerp(logWidth, logHeight, CanvasMatch));
+            return scale > 0f ? width / scale : ReferenceWidth;
+        }
+
+        /// <summary>
         /// The semantic layer over <see cref="DesignTokens"/>: the ten names screens have always
         /// asked for, now resolving to Sistema Vale values.
         ///
@@ -602,7 +642,7 @@ namespace SheepGate.UI
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(ReferenceWidth, ReferenceHeight);
             scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
-            scaler.matchWidthOrHeight = 0.5f;
+            scaler.matchWidthOrHeight = CanvasMatch;
 
             EnsureEventSystem();
             return canvas;

@@ -172,7 +172,11 @@ namespace SheepGate.E2E
             // route cannot pass.
             yield return VerifyProgressMap();
 
-            // 7. The toggle, in the authoring locale's run only — one pass is enough to prove the
+            // 7. The other public button on the HUD, and the only screen in the game where a tap
+            // changes the character. Nothing automated had ever opened it.
+            yield return VerifyBackpack();
+
+            // 8. The toggle, in the authoring locale's run only — one pass is enough to prove the
             // path, and it is the only thing here that exercises a language change at runtime
             // rather than a language pinned at boot. Everything else in this file would pass on a
             // build whose toggle did nothing at all, which is exactly what it once did.
@@ -181,13 +185,13 @@ namespace SheepGate.E2E
                 yield return SwitchLanguageAndVerify();
             }
 
-            // 8. A whole day, ended by nobody.
+            // 9. A whole day, ended by nobody.
             yield return PlayADayToItsEnd();
 
-            // 8. Day two, and the night that follows it.
+            // 10. Day two, and the night that follows it.
             yield return SpendTheDay("day two", "09");
 
-            // 9. Day three: the trial, A Página, the reader and the reveal.
+            // 11. Day three: the trial, A Página, the reader and the reveal.
             yield return PlayDayThree();
         }
 
@@ -555,6 +559,528 @@ namespace SheepGate.E2E
             }
 
             return count;
+        }
+
+        // ------------------------------------------------------------------ the backpack
+
+        /// <summary>
+        /// The four tabs, in the order the segmented control draws them.
+        ///
+        /// Every handle on the sheet is one of these names with a prefix — "TabHair" is the panel,
+        /// "SegmentHair" the cell that selects it, "SegmentFillHair" the paint that says it is the
+        /// one you are on, "SegmentBadgeHair" the dot that says it holds something unseen. They are
+        /// composed rather than spelled out four times each, because the prefix is what names the
+        /// part and the suffix is what names the tab, and a run that got one of the four wrong by
+        /// hand would report a missing tab rather than a typo.
+        /// </summary>
+        static readonly string[] BackpackTabs = { "Hair", "Outfit", "Accessory", "Materials" };
+
+        /// <summary>
+        /// Opens the backpack, walks every tab, puts a piece on, is turned down by a piece the
+        /// player has not found yet, and watches the HUD's badge get spent.
+        ///
+        /// None of that had ever been driven. The one hand test that reached the sheet was
+        /// interrupted before it got past the first tab, so four interactions a player performs in
+        /// their first minute with the backpack were carried entirely by the review that wrote
+        /// them — and this is precisely the shape of failure this file exists for. The button could
+        /// have been unreachable, a tab could have drawn two lists on top of each other, a row
+        /// could have lit its ring without moving the figure, and every rule about the wardrobe
+        /// would still have passed in the acceptance harness, which constructs the wardrobe
+        /// directly and never composes a screen for it to live on.
+        ///
+        /// The badge count is read <b>before</b> the button is tapped. The sheet spends the first
+        /// tab's badges while it is still being built, so a count taken after the tap is a count
+        /// taken after the thing being measured has already happened.
+        /// </summary>
+        IEnumerator VerifyBackpack()
+        {
+            GameState state = TryGetState();
+            if (state == null)
+            {
+                Record("the backpack has a run to read", false, "there is no game state");
+                yield break;
+            }
+
+            int badgeBefore = Wardrobe.NewCount(state);
+            string pillBefore = BackpackBadgeCount();
+
+            Record("the HUD carries a backpack button", Find("BackpackButton") != null,
+                Find("BackpackButton") != null ? "BackpackButton is on the HUD" : "no BackpackButton on the HUD");
+            Record("the backpack badge has something to spend", badgeBefore > 0,
+                "Wardrobe.NewCount=" + badgeBefore + ", pill \"" + (pillBefore ?? "hidden") + "\"");
+
+            yield return Tap("BackpackButton", "the backpack button");
+            yield return WaitUntil(() => ModalRoot.IsOpen && ModalRoot.TopId == BackpackPanel.ModalId,
+                "the backpack sheet");
+
+            bool open = BackpackPanel.IsOpen && ModalRoot.TopId == BackpackPanel.ModalId;
+            Record("the backpack opens from the HUD", open,
+                "BackpackPanel.IsOpen=" + BackpackPanel.IsOpen + ", top modal is "
+                + (ModalRoot.IsOpen ? (ModalRoot.TopId ?? "unnamed") : "none"));
+
+            if (!open)
+            {
+                // Every step below would fail for this one reason, and each of them spends a tap
+                // timeout proving it. Thirty seconds apiece is enough to push the whole run past
+                // its watchdog, and a hang gets read as "the run is broken" rather than as this.
+                yield break;
+            }
+
+            yield return DriveBackpack(state);
+            yield return CloseBackpack();
+
+            // The HUD recounts off Wardrobe.Changed as well as polling it, so the number is already
+            // right by the time the sheet is gone; the frame is for the pill's own layout.
+            yield return null;
+
+            int badgeAfter = Wardrobe.NewCount(state);
+            string pillAfter = BackpackBadgeCount();
+            string expectedPill = badgeAfter > 0 ? badgeAfter.ToString() : null;
+
+            Record("looking at a wardrobe tab spends its badges", badgeAfter < badgeBefore,
+                "Wardrobe.NewCount " + badgeBefore + " -> " + badgeAfter);
+
+            // The whole badge contract in one line: a pill the player cannot clear is a pill that
+            // nags forever, and the only way to clear this one is to look at the tabs it counts.
+            Record("every wardrobe tab looked at leaves nothing to clear", badgeAfter == 0,
+                "Wardrobe.NewCount=" + badgeAfter + " after all three wardrobe tabs were opened");
+            Record("the HUD pill says what the wardrobe says", pillAfter == expectedPill,
+                "pill \"" + (pillBefore ?? "hidden") + "\" -> \"" + (pillAfter ?? "hidden")
+                + "\", wardrobe " + badgeBefore + " -> " + badgeAfter);
+        }
+
+        /// <summary>
+        /// Everything the sheet does, in the order a player would do it.
+        ///
+        /// This records and never returns a verdict, and it may give up at any point: closing the
+        /// sheet is <see cref="VerifyBackpack"/>'s job and happens whatever went on in here. That
+        /// split is not tidiness. Dusk waits on <c>ModalRoot.IsOpen</c>, and none of the three
+        /// buttons the day loop knows how to clear — Continue, Option_0, Confirm — exists on this
+        /// sheet, so a backpack left open would not fail here at all; it would hold the night open
+        /// two steps later and time out somewhere with nothing to do with the backpack.
+        /// </summary>
+        IEnumerator DriveBackpack(GameState state)
+        {
+            yield return WaitForObject("SlotSegments", "the backpack tab bar");
+
+            // One sweep covers all four tabs at once. The sweep reads every Text in the live scene
+            // rather than every visible one, and the three tabs that are not showing are built and
+            // merely inactive — so this is the cheapest moment in the run to catch a missing key on
+            // a screen nobody is looking at.
+            CheckNoMissingStrings();
+
+            RecordOnlyBackpackTab("Hair", "the sheet opens on the first wardrobe tab");
+            Record("the first tab is painted as the one you are on", IsShowing("SegmentFillHair"),
+                "SegmentFillHair showing=" + IsShowing("SegmentFillHair"));
+            Record("the dot on SegmentHair is spent by the sheet opening on it",
+                !IsShowing("SegmentBadgeHair"),
+                "SegmentBadgeHair showing=" + IsShowing("SegmentBadgeHair"));
+
+            yield return WearSomething(state);
+            yield return TapSomethingNotFoundYet(state);
+            yield return Capture("04a-backpack-hair");
+
+            yield return SelectBackpackTab("Outfit", "04b-backpack-outfit");
+            yield return SelectBackpackTab("Accessory", "04c-backpack-accessory");
+            yield return SelectBackpackTab("Materials", "04d-backpack-materials");
+
+            RecordMaterialsTab();
+
+            // Back to the tab it opened on. This is the only selection that has to move the layout
+            // in both directions — the materials tab has no character above its list — so a sheet
+            // that can leave the wardrobe and not come back fails here rather than in a screenshot
+            // somebody looks at next week.
+            yield return SelectBackpackTab("Hair", null);
+            Record("leaving the materials tab brings the character back", Find("CharacterStage") != null,
+                Find("CharacterStage") != null ? "CharacterStage is up again" : "the stage never came back");
+        }
+
+        /// <summary>
+        /// Taps one tab and proves the whole control moved with it: its list is the only one on
+        /// screen, the cell that was tapped is the one wearing the fill, and the dot it may have
+        /// been carrying is gone.
+        ///
+        /// The second assertion is what separates "the list changed" from "the tab bar knows which
+        /// tab you are on", and the third is the badge rule at tab scale — a dot that survives
+        /// being looked at is the nagging version of the same feature.
+        /// </summary>
+        IEnumerator SelectBackpackTab(string tab, string shot)
+        {
+            GameObject segment = Find("Segment" + tab);
+            if (segment == null)
+            {
+                Record("select Segment" + tab, false, "no active object named Segment" + tab);
+                yield break;
+            }
+
+            bool dotBefore = IsShowing("SegmentBadge" + tab);
+
+            yield return TapObject(segment, "select Segment" + tab);
+            yield return null;
+
+            RecordOnlyBackpackTab(tab, "selecting Segment" + tab + " shows Tab" + tab + " and nothing else");
+            Record("selecting Segment" + tab + " repaints the tab bar", IsShowing("SegmentFill" + tab),
+                "SegmentFill" + tab + " showing=" + IsShowing("SegmentFill" + tab));
+            Record("the dot on Segment" + tab + " does not survive being looked at",
+                !IsShowing("SegmentBadge" + tab),
+                dotBefore ? "it was showing and is spent" : "there was nothing on it to spend");
+
+            if (!string.IsNullOrEmpty(shot))
+            {
+                yield return Capture(shot);
+            }
+        }
+
+        /// <summary>
+        /// Asserts that exactly one of the four tab panels is on screen.
+        ///
+        /// Both halves are load-bearing. A tab that fails to show its own list is a dead control,
+        /// and two lists drawn over one another is the invisible-rather-than-broken bug this whole
+        /// file exists for: nothing logs, nothing throws, and the hierarchy looks entirely correct
+        /// right up until somebody reads the screenshot.
+        /// </summary>
+        void RecordOnlyBackpackTab(string tab, string step)
+        {
+            var showing = new List<string>();
+            for (int i = 0; i < BackpackTabs.Length; i++)
+            {
+                if (Find("Tab" + BackpackTabs[i]) != null)
+                {
+                    showing.Add("Tab" + BackpackTabs[i]);
+                }
+            }
+
+            Record(step, showing.Count == 1 && showing[0] == "Tab" + tab,
+                showing.Count == 0 ? "no tab panel is on screen at all" : "showing " + string.Join(", ", showing));
+        }
+
+        /// <summary>
+        /// Puts on a piece of hair the player is not wearing, and proves the character changed.
+        ///
+        /// The piece is chosen at runtime rather than named here, for two reasons that are both
+        /// about the catalogue being content. Several locked pieces write the same art indices as
+        /// pieces that are free, so "a different row" is not the same thing as "a different look",
+        /// and this assertion is worth nothing unless the piece picked writes a hair layer that
+        /// differs from the one already on the figure. And an id spelled into a test is a test that
+        /// breaks the day a designer renames a hairstyle, which teaches nobody anything.
+        ///
+        /// What it asserts is the pair, and the pair is the whole point: the ring on the row AND
+        /// the int on the character. A ring that lights while the figure stays put looks completely
+        /// correct until the player closes the sheet and finds themselves wearing what they had on
+        /// before.
+        /// </summary>
+        IEnumerator WearSomething(GameState state)
+        {
+            int before = state.appearance != null ? state.appearance.hair : -1;
+
+            CatalogItemDef target = null;
+            CatalogItemDef[] items = Wardrobe.ItemsForSlot(CharacterSlot.Hair);
+            for (int i = 0; i < items.Length && target == null; i++)
+            {
+                CatalogItemDef item = items[i];
+                if (item == null || item.art == null || !item.art.hair.HasValue) continue;
+                if (item.art.hair.Value == before) continue;
+                if (!Wardrobe.IsUnlocked(state, item.id)) continue;
+                if (Wardrobe.IsEquipped(state, item.id)) continue;
+                target = item;
+            }
+
+            if (target == null)
+            {
+                Record("the wardrobe offers a piece to put on", false,
+                    "no unlocked hair item writes a layer different from " + before);
+                yield break;
+            }
+
+            GameObject chip = Find("Chip_" + target.id);
+            if (chip == null)
+            {
+                Record("the wardrobe draws a row for " + target.id, false,
+                    "no active object named Chip_" + target.id);
+                yield break;
+            }
+
+            yield return ScrollIntoView(chip);
+            yield return TapObject(chip, "put on " + target.id);
+            yield return null;
+
+            int after = state.appearance != null ? state.appearance.hair : -1;
+            Record("putting a piece on changes the character",
+                after != before && after == target.art.hair.Value,
+                "hair layer " + before + " -> " + after + ", " + target.id + " writes " + target.art.hair.Value);
+            Record("the piece that went on is the one wearing the ring", IsChildShowing(chip, "Selected"),
+                "Selected under Chip_" + target.id + " showing=" + IsChildShowing(chip, "Selected"));
+            Record("the wardrobe agrees the piece is on", Wardrobe.IsEquipped(state, target.id),
+                "Wardrobe.IsEquipped(" + target.id + ")=" + Wardrobe.IsEquipped(state, target.id));
+        }
+
+        /// <summary>
+        /// Taps a piece the player has not found yet and reads the answer out loud.
+        ///
+        /// Rule 7 is what makes this a real interaction rather than a dead one: a locked row keeps
+        /// its art, its name, its description and its unlock sentence, and it stays interactable —
+        /// so the tap has to go somewhere, and where it goes is one calm sentence beside the
+        /// figure. What is asserted is that the sentence is a sentence: not empty, not a raw locale
+        /// key, not the row's own name, and the exact words the wardrobe handed back.
+        ///
+        /// The last two assertions cover each other's blind spot. Equality alone would pass on
+        /// garbage — if the key were missing from ui.json, both sides would render the same
+        /// ⟨backpack.refusal.locked⟩ and agree perfectly — and the marker check is what catches
+        /// that. The name check is what catches the other direction, a run reading the wrong label
+        /// off the screen and calling a row title a refusal.
+        /// </summary>
+        IEnumerator TapSomethingNotFoundYet(GameState state)
+        {
+            CatalogItemDef target = null;
+            CatalogItemDef[] items = Wardrobe.ItemsForSlot(CharacterSlot.Hair);
+            for (int i = 0; i < items.Length && target == null; i++)
+            {
+                CatalogItemDef item = items[i];
+                if (item != null && !string.IsNullOrEmpty(item.id) && !Wardrobe.IsUnlocked(state, item.id))
+                {
+                    target = item;
+                }
+            }
+
+            if (target == null)
+            {
+                Record("the wardrobe still has a piece to find", false,
+                    "every hair item is already unlocked on day " + state.day);
+                yield break;
+            }
+
+            GameObject chip = Find("Chip_" + target.id);
+            if (chip == null)
+            {
+                Record("the wardrobe draws a row for " + target.id, false,
+                    "no active object named Chip_" + target.id
+                    + " — a piece not found yet is drawn in full, never blanked");
+                yield break;
+            }
+
+            int before = state.appearance != null ? state.appearance.hair : -1;
+
+            yield return ScrollIntoView(chip);
+            yield return TapObject(chip, "tap " + target.id + ", which has not been found yet");
+
+            // The sentence arrives on a fade, so the frame after the tap is too early to read it.
+            yield return WaitUntil(() => !string.IsNullOrEmpty(TextOf("RefusalMessage")),
+                "the refusal to be spelled out");
+
+            string sentence = TextOf("RefusalMessage");
+            string itemName = target.display;
+            string expected = Loc.T(Wardrobe.KeyRefusalLocked);
+
+            Record("a piece not found yet answers with a sentence", !string.IsNullOrEmpty(sentence),
+                "RefusalMessage = \"" + (sentence ?? "missing") + "\"");
+            Record("the refusal resolves to real words",
+                !string.IsNullOrEmpty(sentence) && sentence.IndexOf(MissingMarkerOpen) < 0,
+                "RefusalMessage = \"" + (sentence ?? "missing") + "\"");
+            Record("the refusal is a refusal and not the row's own name",
+                !string.IsNullOrEmpty(sentence) && sentence != itemName,
+                "refusal \"" + (sentence ?? "missing") + "\" against name \"" + (itemName ?? "unnamed") + "\"");
+            Record("the refusal is the one the wardrobe handed back", sentence == expected,
+                "expected \"" + expected + "\", found \"" + (sentence ?? "missing") + "\"");
+
+            // Rule 7 from the other side: being turned down costs nothing. Nothing went on, and the
+            // figure is exactly where the equip before this left it.
+            int after = state.appearance != null ? state.appearance.hair : -1;
+            Record("being turned down changes nothing about the character",
+                after == before && !Wardrobe.IsEquipped(state, target.id),
+                "hair layer " + before + " -> " + after + ", equipped=" + Wardrobe.IsEquipped(state, target.id));
+
+            CheckNoMissingStrings();
+        }
+
+        /// <summary>
+        /// The materials tab, which is the one tab that is not a wardrobe: no character above it,
+        /// no rows to wear, three cards and a number on each.
+        ///
+        /// The dot assertion is the one worth spelling out. "SlotSegments" holds a segment that is
+        /// not a slot: materials are not catalogue items, they have no seen-state, and nothing
+        /// anywhere can mark them looked at. A dot on that cell would therefore be a gold pill with
+        /// nothing behind it that no amount of looking could ever clear — which is exactly the
+        /// nagging the badge is built to avoid everywhere else.
+        /// </summary>
+        void RecordMaterialsTab()
+        {
+            bool grid = Find("MaterialsGrid") != null && Find("Material_stone") != null
+                && Find("Material_timber") != null && Find("Material_blocks") != null;
+            Record("the materials tab draws its grid", grid,
+                "grid=" + (Find("MaterialsGrid") != null) + " stone=" + (Find("Material_stone") != null)
+                + " timber=" + (Find("Material_timber") != null) + " blocks=" + (Find("Material_blocks") != null));
+
+            Record("every material card carries its number",
+                HasMaterialCount("Material_stone") && HasMaterialCount("Material_timber")
+                && HasMaterialCount("Material_blocks"),
+                "stone=\"" + (ChildTextOf(Find("Material_stone"), "Count") ?? "missing")
+                + "\" timber=\"" + (ChildTextOf(Find("Material_timber"), "Count") ?? "missing")
+                + "\" blocks=\"" + (ChildTextOf(Find("Material_blocks"), "Count") ?? "missing") + "\"");
+
+            Record("the materials tab gives the grid the whole sheet", Find("CharacterStage") == null,
+                Find("CharacterStage") == null
+                    ? "the character stage is away"
+                    : "the stage is still standing over the grid");
+
+            Record("the materials segment never carries a dot", !IsShowing("SegmentBadgeMaterials"),
+                !IsShowing("SegmentBadgeMaterials")
+                    ? "no dot on a segment that is not a slot"
+                    : "SegmentBadgeMaterials is showing, and nothing can ever clear it");
+        }
+
+        // ------------------------------------------------------------------ reading the sheet
+
+        /// <summary>
+        /// Scrolls a row into the middle of its list before anyone tries to tap it.
+        ///
+        /// <see cref="TapObject"/> raycasts at a control's own centre and refuses to click anything
+        /// but the control it reaches, which is the whole reason it is worth trusting — and it
+        /// means a row scrolled off the bottom of its viewport fails as "covered by the viewport"
+        /// rather than being clicked through a mask. The wardrobe shows about two rows at a time
+        /// and every piece the player has not found yet is authored below them, so without this the
+        /// only rows a run could ever reach would be the first two.
+        ///
+        /// The list is moved directly rather than dragged, for the same reason the progression map
+        /// is focused directly before its annotations are tapped: a flick is the interaction
+        /// layer's business, and what is being proved here is what happens to the row at the end of
+        /// one.
+        /// </summary>
+        static IEnumerator ScrollIntoView(GameObject target)
+        {
+            var rect = target != null ? target.transform as RectTransform : null;
+            ScrollRect scroll = target != null ? target.GetComponentInParent<ScrollRect>() : null;
+            if (rect == null || scroll == null || scroll.content == null || scroll.viewport == null)
+            {
+                yield break;
+            }
+
+            float scrollable = scroll.content.rect.height - scroll.viewport.rect.height;
+            if (scrollable <= 0f)
+            {
+                yield break;
+            }
+
+            // Measured in the content's own space, so whichever pivot the layout happens to use
+            // does not enter into it.
+            var corners = new Vector3[4];
+            rect.GetWorldCorners(corners);
+            Vector3 centre = scroll.content.InverseTransformPoint((corners[0] + corners[2]) * 0.5f);
+
+            float fromTop = scroll.content.rect.yMax - centre.y;
+            float offset = Mathf.Clamp(fromTop - scroll.viewport.rect.height * 0.5f, 0f, scrollable);
+
+            scroll.velocity = Vector2.zero;
+            scroll.verticalNormalizedPosition = 1f - offset / scrollable;
+
+            // One frame for the move to land, one for the canvas batch: a graphic that has not been
+            // through one still reports depth -1, which the graphic raycaster skips outright.
+            yield return null;
+            yield return null;
+        }
+
+        /// <summary>
+        /// Whether a named graphic is actually in front of the player: present, active, and not
+        /// switched off at the component.
+        ///
+        /// Both spellings of "hidden" are in use on this sheet. A tab panel goes away with
+        /// SetActive; a status icon goes away with Image.enabled so that its slot keeps the width
+        /// the row was measured against. A check that knew only one of them would read a hidden
+        /// thing as shown, which is the wrong way round for an assertion to be wrong.
+        /// </summary>
+        static bool IsShowing(string objectName)
+        {
+            GameObject go = Find(objectName);
+            if (go == null)
+            {
+                return false;
+            }
+
+            Graphic graphic = go.GetComponent<Graphic>();
+            return graphic == null || graphic.enabled;
+        }
+
+        /// <summary>
+        /// The same question about a named child of one object. Used for a row's own ring, because
+        /// every row on the sheet has a child called "Selected" and only the worn one shows it — a
+        /// lookup by name alone would answer with somebody else's.
+        /// </summary>
+        static bool IsChildShowing(GameObject parent, string childName)
+        {
+            Transform child = parent != null ? parent.transform.Find(childName) : null;
+            if (child == null || !child.gameObject.activeInHierarchy)
+            {
+                return false;
+            }
+
+            Graphic graphic = child.GetComponent<Graphic>();
+            return graphic == null || graphic.enabled;
+        }
+
+        static string ChildTextOf(GameObject parent, string childName)
+        {
+            Transform child = parent != null ? parent.transform.Find(childName) : null;
+            if (child == null)
+            {
+                return null;
+            }
+
+            Text text = child.GetComponent<Text>();
+            return text != null ? text.text : null;
+        }
+
+        static bool HasMaterialCount(string cardName)
+        {
+            int parsed;
+            return int.TryParse(ChildTextOf(Find(cardName), "Count"), out parsed);
+        }
+
+        /// <summary>
+        /// What the HUD's badge is showing, or null when there is no pill at all — which is what
+        /// zero looks like, because a badge reading 0 is a notice that nothing happened.
+        ///
+        /// Read through the badge itself rather than by name: every material card carries a child
+        /// called "Count" too, so a name lookup taken while the sheet is open would answer with a
+        /// stone count and call it a badge.
+        /// </summary>
+        static string BackpackBadgeCount()
+        {
+            GameObject badge = Find("BackpackBadge");
+            if (badge == null)
+            {
+                return null;
+            }
+
+            Text text = badge.GetComponentInChildren<Text>(true);
+            return text != null ? text.text : null;
+        }
+
+        /// <summary>
+        /// Shuts the sheet, and makes sure it is shut even when its button could not be reached.
+        ///
+        /// The fallback is not politeness. Dusk waits on <c>ModalRoot.IsOpen</c> and none of the
+        /// buttons the day loop knows how to clear exists here, so a backpack left open would not
+        /// fail in this method at all — it would hold the night open two steps later and time out
+        /// thirty seconds and one whole day away from the cause. Closing it from code is not
+        /// something a player can do, so it is reported as the failure it is rather than quietly
+        /// standing in for the button.
+        /// </summary>
+        IEnumerator CloseBackpack()
+        {
+            yield return Tap("CloseButton", "closing the backpack");
+            yield return WaitUntil(() => !BackpackPanel.IsOpen, "the backpack to close");
+
+            if (BackpackPanel.IsOpen || ModalRoot.IsOpen)
+            {
+                Record("the backpack closes from its own button", false,
+                    "it had to be closed from code — the sheet was still up on "
+                    + (ModalRoot.IsOpen ? (ModalRoot.TopId ?? "unnamed") : "nothing")
+                    + ", and an open modal holds the night open");
+                ModalRoot.CloseId(BackpackPanel.ModalId);
+                yield return null;
+                yield break;
+            }
+
+            Record("the backpack closes from its own button", true, "the sheet is down and the village is back");
         }
 
         /// <summary>

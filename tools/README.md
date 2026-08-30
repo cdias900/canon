@@ -14,7 +14,7 @@ tools/list-curation.mjs      authored canonical speech awaiting a human read, ev
 
 tools/unity-check.sh         headless compile
 tools/acceptance.sh          the product rules, asserted once per locale
-tools/e2e.sh                 build a player and play the opening and a day in every locale, with shots
+tools/e2e.sh                 build a player and play all three days in every locale, with shots
 tools/ios-sim.sh             build, install, run and drive an iOS simulator - the only way we
                              touch a phone; `setup` once, then tap/press/swipe/text/key/shot
 ```
@@ -30,8 +30,8 @@ The literal text is resolved at runtime from the generated `verses.json`, which 
 here and by nothing else. That makes a hallucinated or hand-typed verse impossible by
 construction rather than by good intentions.
 
-`Assets/Resources/Data/verses.json` is **generated**. Never edit it by hand. Run the fetch,
-commit the output.
+`Assets/Resources/Data/locales/<locale>/verses.json` is **generated** — one per language. Never edit
+it by hand. Run the fetch, commit the output.
 
 ## Source of text
 
@@ -94,9 +94,9 @@ structural padding, never shipped text, and a real fetch replaces those entries 
 
 ```
 export YOUVERSION_API_KEY=...        # app key from https://platform.youversion.com
-node tools/fetch-verses.mjs --provider youversion
+node tools/fetch-verses.mjs                  # every locale; --locale en for just one
 node tools/validate-content.mjs
-git add Assets/Resources/Data/verses.json
+git add Assets/Resources/Data/locales/*/verses.json
 ```
 
 Run it once and commit the output. Runtime never calls the network; the file is baked into

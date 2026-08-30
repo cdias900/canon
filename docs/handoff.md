@@ -63,7 +63,7 @@ break by accident:
 
   **What day 3 still has to prove on a phone:** the trial, A Página landing at turn 2 and unlocking
   *Metade e metade*, the gate closing with the player's name, the "Saber mais" that opens `NEH.4`
-  in the reader — this is the `deep_read` path and the reason the POC exists — and the vocation
+  in the reader — this is the `deep_read` path and the reason this build exists — and the vocation
   reveal. Day 3 also never ends on the daylight clock: `Day3Director` holds the evening open for
   the whole day, so a split that appears there is a bug.
 

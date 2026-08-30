@@ -125,7 +125,7 @@ loop rather than this project's day/night turn structure. Where the two conflict
 `MVP-SCOPE.md` describes the game and this describes how it looks.
 
 **Camera:** the document specifies first-person cinematic. This project is and stays a 2D top-down
-tilemap. The camera direction applies to key art and to a future production, not to the POC.
+tilemap. The camera direction applies to key art and to a future production, not to this build.
 
 ## Text integrity, when lifting copy from the design document
 

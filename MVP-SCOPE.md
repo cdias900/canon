@@ -385,7 +385,10 @@ accessory. Six synthesised sounds, no audio assets.
 
 ## 13 · Acceptance criteria
 
-Asserted by `tools/acceptance.sh`, once per locale, unless noted.
+`tools/acceptance.sh` asserts 04-11 and 13, once per locale. **It cannot prove a scene works** — it
+constructs systems directly and never calls `Compose()` — so 01, 02, 03, 12 and 14 are verified by
+playing a build and reading the screenshots. 14 is confirmed: the chapter reader's colophon renders
+the version abbreviation and its copyright notice (`ChapterReaderUI.BuildColophon`).
 
 | # | Check |
 |---|---|

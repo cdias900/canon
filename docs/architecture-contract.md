@@ -35,7 +35,13 @@ construction is verifiable by the compiler.
 - UI is **uGUI built programmatically** (`Canvas` + `RectTransform` created in code).
   Do NOT use UI Toolkit, UXML, or `.asset` UI files.
 - The tilemap is built at runtime via `Tilemap.SetTile` using `ScriptableObject.CreateInstance<Tile>()`.
-- All sprites come from `SheepGate.Art.ArtLibrary` (procedural `Texture2D`). No PNG assets.
+- All sprites come from `SheepGate.Art.ArtLibrary`. Most are procedural `Texture2D`; a key may
+  instead be backed by a drawn tile read out of one CC0 spritesheet, which ships as a `.bytes`
+  file and is decoded at runtime. **This line is a change to a frozen document and needs
+  ratifying.** The ban existed because hand-authored image assets bring import settings, `.meta`
+  files and stored slicing that no agent can review; decoding one sheet in code keeps all of that
+  inside compiler-checked source, which is the property the rule was protecting. See §11 of
+  `POC-IMPLEMENTATION.md`, which asked for a CC0 tileset from the start.
 - Never write a `[SerializeField]` that must be wired in the inspector. Resolve dependencies
   through `ServiceLocator` or `FindFirstObjectByType`.
 

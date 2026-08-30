@@ -10,20 +10,25 @@ using UnityEngine.UI;
 namespace SheepGate.UI
 {
     /// <summary>
-    /// The permanent overlay: what the player has to spend, how far the wall has come, what day it
-    /// is, and the four buttons that change the frame — the wide patrol camera ("Ronda" on the
-    /// button), the map, the backpack, and settings.
+    /// The permanent overlay, which is now one control: a menu button. Everything else — the
+    /// readouts, the wall's progress, and the four buttons that change the frame (the wide patrol
+    /// camera, the map, the backpack, settings) — lives in the drawer it opens.
     ///
-    /// Deliberately small. This is a portrait phone screen where the ground itself is the primary
-    /// control, so the readouts sit in a single glass card at the top and the two bottom corners
-    /// hold one square control each. The middle of the screen — where taps move the character —
-    /// stays empty.
+    /// <b>What this costs, stated plainly.</b> Work capacity is the number that falls with every
+    /// action and decides the next one, and it is now a tap away instead of on screen. That is a
+    /// real loss and it was the point of the change: the screen this game most wants you looking at
+    /// is the ground, and Sistema Vale names "HUD tampando a cena" as the way this project fails.
+    /// If the drawer turns out to be opened constantly to check the same number, the answer is to
+    /// bring that one readout back out — not to undo the drawer.
     ///
-    /// The two bottom corners are the reachable ones on a phone held in one hand, which is why the
-    /// map and the backpack sit there and settings does not: settings is a thing you visit once,
-    /// and a control in the thumb zone is a control you press by accident. The two are the whole
-    /// width apart, which is far past the 8 points of clearance the design system asks for between
-    /// touch targets.
+    /// The drawer is not a modal. It takes no input lock and pushes nothing onto
+    /// <see cref="ModalRoot"/>, for a concrete reason: every control inside it refuses to run while
+    /// a modal is up or the input lock is held, so a drawer that took either would be a menu whose
+    /// own buttons did nothing. What stops a tap reaching the village is an invisible full-screen
+    /// scrim behind the card, which is also what closes the drawer when you tap away from it.
+    ///
+    /// A control chosen closes the drawer <b>before</b> it acts, so those same gates see the frame
+    /// they are actually being asked about.
     ///
     /// <b>The design system's stated UX risk is this screen.</b> "HUD tampando a cena" is what
     /// Sistema Vale names as the way this project fails, and its priority order is scene, then
@@ -131,6 +136,9 @@ namespace SheepGate.UI
         ProgressBar _wallProgress;
         Button _patrolButton;
         Image _patrolPlate;
+        Button _menuButton;
+        Button _helpButton;
+        RectTransform _drawer;
         Button _mapButton;
         Button _settingsButton;
         Button _backpackButton;
@@ -242,11 +250,12 @@ namespace SheepGate.UI
             RectTransform root = UIKit.SafeArea(_canvas);
             ApplyBaseOpacity(root);
 
-            RectTransform column = BuildTopColumn(root);
-            BuildReadoutCard(column);
-            BuildFrameControls(column);
+            BuildDrawer(root);
 
-            // The opening shows the region once and then leaves; this is the way back to it.
+            // The two the player reaches for while playing stay out on the screen, in the corners a
+            // thumb reaches on a phone held in one hand. Only what is read rather than used — the
+            // readouts — and what is visited rather than played — settings, the patrol frame — went
+            // into the drawer.
             //
             // SafeAreaBottom is added on top of the safe-area inset rather than instead of it: the
             // inset clears the home indicator, and the design system asks for breathing room above
@@ -258,33 +267,26 @@ namespace SheepGate.UI
                                new Vector2(DesignTokens.Space.Gutter, DesignTokens.Space.SafeAreaBottom));
 
             BuildBackpack(root);
+            BuildHelpButton(root);
+
+            // Built last so it draws over the drawer it opens: the button stays put and stays
+            // pressable while the drawer is down, which is what makes it a toggle rather than a
+            // control that vanishes under what it opened.
+            BuildMenuButton(root);
         }
 
         /// <summary>
         /// The backpack, in the other reachable corner.
         ///
-        /// The bottom right used to hold a button that ended the day. Nothing replaced it for a
-        /// while — the day now ends when the work runs out, and stopping early is the mat at the
-        /// door, in the world — and this is what took the corner instead. It is the opposite kind
-        /// of control: the end-of-day button asked the player to declare something, and this one
-        /// only opens a drawer.
-        ///
         /// Square and wordless, which is the one place this HUD spends an icon. The design system
         /// keeps filled silhouettes for resources and outlines for navigation, and this is
         /// navigation: it opens a sheet, it counts nothing and it spends nothing. The icon-button
-        /// variant is also the one that will not let the control exist without an accessible name,
-        /// which matters more here than anywhere else on this screen — the other three controls say
-        /// what they are in words.
+        /// variant is also the one that will not let the control exist without an accessible name.
         ///
         /// <b>The glyph is drawn, not borrowed.</b> This button briefly stood in with the menu
         /// outline, which was wrong in a way worth recording: a hamburger says "more options", and
-        /// the one thing this control must not be confused with is settings. <c>UiArt.IconBag</c>
-        /// exists for it now — outlined rather than filled, because on this HUD a filled silhouette
-        /// is a resource with a number beside it and an outline is somewhere you can go.
-        ///
-        /// It hangs off the HUD's own canvas, so it disappears with the rest of the overlay when
-        /// <see cref="SetVisible"/> is called and there is no second visibility rule to keep in
-        /// step. That is why the opening cutscene, which hides the HUD, needs nothing here.
+        /// the one thing this control must not be confused with is settings. That distinction earns
+        /// its keep now that the hamburger is on the same screen.
         /// </summary>
         void BuildBackpack(RectTransform root)
         {
@@ -298,6 +300,124 @@ namespace SheepGate.UI
                                new Vector2(DesignTokens.Space.Gutter, DesignTokens.Space.SafeAreaBottom));
 
             BuildBackpackBadge(plateRect);
+        }
+
+        /// <summary>
+        /// Help, in the top left — the corner the readouts used to start in, and the one place left
+        /// where a control is neither in the thumb zone nor under the menu button.
+        ///
+        /// It is a modal rather than a drawer because it is read rather than operated: it is the one
+        /// thing on this HUD the player stops to take in, and the darkened world behind a modal is
+        /// what says so.
+        /// </summary>
+        void BuildHelpButton(RectTransform root)
+        {
+            Image plate;
+            _helpButton = BuildPlatedIconButton(root, "HelpButton", UiSpriteKeys.IconHelp,
+                                                Loc.T("hud.help"), OnHelpClicked, out plate);
+
+            UIKit.AnchorCorner((RectTransform)plate.transform, new Vector2(0f, 1f),
+                               new Vector2(PlateHeight, PlateHeight),
+                               new Vector2(DesignTokens.Space.Gutter, TopMargin));
+        }
+
+        void OnHelpClicked()
+        {
+            CloseMenu();
+            HelpPanel.Show();
+        }
+
+        /// <summary>
+        /// The drawer: an invisible scrim that catches taps, and the column of everything this HUD
+        /// used to show all the time.
+        ///
+        /// The scrim is transparent rather than dimmed. A modal is a card over a darkened world and
+        /// this is not one — it is a drawer on the same overlay, at the same opacity as the rest of
+        /// it, and darkening the village to show a readout would be the HUD covering the scene by
+        /// another route. It still takes every tap that misses the card, which is the whole reason
+        /// an invisible graphic is here at all: without a raycast target under the finger there is
+        /// nothing to close the drawer with, and the tap would land in the village instead.
+        /// </summary>
+        void BuildDrawer(RectTransform root)
+        {
+            _drawer = UIKit.CreateRect("HudMenu", root);
+            UIKit.Stretch(_drawer, 0f, 0f, 0f, 0f);
+
+            RectTransform scrim = UIKit.CreateRect("MenuScrim", _drawer);
+            UIKit.Stretch(scrim, 0f, 0f, 0f, 0f);
+
+            Image scrimImage = scrim.gameObject.AddComponent<Image>();
+            scrimImage.color = new Color(0f, 0f, 0f, 0f);
+            scrimImage.raycastTarget = true;
+
+            Button scrimButton = scrim.gameObject.AddComponent<Button>();
+            scrimButton.transition = Selectable.Transition.None;
+            scrimButton.targetGraphic = scrimImage;
+            scrimButton.onClick.AddListener(CloseMenu);
+
+            // Below the menu button rather than under the top of the screen: the button stays where
+            // it is when the drawer opens, and a card sliding out from underneath it would cover
+            // the only way to close it again.
+            RectTransform column = BuildTopColumn(_drawer, TopMargin + PlateHeight + ColumnSpacing);
+            BuildReadoutCard(column);
+            BuildFrameControls(column);
+
+            _drawer.gameObject.SetActive(false);
+        }
+
+        /// <summary>
+        /// The one thing left on screen. Square, wordless and in the top right — out of the thumb
+        /// zone, because a control you press by accident is worse here than anywhere: it is now the
+        /// only door to everything else.
+        ///
+        /// </summary>
+        void BuildMenuButton(RectTransform root)
+        {
+            Image plate;
+            _menuButton = BuildPlatedIconButton(root, "MenuButton", UiSpriteKeys.IconMenu,
+                                                Loc.T("hud.menu"), ToggleMenu, out plate);
+
+            var plateRect = (RectTransform)plate.transform;
+            UIKit.AnchorCorner(plateRect, new Vector2(1f, 1f),
+                               new Vector2(PlateHeight, PlateHeight),
+                               new Vector2(DesignTokens.Space.Gutter, TopMargin));
+        }
+
+        /// <summary>True while the drawer is down. Read by the e2e run, which has to open it.</summary>
+        public bool IsMenuOpen
+        {
+            get { return _drawer != null && _drawer.gameObject.activeSelf; }
+        }
+
+        public void ToggleMenu()
+        {
+            if (IsMenuOpen)
+            {
+                CloseMenu();
+            }
+            else
+            {
+                OpenMenu();
+            }
+        }
+
+        public void OpenMenu()
+        {
+            if (_drawer == null || IsMenuOpen)
+            {
+                return;
+            }
+
+            _drawer.gameObject.SetActive(true);
+            Refresh();
+        }
+
+        public void CloseMenu()
+        {
+            if (_drawer != null)
+            {
+                _drawer.gameObject.SetActive(false);
+            }
         }
 
         /// <summary>
@@ -339,14 +459,14 @@ namespace SheepGate.UI
         /// upward, and a second fitter inside the column would fight the group above it for the
         /// same rect.
         /// </summary>
-        static RectTransform BuildTopColumn(RectTransform root)
+        static RectTransform BuildTopColumn(RectTransform root, float topOffset)
         {
             RectTransform column = UIKit.CreateRect("TopColumn", root);
             column.anchorMin = new Vector2(0f, 1f);
             column.anchorMax = new Vector2(1f, 1f);
             column.pivot = new Vector2(0.5f, 1f);
             column.sizeDelta = new Vector2(-2f * DesignTokens.Space.Gutter, 0f);
-            column.anchoredPosition = new Vector2(0f, -TopMargin);
+            column.anchoredPosition = new Vector2(0f, -topOffset);
 
             UIKit.VerticalGroup(column.gameObject, ColumnSpacing, new RectOffset());
 
@@ -626,6 +746,13 @@ namespace SheepGate.UI
         /// </summary>
         public void SetVisible(bool visible)
         {
+            // A drawer left open through a cutscene would be the first thing on screen when the
+            // overlay comes back, over a beat that had nothing to do with it.
+            if (!visible)
+            {
+                CloseMenu();
+            }
+
             if (_canvas != null)
             {
                 _canvas.enabled = visible;
@@ -720,11 +847,17 @@ namespace SheepGate.UI
 
         void OnSettingsClicked()
         {
+            CloseMenu();
             SettingsPanel.Show();
         }
 
         void OnPatrolClicked()
         {
+            // Closed first, and not only for tidiness: the patrol view is a change of frame, and
+            // watching it from behind the drawer that asked for it would be the drawer covering the
+            // one thing it was opened to show.
+            CloseMenu();
+
             // A modal covers the HUD, so this should be unreachable while one is up. Cheap to be
             // sure, and it matches what the end-of-day button already does.
             if (ModalRoot.IsOpen)
@@ -875,6 +1008,8 @@ namespace SheepGate.UI
         /// </summary>
         void OnMapClicked()
         {
+            CloseMenu();
+
             if (ModalRoot.IsOpen)
             {
                 return;
@@ -911,6 +1046,8 @@ namespace SheepGate.UI
         /// </summary>
         void OnBackpackClicked()
         {
+            CloseMenu();
+
             if (!CanOpenBackpack())
             {
                 return;

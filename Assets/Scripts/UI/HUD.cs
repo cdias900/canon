@@ -1,7 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using SheepGate.Core;
 using SheepGate.Dialogue;
+using SheepGate.Economy;
 using SheepGate.Player;
 using SheepGate.World;
 using UnityEngine;
@@ -133,6 +135,7 @@ namespace SheepGate.UI
         Text _dayText;
         Text _workText;
         Text _rubbleText;
+        Text _talentsText;
         ProgressBar _wallProgress;
         Button _patrolButton;
         Image _patrolPlate;
@@ -144,6 +147,9 @@ namespace SheepGate.UI
         Button _backpackButton;
         Image _backpackBadge;
         Text _backpackBadgeCount;
+        Button _checkInButton;
+        Image _checkInBadge;
+        RectTransform _checkInPlate;
         CameraRig _cameraRig;
         PlayerController _player;
 
@@ -154,6 +160,17 @@ namespace SheepGate.UI
         int _cachedWork = int.MinValue;
         int _cachedWorkMax = int.MinValue;
         int _cachedRubble = int.MinValue;
+        int _cachedTalents = int.MinValue;
+        /// <summary>
+        /// Last availability the check-in control was painted for, or null before the first paint.
+        ///
+        /// Nullable rather than a plain bool on purpose. The plate and its badge are built active,
+        /// so a plain bool defaulting to false matches "already claimed" on the very first poll and
+        /// takes the early return — leaving a claimed day's button on screen, doing nothing, for
+        /// anyone who reopens the game the same day. Null cannot equal either state, so the first
+        /// call always paints.
+        /// </summary>
+        bool? _cachedCheckInAvailable;
         int _cachedWallStages = int.MinValue;
         int _cachedWallTotal = int.MinValue;
 
@@ -267,6 +284,7 @@ namespace SheepGate.UI
                                new Vector2(DesignTokens.Space.Gutter, DesignTokens.Space.SafeAreaBottom));
 
             BuildBackpack(root);
+            BuildCheckInButton(root);
             BuildHelpButton(root);
 
             // Built last so it draws over the drawer it opens: the button stays put and stays
@@ -421,6 +439,51 @@ namespace SheepGate.UI
         }
 
         /// <summary>
+        /// The daily check-in: the same plated icon-button shape as <see cref="BuildBackpack"/>,
+        /// stacked directly above it in the same corner, so the two read as one toolset rather than
+        /// two unrelated controls.
+        ///
+        /// A calendar with a day ticked, not the coin it pays. The coin is the talent — it belongs
+        /// beside a number, and it still is one, in <see cref="BuildTalentsReadout"/>. Putting it on
+        /// the button too made the control look like a currency readout you could somehow press.
+        /// The calendar is outlined for the reason <see cref="SheepGate.Art.UiArt.IconBag"/> gives:
+        /// an outline is an action, a filled silhouette is a quantity.
+        ///
+        /// It keeps the gold <see cref="DesignTokens.Brand.Secondary"/> tint — the system's one
+        /// accent colour, spent here on purpose, since this button is a call to action (rule 9
+        /// allows exactly one per screen, and <see cref="BuildFrameControls"/> already documents
+        /// that this HUD spends it on nothing else).
+        ///
+        /// The whole plate is hidden once the day is claimed rather than merely losing its badge —
+        /// see <see cref="ApplyCheckInAvailability"/>.
+        /// </summary>
+        void BuildCheckInButton(RectTransform root)
+        {
+            Image plate;
+            _checkInButton = BuildPlatedIconButton(root, "CheckInButton", UiSpriteKeys.IconCalendarCheck,
+                                                   Loc.T("hud.checkin"), OnCheckInClicked, out plate);
+
+            Transform icon = _checkInButton.transform.Find("Icon");
+            if (icon != null)
+            {
+                Image glyph = icon.GetComponent<Image>();
+                if (glyph != null)
+                {
+                    glyph.color = DesignTokens.Brand.Secondary;
+                }
+            }
+
+            var plateRect = (RectTransform)plate.transform;
+            UIKit.AnchorCorner(plateRect, new Vector2(1f, 0f),
+                               new Vector2(PlateHeight, PlateHeight),
+                               new Vector2(DesignTokens.Space.Gutter,
+                                          DesignTokens.Space.SafeAreaBottom + PlateHeight + ColumnSpacing));
+
+            _checkInPlate = plateRect;
+            BuildCheckInBadge(plateRect);
+        }
+
+        /// <summary>
         /// Drops the whole overlay to <see cref="BaseOpacity"/> in one place. Added to the safe-area
         /// rect rather than to the canvas so a component that looks the canvas up — the cutscene
         /// toggling <see cref="Canvas.enabled"/>, the e2e run reading it — sees exactly what it saw
@@ -514,6 +577,7 @@ namespace SheepGate.UI
             _dayText = BuildReadout(readouts, "Day", TextAnchor.MiddleLeft, DesignTokens.Ink.Secondary);
             _workText = BuildReadout(readouts, "Work", TextAnchor.MiddleCenter, UIKit.InkFor(UIKit.CardStyle.Glass));
             _rubbleText = BuildReadout(readouts, "Rubble", TextAnchor.MiddleRight, UIKit.InkFor(UIKit.CardStyle.Glass));
+            _talentsText = BuildTalentsReadout(readouts);
 
             // Label, bar and fraction, which is the only shape the design system allows progress to
             // take. The wall is the one number in this game that means anything on its own, and it
@@ -545,6 +609,34 @@ namespace SheepGate.UI
             // than its own text; the flexible share only decides who gets the slack left over.
             LayoutElement layout = UIKit.Layout(text);
             layout.flexibleWidth = 1f;
+            return text;
+        }
+
+        /// <summary>
+        /// The talents balance: a coin and a bare number, at the right end of the row — the corner
+        /// of the screen closest to top-right this card's layout allows. Unlike the other three
+        /// readouts, it carries no word: the coin is the label here, on purpose, the same way a
+        /// coin counter in any game needs no caption to be legible.
+        /// </summary>
+        static Text BuildTalentsReadout(RectTransform parent)
+        {
+            RectTransform cell = UIKit.CreateRect("Talents", parent);
+            UIKit.HorizontalGroup(cell.gameObject, DesignTokens.Space.S4, new RectOffset(),
+                                  TextAnchor.MiddleRight);
+
+            LayoutElement cellLayout = UIKit.Layout(cell);
+            cellLayout.flexibleWidth = 1f;
+
+            UIKit.CreateIcon(cell, "Icon", UiSpriteKeys.IconCoin, DesignTokens.Brand.Secondary,
+                             DesignTokens.Space.S16);
+
+            Text text = UIKit.CreateText(cell, "Count", string.Empty, DesignTokens.Type.Mono,
+                                         UIKit.InkFor(UIKit.CardStyle.Glass), TextAnchor.MiddleRight,
+                                         DesignTokens.TypeRole.Mono);
+            text.horizontalOverflow = HorizontalWrapMode.Overflow;
+
+            LayoutElement textLayout = UIKit.Layout(text);
+            textLayout.flexibleWidth = 0f;
             return text;
         }
 
@@ -710,6 +802,29 @@ namespace SheepGate.UI
             badge.gameObject.SetActive(false);
         }
 
+        /// <summary>
+        /// The same badge shape as <see cref="BuildBackpackBadge"/>, but carrying no digits: today's
+        /// check-in has exactly one state worth flagging — available or already claimed — and a
+        /// count here would answer a question nobody asked ("available how many times?" is not a
+        /// thing this control can ever be).
+        /// </summary>
+        void BuildCheckInBadge(RectTransform plate)
+        {
+            Image badge = UIKit.CreatePanel(plate, "CheckInBadge", DesignTokens.Brand.Secondary,
+                                            UiSpriteKeys.FrameSm);
+            badge.raycastTarget = false;
+
+            var badgeRect = (RectTransform)badge.transform;
+            badgeRect.anchorMin = new Vector2(1f, 1f);
+            badgeRect.anchorMax = new Vector2(1f, 1f);
+            badgeRect.pivot = new Vector2(1f, 1f);
+            badgeRect.sizeDelta = new Vector2(BadgeHeight, BadgeHeight);
+            badgeRect.anchoredPosition = new Vector2(BadgeOverhang, BadgeOverhang);
+
+            _checkInBadge = badge;
+            badge.gameObject.SetActive(false);
+        }
+
         // ------------------------------------------------------------------ readouts
 
         void Update()
@@ -722,6 +837,11 @@ namespace SheepGate.UI
 
             PollBackpackBadge(state);
 
+            // Unthrottled, unlike the backpack badge above: this only compares a stored date
+            // string against today, cheap enough to check every frame, and there is no separate
+            // timer field to fight the shared _nextBadgePoll for (see PollBackpackBadge).
+            ApplyCheckInAvailability(state);
+
             int wallStages;
             int wallTotal;
             WallStages(state, out wallStages, out wallTotal);
@@ -730,6 +850,7 @@ namespace SheepGate.UI
                 state.workCapacity == _cachedWork &&
                 state.workCapacityMax == _cachedWorkMax &&
                 state.rubble == _cachedRubble &&
+                state.talents == _cachedTalents &&
                 wallStages == _cachedWallStages &&
                 wallTotal == _cachedWallTotal)
             {
@@ -771,6 +892,7 @@ namespace SheepGate.UI
             {
                 Apply(state);
                 ApplyBackpackBadge(state);
+                ApplyCheckInAvailability(state);
             }
         }
 
@@ -794,6 +916,13 @@ namespace SheepGate.UI
             if (_rubbleText != null)
             {
                 _rubbleText.text = Loc.T("hud.rubble", Mathf.Max(0, state.rubble));
+            }
+
+            _cachedTalents = state.talents;
+
+            if (_talentsText != null)
+            {
+                _talentsText.text = Loc.T("hud.talents", Mathf.Max(0, state.talents));
             }
 
             int wallStages;
@@ -1066,6 +1195,82 @@ namespace SheepGate.UI
 
             DialogueSystem dialogue = FindFirstObjectByType<DialogueSystem>();
             return dialogue == null || !dialogue.IsPlaying;
+        }
+
+        /// <summary>
+        /// Claims today's check-in and hands the outcome to <see cref="CheckInRewardModal"/>. The
+        /// same gating as <see cref="OnBackpackClicked"/>, plus <see cref="DailyCheckIn.IsAvailable"/>
+        /// — a tap that lands after the badge has already gone (a poll interval behind the real
+        /// state) is a silent no-op rather than a double claim, since <see cref="DailyCheckIn.Apply"/>
+        /// itself refuses to pay twice for the same day regardless.
+        /// </summary>
+        void OnCheckInClicked()
+        {
+            if (!CanOpenBackpack())
+            {
+                return;
+            }
+
+            GameState state = TryGetState();
+            if (state == null || !DailyCheckIn.IsAvailable(state, DateTime.Now))
+            {
+                return;
+            }
+
+            DailyCheckIn.Result result = DailyCheckIn.Apply(state, DateTime.Now);
+            if (!result.Awarded)
+            {
+                return;
+            }
+
+            SaveSystem.Save(state);
+
+            // Immediately, not at the next poll: the button has just done the only thing it does,
+            // so it goes before the reward modal opens over it rather than reappearing to be
+            // discovered inert once the modal is dismissed.
+            ApplyCheckInAvailability(state);
+
+            Telemetry.Track(TelemetryEvents.CheckIn, new Dictionary<string, object>
+            {
+                { "streak", result.Streak },
+                { "talents_awarded", result.TalentsAwarded }
+            });
+            Telemetry.Flush();
+
+            int tomorrowTalents = DailyCheckIn.TalentsForStreak(result.Streak + 1);
+            CheckInRewardModal.Show(result, state.talents, tomorrowTalents);
+        }
+
+        /// <summary>
+        /// Shows or hides the whole check-in control for the day.
+        ///
+        /// The entire plate goes, not just its badge. A button that stays on screen after it has
+        /// been claimed is a control that does nothing when pressed, and this HUD was cut down to
+        /// four controls precisely so that everything on it is worth pressing. Nothing reflows when
+        /// it leaves: the backpack under it anchors to the safe area on its own.
+        ///
+        /// The badge is a child of the plate, so it goes along and needs no separate handling —
+        /// it is still toggled for the day the button comes back.
+        /// </summary>
+        void ApplyCheckInAvailability(GameState state)
+        {
+            bool available = DailyCheckIn.IsAvailable(state, DateTime.Now);
+            if (_cachedCheckInAvailable.HasValue && available == _cachedCheckInAvailable.Value)
+            {
+                return;
+            }
+
+            _cachedCheckInAvailable = available;
+
+            if (_checkInPlate != null)
+            {
+                _checkInPlate.gameObject.SetActive(available);
+            }
+
+            if (_checkInBadge != null)
+            {
+                _checkInBadge.gameObject.SetActive(available);
+            }
         }
 
         /// <summary>

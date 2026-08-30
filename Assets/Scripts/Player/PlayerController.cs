@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using Pointer = UnityEngine.InputSystem.Pointer;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using SheepGate.Core;

@@ -516,6 +516,36 @@ namespace SheepGate.Art
         }
 
         /// <summary>
+        /// The daily check-in: a calendar page with a day already ticked.
+        ///
+        /// Outlined, not filled, by the same rule <see cref="IconBag"/> states: a filled silhouette
+        /// is a resource you hold a quantity of, an outline is something you do or somewhere you
+        /// go. Claiming a day is an action, so it is hollow — and that is exactly what separates it
+        /// from <see cref="IconCoin"/>, which is the talent it pays out. The two sit within a few
+        /// points of each other in the HUD, so the distinction has to carry at a glance.
+        ///
+        /// Shares <see cref="IconBag"/>'s body geometry — a rounded rect on the same grid — and
+        /// <see cref="IconCheck"/>'s two capsules for the tick, scaled to sit inside the page
+        /// rather than redrawn at a different angle. A check invented separately here would read as
+        /// a slightly wrong version of the one the rest of the interface already uses.
+        ///
+        /// The tick is drawn at a lighter stroke than the frame around it. At full
+        /// <see cref="IconStroke"/> the two capsules crowd the body's inner corners and the whole
+        /// glyph fills in at display size.
+        /// </summary>
+        public static PixelCanvas IconCalendarCheck()
+        {
+            PixelCanvas canvas = new PixelCanvas(IconGrid, IconGrid);
+            canvas.StrokeRoundedRectAA(12f, 22f, 48f, 40f, 6f, IconStroke, Tintable);
+            canvas.CapsuleAA(12f, 34f, 60f, 34f, IconStroke, Tintable);
+            canvas.CapsuleAA(25f, 14f, 25f, 26f, IconStroke, Tintable);
+            canvas.CapsuleAA(47f, 14f, 47f, 26f, IconStroke, Tintable);
+            canvas.CapsuleAA(24f, 47f, 32f, 55f, 5f, Tintable);
+            canvas.CapsuleAA(32f, 55f, 50f, 41f, 5f, Tintable);
+            return Done(canvas);
+        }
+
+        /// <summary>
         /// Help: what to do next.
         ///
         /// A question mark rather than an "i", because the two say different things and this button
@@ -534,6 +564,25 @@ namespace SheepGate.Art
             canvas.StrokeArcAA(36f, 26f, 12f, IconStroke, 0f, 230f, Tintable);
             canvas.CapsuleAA(36f, 30f, 36f, 45f, IconStroke, Tintable);
             canvas.FillCircleAA(36f, 56f, 4.5f, Tintable);
+            return Done(canvas);
+        }
+
+        /// <summary>
+        /// Talents: a resource, so filled rather than outlined, same rule as <see cref="IconBag"/>
+        /// states in reverse. A plain filled disc, deliberately — a ring rim with a raised centre
+        /// was tried first and read as a target at icon size, because the gap between rim and
+        /// centre disappears into noise below about 24 points, which is the size this icon is
+        /// actually used at. So this shares <see cref="IconDot"/>'s exact construction.
+        ///
+        /// That the two are now the same silhouette is accepted rather than worked around: they
+        /// are told apart by size, tint and context — a gold coin beside a currency count against
+        /// a small neutral mark on an unselected quiz answer — and inventing a second shape to
+        /// keep them distinct would have cost legibility at the only size that matters.
+        /// </summary>
+        public static PixelCanvas IconCoin()
+        {
+            PixelCanvas canvas = new PixelCanvas(IconGrid, IconGrid);
+            canvas.FillCircleAA(36f, 36f, 22f, Tintable);
             return Done(canvas);
         }
 

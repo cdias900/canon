@@ -218,6 +218,23 @@ namespace SheepGate.Core
         public int watchAssigned;                             // people posted to watch last night
         public int workAssigned;
 
+        // ---------------------------------------------------------------------- daily check-in
+        //
+        // A calendar-day reward, independent of `day` (the in-fiction day, 1..3). lastCheckInDate is
+        // the device's local date in "yyyy-MM-dd" — see DailyCheckIn for the read/write logic. All
+        // three fields are purely additive: a save written before this feature existed carries none
+        // of them and loads them at their zero value, so no schemaVersion bump is needed (the same
+        // reasoning as equippedItems/seenItems above).
+
+        /// <summary>Local date of the last awarded check-in, "yyyy-MM-dd", or empty before the first one.</summary>
+        public string lastCheckInDate = "";
+
+        /// <summary>Consecutive calendar days checked in. Resets to 1 (not 0) on any gap greater than one day.</summary>
+        public int checkInStreak;
+
+        /// <summary>Cosmetic-only currency awarded by the daily check-in. Never spent by anything in this build.</summary>
+        public int talents;
+
         public bool HasFlag(string flag)
         {
             if (string.IsNullOrEmpty(flag) || flags == null)

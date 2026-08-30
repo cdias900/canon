@@ -210,6 +210,8 @@ namespace SheepGate.Art
                 case ArtKeys.IconLock: return Icon(key, UiArt.IconLock());
                 case ArtKeys.IconBag: return Icon(key, UiArt.IconBag());
                 case ArtKeys.IconHelp: return Icon(key, UiArt.IconHelp());
+                case ArtKeys.IconCoin: return Icon(key, UiArt.IconCoin());
+                case ArtKeys.IconCalendarCheck: return Icon(key, UiArt.IconCalendarCheck());
             }
 
             // tile_ground_1 .. tile_ground_5. The seed comes from the key, so each variant is a

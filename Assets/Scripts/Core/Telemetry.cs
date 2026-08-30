@@ -188,5 +188,6 @@ namespace SheepGate.Core
 
         /// <summary>Raised when the player changes language mid-run, never on boot.</summary>
         public const string LocaleChanged = "locale_changed";
+        public const string CheckIn = "check_in";
     }
 }

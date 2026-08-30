@@ -322,6 +322,54 @@ namespace SheepGate.Scripture
             };
         }
 
+        /// <summary>
+        /// A chapter reference in the words a player reads — "Neemias 3", never the id "NEH.3".
+        ///
+        /// Ids are ours, not theirs: a screen that prints NEH.3 is showing the player a database
+        /// key. Three fallbacks, in order of how much they can be trusted: the chapter's own
+        /// ref_display when the chapter is packaged; otherwise any packaged verse of that chapter
+        /// with its verse number trimmed off; otherwise the id, because a visible id is at least
+        /// something somebody will notice and fix.
+        ///
+        /// The trim is by the last ':' in the display, which holds for both languages this ships
+        /// in. A translation that separates chapter and verse some other way needs its own case
+        /// here rather than a silently wrong answer.
+        /// </summary>
+        public static string ChapterDisplay(string chapterRef)
+        {
+            string key = Normalize(chapterRef);
+            if (key.Length == 0)
+            {
+                return UnknownReference;
+            }
+
+            ChapterEntry chapter;
+            if (TryGetChapter(key, out chapter) && chapter != null && !string.IsNullOrEmpty(chapter.ref_display))
+            {
+                return chapter.ref_display;
+            }
+
+            string prefix = key + ".";
+            foreach (KeyValuePair<string, VerseEntry> pair in VerseIndex)
+            {
+                if (pair.Key == null || !pair.Key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                string display = pair.Value != null ? pair.Value.ref_display : null;
+                if (string.IsNullOrEmpty(display))
+                {
+                    continue;
+                }
+
+                int separator = display.LastIndexOf(':');
+                return separator > 0 ? display.Substring(0, separator) : display;
+            }
+
+            return key;
+        }
+
         /// <summary>NEH.4.6 becomes NEH.4. A reference that is already a chapter is returned as is.</summary>
         public static string ChapterRefOf(string verseRef)
         {

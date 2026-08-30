@@ -175,13 +175,42 @@ namespace SheepGate.UI
         /// slot, and <see cref="IsWardrobeTab"/> is the only thing that decides which is which —
         /// never the name of the object, and never the array index by eye.
         /// </summary>
-        static readonly CharacterSlot[] TabSlots =
+        static readonly CharacterSlot[] TabSlots = BuildTabSlots();
+
+        /// <summary>
+        /// The slot behind each tab, taken from <see cref="Wardrobe.BadgedSlots"/> rather than
+        /// spelled again here. The three wardrobe tabs ARE the badged slots, in their order, and
+        /// writing them out twice is how the HUD pill and the tab dots would come to disagree
+        /// without anyone editing either on purpose.
+        ///
+        /// The Materiais tab has no wardrobe slot, so it parks on <see cref="CharacterSlot.Base"/>
+        /// — the one slot the catalogue never draws — and every wardrobe-only path tests the tab
+        /// index rather than reading this. If the badged set ever grows past the tabs that can show
+        /// it, that is the stuck-pill bug in <see cref="Wardrobe.NewCount"/>'s comment arriving for
+        /// real, so it is reported rather than silently truncated.
+        /// </summary>
+        static CharacterSlot[] BuildTabSlots()
         {
-            CharacterSlot.Hair,
-            CharacterSlot.Outfit,
-            CharacterSlot.Accessory,
-            CharacterSlot.Base
-        };
+            IReadOnlyList<CharacterSlot> badged = Wardrobe.BadgedSlots;
+            var slots = new CharacterSlot[TabCount];
+
+            int wardrobeTabs = TabCount - 1;
+            if (badged.Count != wardrobeTabs)
+            {
+                Debug.LogError("[BackpackPanel] Wardrobe.BadgedSlots has " + badged.Count +
+                               " slot(s) but the sheet has " + wardrobeTabs + " wardrobe tab(s). A " +
+                               "badged slot with no tab counts toward the HUD pill and can never be " +
+                               "spent, so the player would carry a badge they cannot clear.");
+            }
+
+            for (int i = 0; i < wardrobeTabs; i++)
+            {
+                slots[i] = i < badged.Count ? badged[i] : CharacterSlot.Base;
+            }
+
+            slots[TabIndexMaterials] = CharacterSlot.Base;
+            return slots;
+        }
 
         // GameObject names, spelled out rather than concatenated from a suffix: these are the
         // handles tools/e2e.sh drives the sheet by, and a grep for one of them should land on the
@@ -434,9 +463,9 @@ namespace SheepGate.UI
         TabView[] _tabs;
         RectTransform _tabContent;
         GameObject _stage;
-        Text _playerName;
         Text _refusal;
         CanvasGroup _refusalGroup;
+        Coroutine _refusalFade;
         Text[] _materialCounts;
 
         /// <summary>
@@ -742,11 +771,11 @@ namespace SheepGate.UI
             // The one string on this sheet that is allowed to be cut off, and it is the one the
             // player wrote themselves. A name long enough to wrap gets its first line; everything
             // else on the sheet is measured and pinned so that it cannot reach this state.
-            _playerName = UIKit.CreateText(stageText, "PlayerName", CharacterCatalog.PlayerName(_state),
+            Text playerName = UIKit.CreateText(stageText, "PlayerName", CharacterCatalog.PlayerName(_state),
                 DesignTokens.Type.Body, DesignTokens.Ink.Primary, TextAnchor.UpperLeft,
                 DesignTokens.TypeRole.BodyStrong);
-            _playerName.verticalOverflow = VerticalWrapMode.Truncate;
-            PinTextBox(_playerName, StageTextWidth, BodyLineHeight);
+            playerName.verticalOverflow = VerticalWrapMode.Truncate;
+            PinTextBox(playerName, StageTextWidth, BodyLineHeight);
 
             BuildRefusal(stageText);
         }
@@ -1627,9 +1656,14 @@ namespace SheepGate.UI
             ShowRefusal(null);
             SettleTab(_tabs[index]);
 
-            if (wardrobe)
+            // MarkSlotSeen raises Changed, which this panel is subscribed to, and that subscription
+            // already calls Refresh. Calling it again here repainted four segments and eighteen rows
+            // a second time on every tab tap. Refresh is idempotent, so the old form was harmless
+            // rather than wrong — but only one of the two paths can be the one that repaints, and
+            // the event is the one that fires whether the change came from here or from anywhere.
+            if (wardrobe && Wardrobe.MarkSlotSeen(_state, TabSlots[index]))
             {
-                Wardrobe.MarkSlotSeen(_state, TabSlots[index]);
+                return;
             }
 
             Refresh();
@@ -1733,13 +1767,59 @@ namespace SheepGate.UI
 
             if (string.IsNullOrEmpty(sentence))
             {
+                UIMotion.Stop(_refusalFade);
+                _refusalFade = null;
                 _refusalGroup.alpha = 1f;
                 return;
             }
 
+            // Stop the previous fade before starting another. Two tweens writing one alpha is not
+            // a leak and converges on the same value, but the comment above promised a protection
+            // the code did not have, and a tab switch mid-fade is an ordinary thing to do.
+            UIMotion.Stop(_refusalFade);
             _refusalGroup.alpha = 0f;
-            UIMotion.Fade(_refusalGroup, 1f, DesignTokens.Motion.ToastIn);
+            _refusalFade = UIMotion.Fade(_refusalGroup, 1f, DesignTokens.Motion.ToastIn);
         }
+
+
+        /// <summary>
+        /// Says so, loudly and once, when a tab label is wider than the cell holding it.
+        ///
+        /// "The four labels fit" is an acceptance criterion with no other guard. It is checked here
+        /// rather than in the content validator because the only honest measurement uses the real
+        /// font, at the real size, in the locale actually loaded, against a cell width derived from
+        /// the width THIS device reports — and a script on a build machine has none of those. The
+        /// widest case is the selected cell, which draws at BodyStrong, so that is the one that has
+        /// to clear.
+        ///
+        /// The margin is genuinely thin: on an iPhone 17 Pro the cell is about 71.6 points and
+        /// "Materiais" sets at about 68.9, which is one retranslation away from failing. A label
+        /// that overflows does not throw and does not fail a hierarchy assertion — it just renders
+        /// past its cell, which is exactly the class of defect that reached a build once already.
+        /// </summary>
+        static void WarnIfLabelOverflows(Text label, bool selected)
+        {
+            if (label == null || !selected || _overflowReported)
+            {
+                return;
+            }
+
+            float needed = label.preferredWidth;
+            if (needed <= SegmentWidth)
+            {
+                return;
+            }
+
+            _overflowReported = true;
+            Debug.LogError("[BackpackPanel] The tab label \"" + label.text + "\" needs " +
+                           needed.ToString("0.0") + " units and its cell is " +
+                           SegmentWidth.ToString("0.0") + ". It will render past the cell. Shorten " +
+                           "the label in ui.json, or give the tab bar two lines — do not shrink the " +
+                           "type, which is already at Type.Body and floors at Type.Minimum.");
+        }
+
+        /// <summary>One report per session. A label that does not fit does not fit on every repaint.</summary>
+        static bool _overflowReported;
 
         // ------------------------------------------------------------------ repainting
 
@@ -1854,6 +1934,8 @@ namespace SheepGate.UI
                     tab.Label.font = font;
                     tab.Label.lineSpacing = UIKit.LineSpacingFor(font, UIKit.LeadingFor(role));
                     tab.Label.color = selected ? DesignTokens.Ink.OnPrimary : DesignTokens.Ink.Secondary;
+
+                    WarnIfLabelOverflows(tab.Label, selected);
                 }
 
                 if (tab.Dot != null)

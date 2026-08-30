@@ -115,12 +115,26 @@ namespace SheepGate.Player
         // Both badge counts are sums over exactly this array — NewCount explains why that has to be
         // one set and not two, and why CharacterSlot.Base is absent from it rather than filtered out
         // further down.
-        static readonly CharacterSlot[] BadgedSlots =
+        static readonly CharacterSlot[] BadgedSlotsInternal =
         {
             CharacterSlot.Hair,
             CharacterSlot.Outfit,
             CharacterSlot.Accessory
         };
+
+        /// <summary>
+        /// The slots that can carry a badge, in the order the backpack shows them.
+        ///
+        /// Exposed because the panel used to keep its own copy of this list, and the comment on
+        /// <see cref="NewCount"/> claimed the two were one set when they were two. They agreed, so
+        /// nothing was wrong today, and that is exactly the state a silent divergence starts from.
+        /// The panel now builds its tab order from this, so "the badge total and the tabs walk the
+        /// same set" is a fact about the program rather than a promise in a comment.
+        /// </summary>
+        public static IReadOnlyList<CharacterSlot> BadgedSlots
+        {
+            get { return BadgedSlotsInternal; }
+        }
 
         // One warning per unresolvable id per session. A worn id that is not in the catalogue is a
         // content mistake worth seeing once; repeating it on every recompose would bury the log
@@ -369,12 +383,19 @@ namespace SheepGate.Player
             RaiseChanged();
         }
 
-        /// <summary>Marks every item of one slot, as a slot's worth of badges expiring on open.</summary>
-        public static void MarkSlotSeen(GameState state, CharacterSlot slot)
+        /// <summary>
+        /// Marks every item of one slot, as a slot's worth of badges expiring on open.
+        ///
+        /// Returns whether it actually spent anything, which is the same thing as whether it raised
+        /// <see cref="Changed"/>. A caller that repaints on that event needs to know: without it,
+        /// the honest choices are to repaint twice on every call or to repaint never, and a tab tap
+        /// went through the first of those for four segments and eighteen rows.
+        /// </summary>
+        public static bool MarkSlotSeen(GameState state, CharacterSlot slot)
         {
             if (state == null)
             {
-                return;
+                return false;
             }
 
             CatalogItemDef[] items = ItemsForSlot(slot);
@@ -394,6 +415,8 @@ namespace SheepGate.Player
             {
                 RaiseChanged();
             }
+
+            return spent;
         }
 
         /// <summary>
@@ -423,9 +446,9 @@ namespace SheepGate.Player
         public static int NewCount(GameState state)
         {
             int count = 0;
-            for (int i = 0; i < BadgedSlots.Length; i++)
+            for (int i = 0; i < BadgedSlotsInternal.Length; i++)
             {
-                count += NewCountForSlot(state, BadgedSlots[i]);
+                count += NewCountForSlot(state, BadgedSlotsInternal[i]);
             }
 
             return count;
@@ -595,9 +618,9 @@ namespace SheepGate.Player
         // remembered.
         static bool IsBadgedSlot(CharacterSlot slot)
         {
-            for (int i = 0; i < BadgedSlots.Length; i++)
+            for (int i = 0; i < BadgedSlotsInternal.Length; i++)
             {
-                if (BadgedSlots[i] == slot)
+                if (BadgedSlotsInternal[i] == slot)
                 {
                     return true;
                 }

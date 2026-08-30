@@ -1544,6 +1544,20 @@ namespace SheepGate.UI
             bar.targetGraphic = handleImage;
             bar.direction = Scrollbar.Direction.BottomToTop;
 
+            // An INDICATOR, never a control. A Scrollbar is a Selectable, so left alone this joins
+            // the keyboard order and offers a drag target 8 points wide — a quarter of the 48-point
+            // minimum this project holds every other control to, with no focus ring to find it by.
+            // Rather than grow it into a thumb-sized rail nobody asked for, it stops being a target:
+            // the list is scrolled by dragging the list, which is how a phone scrolls anything, and
+            // this only reports where you are. Transition is None so switching it off does not dim
+            // the handle, and neither graphic takes a raycast, so a finger that lands on the rail
+            // still scrolls the content underneath instead of hitting a dead strip.
+            bar.interactable = false;
+            bar.transition = Selectable.Transition.None;
+            bar.navigation = new Navigation { mode = Navigation.Mode.None };
+            barImage.raycastTarget = false;
+            handleImage.raycastTarget = false;
+
             scroll.verticalScrollbar = bar;
             scroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.Permanent;
             return bar;

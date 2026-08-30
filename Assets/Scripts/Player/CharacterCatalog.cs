@@ -1329,11 +1329,14 @@ namespace SheepGate.Player
             };
         }
 
-        // Angle quotes rather than plain brackets, matching Loc: a marker on screen cannot be
-        // mistaken for authored punctuation, and it survives a grep for the key that produced it.
+        // Square brackets, not the angle quotes this used to use. The marker has to be VISIBLE to
+        // do its job, and U+27E8/U+27E9 are in none of the three bundled families, so the fallback
+        // rendered as two empty boxes around the key — a missing-glyph bug wrapped around a
+        // missing-key bug. Brackets are ASCII, every family has them, and the string still cannot
+        // be mistaken for authored punctuation and still greps back to the key that produced it.
         static string Missing(string key)
         {
-            return "⟨" + key + "⟩";
+            return "[" + key + "]";
         }
     }
 }

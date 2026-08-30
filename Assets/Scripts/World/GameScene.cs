@@ -100,6 +100,11 @@ namespace SheepGate.World
             // simply lands in the village.
             IntroCutscene.TryAttach(systemsObject, builder, Rig, Player);
 
+            // ...and when it has been seen, the people it left standing are put back. They are
+            // built by the cutscene, so every rebuild of this scene - a language switch, a
+            // relaunch - used to drop them and empty the square the opening had just filled.
+            IntroCutscene.RestoreGathering(Root, builder);
+
             // 12. Silent map-edge observation (exile vocation, never displayed).
             MapEdgeWatcher watcher = rootObject.AddComponent<MapEdgeWatcher>();
             watcher.Configure(builder, Player);
@@ -334,6 +339,13 @@ namespace SheepGate.World
             if (map != null && map.player_spawn != null)
             {
                 spawn = new Vector2Int(map.player_spawn.x, map.player_spawn.y);
+            }
+
+            // Where they were last standing wins over the map's entrance. This is what makes a
+            // language switch - which rebuilds the whole scene - leave the player where they were.
+            if (state != null && state.playerCellX >= 0 && state.playerCellY >= 0)
+            {
+                spawn = new Vector2Int(state.playerCellX, state.playerCellY);
             }
 
             spawn = builder.NearestWalkable(builder.ClampCell(spawn));

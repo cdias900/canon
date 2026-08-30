@@ -55,6 +55,7 @@ namespace SheepGate.UI
         Text _rubbleText;
         Button _patrolButton;
         Button _mapButton;
+        Button _settingsButton;
         Button _endDayButton;
         CameraRig _cameraRig;
 
@@ -159,12 +160,16 @@ namespace SheepGate.UI
 
             // Opposite the patrol button and at the same height: the upper-left is the one part of
             // this screen the HUD was already leaving empty, and it is well clear of the thumb zone.
-            RectTransform languageRow = LanguageToggle.Create(root);
-            languageRow.anchorMin = new Vector2(0f, 1f);
-            languageRow.anchorMax = new Vector2(0f, 1f);
-            languageRow.pivot = new Vector2(0f, 1f);
-            languageRow.sizeDelta = new Vector2(LanguageToggle.Width, LanguageToggle.Height);
-            languageRow.anchoredPosition = new Vector2(SideMargin, -(TopMargin + TopBarHeight + 18f));
+            // It opens settings rather than being the setting: language is chosen once, and a
+            // permanent control for it sat on top of the village every second of every day.
+            _settingsButton = UIKit.CreateButton(root, "SettingsButton", Loc.T("hud.settings"),
+                UIKit.Palette.PanelSoft, UIKit.Palette.Parchment, OnSettingsClicked);
+            var settingsRect = (RectTransform)_settingsButton.transform;
+            settingsRect.anchorMin = new Vector2(0f, 1f);
+            settingsRect.anchorMax = new Vector2(0f, 1f);
+            settingsRect.pivot = new Vector2(0f, 1f);
+            settingsRect.sizeDelta = new Vector2(238f, 104f);
+            settingsRect.anchoredPosition = new Vector2(SideMargin, -(TopMargin + TopBarHeight + 18f));
 
             _endDayButton = UIKit.CreateButton(root, "EndDay", Loc.T("hud.end_day"), UIKit.Palette.Clay, UIKit.Palette.Parchment, OnEndDayClicked);
             var endDayRect = (RectTransform)_endDayButton.transform;
@@ -262,6 +267,11 @@ namespace SheepGate.UI
         }
 
         // ------------------------------------------------------------------ patrol view
+
+        void OnSettingsClicked()
+        {
+            SettingsPanel.Show();
+        }
 
         void OnPatrolClicked()
         {

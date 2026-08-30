@@ -143,6 +143,24 @@ namespace SheepGate.World
         }
 
         /// <summary>Raises the sprite a little, for standing on something.</summary>
+        /// <summary>
+        /// Draw order for this actor. A crowd standing on flat sorting draws in spawn order, so a
+        /// person behind you can cover you; stepping this by screen row is what keeps whoever is
+        /// nearer the bottom of the screen in front. Each character owns four sorting slots, so
+        /// callers step by four.
+        /// </summary>
+        public int SortingOrderBase
+        {
+            get { return _appearance != null ? _appearance.SortingOrderBase : 0; }
+            set
+            {
+                if (_appearance != null)
+                {
+                    _appearance.SortingOrderBase = value;
+                }
+            }
+        }
+
         public void LiftBy(float worldY)
         {
             Vector3 position = transform.position;

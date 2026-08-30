@@ -124,6 +124,14 @@ namespace SheepGate.World
         /// <summary>Raised by <see cref="RequestEndDay"/> so the end-of-day panel can open.</summary>
         public event Action EndDayRequested;
 
+        /// <summary>
+        /// Raised once, the moment a day starts turning to evening. It exists for the things a day
+        /// owes the player that a morning cannot deliver: day one begins in a cutscene and never
+        /// raises <see cref="MorningStarted"/>, so anything hung on the morning simply never
+        /// happens on the first day.
+        /// </summary>
+        public event Action<int> DuskBegan;
+
         /// <summary>Raised every time <see cref="NightAmount"/> changes.</summary>
         public event Action<float> NightAmountChanged;
 
@@ -360,6 +368,24 @@ namespace SheepGate.World
             _duskPending = true;
             _duskPendingSince = Time.unscaledTime;
             Debug.Log("[World] Dusk is pending: " + cause + ".");
+
+            GameState state = WorldRuntime.State;
+            int day = state != null ? state.day : 1;
+
+            Action<int> handler = DuskBegan;
+            if (handler == null)
+            {
+                return;
+            }
+
+            try
+            {
+                handler(day);
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning("[World] A DuskBegan listener threw: " + exception.Message);
+            }
         }
 
         private void Update()

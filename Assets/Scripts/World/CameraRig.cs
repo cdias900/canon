@@ -278,7 +278,9 @@ namespace SheepGate.World
                 return position;
             }
 
-            Bounds bounds = _tilemap.WorldBounds;
+            // Content, not the whole map: the city is a circle inside a rectangle, and clamping to
+            // the rectangle let the patrol view drag off the city and frame the void.
+            Bounds bounds = _tilemap.ContentBounds;
             if (bounds.size.x <= 0.01f || bounds.size.y <= 0.01f)
             {
                 return position;

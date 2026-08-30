@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using SheepGate.Art;
 using SheepGate.Player;
+using SheepGate.Audio;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -956,7 +957,14 @@ namespace SheepGate.UI
 
             if (onClick != null)
             {
-                button.onClick.AddListener(() => onClick());
+                // Every button, in one place. The control this must NOT be attached to — the
+                // dialogue tap catcher — is not a Button at all, so advancing a line stays silent
+                // and reading keeps its quiet.
+                button.onClick.AddListener(() =>
+                {
+                    AudioDirector.Play(AudioKeys.Confirm);
+                    onClick();
+                });
             }
 
             return button;
@@ -1114,7 +1122,14 @@ namespace SheepGate.UI
 
             if (onClick != null)
             {
-                button.onClick.AddListener(() => onClick());
+                // Every button, in one place. The control this must NOT be attached to — the
+                // dialogue tap catcher — is not a Button at all, so advancing a line stays silent
+                // and reading keeps its quiet.
+                button.onClick.AddListener(() =>
+                {
+                    AudioDirector.Play(AudioKeys.Confirm);
+                    onClick();
+                });
             }
 
             return button;
@@ -1366,6 +1381,20 @@ namespace SheepGate.UI
             rootRect.localScale = Vector3.one;
 
             var viewportGo = new GameObject("Viewport", typeof(RectTransform), typeof(RectMask2D));
+
+            // The viewport needs a graphic, invisible or not, and this is not cosmetic: a drag only
+            // reaches a ScrollRect when the raycaster finds a raycast target under the finger and
+            // the event bubbles up to it. CreateText sets raycastTarget = false on every label it
+            // makes, so a scroll view whose content is nothing but text has nothing to hit — and it
+            // does not scroll on touch at all. Every other scroll view here is full of buttons,
+            // whose own Image is the target, which is why this went unseen. The one that is all
+            // text is the chapter reader, and that is the screen deep_read is measured on: the
+            // metric wants 60% of the chapter shown, and an unscrollable chapter never gets there.
+            // Fully transparent, so it changes nothing on screen.
+            var viewportImage = viewportGo.AddComponent<Image>();
+            viewportImage.color = new Color(0f, 0f, 0f, 0f);
+            viewportImage.raycastTarget = true;
+
             var viewportRect = (RectTransform)viewportGo.transform;
             viewportRect.SetParent(rootRect, false);
             viewportRect.localScale = Vector3.one;

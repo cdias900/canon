@@ -131,6 +131,20 @@ namespace SheepGate.Quiz
             _earliestShowTime = Time.unscaledTime + SettleSeconds;
         }
 
+        void OnDuskBegan(int day)
+        {
+            // Only when the night can no longer be turned down. The mat lets a player ask for the
+            // evening with work still in hand and then think better of it, and a check-in spent on
+            // an evening that gets deferred is a check-in the real end of the day never gets — on
+            // top of holding the split shut while the player is still deciding.
+            if (_dayCycle != null && _dayCycle.CanDeferDusk)
+            {
+                return;
+            }
+
+            RequestForDay(day);
+        }
+
         void OnMorningStarted(int day)
         {
             RequestForDay(day);
@@ -234,6 +248,12 @@ namespace SheepGate.Quiz
 
             _dayCycle = cycle;
             _dayCycle.MorningStarted += OnMorningStarted;
+
+            // A day that reaches its evening without having been checked in gets one now. In
+            // practice that is day one, which opens in a cutscene and has no morning at all — but
+            // it is written as a rule rather than as "if day == 1", because RequestForDay already
+            // refuses a day it has shown, so this can only fire for a check-in genuinely missed.
+            _dayCycle.DuskBegan += OnDuskBegan;
         }
 
         void UnbindDayCycle()
@@ -244,6 +264,7 @@ namespace SheepGate.Quiz
             }
 
             _dayCycle.MorningStarted -= OnMorningStarted;
+            _dayCycle.DuskBegan -= OnDuskBegan;
             _dayCycle = null;
         }
 

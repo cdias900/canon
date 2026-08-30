@@ -78,6 +78,14 @@ namespace SheepGate.World
         /// <summary>World-space rectangle covered by the map, used to clamp the camera.</summary>
         public Bounds WorldBounds { get; private set; }
 
+        /// <summary>
+        /// The part of the map that is actually drawn: the smallest box holding every cell that is
+        /// not Void. A circular city inside a rectangular map leaves wide empty margins, and a
+        /// camera clamped to <see cref="WorldBounds"/> is free to travel into them and frame
+        /// nothing but the void colour — which is what the patrol view was doing.
+        /// </summary>
+        public Bounds ContentBounds { get; private set; }
+
         /// <summary>Row the wall segments are drawn on, taken from the map when it marks one.</summary>
         public int WallRowY { get; private set; }
 
@@ -142,7 +150,43 @@ namespace SheepGate.World
             Bounds bounds = new Bounds();
             bounds.SetMinMax(new Vector3(min.x, min.y, 0f), new Vector3(max.x, max.y, 0f));
             WorldBounds = bounds;
+            ContentBounds = ComputeContentBounds(bounds);
         }
+
+        /// <summary>The box around every non-Void cell, or the whole map when there are none.</summary>
+        private Bounds ComputeContentBounds(Bounds fallback)
+        {
+            int minX = int.MaxValue, minY = int.MaxValue, maxX = int.MinValue, maxY = int.MinValue;
+
+            for (int x = 0; x < Width; x++)
+            {
+                for (int y = 0; y < Height; y++)
+                {
+                    if (_kinds[x, y] == CellKind.Void)
+                    {
+                        continue;
+                    }
+
+                    if (x < minX) minX = x;
+                    if (y < minY) minY = y;
+                    if (x > maxX) maxX = x;
+                    if (y > maxY) maxY = y;
+                }
+            }
+
+            if (minX > maxX || minY > maxY)
+            {
+                return fallback;
+            }
+
+            Vector3 low = Grid.CellToWorld(new Vector3Int(minX, minY, 0));
+            Vector3 high = Grid.CellToWorld(new Vector3Int(maxX + 1, maxY + 1, 0));
+
+            Bounds content = new Bounds();
+            content.SetMinMax(new Vector3(low.x, low.y, 0f), new Vector3(high.x, high.y, 0f));
+            return content;
+        }
+
 
         /// <summary>
         /// Index into <see cref="MapDef.rows"/> that holds cell row <paramref name="y"/>, and,

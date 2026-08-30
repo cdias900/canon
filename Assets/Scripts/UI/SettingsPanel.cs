@@ -1,4 +1,5 @@
 using SheepGate.Core;
+using SheepGate.Audio;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -103,6 +104,7 @@ namespace SheepGate.UI
                 DesignTokens.TypeRole.Title);
 
             BuildLanguageField(cardRect);
+            BuildSoundField(cardRect);
 
             UIKit.CreateButton(cardRect, "Close", Loc.T("settings.close"),
                 UIKit.ButtonVariant.Primary, Close);
@@ -127,6 +129,39 @@ namespace SheepGate.UI
             // The row carries its own LayoutElement, so it arrives in a column already knowing how
             // tall a chip is; see LanguageToggle.Create.
             LanguageToggle.Create(field);
+        }
+
+        /// <summary>
+        /// The same field shape for sound. The button says what the sound IS, not what pressing it
+        /// would do: a control reading "Desligar" on a game that is already silent is the same
+        /// ambiguity that once made the language chips unreadable.
+        /// </summary>
+        static void BuildSoundField(RectTransform cardRect)
+        {
+            RectTransform field = UIKit.CreateRect("SoundField", cardRect);
+            UIKit.VerticalGroup(field.gameObject, DesignTokens.Space.S8, new RectOffset());
+
+            UIKit.CreateText(field, "SoundLabel", Loc.T("settings.sound"),
+                DesignTokens.Type.Body, DesignTokens.Ink.Secondary, TextAnchor.MiddleLeft);
+
+            Button toggle = UIKit.CreateButton(field, "SoundToggle", SoundLabel(),
+                UIKit.ButtonVariant.Secondary, null);
+
+            toggle.onClick.AddListener(() =>
+            {
+                AudioDirector.Muted = !AudioDirector.Muted;
+
+                Text label = toggle.GetComponentInChildren<Text>();
+                if (label != null)
+                {
+                    label.text = SoundLabel();
+                }
+            });
+        }
+
+        static string SoundLabel()
+        {
+            return AudioDirector.Muted ? Loc.T("settings.sound.off") : Loc.T("settings.sound.on");
         }
     }
 }

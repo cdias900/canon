@@ -171,7 +171,7 @@ namespace SheepGate.UI
 
             BuildRecord(cardRect, builderName);
 
-            UIKit.CreateText(cardRect, "ReaderCaption", Loc.T("vocation.reader_caption", ChapterRef),
+            UIKit.CreateText(cardRect, "ReaderCaption", Loc.T("vocation.reader_caption", ScriptureService.ChapterDisplay(ChapterRef)),
                 DesignTokens.Type.Mono, DesignTokens.Ink.Muted, TextAnchor.UpperLeft);
 
             BuildSecondaryRow(cardRect);
@@ -205,7 +205,7 @@ namespace SheepGate.UI
 
             // Mono, because the design system reserves it for quantities, counts and references,
             // and this is a reference. Never the verse text: only the reference ever travels.
-            UIKit.CreateText(plateRect, "Reference", RecordRef,
+            UIKit.CreateText(plateRect, "Reference", ScriptureService.ChapterDisplay(RecordRef),
                 DesignTokens.Type.Mono, DesignTokens.Ink.Muted, TextAnchor.UpperLeft,
                 DesignTokens.TypeRole.Mono);
         }

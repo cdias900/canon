@@ -316,7 +316,7 @@
       "anchor": "",
       "unlock_condition": {
         "type": "day_reached",
-        "value": 2
+        "value": 3
       },
       "incompatible_with": [],
       "tint_channels": [
@@ -338,7 +338,7 @@
       "anchor": "",
       "unlock_condition": {
         "type": "day_reached",
-        "value": 3
+        "value": 4
       },
       "incompatible_with": [],
       "tint_channels": [

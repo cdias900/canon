@@ -50,16 +50,18 @@ break by accident:
 
 ## What is not finished
 
-- **iOS is verified as far as the first screen and no further.** It builds, installs, boots to
-  `[Boot] Ready`, writes telemetry to the app container, and renders the region shot correctly in
-  portrait on both an iPhone 17 Pro and a 17 Pro Max. Everything after that needs a finger:
-  `simctl` cannot tap, and driving the Simulator window with synthetic clicks needs the Mac
-  unlocked. **The six-row creation screen and the thumb-zone HUD are still unseen on a phone**,
-  and they remain the two most likely places for portrait layout to break.
-- **Nothing reads `Screen.safeArea`.** Not once in the codebase. On the opening this is invisible —
-  the title clears the Dynamic Island and only the dialogue panel's bottom border reaches under the
-  home indicator — but every screen that anchors to the top or bottom edge is unprotected, which is
-  exactly the HUD and the creation screen.
+- **iOS is played through day 1 and no further.** On an iPhone 17 Pro simulator: the opening, the
+  creation screen, the village, rubble, the wall, the mat, the split, the night, the morning report
+  and the day-2 quiz all behave. Days 2 and 3, the trial, the Page and the reveal are still unseen
+  on a phone.
+- **Driving the Simulator needs a real `CGEvent`, and an unlocked Mac.** `simctl` has no tap.
+  `osascript ... click at` reports success and does nothing — the Simulator's Metal view ignores
+  synthetic AX clicks — which reads exactly like a game that is not responding. `/tmp/simtap.swift`
+  in the session scratch posts `leftMouseDown`/`Up` through `.cghidEventTap`, which works. Two
+  things to know before blaming the build: `simctl io booted screenshot` grabs the framebuffer and
+  is immune to window stacking, whereas `screencapture -R` silently photographs whatever window is
+  on top; and if `System Events` answers a click with `window Login of application process
+  loginwindow`, the Mac is locked and no synthetic input will land at all.
 - **The framing of the opening has ~10 px of margin.** `WorldMapOverlay` places the closed cities
   at x ±14 to ±17 world units and the camera half-width at 19.5:9 is 20.2, so the leftmost city
   clears the screen edge by about a third of a world unit. At the 1080×1920 the project nominally

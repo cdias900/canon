@@ -141,7 +141,13 @@ namespace SheepGate.World
                 skin = StableIndex(NpcId, 2),
                 legs = StableIndex(NpcId + "_legs", 4),
                 top = StableIndex(NpcId + "_top", 4),
-                accessory = 0,
+                // 2..5, never 0 or 1. Variant 0 is acc_rope_coil and 1 is acc_map_tube — the
+                // signature pieces of Adar and Neriah, the two characters a player can BE. A
+                // village where every resident wears the player character's defining silhouette
+                // reads as a continuity error the moment the wardrobe teaches what that piece is,
+                // and it is the same mistake CutsceneActor made with its passer-by. Varied per
+                // resident like their legs and top, so the crowd is not four identical belts.
+                accessory = 2 + StableIndex(NpcId + "_acc", 4),
                 hair = 0
             });
 

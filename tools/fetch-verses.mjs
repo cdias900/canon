@@ -74,9 +74,47 @@ const chapterRefOf = (verseRef) => {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function api(path, { apiKey }) {
+/**
+ * How many times a rate-limited request is retried before giving up, and the base of the
+ * exponential backoff between attempts.
+ *
+ * The key is SHARED and finite: several sessions and several locales draw on the same one, and a
+ * full corpus fetch is hundreds of calls. Before this, a single 429 anywhere in that run threw and
+ * took the whole fetch with it, discarding every chapter already retrieved — the flat 120ms spacing
+ * below paces requests but has nothing to say once the server has already said no.
+ */
+const RATE_LIMIT_RETRIES = 5;
+const RATE_LIMIT_BASE_MS = 1000;
+
+async function api(path, { apiKey }, attempt = 0) {
   const url = `${API_BASE}${path}`;
   const res = await fetch(url, { headers: { 'X-YVP-App-Key': apiKey, Accept: 'application/json' } });
+
+  // 429, and anything in the 5xx range, is worth waiting out rather than failing on: the request
+  // was well formed and the answer is "not now". Retry-After is honoured when the server sends it,
+  // because a server that names its own delay knows better than our doubling does.
+  if ((res.status === 429 || res.status >= 500) && attempt < RATE_LIMIT_RETRIES) {
+    const header = Number(res.headers.get('retry-after'));
+    const wait = Number.isFinite(header) && header > 0
+      ? header * 1000
+      : RATE_LIMIT_BASE_MS * Math.pow(2, attempt);
+    const why = res.status === 429 ? 'rate limited' : `HTTP ${res.status}`;
+    console.warn(
+      `  ${why} on ${path} — waiting ${Math.round(wait / 1000)}s, ` +
+      `attempt ${attempt + 1} of ${RATE_LIMIT_RETRIES}`
+    );
+    await sleep(wait);
+    return api(path, { apiKey }, attempt + 1);
+  }
+
+  if (res.status === 429) {
+    throw new Error(
+      `Rate limited by YouVersion on ${path}, and ${RATE_LIMIT_RETRIES} retries did not clear it.\n` +
+      `  The app key is shared, so another run may be drawing on it at the same time. Wait, or\n` +
+      `  fetch one locale at a time (see docs/youversion-api.md).`
+    );
+  }
+
   if (res.status === 403) {
     const body = await res.text();
     throw new Error(

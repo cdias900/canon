@@ -27,6 +27,12 @@ namespace SheepGate.World
         /// The offset is in world units and is applied before projection, so a plate sits the same
         /// distance under its marker whatever the zoom.
         /// </summary>
+        /// <summary>
+        /// How much clear space a plate keeps from the edge of the safe area, in canvas units.
+        /// Enough that a plate reads as placed rather than as jammed against the frame.
+        /// </summary>
+        static readonly float EdgeMargin = DesignTokens.Space.S8;
+
         public static MapLabel Create(RectTransform parent, string text, Vector3 worldPoint, float worldOffsetY,
             Color fill, Color ink)
         {
@@ -102,6 +108,46 @@ namespace SheepGate.World
             // under any CanvasScaler setting, and there is exactly one of those settings to get
             // wrong otherwise.
             var anchor = new Vector2(viewport.x, viewport.y);
+
+            // Then hold the whole plate on screen. The anchor is the label's CENTRE, so a point near
+            // the edge of the map used to put half the plate past the edge of the phone: on the
+            // opening map the two lower "Fechada" plates were sliced by the frame, one of them badly
+            // enough to be unreadable. Sliding a label inward costs a little precision about which
+            // ruin it names — they are metres apart on screen — and buys it being legible at all,
+            // which is the trade every map pin makes.
+            //
+            // Measured against the parent rather than the screen because the parent IS the safe
+            // area, so this also keeps a plate clear of a notch or a home indicator for free.
+            var parent = _rect.parent as RectTransform;
+            if (parent != null)
+            {
+                float parentWidth = parent.rect.width;
+                float parentHeight = parent.rect.height;
+                Vector2 size = _rect.rect.size;
+
+                // Both can be zero for a frame: the plate is content-sized, so the first Follow()
+                // runs before layout has given it a width. Clamping against zero would park every
+                // label dead centre for that frame, which reads as a flicker; leaving it unclamped
+                // for one frame does not.
+                if (parentWidth > 1f && parentHeight > 1f && size.x > 1f && size.y > 1f)
+                {
+                    float halfWidth = size.x * 0.5f / parentWidth;
+                    float halfHeight = size.y * 0.5f / parentHeight;
+                    float marginX = EdgeMargin / parentWidth;
+                    float marginY = EdgeMargin / parentHeight;
+
+                    // A plate wider than its parent cannot satisfy both edges; centring it is the
+                    // least surprising answer and Clamp would otherwise return the wrong bound.
+                    float minX = halfWidth + marginX;
+                    float maxX = 1f - halfWidth - marginX;
+                    float minY = halfHeight + marginY;
+                    float maxY = 1f - halfHeight - marginY;
+
+                    anchor.x = minX <= maxX ? Mathf.Clamp(anchor.x, minX, maxX) : 0.5f;
+                    anchor.y = minY <= maxY ? Mathf.Clamp(anchor.y, minY, maxY) : 0.5f;
+                }
+            }
+
             _rect.anchorMin = anchor;
             _rect.anchorMax = anchor;
             _rect.anchoredPosition = Vector2.zero;

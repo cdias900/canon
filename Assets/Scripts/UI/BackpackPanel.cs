@@ -171,13 +171,20 @@ namespace SheepGate.UI
         // authored inside the locale string rather than concatenated here. "{0}, em uso" is one
         // translatable sentence; name + ", " + state is three fragments and a comma nobody can
         // translate. It also keeps the separator out of this file, which is the rule.
+        /// <summary>Width of a study card's own button. Wide enough for one word in both locales.</summary>
+        static readonly float StudyButtonWidth = DesignTokens.Px(120f);
+
+        /// <summary>How a reader opened from a study card is recorded. Telemetry, so English.</summary>
+        const string StudyTrigger = "profile_study";
+
         const string StateEquippedKey = "backpack.state.equipped";
         const string StateLockedKey = "backpack.state.locked";
         const string StateNewKey = "backpack.state.new";
 
-        /// <summary>The four tab labels, in the order the bar draws them.</summary>
+        /// <summary>Label per content tab. Only the three wardrobe ones reach the lower bar.</summary>
         static readonly string[] TabLabelKeys =
         {
+            "backpack.tab.profile",
             "slot.hair",
             "slot.outfit",
             "slot.accessory",
@@ -193,13 +200,70 @@ namespace SheepGate.UI
             "backpack.material.talents"
         };
 
-        // ------------------------------------------------------------------ the four tabs
+        // ------------------------------------------------------------------ two bars, two levels
+        //
+        // Three sections along the top — Perfil, Itens, Aparência — and Aparência opens three of its
+        // own along the bottom: Cabelo, Roupa, Extras.
+        //
+        // <b>Why the levels sit at opposite ends.</b> The design system anchors a segmented row at
+        // the bottom of its card and gives the reason: that is where the thumb is, and it is the
+        // most-tapped control on the surface. That reason belongs to Cabelo/Roupa/Extras, tapped
+        // over and over while dressing a character, so they keep the bottom. Choosing a section is
+        // done once per visit, so it goes up top, where it reads as the sheet's own navigation.
+        //
+        // <b>Three cells per bar is also what made Aparência sayable.</b> Measured in Manrope Bold
+        // at Type.Body against the 68.91 this project records for Materiais: at five cells a label
+        // has 57.3 points and Personalização needs 112.8; at three it has 95.5 and Aparência needs
+        // 74.6. Materiais and Detalhes did not survive the squeeze either, so they were re-authored
+        // as Itens and Extras — the remedy docs/design-system.md prescribes, and the same one that
+        // turned Acessórios into Detalhes before.
 
-        const int TabIndexHair = 0;
-        const int TabIndexOutfit = 1;
-        const int TabIndexAccessory = 2;
-        const int TabIndexMaterials = 3;
-        const int TabCount = 4;
+        const int TabIndexProfile = 0;
+        const int TabIndexHair = 1;
+        const int TabIndexOutfit = 2;
+        const int TabIndexAccessory = 3;
+        const int TabIndexMaterials = 4;
+        const int TabCount = 5;
+
+        const int SectionProfile = 0;
+        const int SectionItems = 1;
+        const int SectionAppearance = 2;
+        const int SectionCount = 3;
+
+        /// <summary>Which content tab each section opens. Aparência goes back to the last one used.</summary>
+        static readonly int[] SectionLanding = { TabIndexProfile, TabIndexMaterials, TabIndexHair };
+
+        static readonly string[] SectionLabelKeys =
+        {
+            "backpack.tab.profile",
+            "backpack.tab.materials",
+            "backpack.tab.appearance"
+        };
+
+        // The middle cell keeps the Materials names on purpose: it is still the control that opens
+        // the materials list, and tools/e2e.sh drives this sheet by exactly these strings.
+        static readonly string[] SectionObjectNames =
+        {
+            "SegmentProfile", "SegmentMaterials", "SegmentAppearance"
+        };
+
+        static readonly string[] SectionLabelObjectNames =
+        {
+            "SegmentLabelProfile", "SegmentLabelMaterials", "SegmentLabelAppearance"
+        };
+
+        static readonly string[] SectionFillObjectNames =
+        {
+            "SegmentFillProfile", "SegmentFillMaterials", "SegmentFillAppearance"
+        };
+
+        static readonly string[] SectionRimObjectNames =
+        {
+            "SegmentRimProfile", "SegmentRimMaterials", "SegmentRimAppearance"
+        };
+
+        /// <summary>Aparência carries the dot for the three lists folded inside it.</summary>
+        static readonly string[] SectionBadgeObjectNames = { null, null, "SegmentBadgeAppearance" };
 
         /// <summary>
         /// The slot behind each tab. The fourth entry is <see cref="CharacterSlot.Base"/> and is
@@ -250,32 +314,32 @@ namespace SheepGate.UI
         // handles tools/e2e.sh drives the sheet by, and a grep for one of them should land on the
         // line that creates it.
 
-        static readonly string[] TabObjectNames = { "TabHair", "TabOutfit", "TabAccessory", "TabMaterials" };
+        static readonly string[] TabObjectNames = { "TabProfile", "TabHair", "TabOutfit", "TabAccessory", "TabMaterials" };
 
         static readonly string[] SegmentObjectNames =
         {
-            "SegmentHair", "SegmentOutfit", "SegmentAccessory", "SegmentMaterials"
+            null, "SegmentHair", "SegmentOutfit", "SegmentAccessory", null
         };
 
         static readonly string[] SegmentLabelObjectNames =
         {
-            "SegmentLabelHair", "SegmentLabelOutfit", "SegmentLabelAccessory", "SegmentLabelMaterials"
+            null, "SegmentLabelHair", "SegmentLabelOutfit", "SegmentLabelAccessory", null
         };
 
         static readonly string[] SegmentFillObjectNames =
         {
-            "SegmentFillHair", "SegmentFillOutfit", "SegmentFillAccessory", "SegmentFillMaterials"
+            null, "SegmentFillHair", "SegmentFillOutfit", "SegmentFillAccessory", null
         };
 
         static readonly string[] SegmentRimObjectNames =
         {
-            "SegmentRimHair", "SegmentRimOutfit", "SegmentRimAccessory", "SegmentRimMaterials"
+            null, "SegmentRimHair", "SegmentRimOutfit", "SegmentRimAccessory", null
         };
 
         /// <summary>Dot names. The fourth is null: Materiais never carries one.</summary>
         static readonly string[] SegmentBadgeObjectNames =
         {
-            "SegmentBadgeHair", "SegmentBadgeOutfit", "SegmentBadgeAccessory", null
+            null, "SegmentBadgeHair", "SegmentBadgeOutfit", "SegmentBadgeAccessory", null
         };
 
         /// <summary>GameObject names of the three material readouts.</summary>
@@ -324,14 +388,28 @@ namespace SheepGate.UI
         /// </summary>
         static readonly float SegmentBarInset = DesignTokens.Space.S12;
 
-        /// <summary>Top edge of the character stage, measured from the top of the sheet.</summary>
-        static readonly float StageTop = SheetPadding + HeaderHeight + DesignTokens.Space.S16;
+        /// <summary>Top edge of the section bar, measured from the top of the sheet.</summary>
+        static readonly float SectionBarTop = SheetPadding + HeaderHeight + DesignTokens.Space.S16;
+
+        /// <summary>Top edge of the rule under the section bar.</summary>
+        static readonly float SectionDividerTop =
+            SectionBarTop + SegmentBarHeight + DesignTokens.Space.S12;
+
+        /// <summary>
+        /// Top of the content band on Perfil and Itens: under the section bar and its rule. Neither
+        /// carries the character stage — one is a readout, the other a grid of counts.
+        /// </summary>
+        static readonly float SectionContentTop =
+            SectionDividerTop + DividerHeight + DesignTokens.Space.S12;
+
+        /// <summary>Top edge of the character stage. Only Aparência shows one.</summary>
+        static readonly float StageTop = SectionContentTop;
 
         /// <summary>Top of the content band on a wardrobe tab: under the stage.</summary>
         static readonly float WardrobeContentTop = StageTop + StageHeight + DesignTokens.Space.S16;
 
-        /// <summary>Top of the content band on Materiais: the stage and its gap are absent.</summary>
-        static readonly float MaterialsContentTop = StageTop;
+        /// <summary>Bottom of the content band with no lower bar: the sheet's own padding.</summary>
+        static readonly float PlainContentBottom = SheetPadding;
 
         /// <summary>Bottom of the content band: the tab bar, the divider and the gaps around them.</summary>
         static readonly float ContentBottom =
@@ -374,7 +452,8 @@ namespace SheepGate.UI
         static float ContentWidth = CardWidth - 2f * SheetPadding;
 
         static float SegmentBarWidth = CardWidth - 2f * SegmentBarInset;
-        static float SegmentWidth = SegmentBarWidth / TabCount;
+        /// <summary>Cell width. Both bars carry three cells, so one number serves both.</summary>
+        static float SegmentWidth = SegmentBarWidth / SectionCount;
 
         /// <summary>Row width: the content column less the scrollbar's lane and its gap.</summary>
         static float RowWidth = ContentWidth - (ScrollbarWidth + DesignTokens.Space.S8);
@@ -409,7 +488,7 @@ namespace SheepGate.UI
             CardWidth = available - 2f * DesignTokens.Space.Gutter;
             ContentWidth = CardWidth - 2f * SheetPadding;
             SegmentBarWidth = CardWidth - 2f * SegmentBarInset;
-            SegmentWidth = SegmentBarWidth / TabCount;
+            SegmentWidth = SegmentBarWidth / SectionCount;
             RowWidth = ContentWidth - (ScrollbarWidth + DesignTokens.Space.S8);
             TextColumnWidth = RowWidth - (3f * DesignTokens.Space.S12 + ThumbSize);
             MaterialCardWidth = (ContentWidth - DesignTokens.Space.S12) / 2f;
@@ -497,6 +576,22 @@ namespace SheepGate.UI
 
         /// <summary>Which tab is up. -1 until <see cref="Build"/> selects the first one.</summary>
         int _selected = -1;
+
+        /// <summary>The column the study cards live in, so an answer can replace them in place.</summary>
+        RectTransform _studies;
+
+        /// <summary>The section cells along the top. No Scroll or Content: they open other tabs.</summary>
+        TabView[] _sections;
+
+        /// <summary>The lower bar and its rule, hidden whenever the section has nothing under it.</summary>
+        RectTransform _slotBar;
+        Image _slotDivider;
+
+        /// <summary>
+        /// Which wardrobe tab Aparência returns to. Remembering it is what makes the section bar a
+        /// place to leave and come back to rather than a control that resets the player's work.
+        /// </summary>
+        int _lastWardrobe = TabIndexHair;
 
         readonly Image[] _layers = new Image[LayerCount];
         readonly List<RowView> _rows = new List<RowView>();
@@ -705,6 +800,7 @@ namespace SheepGate.UI
                           SheetTop, DesignTokens.Space.SafeAreaBottom);
 
             BuildHeader(sheetRect);
+            BuildSectionBar(sheetRect);
             BuildStage(sheetRect);
             BuildDivider(sheetRect);
             BuildSegmentBar(sheetRect);
@@ -922,9 +1018,43 @@ namespace SheepGate.UI
                 UIKit.WithAlpha(DesignTokens.Ink.Primary, 0.20f), null);
             UIKit.AnchorBottom((RectTransform)divider.transform, DividerHeight, 0f, 0f, DividerBottom);
             divider.raycastTarget = false;
+            _slotDivider = divider;
         }
 
         /// <summary>
+        /// The three sections, along the top: Perfil, Itens, Aparência.
+        ///
+        /// Anchored to the top rather than the bottom, which is a deliberate departure from the
+        /// design system's placement rule and not an oversight. That rule's own reason — the thumb,
+        /// and the most-tapped control — is what keeps the wardrobe's three cells at the bottom. A
+        /// section is chosen once per visit, so up here it reads as the sheet's own navigation
+        /// instead of competing for the same corner.
+        /// </summary>
+        void BuildSectionBar(RectTransform sheetRect)
+        {
+            RectTransform bar = UIKit.CreateRect("SectionSegments", sheetRect);
+            UIKit.AnchorTop(bar, SegmentBarHeight, SegmentBarInset, SegmentBarInset, SectionBarTop);
+            UIKit.HorizontalGroup(bar.gameObject, 0f, new RectOffset(), TextAnchor.MiddleCenter);
+
+            _sections = new TabView[SectionCount];
+            for (int i = 0; i < SectionCount; i++)
+            {
+                int captured = i;
+                _sections[i] = BuildSegment(bar, i, SectionLabelKeys[i], SectionObjectNames,
+                    SectionFillObjectNames, SectionRimObjectNames, SectionLabelObjectNames,
+                    SectionBadgeObjectNames, () => SelectSection(captured));
+            }
+
+            Image divider = UIKit.CreatePanel(sheetRect, "SectionDivider",
+                UIKit.WithAlpha(DesignTokens.Ink.Primary, 0.20f), null);
+            UIKit.AnchorTop((RectTransform)divider.transform, DividerHeight, 0f, 0f, SectionDividerTop);
+            divider.raycastTarget = false;
+        }
+
+        /// <summary>
+        /// The three wardrobe slots, along the bottom, on screen only while Aparência is the
+        /// section. Keeps the object names the rest of the project drives this bar by.
+        ///
         /// The four tabs, as a segmented control along the bottom of the sheet card.
         ///
         /// <b>Bottom, inside the card.</b> A 750-point sheet puts a top-anchored row of tabs in the
@@ -954,15 +1084,23 @@ namespace SheepGate.UI
         /// </summary>
         void BuildSegmentBar(RectTransform sheetRect)
         {
-            RectTransform bar = UIKit.CreateRect("SlotSegments", sheetRect);
-            UIKit.AnchorBottom(bar, SegmentBarHeight, SegmentBarInset, SegmentBarInset, SheetPadding);
-            UIKit.HorizontalGroup(bar.gameObject, 0f, new RectOffset(), TextAnchor.MiddleCenter);
+            _slotBar = UIKit.CreateRect("SlotSegments", sheetRect);
+            UIKit.AnchorBottom(_slotBar, SegmentBarHeight, SegmentBarInset, SegmentBarInset, SheetPadding);
+            UIKit.HorizontalGroup(_slotBar.gameObject, 0f, new RectOffset(), TextAnchor.MiddleCenter);
 
             _tabs = new TabView[TabCount];
-            for (int i = 0; i < TabCount; i++)
+            for (int i = TabIndexHair; i <= TabIndexAccessory; i++)
             {
-                _tabs[i] = BuildSegment(bar, i);
+                int captured = i;
+                _tabs[i] = BuildSegment(_slotBar, i, TabLabelKeys[i], SegmentObjectNames,
+                    SegmentFillObjectNames, SegmentRimObjectNames, SegmentLabelObjectNames,
+                    SegmentBadgeObjectNames, () => SelectTab(captured));
             }
+
+            // Perfil and Itens have no cell of their own down here; their content still needs a
+            // TabView to live in, so they get one with everything but the panel left null.
+            _tabs[TabIndexProfile] = new TabView();
+            _tabs[TabIndexMaterials] = new TabView();
         }
 
         /// <summary>
@@ -1003,15 +1141,20 @@ namespace SheepGate.UI
         /// <b>Escalate upward, do not fix here:</b> <c>Ink.OnPrimary</c> on <c>Brand.Primary</c>
         /// failing means every Primary-variant button in the game has a failing label. The blast
         /// radius is <see cref="UIKit.SkinFor"/>, not this sheet.
+        ///
+        /// <b>One cell of either bar.</b> The names, the label and what a tap does arrive as arguments
+        /// rather than being looked up from the index, because the two bars index different things:
+        /// the lower one by content tab, the upper one by section.
         /// </summary>
-        TabView BuildSegment(RectTransform bar, int index)
+        TabView BuildSegment(RectTransform bar, int index, string labelKey, string[] objectNames,
+                             string[] fillNames, string[] rimNames, string[] labelNames,
+                             string[] badgeNames, Action onSelect)
         {
-            int captured = index;
-            string cellLabel = Loc.T(TabLabelKeys[index]);
+            string cellLabel = Loc.T(labelKey);
 
-            Button cell = UIKit.CreateButton(bar, SegmentObjectNames[index], string.Empty,
+            Button cell = UIKit.CreateButton(bar, objectNames[index], string.Empty,
                 UIKit.ButtonVariant.Ghost, null);
-            cell.onClick.AddListener(() => SelectTab(captured));
+            cell.onClick.AddListener(() => onSelect());
             AccessibleLabel.Apply(cell.gameObject, cellLabel);
 
             var cellRect = (RectTransform)cell.transform;
@@ -1026,7 +1169,7 @@ namespace SheepGate.UI
             cellLayout.preferredHeight = SegmentBarHeight;
             cellLayout.flexibleHeight = 0f;
 
-            Image fill = UIKit.CreatePanel(cellRect, SegmentFillObjectNames[index],
+            Image fill = UIKit.CreatePanel(cellRect, fillNames[index],
                 DesignTokens.Brand.PrimaryDark, UiSpriteKeys.FrameMd);
             UIKit.Stretch((RectTransform)fill.transform);
             fill.raycastTarget = false;
@@ -1035,14 +1178,14 @@ namespace SheepGate.UI
 
             // The cell's own rect, with no outset: the focus ring sits four points further out, and
             // that gap is what keeps "selected" and "focused" from reading as the same thing.
-            Image rim = UIKit.CreatePanel(cellRect, SegmentRimObjectNames[index],
+            Image rim = UIKit.CreatePanel(cellRect, rimNames[index],
                 DesignTokens.Brand.Primary, UiSpriteKeys.FocusRing);
             UIKit.Stretch((RectTransform)rim.transform);
             rim.raycastTarget = false;
             UIKit.Layout(rim).ignoreLayout = true;
             rim.gameObject.SetActive(false);
 
-            Text label = UIKit.CreateText(cellRect, SegmentLabelObjectNames[index], cellLabel,
+            Text label = UIKit.CreateText(cellRect, labelNames[index], cellLabel,
                 DesignTokens.Type.Body, DesignTokens.Ink.Secondary, TextAnchor.MiddleCenter,
                 DesignTokens.TypeRole.Body);
 
@@ -1069,14 +1212,17 @@ namespace SheepGate.UI
             labelRect.offsetMax = new Vector2(0f, 0.5f * BodyLineHeight);
             UIKit.Layout(label).ignoreLayout = true;
 
+            // A cell carries a dot when its own table names one. That is what lets Aparência carry
+            // the dot for the three lists inside it while Perfil and Itens carry none, without this
+            // method knowing which bar it is building.
             Image dot = null;
-            if (IsWardrobeTab(index))
+            if (badgeNames != null && index < badgeNames.Length && !string.IsNullOrEmpty(badgeNames[index]))
             {
                 // Top-right, and lifted clear of the label rather than merely tucked into the
                 // corner. The dot occupies x 65..73 and y 4..12 inside an 81x48 cell; the widest
                 // label's ink runs 6.05..74.95 and its line box 12.88..35.12, so without this
                 // offset the dot would sit on top of "Materiais". The offset is the whole point.
-                dot = UIKit.CreateIcon(cellRect, SegmentBadgeObjectNames[index], UiSpriteKeys.IconDot,
+                dot = UIKit.CreateIcon(cellRect, badgeNames[index], UiSpriteKeys.IconDot,
                     DesignTokens.Brand.Secondary, DotSize);
                 var dotRect = (RectTransform)dot.transform;
                 dotRect.anchorMin = new Vector2(1f, 1f);
@@ -1138,7 +1284,7 @@ namespace SheepGate.UI
                     column.spacing = DesignTokens.Space.S12;
                     column.padding = new RectOffset(
                         0,
-                        IsWardrobeTab(i) ? Mathf.RoundToInt(ScrollbarWidth + DesignTokens.Space.S8) : 0,
+                        i != TabIndexMaterials ? Mathf.RoundToInt(ScrollbarWidth + DesignTokens.Space.S8) : 0,
                         0,
                         Mathf.RoundToInt(DesignTokens.Space.S24));
                 }
@@ -1150,6 +1296,11 @@ namespace SheepGate.UI
                 {
                     UIKit.AttachVerticalScrollbar(scroll, ScrollbarWidth);
                     BuildWardrobeTab(content, TabSlots[i]);
+                }
+                else if (i == TabIndexProfile)
+                {
+                    UIKit.AttachVerticalScrollbar(scroll, ScrollbarWidth);
+                    BuildProfileTab(content);
                 }
                 else
                 {
@@ -1612,6 +1763,270 @@ namespace SheepGate.UI
             }
         }
 
+        /// <summary>
+        /// Perfil: how far the run has come, what else there is to do, and what is worth reading
+        /// next. Three stacked sections in one scrolling column.
+        ///
+        /// <b>The meter obeys design system rule 1</b> — label, bar and fraction, never a bare bar.
+        /// It does not break rule 10 either, and the difference is worth being precise about: rule
+        /// 10 forbids showing progress toward a <i>vocation</i>, because a player who can see how
+        /// many actions are left turns discovery into a task list. This bar names no archetype, is
+        /// read by nothing, and buys nothing.
+        ///
+        /// <b>The studies never print a reference.</b> Each card is an authored line about something
+        /// the player did; chapter and verse is <c>ScriptureVisibility</c>'s to reveal, exactly as
+        /// for every citation in the game (rule 12) — and the button that opens the whole chapter is
+        /// on every card from the first minute.
+        ///
+        /// Coins are not here yet. Talents exist in the save now, but paying a mission out of a
+        /// balance another branch owns is that branch's call to make.
+        /// </summary>
+        void BuildProfileTab(RectTransform content)
+        {
+            GameState state = _state;
+
+            BuildProfileMeter(content, state);
+            BuildProfileSection(content, "MissionsHeading", Loc.T("profile.missions"), null);
+
+            IReadOnlyList<ExtraMission> missions = StudyDesk.MissionsFor(state);
+            for (int i = 0; i < missions.Count; i++)
+            {
+                BuildProfileCard(content, "Mission_" + missions[i].Id,
+                    Loc.T(missions[i].TitleKey), Loc.T(missions[i].LineKey), null);
+            }
+
+            BuildProfileSection(content, "StudiesHeading", Loc.T("profile.studies"),
+                Loc.T("profile.studies.hint"));
+
+            // The authored suggestions go up straight away, and the endpoint — when one is
+            // configured — replaces them if it answers. Drawing the offline list first is what
+            // keeps this from ever being a spinner: the screen is complete before the request
+            // leaves, and a player whose server is down never learns that one exists.
+            _studies = UIKit.CreateRect("Studies", content);
+            UIKit.VerticalGroup(_studies.gameObject, DesignTokens.Space.S12, new RectOffset());
+
+            FillStudies(StudyDesk.SuggestFor(state));
+            RequestStudies(state);
+        }
+
+        /// <summary>Draws a list of studies into the studies column, replacing whatever was there.</summary>
+        void FillStudies(IReadOnlyList<Study> studies)
+        {
+            if (_studies == null)
+            {
+                return;
+            }
+
+            for (int i = _studies.childCount - 1; i >= 0; i--)
+            {
+                Destroy(_studies.GetChild(i).gameObject);
+            }
+
+            for (int i = 0; i < studies.Count; i++)
+            {
+                Study study = studies[i];
+
+                // A written suggestion is already the sentence; only the authored table holds keys.
+                // Passing written words to Loc.T would look up a key nothing has and render the
+                // sentence as itself wrapped in the missing-key marker.
+                string title = study.IsLiteral ? study.TitleKey : Loc.T(study.TitleKey);
+                string line = study.IsLiteral ? study.LineKey : Loc.T(study.LineKey);
+
+                BuildProfileCard(_studies, "Study_" + study.Id, title, line, study.Reference);
+            }
+        }
+
+        /// <summary>
+        /// Asks the endpoint for suggestions and swaps them in if they arrive.
+        ///
+        /// The words come back written rather than as keys, which is the one place on this screen
+        /// where a string the player reads was not authored into a locale file. That is inherent to
+        /// asking a model for a sentence, and it is why the server does the checking: a suggestion
+        /// that quoted the corpus, or pointed at a passage this build does not ship, never gets
+        /// this far. What arrives here is text and a reference, and the reference still resolves
+        /// through the same reader as every other citation.
+        /// </summary>
+        void RequestStudies(GameState state)
+        {
+            if (!StudyService.IsConfigured)
+            {
+                return;
+            }
+
+            StudyService.Request(state, remote =>
+            {
+                // The sheet may well be gone by the time an answer lands.
+                if (_closed || _studies == null)
+                {
+                    return;
+                }
+
+                var studies = new List<Study>(remote.Count);
+                for (int i = 0; i < remote.Count; i++)
+                {
+                    StudyService.RemoteStudy study = remote[i];
+                    studies.Add(Study.Written("remote_" + i, study.Title, study.Line, study.Reference));
+                }
+
+                FillStudies(studies);
+            });
+        }
+
+        /// <summary>The bar, its label and its fraction, plus one line saying what moves it.</summary>
+        void BuildProfileMeter(RectTransform content, GameState state)
+        {
+            ProgressBar meter = UIKit.CreateProgress(content, "EngagementMeter", Loc.T("profile.meter"));
+            meter.SetValue(EngagementMeter.Value(state), EngagementMeter.Ceiling);
+
+            Text hint = UIKit.CreateText(content, "EngagementHint", Loc.T("profile.meter.hint"),
+                DesignTokens.Type.Minimum, DesignTokens.Ink.Secondary, TextAnchor.UpperLeft);
+            hint.horizontalOverflow = HorizontalWrapMode.Wrap;
+            SizeProfileText(hint, RowWidth);
+        }
+
+        /// <summary>A section heading, and the line under it when the section has one.</summary>
+        void BuildProfileSection(RectTransform content, string name, string heading, string hint)
+        {
+            Text title = UIKit.CreateText(content, name, heading, DesignTokens.Type.Body,
+                DesignTokens.Ink.Primary, TextAnchor.MiddleLeft, DesignTokens.TypeRole.BodyStrong);
+            SizeProfileText(title, RowWidth);
+
+            if (string.IsNullOrEmpty(hint))
+            {
+                return;
+            }
+
+            Text line = UIKit.CreateText(content, name + "Hint", hint, DesignTokens.Type.Minimum,
+                DesignTokens.Ink.Secondary, TextAnchor.UpperLeft);
+            line.horizontalOverflow = HorizontalWrapMode.Wrap;
+            SizeProfileText(line, RowWidth);
+        }
+
+        /// <summary>
+        /// One card: a title, a sentence, and — when there is a passage behind it — the button that
+        /// opens the chapter.
+        ///
+        /// Full width and prose, per the design system's rule 12: a row that has to print a sentence
+        /// gets one full-width column, and the two-column grid is for label-plus-number cards.
+        ///
+        /// <b>Panel plus a hairline</b>, which is the arrangement the materials cards on this same
+        /// sheet already arrived at. Not Card: the sheet is a Card, so a Card inside it is the same
+        /// fill on the same fill, and the first build of this screen drew four of them and they were
+        /// invisible. Not Scroll either, and that one had to be seen to be believed — parchment
+        /// reads beautifully and then every button on it disappears, because the kit has no button
+        /// variant drawn for a light surface, so Secondary's label came out cream on cream.
+        /// </summary>
+        void BuildProfileCard(RectTransform content, string name, string title, string line, string reference)
+        {
+            Image card = UIKit.CreateCard(content, name, UIKit.CardStyle.Panel);
+            var cardRect = (RectTransform)card.transform;
+
+            Image hairline = UIKit.CreatePanel(cardRect, "Hairline",
+                UIKit.WithAlpha(DesignTokens.Ink.Primary, 0.20f), UiSpriteKeys.FocusRing);
+            UIKit.Stretch((RectTransform)hairline.transform);
+            hairline.raycastTarget = false;
+            UIKit.Layout(hairline).ignoreLayout = true;
+
+            int pad = Mathf.RoundToInt(DesignTokens.Space.S16);
+            UIKit.VerticalGroup(card.gameObject, DesignTokens.Space.S8, new RectOffset(pad, pad, pad, pad));
+
+            var fitter = card.gameObject.AddComponent<ContentSizeFitter>();
+            fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            LayoutElement cardLayout = UIKit.Layout(card);
+            cardLayout.minWidth = RowWidth;
+            cardLayout.preferredWidth = RowWidth;
+            cardLayout.flexibleWidth = 0f;
+
+            float inner = RowWidth - 2f * DesignTokens.Space.S16;
+
+            Text heading = UIKit.CreateText(cardRect, "Title", title, DesignTokens.Type.Body,
+                DesignTokens.Ink.Primary, TextAnchor.MiddleLeft, DesignTokens.TypeRole.BodyStrong);
+            SizeProfileText(heading, inner);
+
+            // Body rather than Minimum: at Minimum the leading is still measured for Body, and the
+            // two lines of a sentence drift far enough apart to read as two separate remarks.
+            Text body = UIKit.CreateText(cardRect, "Line", line, DesignTokens.Type.Body,
+                DesignTokens.Ink.Secondary, TextAnchor.UpperLeft);
+            body.horizontalOverflow = HorizontalWrapMode.Wrap;
+            SizeProfileText(body, inner);
+
+            if (string.IsNullOrEmpty(reference))
+            {
+                return;
+            }
+
+            // The button sits in a row of its own so it keeps its own width. Dropped straight into
+            // the card's column it stretches to the full card, which reads as a banner rather than
+            // a control and puts a 300-point tap target on a one-word label.
+            RectTransform actions = UIKit.CreateRect(name + "Actions", cardRect);
+            UIKit.HorizontalGroup(actions.gameObject, DesignTokens.Space.S8, new RectOffset(),
+                                  TextAnchor.MiddleLeft);
+            UIKit.Layout(actions).minHeight = UIKit.ButtonMinHeight;
+
+            string chapter = reference;
+            Button open = UIKit.CreateButton(actions, "Open", Loc.T("profile.study.open"),
+                UIKit.ButtonVariant.Secondary, () => OpenStudy(chapter));
+
+            LayoutElement openLayout = UIKit.Layout(open);
+            openLayout.minWidth = StudyButtonWidth;
+            openLayout.preferredWidth = StudyButtonWidth;
+            openLayout.flexibleWidth = 0f;
+
+            RectTransform spacer = UIKit.CreateRect(name + "ActionsSpacer", actions);
+            UIKit.Layout(spacer).flexibleWidth = 1f;
+        }
+
+        /// <summary>
+        /// Opens the chapter behind a study, through the same reader every other citation uses.
+        ///
+        /// Three things this gets right. The sheet closes first: the reader is the screen this whole
+        /// game is trying to reach, and opening it under a modal still on screen would put it behind
+        /// what the player just left. The reader takes a <b>chapter</b>, so a verse reference is cut
+        /// back to one. And <c>gameAsked</c> is false, because nobody prompted this — a study opened
+        /// from the profile is the player's own move, which is what <c>unprompted_read</c> counts.
+        /// </summary>
+        void OpenStudy(string reference)
+        {
+            Close();
+            SheepGate.Scripture.ChapterReaderUI.Open(ChapterOf(reference), StudyTrigger, false);
+        }
+
+        /// <summary>The chapter a reference sits in: NEH.4.17 becomes NEH.4.</summary>
+        static string ChapterOf(string reference)
+        {
+            if (string.IsNullOrEmpty(reference))
+            {
+                return reference;
+            }
+
+            string[] parts = reference.Split('.');
+            return parts.Length >= 2 ? parts[0] + "." + parts[1] : reference;
+        }
+
+        /// <summary>
+        /// Pins a text to a width and lets its height follow the words.
+        ///
+        /// <b>The height is deliberately not written out.</b> The first version set preferredHeight
+        /// from Text.preferredHeight right here, which reads as the careful thing to do and is the
+        /// one arrangement that cannot work: at construction the label has not been given the width
+        /// above yet, so it reports the height of the wrong line count. On the phone that produced
+        /// cards several hundred points tall with their text somewhere in the middle of them.
+        /// </summary>
+        static void SizeProfileText(Text text, float width)
+        {
+            if (text == null)
+            {
+                return;
+            }
+
+            LayoutElement layout = UIKit.Layout(text);
+            layout.minWidth = width;
+            layout.preferredWidth = width;
+            layout.flexibleWidth = 0f;
+        }
+
         // ------------------------------------------------------------------ the materials tab
 
         /// <summary>
@@ -1745,6 +2160,31 @@ namespace SheepGate.UI
         // ------------------------------------------------------------------ interaction
 
         /// <summary>
+        /// Opens a section. Aparência returns to whichever of its three lists was last open, so
+        /// stepping out to Itens and back does not undo where the player was.
+        /// </summary>
+        void SelectSection(int section)
+        {
+            if (section < 0 || section >= SectionCount)
+            {
+                return;
+            }
+
+            SelectTab(section == SectionAppearance ? _lastWardrobe : SectionLanding[section]);
+        }
+
+        /// <summary>The section a content tab belongs to.</summary>
+        static int SectionOf(int tabIndex)
+        {
+            if (tabIndex == TabIndexProfile)
+            {
+                return SectionProfile;
+            }
+
+            return tabIndex == TabIndexMaterials ? SectionItems : SectionAppearance;
+        }
+
+        /// <summary>
         /// Shows one tab, and spends that slot's badges.
         ///
         /// The badge economy lives here, and it is the part with a rule behind it: <b>every tab
@@ -1786,17 +2226,38 @@ namespace SheepGate.UI
 
             bool wardrobe = IsWardrobeTab(index);
 
+            if (wardrobe)
+            {
+                _lastWardrobe = index;
+            }
+
+            // The stage is the wardrobe's: it exists to show a piece on a body while it is being
+            // chosen. Perfil and Itens have nothing to put on a body, so they take its band.
             if (_stage != null)
             {
                 _stage.SetActive(wardrobe);
             }
 
-            // The one number that moves between tabs. Materiais takes the stage's band as well, so
-            // its list starts 140 points higher.
+            // The lower bar belongs to Aparência and goes away with it, rule and all. Three slot
+            // cells left standing under a list of materials would offer a choice that changes
+            // nothing on screen.
+            if (_slotBar != null)
+            {
+                _slotBar.gameObject.SetActive(wardrobe);
+            }
+
+            if (_slotDivider != null)
+            {
+                _slotDivider.gameObject.SetActive(wardrobe);
+            }
+
+            // Two numbers move with the section: the top, which the stage takes when there is one,
+            // and the bottom, which the lower bar takes when it is up.
             if (_tabContent != null)
             {
                 UIKit.Stretch(_tabContent, SheetPadding, SheetPadding,
-                    wardrobe ? WardrobeContentTop : MaterialsContentTop, ContentBottom);
+                    wardrobe ? WardrobeContentTop : SectionContentTop,
+                    wardrobe ? ContentBottom : PlainContentBottom);
             }
 
             ShowRefusal(null);
@@ -2136,6 +2597,78 @@ namespace SheepGate.UI
                                       Wardrobe.NewCountForSlot(_state, TabSlots[i]) > 0;
                 }
             }
+
+            RefreshSections();
+        }
+
+        /// <summary>
+        /// Paints the top bar the same way, against the section the open tab belongs to.
+        ///
+        /// Aparência's dot is the three slot dots folded into one: with the wardrobe closed its
+        /// cells are not on screen to carry their own, and a sheet that hid the fact that something
+        /// new is waiting is a sheet nobody opens twice.
+        /// </summary>
+        void RefreshSections()
+        {
+            if (_sections == null)
+            {
+                return;
+            }
+
+            int active = SectionOf(_selected);
+
+            for (int i = 0; i < _sections.Length; i++)
+            {
+                TabView section = _sections[i];
+                if (section == null)
+                {
+                    continue;
+                }
+
+                bool selected = i == active;
+
+                if (section.Fill != null)
+                {
+                    section.Fill.gameObject.SetActive(selected);
+                    section.Fill.color = DesignTokens.Brand.PrimaryDark;
+                }
+
+                if (section.Rim != null)
+                {
+                    section.Rim.gameObject.SetActive(selected);
+                }
+
+                if (section.Label != null)
+                {
+                    DesignTokens.TypeRole role = selected
+                        ? DesignTokens.TypeRole.BodyStrong
+                        : DesignTokens.TypeRole.Body;
+
+                    Font font = DesignTokens.Font(role);
+                    section.Label.font = font;
+                    section.Label.lineSpacing = UIKit.LineSpacingFor(font, UIKit.LeadingFor(role));
+                    section.Label.color = selected ? DesignTokens.Ink.OnPrimary : DesignTokens.Ink.Secondary;
+                }
+
+                if (section.Dot != null)
+                {
+                    section.Dot.enabled = i == SectionAppearance && AnythingUnseenInWardrobe();
+                }
+            }
+        }
+
+        /// <summary>True when any of the three wardrobe slots holds something unlooked at.</summary>
+        bool AnythingUnseenInWardrobe()
+        {
+            for (int i = TabIndexHair; i <= TabIndexAccessory; i++)
+            {
+                if (Wardrobe.NewCountForSlot(_state, TabSlots[i]) > 0)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         void RefreshRows()
@@ -2193,7 +2726,10 @@ namespace SheepGate.UI
         /// <summary>Whether this tab index is one of the three that owns a slot.</summary>
         static bool IsWardrobeTab(int index)
         {
-            return index >= 0 && index < TabIndexMaterials;
+            // A range between the two tabs that are not wardrobes, rather than "less than
+            // Materiais", which is what it used to say and what silently made Perfil a wardrobe the
+            // moment Perfil took index 0.
+            return index > TabIndexProfile && index < TabIndexMaterials;
         }
 
         /// <summary>

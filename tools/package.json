@@ -1,0 +1,9 @@
+{
+  "name": "sheepgate-tools",
+  "private": true,
+  "type": "module",
+  "description": "Build-time and development tooling. Not shipped in the player.",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.71.0"
+  }
+}

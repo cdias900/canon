@@ -127,15 +127,32 @@ if it looks right.
 ## Segmented tabs
 
 Sistema Vale has no tab component. The treatment below was derived for the backpack sheet, where
-four sibling lists share one modal surface, and is recorded here as the system's answer. **The next
-screen that needs tabs reuses this one instead of inventing a second one.**
+five sibling panels share one modal surface, and is recorded here as the system's answer. **The next
+screen that needs tabs reuses this treatment instead of inventing a second one** — the cell, the
+selected state, the badge and the label-fit rule are the system's, and only the placement is a
+screen's to argue.
+
+**Two bars, and both of them are ratified.** The backpack draws three sections along the top —
+Perfil, Itens, Aparência — and Aparência opens three wardrobe slots along the bottom: Cabelo, Roupa,
+Extras. Five content panels sit behind the two bars, and the lower bar leaves the screen with the
+wardrobe rather than standing under a list it cannot change. This is a deliberate departure from the
+single bottom row this section used to prescribe, argued in code where the constants are declared in
+`Assets/Scripts/UI/BackpackPanel.cs`, and the argument is the placement rule's own reason turned on
+itself: *bottom, because that is where the thumb is and this is the most-tapped control* belongs to
+Cabelo/Roupa/Extras, tapped over and over while a character is dressed, so they keep the bottom. A
+section is chosen once per visit, so it goes up top, where it reads as the sheet's own navigation
+instead of competing for the same corner. A screen that needs one bar uses the bottom one; a screen
+that needs two puts the frequent one there and makes the same argument in code.
 
 ### Placement
 
 The row is bottom-anchored **inside the card it belongs to**, never pinned to the screen:
 `AnchorBottom(Space.TouchTarget, Space.S12, Space.S12, Space.S20)`. On the backpack sheet that
 leaves 20 between the row and the card's own bottom edge, and that edge is itself
-`Space.SafeAreaBottom` above the safe area — 42 of clearance from the home indicator.
+`Space.SafeAreaBottom` above the safe area — 42 of clearance from the home indicator. A section bar
+above it is `AnchorTop` at the same `Space.S12` inset and the same `Space.TouchTarget` height, and
+gets a full-width divider of its own underneath, for the same reason the lower one has a divider
+above.
 
 Bottom, because that is where the thumb is and this is the most-tapped control on its surface; a
 tall sheet puts a top-anchored row in the stretch zone. The obvious objection — that a bottom row
@@ -145,11 +162,12 @@ that is the bottom-nav signature, and the platform's own tab-bar guidance exempt
 persistent-bar expectation to begin with.
 
 The band is inset `Space.S12`, **not** the surrounding sheet's `Space.S20`, and is therefore
-deliberately not aligned with the content above it. At S20 the backpack's four cells are 77 wide and
-the widest label clears the cell edge by 4.05; at S12 they are 81 and it clears by 6.05. Six points
-of label width is the entire reason the band is wider than the column above it. The misalignment is
-paid for by drawing the divider above the band at **full card width**: a rule the band sits under
-reads as a region boundary, while a rule narrower than the band reads as a mistake.
+deliberately not aligned with the content above it. The inset buys 5.3 points of label width per
+cell on a three-cell bar — at the reference width S20 gives 102.7 and S12 gives 108 — and that
+margin is the entire reason the band is wider than the column above it. It bought more still when
+this bar carried four cells, at 77 against 81. The misalignment is paid for by drawing the divider
+that bounds the band at **full card width**: a rule the band sits against reads as a region
+boundary, while a rule narrower than the band reads as a mistake.
 
 ### Geometry
 
@@ -169,7 +187,8 @@ where the reference and the truth agree — which is why every layout change als
 `tools/ios-sim.sh`.
 
 So the numbers are ratios, not constants. At the reference width the backpack's row is 324 across
-four cells, so 81 each; on the phone the card is 310 points and the cells are 71.6. What the
+three cells, so 108 each; on the phone the card is about 310 points, the row is 286.5 and the cells
+are 95.5. Both bars carry three cells, so one derivation serves both. What the
 contract fixes is the derivation, and every width below it — row, text column, name box, material
 card — comes off the same measured card.
 
@@ -181,7 +200,7 @@ a segmented control as touching segments. The 48×48 half of the rule is exceede
 There is **no track behind the row**, because this palette cannot draw one. Measured: parchment ink
 at 8% over `Surface.Card` is 1.24:1, `Surface.Panel` is 1.11:1, `Neutral.N800` is 1.20:1. Nothing is
 subtle and visible at the same time, so nothing is drawn. The row reads as one control from the
-full-width divider above it, four equal cells, and one of them filled.
+full-width divider that bounds it, three equal cells, and one of them filled.
 
 ### Selected and unselected
 
@@ -224,10 +243,15 @@ A tab whose list holds something unseen carries a **dot, never a number**: `UiSp
 component, not a detail — a corner dot without it lands on top of a wide label. Contrast is 8.31:1
 on `Surface.Card` and 3.24:1 on `Brand.PrimaryDark`, so it survives a selected cell too.
 
-Never a count. Four numbers on four adjacent cells read as a scoreboard to clear even when each one
-is individually legal, and `AGENTS.md` rule 10 is about precisely that reading. A dot is spent the
-moment its tab is looked at — including the tab that is selected on open — while an unvisited tab
+Never a count. Three numbers on three adjacent cells read as a scoreboard to clear even when each
+one is individually legal, and `AGENTS.md` rule 10 is about precisely that reading. A dot is spent
+the moment its tab is looked at — including the tab that is selected on open — while an unvisited tab
 keeps its dot until someone goes there. A dot that survives being looked at is the nagging version.
+
+A cell carries a dot only when its own table names one, which is what lets a section stand in for the
+lists folded inside it: Aparência carries one dot for all three wardrobe slots, because with the
+wardrobe closed their cells are not on screen to carry their own. Perfil and Itens carry none —
+neither has a seen-state to spend. One dot for three lists is still a dot, and still not a count.
 
 ### Focus, and the label-fit rule
 
@@ -238,15 +262,22 @@ the kit's own `FocusRing` child back to the front.
 
 **A tab label must fit its cell at `TypeRole.BodyStrong`, in every locale, on the narrowest device
 the game ships to.** The label rect is flush to the cell — no `Space.S4` inset. The inset is what
-the layout contract asked for and it was dropped for a measured reason: on the phone the cell is
-71.6 points, and eight points of inset leave a 63.6-point box for a label whose widest word,
-*Materiais* / *Materials*, is 68.91 at Manrope Bold. Flush, the box is the full 71.6 and that word
-clears it by 2.7. The labels are centred and every other word is far shorter, so the inset was
-buying nothing the centring does not already give.
+the layout contract asked for and it was dropped for a measured reason, back when this bar carried
+four cells: on the phone the cell was 71.6 points, and eight points of inset left a 63.6-point box
+for a label whose widest word, *Materiais* / *Materials*, is 68.91 at Manrope Bold. Flush, the box
+was the full 71.6 and that word cleared it by 2.7. The labels are centred and every other word is
+far shorter, so the inset was buying nothing the centring does not already give. Three cells are
+roomier and the rect stays flush anyway: the derivation is what the contract fixes, and re-adding
+the inset would only put the next long word back against the wall.
 
-**The working limit is therefore the cell width itself, and on the phone that is about 71.** That is
+**The working limit is therefore the cell width itself, and on the phone that is about 95.** That is
 an acceptance criterion, not a comfort, and it is worth saying out loud in review — the row is one
 re-translation away from failing, and the margin is smaller than the 348-point design frame implies.
+The widest label the sheet now carries is *Aparência*, 74.6 against a 95.5 cell; it is the benchmark
+a new word gets measured against, and it took that title from *Materiais* when the bars went to
+three cells. The count matters as much as the word: at five cells a label would have had 57.3 points
+and *Personalização* needs 112.8, which is how the sheet arrived at two bars of three rather than one
+bar of five.
 
 When it does fail, it fails loudly. The label keeps the kit's wrapping default inside a one-line
 rect, so an over-limit word breaks and spills **below** the cell into the sheet's bottom padding: it
@@ -254,9 +285,16 @@ never clips silently and never ellipsises, and the e2e screenshot catches it in 
 remedy is to re-author the word as a real word in both locales, and there is no second remedy. Do
 not shrink the type — `Type.Minimum` would fit anything, and 12 on the most-tapped control of a
 surface is the wrong trade. Do not make the cells unequal. This is why the backpack's accessory tab
-reads *Detalhes* / *Details*: *Acessórios* is 81.72 and *Accessories* is 90.20, both wider than the
-cell itself at any inset the card can offer, and `creation.slot.accessory` has called that slot
-*Detalhe* since character creation was written.
+has never read *Acessórios* / *Accessories*: those are 81.72 and 90.20, both wider than the cell was
+at four cells, at any inset the card could offer. It read *Detalhes* / *Details* until the bars went
+to three, and it now reads **Extras** in both locales — re-authored in the same pass that made
+*Materiais* into *Itens* / *Items* to make room for *Aparência* on the bar above.
+
+That word is shared, and deliberately. Character creation and the backpack both draw the three slot
+names from `slot.hair` / `slot.outfit` / `slot.accessory`, one namespace adopted precisely because
+two call sites is where drift lives — so creation's third tab reads *Extras* too, and always will.
+Renaming a slot is one edit in two locale files and it lands on both screens at once, which is the
+point of the namespace rather than a side effect of it.
 
 ### The row's name line, and the second thing a narrow card broke
 

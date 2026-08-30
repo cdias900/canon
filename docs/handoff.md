@@ -50,10 +50,44 @@ break by accident:
 
 ## What is not finished
 
-- **iOS is played through day 1 and no further.** On an iPhone 17 Pro simulator: the opening, the
-  creation screen, the village, rubble, the wall, the mat, the split, the night, the morning report
-  and the day-2 quiz all behave. Days 2 and 3, the trial, the Page and the reveal are still unseen
-  on a phone.
+- **iOS is played through day 2 and no further. Day 3 is the gap.** On an iPhone 17 Pro simulator,
+  days 1 and 2 both behave end to end: the opening, creation, the village, rubble, the wall, the
+  mat, the split, the night, the morning report, the quiz, and on day 2 Baruque, Zacur, the well
+  (`verse_shown` confirms `JHN.21.6`) and the whole invitation branch.
+
+  **The invitation chain is the one worth knowing held**, because it is the path nothing else
+  covers: accepting spent the day to `0/12`, the village went to dusk and the split correctly did
+  **not** open; twelve idle seconds did not shake it loose; relaunching mid-beat put the hold back
+  (`NpcActor.Start` re-deriving it); Malquias's return line released it and the split opened by
+  itself, offering no way back because capacity was zero.
+
+  **What day 3 still has to prove on a phone:** the trial, A Página landing at turn 2 and unlocking
+  *Metade e metade*, the gate closing with the player's name, the "Saber mais" that opens `NEH.4`
+  in the reader — this is the `deep_read` path and the reason the POC exists — and the vocation
+  reveal. Day 3 also never ends on the daylight clock: `Day3Director` holds the evening open for
+  the whole day, so a split that appears there is a bug.
+
+  A run is parked on the simulator ready for exactly that: day 3, `12/12` work, 6 rubble, player at
+  cell `(22, 21)`, `seg_01` at stage 1 and `seg_02` at stage 2, with `watch_posted_d1`,
+  `watch_posted_d2`, `fish_caught` and `accepted_invite` all set — so the trial should open with the
+  enemy on the *prepared* footing for the watches and the *neglected* one for the invitation.
+  `tools/ios-sim.sh run` resumes it; `tools/ios-sim.sh reset` throws it away and starts clean.
+
+- **Driving the village by tapping is slow, and the reason is worth knowing before you start.**
+  There is no accessibility tree to query, and the camera clamps at the map edges, so "the player
+  is at the centre of the screen" is false near an edge. Three things make it tractable:
+
+  1. `save.json` carries `playerCellX/Y`, but **only updates on a save event** — rubble, the well,
+     the wall, or an `NpcActor` conversation. The gathering crowd (`StandingNpc`) answers with
+     `multidao` lines and does **not** save, so a crowd line is not a position fix.
+  2. **Relaunching pins the player to a known cell.** `BuildPlayer` restores from `playerCellX/Y`
+     and `tools/ios-sim.sh run` reinstalls without clearing the save. It is the cheap way out of
+     "I do not know where I am", and it exercises the scene-rebuild restore on the way past.
+  3. **The crowd looks like residents and is not.** The six real ones stand at the `spawn` cells in
+     `npcs.json`; the crowd stands around the plaza.
+
+  In the close view one cell is about **58 device points** (`CameraRig.CloseSize` 7.5 gives 15
+  cells over 874 points). Fix the cell from a save, then compute — do not eyeball it.
 - **Tapping the Simulator goes through idb, and takes nothing from the user.** `tools/ios-sim.sh
   setup` once, then `tap`/`press`/`swipe`/`text`/`key` in device points. idb injects through
   IndigoHID, the path a real device uses, so the cursor does not move, focus stays where it was,

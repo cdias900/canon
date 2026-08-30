@@ -65,6 +65,9 @@ namespace SheepGate.World
         WorldMapOverlay _worldMap;
         readonly List<CutsceneActor> _crowd = new List<CutsceneActor>();
         readonly List<Vector2Int> _crowdSpots = new List<Vector2Int>();
+        Vector2Int _neighbourSpot;
+        Vector2Int _playerSpot;
+        int _frontMostSortingOrder = CutsceneSortingBase;
         GameObject _stone;
         CutsceneActor _neighbour;
         CutsceneActor _governor;
@@ -205,13 +208,22 @@ namespace SheepGate.World
             // him, and everyone keeps facing him for the whole speech.
             BuildGathering(plaza);
 
-            // The neighbour takes his place in the crowd and the player stops beside him, not on
-            // top of him: you arrive with the person who brought you.
-            Vector2Int neighbourSpot = _crowdSpots.Count > 0 ? _crowdSpots[0] : FindOpenCellNear(plaza, 3);
-            Vector2Int playerSpot = FindOpenCellNear(neighbourSpot, 1);
+            // The pair walk to the two cells BuildGathering held back for them, in the second row.
+            // Getting there means crossing the rows nearer the camera, so both are drawn in front of
+            // the entire crowd for the walk and only drop into their own row on arrival: a villager
+            // drawn over the person you are playing is the one thing this walk cannot do.
+            Vector2Int neighbourSpot = _neighbourSpot;
+            Vector2Int playerSpot = _playerSpot;
+
+            if (_player != null && _player.Appearance != null)
+            {
+                _player.Appearance.SortingOrderBase = _frontMostSortingOrder;
+            }
 
             if (_neighbour != null)
             {
+                _neighbour.SortingOrderBase = _frontMostSortingOrder;
+
                 List<Vector2Int> route = PathForNeighbour(neighbourSpot);
                 float speed = _player != null ? _player.MoveSpeed : CutsceneActor.WalkSpeed;
                 StartCoroutine(route != null && route.Count > 0
@@ -225,6 +237,12 @@ namespace SheepGate.World
             if (_neighbour != null)
             {
                 _neighbour.FaceTowards(_governor.transform.position);
+                _neighbour.SortingOrderBase = SortingOrderForRow(plaza, neighbourSpot.y);
+            }
+
+            if (_player != null && _player.Appearance != null)
+            {
+                _player.Appearance.SortingOrderBase = SortingOrderForRow(plaza, playerSpot.y);
             }
 
             FacePlayerTowards(_governor.transform.position);
@@ -242,6 +260,13 @@ namespace SheepGate.World
             // Nobody vanishes. The gathering was the whole village turning up; a square that
             // empties the instant the speech ends would undo it. They stay, and they answer.
             PersistGathering();
+
+            // Back to the world's own draw order. A cutscene value left on the player would follow
+            // them into every remaining day, and nothing about it would log.
+            if (_player != null && _player.Appearance != null)
+            {
+                _player.Appearance.SortingOrderBase = PlayerSortingBase;
+            }
 
             SetHudVisible(true);
             _player.InputEnabled = true;
@@ -361,70 +386,338 @@ namespace SheepGate.World
         /// <summary>How many people turn up besides you and the neighbour.</summary>
         const int CrowdSize = 11;
 
+        // The crowd stands in front of the stone, not around it: 270 is straight in front, and the
+        // spread is wide enough to fill the square without anyone ending up behind the speaker.
+        const float CrowdArcCentre = 270f;
+        const float CrowdArcSpread = 150f;
+        const float CrowdInnerRadius = 2.1f;
+        const float CrowdOuterRadius = 4.4f;
+
+        // How far off its nominal spot a person may land. Enough to break the arc, not enough to
+        // scatter anybody out of the gathering.
+        const float ScatterDegrees = 11f;
+        const float ScatterRadius = 0.65f;
+        const int ScatterAttempts = 6;
+        const int CrowdSeed = 5213;
+
+        /// <summary>
+        /// Which row of the crowd the pair stand in, 0 nearest the stone and 1 the back. They stand
+        /// in the second row rather than behind everyone: the camera follows the player, so standing
+        /// at the back of the square pushes the man on the stone off the top of the screen, and you
+        /// cannot watch a speech you cannot see.
+        /// </summary>
+        const float PairRowDepth = 0.5f;
+
+        // Sorting. Cutscene actors start at 120, above the world; rows step by four from there.
+        const int CutsceneSortingBase = 120;
+        const int SortingRowsAbovePlaza = 6;
+
+        /// <summary>What the player's draw order is outside the cutscene, restored on hand over.</summary>
+        const int PlayerSortingBase = 100;
+
         /// <summary>
         /// Puts the man on a stone at the middle of the square and arranges everyone else in an arc
         /// in front of him, all facing him. The arc is built outward from the stone so the player,
         /// arriving last, is at the back of a crowd rather than in the middle of an empty square.
+        /// </summary>
+        /// <summary>
+        /// Fills the square in front of the stone and reserves the two cells the player and the
+        /// neighbour will stand in.
+        ///
+        /// Three things this deliberately does not do. It does not ring the stone: a speaker is
+        /// listened to from the front, and a full circle put a third of the village behind his
+        /// back. It does not place anybody on an exact radius: evenly spaced people on perfect
+        /// rings read as a diagram of a crowd rather than a crowd, so every position is scattered
+        /// off its nominal spot. And it does not place anybody in the pair's two cells, which are
+        /// claimed first, in front of everyone: the pair used to be sent to a cell a villager was
+        /// already standing on, and two sprites in one cell means one of them is gone.
+        ///
+        /// The scatter is seeded rather than free, so the opening looks the same every time it is
+        /// played. The complaint was that the crowd looked fabricated, not that it looked repeated.
         /// </summary>
         void BuildGathering(Vector2Int plaza)
         {
             _governor = CutsceneActor.Spawn("ManFromTheCapital", plaza, _map, transform, 0,
                 new Color(0.55f, 0.50f, 0.53f, 1f));
             _governor.LiftBy(0.34f);        // standing on the stone, not beside it
+            _governor.SortingOrderBase = SortingOrderForRow(plaza, plaza.y);
             BuildStone(plaza);
 
-            var palettes = new[]
+            Color[] palettes = CrowdPalettes;
+
+            GatheringLayout layout = ComputeGatheringLayout(_map, plaza);
+            _neighbourSpot = layout.NeighbourSpot;
+            _playerSpot = layout.PlayerSpot;
+
+            for (int i = 0; i < layout.CrowdSpots.Count; i++)
             {
-                new Color(0.68f, 0.57f, 0.46f, 1f), new Color(0.56f, 0.49f, 0.42f, 1f),
-                new Color(0.47f, 0.53f, 0.55f, 1f), new Color(0.64f, 0.56f, 0.43f, 1f),
-                new Color(0.51f, 0.45f, 0.49f, 1f), new Color(0.60f, 0.53f, 0.47f, 1f)
-            };
+                Vector2Int cell = layout.CrowdSpots[i];
+                _crowdSpots.Add(cell);
 
-            var taken = new HashSet<Vector2Int> { plaza };
-            int placed = 0;
-
-            // Rings outward from the stone, so the front row fills before the back.
-            for (int radius = 2; radius <= 5 && placed < CrowdSize; radius++)
-            {
-                int steps = Mathf.Max(8, radius * 6);
-                for (int i = 0; i < steps && placed < CrowdSize; i++)
-                {
-                    float angle = (i / (float)steps) * Mathf.PI * 2f;
-                    var cell = new Vector2Int(
-                        plaza.x + Mathf.RoundToInt(Mathf.Cos(angle) * radius),
-                        plaza.y + Mathf.RoundToInt(Mathf.Sin(angle) * radius));
-
-                    if (taken.Contains(cell) || !_map.InBounds(cell.x, cell.y) || !_map.IsWalkable(cell.x, cell.y))
-                    {
-                        continue;
-                    }
-
-                    taken.Add(cell);
-                    _crowdSpots.Add(cell);
-
-                    CutsceneActor person = CutsceneActor.Spawn("Gathered" + placed, cell, _map, transform,
-                        placed % 2, palettes[placed % palettes.Length]);
-                    person.FaceTowards(_governor.transform.position);
-                    _crowd.Add(person);
-                    placed++;
-                }
+                CutsceneActor person = SpawnVillager(i, cell, plaza, _map, transform, palettes);
+                person.FaceTowards(_governor.transform.position);
+                _frontMostSortingOrder = Mathf.Max(_frontMostSortingOrder, person.SortingOrderBase + 4);
+                _crowd.Add(person);
             }
 
             _governor.FaceTowards(_map.CellToWorldCenter(plaza + new Vector2Int(0, -3)));
         }
 
+        /// <summary>Where everyone at the gathering stands. Depends only on the map, never on play.</summary>
+        public struct GatheringLayout
+        {
+            public Vector2Int Plaza;
+            public Vector2Int NeighbourSpot;
+            public Vector2Int PlayerSpot;
+            public List<Vector2Int> CrowdSpots;
+        }
+
+        /// <summary>
+        /// The gathering's positions, worked out from the map alone.
+        ///
+        /// Separate from the spawning because it is needed twice: once by the cutscene, and again
+        /// every time the scene is rebuilt afterwards. The scatter is seeded, so both agree on
+        /// every cell without anything being written to the save.
+        /// </summary>
+        public static GatheringLayout ComputeGatheringLayout(TilemapBuilder map, Vector2Int plaza)
+        {
+            var layout = new GatheringLayout
+            {
+                Plaza = plaza,
+                CrowdSpots = new List<Vector2Int>(CrowdSize)
+            };
+
+            var taken = new HashSet<Vector2Int> { plaza };
+            Vector2Int neighbourSpot;
+            Vector2Int playerSpot;
+            ReservePairSpots(map, plaza, taken, out neighbourSpot, out playerSpot);
+            layout.NeighbourSpot = neighbourSpot;
+            layout.PlayerSpot = playerSpot;
+
+            var scatter = new System.Random(CrowdSeed);
+
+            for (int i = 0; i < CrowdSize; i++)
+            {
+                // Spread along the arc, and step the depth every third person so the group has
+                // rows instead of being one line of heads.
+                float t = CrowdSize > 1 ? i / (float)(CrowdSize - 1) : 0.5f;
+                float angle = CrowdArcCentre - (CrowdArcSpread * 0.5f) + (CrowdArcSpread * t);
+                float radius = Mathf.Lerp(CrowdInnerRadius, CrowdOuterRadius, (i % 3) * 0.5f);
+
+                Vector2Int cell;
+                if (!TryScatterCell(map, plaza, angle, radius, scatter, taken, out cell))
+                {
+                    continue;
+                }
+
+                taken.Add(cell);
+                layout.CrowdSpots.Add(cell);
+            }
+
+            return layout;
+        }
+
+        static CutsceneActor SpawnVillager(int index, Vector2Int cell, Vector2Int plaza, TilemapBuilder map,
+                                           Transform parent, Color[] palettes)
+        {
+            CutsceneActor person = CutsceneActor.Spawn("Gathered" + index, cell, map, parent,
+                index % 2, palettes[index % palettes.Length]);
+            person.SortingOrderBase = SortingOrderForRow(plaza, cell.y);
+            return person;
+        }
+
+        /// <summary>
+        /// Puts the gathering back after the opening has already been played.
+        ///
+        /// The cutscene leaves the village full of people, and until this existed they were only
+        /// runtime objects: a scene reload wiped them, so the square emptied when the player
+        /// switched language or simply reopened the game, which is precisely the "nobody vanishes"
+        /// the cutscene sets up. They are rebuilt rather than saved because the layout is a pure
+        /// function of the map, so there is nothing about them worth writing to a save file.
+        /// </summary>
+        public static void RestoreGathering(Transform parent, TilemapBuilder map)
+        {
+            GameState state = WorldRuntime.State;
+            if (state == null || !state.HasFlag(SeenFlag) || map == null || parent == null)
+            {
+                return;
+            }
+
+            Vector2Int plaza = CellFrom(GameData.Map != null ? GameData.Map.plaza : null, new Vector2Int(19, 13));
+            GatheringLayout layout = ComputeGatheringLayout(map, plaza);
+
+            var palettes = CrowdPalettes;
+
+            CutsceneActor governor = CutsceneActor.Spawn("ManFromTheCapital", plaza, map, parent, 0,
+                new Color(0.55f, 0.50f, 0.53f, 1f));
+            governor.LiftBy(0.34f);
+            governor.SortingOrderBase = SortingOrderForRow(plaza, plaza.y);
+            governor.FaceTowards(map.CellToWorldCenter(plaza + new Vector2Int(0, -3)));
+            BuildStoneUnder(plaza, map, parent);
+            governor.PersistAs(map, "governador_after", Loc.T("world.speaker.governor"));
+
+            CutsceneActor neighbour = CutsceneActor.Spawn("Neighbour", layout.NeighbourSpot, map, parent, 1,
+                new Color(0.62f, 0.53f, 0.44f, 1f));
+            neighbour.SortingOrderBase = SortingOrderForRow(plaza, layout.NeighbourSpot.y);
+            neighbour.FaceTowards(governor.transform.position);
+            neighbour.PersistAs(map, "vizinho_after", Loc.T("world.speaker.neighbour"));
+
+            for (int i = 0; i < layout.CrowdSpots.Count; i++)
+            {
+                Vector2Int cell = layout.CrowdSpots[i];
+                CutsceneActor person = SpawnVillager(i, cell, plaza, map, parent, palettes);
+                person.FaceTowards(governor.transform.position);
+                person.PersistAs(map, "multidao_after", Loc.T("world.speaker.crowd"));
+            }
+        }
+
+        static readonly Color[] CrowdPalettes =
+        {
+            new Color(0.68f, 0.57f, 0.46f, 1f), new Color(0.56f, 0.49f, 0.42f, 1f),
+            new Color(0.47f, 0.53f, 0.55f, 1f), new Color(0.64f, 0.56f, 0.43f, 1f),
+            new Color(0.51f, 0.45f, 0.49f, 1f), new Color(0.60f, 0.53f, 0.47f, 1f)
+        };
+
+        /// <summary>
+        /// Claims the pair's cells before a single villager is placed: side by side in the second
+        /// row, straight in front of the stone, which is close enough that the man speaking stays in
+        /// frame behind them.
+        ///
+        /// Standing inside the crowd rather than behind it costs the clear view they had at the
+        /// back, so it is bought back explicitly: the cell directly in front of each of them is
+        /// claimed and left empty. A character sprite is half a cell taller than the cell it stands
+        /// in, so without that gap the row nearer the camera would cut across both of them.
+        /// </summary>
+        static void ReservePairSpots(TilemapBuilder map, Vector2Int plaza, HashSet<Vector2Int> taken,
+                                     out Vector2Int neighbourSpot, out Vector2Int playerSpot)
+        {
+            float radius = Mathf.Lerp(CrowdInnerRadius, CrowdOuterRadius, PairRowDepth);
+            Vector2Int anchor = CellOnArc(plaza, CrowdArcCentre, radius);
+
+            neighbourSpot = FirstFreeCellNear(map, anchor, taken);
+            taken.Add(neighbourSpot);
+
+            // Beside him, not behind him — a cell further back is another row of the crowd.
+            Vector2Int beside = neighbourSpot + new Vector2Int(1, 0);
+            if (!IsFree(map, beside, taken))
+            {
+                beside = neighbourSpot + new Vector2Int(-1, 0);
+            }
+
+            playerSpot = IsFree(map, beside, taken) ? beside : FirstFreeCellNear(map, neighbourSpot, taken);
+            taken.Add(playerSpot);
+
+            // Claimed, never filled: this is the sight line, not a place for anyone to stand.
+            taken.Add(neighbourSpot + new Vector2Int(0, -1));
+            taken.Add(playerSpot + new Vector2Int(0, -1));
+        }
+
+        /// <summary>
+        /// A walkable, unclaimed cell near the nominal position, scattered off it. Falls back to the
+        /// nominal cell and then to a search outward, so the square always gets its full crowd.
+        /// </summary>
+        static bool TryScatterCell(TilemapBuilder map, Vector2Int plaza, float angle, float radius,
+                                   System.Random scatter, HashSet<Vector2Int> taken, out Vector2Int cell)
+        {
+            for (int attempt = 0; attempt < ScatterAttempts; attempt++)
+            {
+                float angleOffset = (float)((scatter.NextDouble() * 2.0) - 1.0) * ScatterDegrees;
+                float radiusOffset = (float)((scatter.NextDouble() * 2.0) - 1.0) * ScatterRadius;
+
+                cell = CellOnArc(plaza, angle + angleOffset, radius + radiusOffset);
+                if (IsFree(map, cell, taken))
+                {
+                    return true;
+                }
+            }
+
+            cell = CellOnArc(plaza, angle, radius);
+            if (IsFree(map, cell, taken))
+            {
+                return true;
+            }
+
+            cell = FirstFreeCellNear(map, cell, taken);
+            return IsFree(map, cell, taken);
+        }
+
+        static Vector2Int CellOnArc(Vector2Int centre, float degrees, float radius)
+        {
+            float radians = degrees * Mathf.Deg2Rad;
+            return new Vector2Int(
+                centre.x + Mathf.RoundToInt(Mathf.Cos(radians) * radius),
+                centre.y + Mathf.RoundToInt(Mathf.Sin(radians) * radius));
+        }
+
+        static bool IsFree(TilemapBuilder map, Vector2Int cell, HashSet<Vector2Int> taken)
+        {
+            return map != null
+                && map.InBounds(cell.x, cell.y)
+                && map.IsWalkable(cell.x, cell.y)
+                && !taken.Contains(cell);
+        }
+
+        /// <summary>Spirals outward from a cell until it finds one nobody has claimed.</summary>
+        static Vector2Int FirstFreeCellNear(TilemapBuilder map, Vector2Int origin, HashSet<Vector2Int> taken)
+        {
+            if (IsFree(map, origin, taken))
+            {
+                return origin;
+            }
+
+            for (int ring = 1; ring <= 6; ring++)
+            {
+                for (int dy = -ring; dy <= ring; dy++)
+                {
+                    for (int dx = -ring; dx <= ring; dx++)
+                    {
+                        // Only the edge of this ring; the inside was covered by a smaller one.
+                        if (Mathf.Abs(dx) != ring && Mathf.Abs(dy) != ring)
+                        {
+                            continue;
+                        }
+
+                        var cell = new Vector2Int(origin.x + dx, origin.y + dy);
+                        if (IsFree(map, cell, taken))
+                        {
+                            return cell;
+                        }
+                    }
+                }
+            }
+
+            return origin;
+        }
+
+        /// <summary>
+        /// Draw order for someone standing on this row. Lower on the screen is nearer the camera, so
+        /// the order grows as the row drops; the step is four because a character owns four sorting
+        /// slots. Measured from a row north of the stone, so every value stays above the world.
+        /// </summary>
+        static int SortingOrderForRow(Vector2Int plaza, int cellY)
+        {
+            return CutsceneSortingBase + (4 * Mathf.Clamp(plaza.y + SortingRowsAbovePlaza - cellY, 0, 40));
+        }
+
         /// <summary>The stone he stands on. Drawn from the rubble tile, which is what it is.</summary>
         void BuildStone(Vector2Int plaza)
         {
-            _stone = new GameObject("Stone");
-            _stone.transform.SetParent(transform, false);
-            _stone.transform.position = _map.CellToWorldCenter(plaza);
+            _stone = BuildStoneUnder(plaza, _map, transform);
+        }
 
-            SpriteRenderer renderer = _stone.AddComponent<SpriteRenderer>();
+        /// <summary>The stone he stands on. Rebuilt with him, or he stands on nothing.</summary>
+        static GameObject BuildStoneUnder(Vector2Int plaza, TilemapBuilder map, Transform parent)
+        {
+            var stone = new GameObject("Stone");
+            stone.transform.SetParent(parent, false);
+            stone.transform.position = map.CellToWorldCenter(plaza);
+
+            SpriteRenderer renderer = stone.AddComponent<SpriteRenderer>();
             renderer.sprite = ArtLibrary.Get(ArtKeys.TileRubble);
             renderer.color = new Color(0.60f, 0.57f, 0.50f, 1f);
             renderer.sortingOrder = 118;                 // under the man, over the ground
-            _stone.transform.localScale = new Vector3(1.35f, 0.85f, 1f);
+            stone.transform.localScale = new Vector3(1.35f, 0.85f, 1f);
+            return stone;
         }
 
         /// <summary>Route for the neighbour, found from where he is rather than from the player.</summary>

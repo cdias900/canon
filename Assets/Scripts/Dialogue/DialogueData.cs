@@ -8,8 +8,9 @@ namespace SheepGate.Dialogue
     /// Read-only helpers over <see cref="GameData.Dialogue"/>, plus the bookkeeping that lets the
     /// game know which conversations a player has already been through.
     ///
-    /// Nothing here writes to disk and nothing here is player facing: every string this class
-    /// returns is either an authored display name coming from npcs.json or a raw identifier.
+    /// Nothing here writes to disk, and every display name it returns is authored: from npcs.json
+    /// for the builders who exist in the world, from the UI string table for the speakers who do
+    /// not. A raw identifier is only ever returned when neither has an entry, which is a bug.
     /// </summary>
     public static class DialogueData
     {
@@ -105,8 +106,30 @@ namespace SheepGate.Dialogue
         }
 
         /// <summary>
-        /// Display name for an NPC, taken from npcs.json. Falls back to the raw id so a missing
-        /// entry shows up as an obvious authoring bug instead of an empty bubble.
+        /// Speakers who talk but do not exist in the world as an NPC: the narrator, the neighbour
+        /// before he is a persistent villager, the man from the capital, the crowd.
+        ///
+        /// They have no entry in npcs.json because npcs.json describes people with a spawn point
+        /// and a palette, so before this map they fell through to the raw id and the player read a
+        /// Portuguese word in an English build. The keys are the ones the persisted versions of the
+        /// same characters already use in <see cref="IntroCutscene"/>, deliberately: one string per
+        /// character, so the bubble and the villager you talk to afterwards can never disagree.
+        ///
+        /// tools/validate-content.mjs reads this map and fails the build on a speaker that is in
+        /// neither it nor npcs.json.
+        /// </summary>
+        static readonly Dictionary<string, string> SpeakerStringKeys = new Dictionary<string, string>
+        {
+            { "narrator", "world.speaker.narrator" },
+            { "vizinho", "world.speaker.neighbour" },
+            { "governador", "world.speaker.governor" },
+            { "multidao", "world.speaker.crowd" }
+        };
+
+        /// <summary>
+        /// Display name for a speaker: npcs.json for the builders, the UI string table for everyone
+        /// else. Falls back to the raw id so a missing entry shows up as an obvious authoring bug
+        /// instead of an empty bubble.
         /// </summary>
         public static string DisplayNameOf(string npcId)
         {
@@ -126,6 +149,12 @@ namespace SheepGate.Dialogue
                         return npc.display;
                     }
                 }
+            }
+
+            string stringKey;
+            if (SpeakerStringKeys.TryGetValue(npcId, out stringKey))
+            {
+                return Loc.T(stringKey);
             }
 
             return npcId;

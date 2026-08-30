@@ -223,9 +223,26 @@ namespace SheepGate.Player
             transform.position = new Vector3(worldPosition.x, worldPosition.y, transform.position.z);
         }
 
+        /// <summary>
+        /// Remembers where the player is standing, so a scene rebuild can put them back. Written on
+        /// arrival rather than every frame: a cell is only interesting once you are in it.
+        /// </summary>
+        private static void RecordCell(Vector2Int cell)
+        {
+            GameState state = SheepGate.World.WorldRuntime.State;
+            if (state == null)
+            {
+                return;
+            }
+
+            state.playerCellX = cell.x;
+            state.playerCellY = cell.y;
+        }
+
         public void TeleportToCell(Vector2Int cell)
         {
             Teleport(GridPathfinder.GridToWorld(cell));
+            RecordCell(cell);
         }
 
         private void StepMovement(float deltaTime)
@@ -276,6 +293,7 @@ namespace SheepGate.Player
             _onArrive = null;
 
             Vector2Int cell = GridPosition;
+            RecordCell(cell);
             if (callback != null) callback();
 
             Action<Vector2Int> handler = Arrived;

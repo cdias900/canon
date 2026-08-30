@@ -64,6 +64,13 @@ namespace SheepGate.Core
         public Dictionary<string, int> vocationScores = new Dictionary<string, int>();
         public HashSet<string> flags = new HashSet<string>();
         public Dictionary<string, int> counters = new Dictionary<string, int>();
+        // Where the player is standing. Unset until they have moved, so a fresh run still starts
+        // at the map's spawn point. It is here rather than in the scene because the scene is
+        // rebuilt from scratch on a language switch, and being put back at the village entrance
+        // is not what "change the language" is supposed to mean.
+        public int playerCellX = -1;
+        public int playerCellY = -1;
+
         public int watchAssigned;                             // people posted to watch last night
         public int workAssigned;
 

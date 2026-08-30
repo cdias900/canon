@@ -168,6 +168,7 @@ function main() {
 
   checkLocaleParity(root, locales);
   checkNoHardcodedPlayerStrings(root);
+  checkSpeakerNames(root, locales);
 
   console.log("");
   for (const warning of warnings) {
@@ -545,7 +546,7 @@ function checkDialogueReferences(root, scripture, locale) {
  * field by field so that can only be a build failure, never a shipped one.
  */
 function checkLocaleParity(root, locales) {
-  process.stdout.write("[6/7] locale parity           ");
+  process.stdout.write("[6/8] locale parity           ");
 
   const others = locales.filter((locale) => locale !== SOURCE_LOCALE);
   if (others.length === 0) {
@@ -731,6 +732,98 @@ function compareDialogue(locale, source, target) {
   }
 }
 
+/**
+ * Fails on a dialogue speaker with no authored display name in any locale.
+ *
+ * A speaker id resolves one of two ways: npcs.json, for the builders who exist in the world, or
+ * DialogueData.SpeakerStringKeys, for the ones who do not. Neither path covered the narrator, the
+ * neighbour, the man from the capital or the crowd, so the raw id reached the bubble and an
+ * English build printed "vizinho". Every other check passed while that was on screen, which is
+ * why this one exists: the parity check compares locales against each other and cannot see a
+ * string that is missing from all of them.
+ */
+function checkSpeakerNames(root, locales) {
+  process.stdout.write("[8/8] speaker names           ");
+
+  const dialoguePath = join(localeDir(root, SOURCE_LOCALE), "dialogue.json");
+  const dialogue = readJson(root, dialoguePath);
+  if (dialogue === null) {
+    console.log("SKIPPED (no dialogue.json for " + SOURCE_LOCALE + ")");
+    return;
+  }
+
+  const speakers = new Set();
+  for (const node of Object.values(dialogue)) {
+    // An empty npc is authored on purpose - the bubble hides the row - so it needs no name.
+    if (node && typeof node.npc === "string" && node.npc !== "") speakers.add(node.npc);
+  }
+
+  const stringKeys = speakerStringKeys(root);
+  if (stringKeys === null) {
+    console.log("FAIL");
+    errors.push(
+      "Could not read SpeakerStringKeys from Assets/Scripts/Dialogue/DialogueData.cs. The map " +
+      "moved or was renamed; this check cannot pass silently without it."
+    );
+    return;
+  }
+
+  const hits = [];
+  for (const speaker of [...speakers].sort()) {
+    for (const locale of locales) {
+      const names = readJson(root, join(localeDir(root, locale), "npcs.json")) ?? {};
+      if (typeof names[speaker] === "string" && names[speaker] !== "") continue;
+
+      const key = stringKeys.get(speaker);
+      if (key === undefined) {
+        hits.push(speaker + " (" + locale + ") has no entry in npcs.json and no SpeakerStringKeys mapping");
+        continue;
+      }
+
+      const ui = readJson(root, join(localeDir(root, locale), "ui.json")) ?? {};
+      if (typeof ui[key] !== "string" || ui[key] === "") {
+        hits.push(speaker + " (" + locale + ") maps to " + key + ", which ui.json does not define");
+      }
+    }
+  }
+
+  if (hits.length === 0) {
+    console.log("OK (" + speakers.size + " speaker(s), " + stringKeys.size + " mapped to the string table)");
+    return;
+  }
+
+  console.log("FAIL");
+  for (const hit of hits) {
+    errors.push(
+      "Dialogue speaker without a display name: " + hit + ". The player would read the raw id, " +
+      "which is a word in whichever language it was typed in."
+    );
+  }
+}
+
+/**
+ * The id -> string-key map out of DialogueData.cs. Returns null when the initialiser cannot be
+ * found at all, so a rename fails the build instead of emptying the check.
+ */
+function speakerStringKeys(root) {
+  const path = join(root, "Assets", "Scripts", "Dialogue", "DialogueData.cs");
+  if (!existsSync(path)) return null;
+
+  const content = readFileSync(path, "utf8");
+  const block = /SpeakerStringKeys\s*=\s*new\s+Dictionary<string,\s*string>\s*\{([\s\S]*?)\}\s*;/.exec(content);
+  if (block === null) return null;
+
+  const found = new Map();
+  const entry = /\{\s*"([^"]+)"\s*,\s*"([^"]+)"\s*\}/g;
+  let match = entry.exec(block[1]);
+  while (match !== null) {
+    found.set(match[1], match[2]);
+    match = entry.exec(block[1]);
+  }
+
+  return found.size === 0 ? null : found;
+}
+
 function readJson(root, filePath) {
   if (!existsSync(filePath)) return null;
   try {
@@ -751,7 +844,7 @@ function readJson(root, filePath) {
  * careless edit away from now that it ships a second language.
  */
 function checkNoHardcodedPlayerStrings(root) {
-  process.stdout.write("[7/7] hardcoded strings       ");
+  process.stdout.write("[7/8] hardcoded strings       ");
 
   const sources = [];
   for (const filePath of walkFiles(join(root, "Assets"))) {

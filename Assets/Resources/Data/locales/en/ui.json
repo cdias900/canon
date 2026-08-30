@@ -175,6 +175,7 @@
   "backpack.material.stone": "Stone",
   "backpack.material.timber": "Timber",
   "backpack.material.blocks": "Blocks",
+  "backpack.material.talents": "Talents",
   "backpack.refusal.locked": "You have not found this piece yet.",
   "backpack.refusal.unknown_item": "This piece did not ship with this version of the game.",
   "backpack.refusal.incompatible": "These two pieces are not worn together.",

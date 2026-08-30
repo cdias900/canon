@@ -156,7 +156,8 @@ namespace SheepGate.UI
         {
             "backpack.material.stone",
             "backpack.material.timber",
-            "backpack.material.blocks"
+            "backpack.material.blocks",
+            "backpack.material.talents"
         };
 
         // ------------------------------------------------------------------ the four tabs
@@ -245,7 +246,7 @@ namespace SheepGate.UI
         };
 
         /// <summary>GameObject names of the three material readouts.</summary>
-        static readonly string[] MaterialObjectNames = { "Material_stone", "Material_timber", "Material_blocks" };
+        static readonly string[] MaterialObjectNames = { "Material_stone", "Material_timber", "Material_blocks", "Material_talents" };
 
         // ------------------------------------------------------------------ metrics
         // Design points throughout, converted once. The sheet is a bottom sheet: a generous strip
@@ -1475,16 +1476,17 @@ namespace SheepGate.UI
         ///
         /// The character is absent here, which is what pays for the grid: 572 points instead of the
         /// 432 a wardrobe tab has. Two explicit rows rather than a
-        /// <see cref="GridLayoutGroup"/>, so the odd third card can sit alone without a special
-        /// cell size.
+        /// <see cref="GridLayoutGroup"/>, so a row can sit short without a special cell size — as
+        /// row two did while stone, timber and blocks were the whole list.
         ///
-        /// <b>The hole in row two is meaningful.</b> Row one is what the valley gives you; row two
-        /// is what those two become. The 320 points below the grid stay empty on purpose: rule 10
-        /// forbids everything that would obviously fill them — a completion count, a "next unlock",
-        /// a bar — and there is nothing else honest to put there. Calm and short beats padded.
+        /// <b>The rows are meaningful.</b> Row one is what the valley gives you; row two is what
+        /// those two become, plus the talents a check-in pays. The 320 points below the grid stay
+        /// empty on purpose: rule 10 forbids everything that would obviously fill them — a
+        /// completion count, a "next unlock", a bar — and there is nothing else honest to put
+        /// there. Calm and short beats padded.
         ///
-        /// The scroll view is kept even though three cards cannot overflow, for two reasons. A
-        /// fourth material later scrolls without a rewrite, and the kit's transparent
+        /// The scroll view is kept even though four cards cannot overflow, for two reasons. A
+        /// fifth material later scrolls without a rewrite, and the kit's transparent
         /// raycast-target viewport Image is what makes a grid of non-button cards draggable at all —
         /// these cards are not buttons and have no graphic a finger can hit. No scrollbar is
         /// attached: a permanent bar with a full-height handle on a tab that does not scroll reads
@@ -1507,6 +1509,7 @@ namespace SheepGate.UI
 
             RectTransform second = BuildMaterialsRow(grid);
             BuildMaterialCard(second, 2);
+            BuildMaterialCard(second, 3);
         }
 
         /// <summary>One row of the material grid. Both rows carry the same name; both are handles.</summary>
@@ -1902,6 +1905,7 @@ namespace SheepGate.UI
             SetCount(0, _state != null ? Mathf.Max(0, _state.stone) : 0);
             SetCount(1, _state != null ? Mathf.Max(0, _state.timber) : 0);
             SetCount(2, _state != null ? Mathf.Max(0, _state.blocks) : 0);
+            SetCount(3, _state != null ? Mathf.Max(0, _state.talents) : 0);
         }
 
         void SetCount(int index, int value)

@@ -175,6 +175,7 @@
   "backpack.material.stone": "Pedra",
   "backpack.material.timber": "Madeira",
   "backpack.material.blocks": "Blocos",
+  "backpack.material.talents": "Talentos",
   "backpack.refusal.locked": "Você ainda não encontrou esta peça.",
   "backpack.refusal.unknown_item": "Esta peça não veio nesta versão do jogo.",
   "backpack.refusal.incompatible": "Estas duas peças não se usam juntas.",

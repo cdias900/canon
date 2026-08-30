@@ -806,14 +806,20 @@ namespace SheepGate.E2E
 
             yield return SelectBackpackTab("Outfit", "04b-backpack-outfit");
             yield return SelectBackpackTab("Accessory", "04c-backpack-accessory");
+
+            // Itens is a section along the top now rather than a fourth cell in the wardrobe's own
+            // bar, and choosing it takes that bar off the screen with it.
             yield return SelectBackpackTab("Materials", "04d-backpack-materials");
 
             RecordMaterialsTab();
+            Record("a section with no slots takes the slot bar with it", Find("SegmentHair") == null,
+                "SegmentHair active=" + (Find("SegmentHair") != null));
 
-            // Back to the tab it opened on. This is the only selection that has to move the layout
-            // in both directions — the materials tab has no character above its list — so a sheet
-            // that can leave the wardrobe and not come back fails here rather than in a screenshot
-            // somebody looks at next week.
+            // Back through Aparência, which is the only way to a wardrobe now. This is the one
+            // selection that has to move the layout in both directions — Itens has no character
+            // above its list and no bar under it — so a sheet that can leave the wardrobe and not
+            // come back fails here rather than in a screenshot somebody looks at next week.
+            yield return SelectBackpackTab("Appearance", null);
             yield return SelectBackpackTab("Hair", null);
             Record("leaving the materials tab brings the character back", Find("CharacterStage") != null,
                 Find("CharacterStage") != null ? "CharacterStage is up again" : "the stage never came back");
@@ -842,7 +848,12 @@ namespace SheepGate.E2E
             yield return TapObject(segment, "select Segment" + tab);
             yield return null;
 
-            RecordOnlyBackpackTab(tab, "selecting Segment" + tab + " shows Tab" + tab + " and nothing else");
+            // Aparência opens whichever wardrobe list was last used rather than a panel of its own,
+            // so the panel assertion does not apply to it. Everything else about the tap does.
+            if (tab != "Appearance")
+            {
+                RecordOnlyBackpackTab(tab, "selecting Segment" + tab + " shows Tab" + tab + " and nothing else");
+            }
             Record("selecting Segment" + tab + " repaints the tab bar", IsShowing("SegmentFill" + tab),
                 "SegmentFill" + tab + " showing=" + IsShowing("SegmentFill" + tab));
             Record("the dot on Segment" + tab + " does not survive being looked at",

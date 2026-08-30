@@ -5,10 +5,10 @@ using SheepGate.Core;
 namespace SheepGate.Economy
 {
     /// <summary>
-    /// The daily check-in: once per real calendar day, at boot, the player is paid talents. The
-    /// streak that decides the payout tier resets on any gap greater than one day; the talents
-    /// already paid out never do — see the design doc's note on rule 7 for why that split is the
-    /// deliberate boundary rather than an oversight.
+    /// The daily check-in: once per real calendar day, the player claims a talent reward by
+    /// tapping the HUD's coin button. The streak that decides the payout tier resets on any gap
+    /// greater than one day; the talents already paid out never do — see the design doc's note on
+    /// rule 7 for why that split is the deliberate boundary rather than an oversight.
     /// </summary>
     public static class DailyCheckIn
     {
@@ -28,6 +28,12 @@ namespace SheepGate.Economy
             public int TalentsAwarded;
         }
 
+        /// <summary>True when the player has not yet claimed today's check-in.</summary>
+        public static bool IsAvailable(GameState state, DateTime today)
+        {
+            return state.lastCheckInDate != today.ToString(DateFormat, CultureInfo.InvariantCulture);
+        }
+
         /// <summary>
         /// Applies today's check-in to <paramref name="state"/>, mutating it when a reward is due.
         /// Safe to call more than once for the same day: every call after the first for that date
@@ -44,11 +50,20 @@ namespace SheepGate.Economy
             bool consecutive = IsNextCalendarDay(state.lastCheckInDate, today);
             state.checkInStreak = consecutive ? state.checkInStreak + 1 : 1;
 
-            int talents = state.checkInStreak >= EscalationStreak ? EscalatedTalents : BaseTalents;
+            int talents = TalentsForStreak(state.checkInStreak);
             state.talents += talents;
             state.lastCheckInDate = todayKey;
 
             return new Result { Awarded = true, Streak = state.checkInStreak, TalentsAwarded = talents };
+        }
+
+        /// <summary>
+        /// The reward a given streak count pays. Exposed so the reward modal can preview tomorrow's
+        /// payout (<c>TalentsForStreak(streak + 1)</c>) without mutating anything.
+        /// </summary>
+        public static int TalentsForStreak(int streak)
+        {
+            return streak >= EscalationStreak ? EscalatedTalents : BaseTalents;
         }
 
         /// <summary>True when today is exactly one calendar day after the stored date.</summary>

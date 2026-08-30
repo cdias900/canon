@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using SheepGate.Economy;
 using SheepGate.Player;
 using SheepGate.Scripture;
 using UnityEngine;
@@ -58,8 +57,6 @@ namespace SheepGate.Core
                 { "locale", Locales.Active }
             });
             Telemetry.Flush();
-
-            ApplyDailyCheckIn(state);
 
             // Brought up here rather than on the first sound, so the ambient bed is already
             // running when the opening fades in instead of arriving a beat late.
@@ -184,31 +181,6 @@ namespace SheepGate.Core
                     damaged = false
                 });
             }
-        }
-
-        /// <summary>
-        /// Pays today's check-in, if one is due. The HUD reads <see cref="GameState.talents"/>
-        /// live, so there is nothing further to hand off here. Saved immediately, before the scene
-        /// carrying that HUD even loads, so a force-quit right after boot cannot replay the reward.
-        /// </summary>
-        static void ApplyDailyCheckIn(GameState state)
-        {
-            DailyCheckIn.Result result = DailyCheckIn.Apply(state, DateTime.Now);
-            if (!result.Awarded)
-            {
-                return;
-            }
-
-            SaveSystem.Save(state);
-
-            Telemetry.Track(TelemetryEvents.CheckIn, new Dictionary<string, object>
-            {
-                { "streak", result.Streak },
-                { "talents_awarded", result.TalentsAwarded }
-            });
-            Telemetry.Flush();
-
-            Debug.Log("[Boot] Check-in -> streak " + result.Streak + ", +" + result.TalentsAwarded + " talents.");
         }
     }
 }

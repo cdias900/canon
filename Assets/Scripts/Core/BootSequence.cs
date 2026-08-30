@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using SheepGate.Economy;
 using SheepGate.Player;
 using SheepGate.Scripture;
 using UnityEngine;
@@ -57,6 +58,8 @@ namespace SheepGate.Core
                 { "locale", Locales.Active }
             });
             Telemetry.Flush();
+
+            ApplyDailyCheckIn(state);
 
             // Brought up here rather than on the first sound, so the ambient bed is already
             // running when the opening fades in instead of arriving a beat late.
@@ -181,6 +184,33 @@ namespace SheepGate.Core
                     damaged = false
                 });
             }
+        }
+
+        /// <summary>
+        /// Pays today's check-in, if one is due, and stashes the outcome for CheckInToast to show once
+        /// the Game scene has settled. Saved immediately so a force-quit mid-toast cannot replay the
+        /// reward — the same reasoning DailyQuiz already applies to its own seen-counter.
+        /// </summary>
+        static void ApplyDailyCheckIn(GameState state)
+        {
+            DailyCheckIn.Result result = DailyCheckIn.Apply(state, DateTime.Now);
+            if (!result.Awarded)
+            {
+                return;
+            }
+
+            SaveSystem.Save(state);
+
+            Telemetry.Track(TelemetryEvents.CheckIn, new Dictionary<string, object>
+            {
+                { "streak", result.Streak },
+                { "talents_awarded", result.TalentsAwarded }
+            });
+            Telemetry.Flush();
+
+            DailyCheckIn.PendingResult = result;
+
+            Debug.Log("[Boot] Check-in -> streak " + result.Streak + ", +" + result.TalentsAwarded + " talents.");
         }
     }
 }

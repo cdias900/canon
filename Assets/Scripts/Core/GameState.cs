@@ -25,12 +25,35 @@ namespace SheepGate.Core
     [Serializable]
     public class AppearanceState
     {
-        public int body;       // 0..1  build
-        public int skin;       // 0..3  skin tone
-        public int hair;       // 0..3  hair
-        public int top;        // 0..3
-        public int legs;       // 0..3
-        public int accessory;  // 0..3
+        /// <summary>
+        /// Build: 0 or 1. It comes from the chosen character, not from the wardrobe — the only
+        /// catalogue item that may write it is a <c>base</c> item, which declares a build and
+        /// nothing else. Stored unpacked; see <see cref="BodyArtVariant"/> for the sprite index.
+        /// </summary>
+        public int body;
+
+        /// <summary>
+        /// Skin tone: 0..<see cref="SkinTones"/>-1. The one layer here that belongs to the person
+        /// playing rather than to the character or to anything worn, and the reason the character
+        /// supplies a build and never a tone. Two fixed characters would otherwise mean two fixed
+        /// tones, which is not a thing the choice of character was ever meant to decide.
+        ///
+        /// Nothing in the catalogue may write this layer. A character floor that carried a tone
+        /// would silently replace the player's choice on every recomposition, so
+        /// <see cref="SheepGate.Player.CharacterPresets.ApplyTo"/> puts it back after composing —
+        /// belt and braces over content that is authored not to name it in the first place.
+        /// </summary>
+        public int skin;
+
+        // The four worn layers, each an index into that layer's art variants. The upper bounds are
+        // deliberately not written here: the counts live in SheepGate.Art.CharacterArt
+        // (HairVariants, TopVariants, LegsVariants, AccessoryVariants) and CharacterAppearance
+        // clamps against them. A bound copied into a comment here is a bound that goes stale the
+        // next time a shape is drawn, and a stale one reads as a rule.
+        public int hair;
+        public int top;
+        public int legs;
+        public int accessory;
 
         /// <summary>
         /// Build and skin share one sprite, so they share one art variant: build * SkinTones + skin.
@@ -40,6 +63,13 @@ namespace SheepGate.Core
         /// </summary>
         public const int SkinTones = 4;
 
+        /// <summary>
+        /// The packed body sprite index: build 0 owns variants 0..3, build 1 owns 4..7, and the
+        /// remainder is the tone. The art unpacks it the other way round (variant / SkinCount is
+        /// the build, variant % SkinCount is the tone), so the two halves recombine without either
+        /// side storing a packed value — which is what lets a character declare a build while the
+        /// player keeps the tone.
+        /// </summary>
         public int BodyArtVariant
         {
             get { return Mathf.Clamp(body, 0, 1) * SkinTones + Mathf.Clamp(skin, 0, SkinTones - 1); }
@@ -118,6 +148,35 @@ namespace SheepGate.Core
         public int morale = 100;
         public AppearanceState appearance = new AppearanceState();
         public string playerName = "";
+
+        /// <summary>
+        /// Which character this run is: a preset id from <c>Resources/Data/character_presets.json</c>
+        /// — <c>adar</c> or <c>neriah</c> — written once, when creation is confirmed.
+        ///
+        /// Purely additive, like the two wardrobe lists below. A save written before this field
+        /// existed simply has no such key, so it deserializes onto the initializer and the run keeps
+        /// the character it always had: nothing to migrate, no entry in SaveSystem.Repair, and no
+        /// step that could run twice.
+        ///
+        /// <b>Empty is a legitimate answer, and it means "not known".</b> It is what a save from
+        /// before this field carries, and what a run that never passed through creation carries.
+        /// Nothing here backfills it. The look could be read backwards to guess a character, and
+        /// that is exactly what must not happen: a guess would record an identity the player never
+        /// chose, and the save is the one place that distinction is still legible.
+        ///
+        /// So consumers read it defensively and degrade rather than assume. Treat null and empty
+        /// alike — the field round-trips through Newtonsoft, and a hand-edited save can carry an
+        /// explicit null however the initializer is written — and where the answer is needed but
+        /// missing, fall back the way <see cref="SheepGate.Player.Wardrobe.CharacterId"/> does
+        /// today: infer from the signature piece being worn, and protect no silhouette anchor when
+        /// even that says nothing.
+        ///
+        /// It is an id and not a <see cref="SheepGate.Player.PresetDef"/> on purpose. The presets
+        /// file is reloaded on every language switch, so a resolved object in the save would be a
+        /// reference into a table that no longer exists; the id survives that, and survives a
+        /// character being re-authored between builds.
+        /// </summary>
+        public string characterId = "";
 
         // ---------------------------------------------------------------------- the wardrobe
         //

@@ -63,25 +63,47 @@ namespace SheepGate.UI
         public const string IconLock = SheepGate.Art.ArtKeys.IconLock;
         public const string IconBag = SheepGate.Art.ArtKeys.IconBag;
 
-        /// <summary>Body layer, idle pose, in the art module's canonical key form.</summary>
+        /// <summary>
+        /// Body layer, idle pose, in the art module's canonical key form.
+        ///
+        /// The index handed in is the PACKED build-and-tone variant
+        /// (<c>build * SkinTones + skin</c>), not a build on its own, so the ceiling is
+        /// <see cref="SheepGate.Art.CharacterArt.BodyVariants"/> and never a literal. It used to be
+        /// clamped to 0..1, which silently collapsed every skin tone above the first — and the
+        /// second build with them — onto one sprite. Deriving the bound from the art module means
+        /// adding a tone or a build can never leave this behind again.
+        /// </summary>
         public static string Body(int index, FacingDirection direction, int frame)
         {
-            return SheepGate.Art.ArtKeys.Body(Mathf.Clamp(index, 0, 1), ToArtFacing(direction), ArtAnim.Idle, frame);
+            int max = SheepGate.Art.CharacterArt.BodyVariants - 1;
+            return SheepGate.Art.ArtKeys.Body(Mathf.Clamp(index, 0, max), ToArtFacing(direction), ArtAnim.Idle, frame);
         }
 
+        /// <summary>
+        /// Top layer. The ceiling comes from the art module so a new variant is reachable the moment
+        /// it is drawn; a literal here renders every variant past it as the wrong item.
+        /// </summary>
         public static string Top(int index)
         {
-            return SheepGate.Art.ArtKeys.Top(Mathf.Clamp(index, 0, 3));
+            return SheepGate.Art.ArtKeys.Top(Mathf.Clamp(index, 0, SheepGate.Art.CharacterArt.TopVariants - 1));
         }
 
+        /// <summary>
+        /// Legs layer. The ceiling comes from the art module so a new variant is reachable the moment
+        /// it is drawn; a literal here renders every variant past it as the wrong item.
+        /// </summary>
         public static string Legs(int index)
         {
-            return SheepGate.Art.ArtKeys.Legs(Mathf.Clamp(index, 0, 3));
+            return SheepGate.Art.ArtKeys.Legs(Mathf.Clamp(index, 0, SheepGate.Art.CharacterArt.LegsVariants - 1));
         }
 
+        /// <summary>
+        /// Accessory layer. The ceiling comes from the art module so a new variant is reachable the moment
+        /// it is drawn; a literal here renders every variant past it as the wrong item.
+        /// </summary>
         public static string Accessory(int index)
         {
-            return SheepGate.Art.ArtKeys.Accessory(Mathf.Clamp(index, 0, 3));
+            return SheepGate.Art.ArtKeys.Accessory(Mathf.Clamp(index, 0, SheepGate.Art.CharacterArt.AccessoryVariants - 1));
         }
 
         /// <summary>

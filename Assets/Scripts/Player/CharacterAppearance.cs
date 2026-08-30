@@ -35,8 +35,12 @@ namespace SheepGate.Player
 
         private static readonly string[] LayerPrefixes = { "body", "legs", "top", "acc", "hair" };
 
-        /// <summary>Highest variant index accepted per layer, matching the ArtLibrary key list.</summary>
-        private static readonly int[] LayerMaxVariant = { 7, 3, 3, 3, 3 };
+        /// <summary>
+        /// Highest variant index accepted per layer, matching the ArtLibrary key list. Indexed by
+        /// the Layer* constants, so the order is Body, Legs, Top, Accessory, Hair — accessory is
+        /// the fourth entry and hair the last, which is the easy one to transpose.
+        /// </summary>
+        private static readonly int[] LayerMaxVariant = { 7, 3, 3, 5, 6 };
 
         /// <summary>
         /// Frames requested per layer, in layer order. Only the body is animated in the art

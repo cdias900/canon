@@ -42,7 +42,10 @@ namespace SheepGate.World
                 : new Vector3(cell.x + 0.5f, cell.y + 0.5f, 0f);
 
             actor._appearance = host.AddComponent<CharacterAppearance>();
-            actor._appearance.Apply(new AppearanceState { body = bodyVariant, top = 1, legs = 2, accessory = 0 });
+            // Accessory 3 is the ring belt, deliberately: variant 0 is acc_rope_coil, which is Adar's
+            // signature piece. A passer-by wearing the silhouette that identifies the player
+            // character reads as a continuity error the moment the wardrobe teaches it.
+            actor._appearance.Apply(new AppearanceState { body = bodyVariant, top = 1, legs = 2, accessory = 3 });
             actor._appearance.Tint = tint;
             actor._appearance.SortingOrderBase = 120;
             actor._appearance.SetAnimation("idle");

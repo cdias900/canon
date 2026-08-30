@@ -243,7 +243,12 @@ namespace SheepGate.Player
     ///
     /// * <b>It never writes <see cref="GameState"/>.</b> A suggested name is a pre-fill for a text
     ///   field, not an assignment to <c>playerName</c>; a name the player never looked at is not a
-    ///   name they chose. Writing the field is the creation screen's job, at confirm.
+    ///   name they chose. Writing the save is the creation screen's job, at confirm, and this class
+    ///   is what it reads to do it: <see cref="Get"/> resolves the chosen id, which the screen
+    ///   records in <see cref="GameState.characterId"/>; <see cref="DefaultEquipped"/> gives the
+    ///   item ids it seeds <see cref="GameState.equippedItems"/> with; and <see cref="ApplyTo"/>
+    ///   lays the look down over the tone the player picked. Nothing here does any of that on its
+    ///   own, because none of it should happen while the player is still browsing.
     /// * <b>It never locks a slot.</b> A preset says what the character walks in wearing and stops
     ///   there. Everything in it is swappable in the wardrobe, immediately and afterwards.
     /// * <b>It reads no score.</b> There is no tier, no progressive asset swap and no unlock in this
@@ -365,7 +370,10 @@ namespace SheepGate.Player
         // ------------------------------------------------------------------ the starting look
 
         /// <summary>
-        /// The catalogue items this preset starts in, in the order they should be equipped.
+        /// The catalogue items this preset starts in, in the order they should be equipped. This is
+        /// the list character creation writes into <see cref="GameState.equippedItems"/> at confirm,
+        /// which is what makes the backpack open on a fresh save already showing what the character
+        /// is wearing instead of nothing at all.
         ///
         /// The order matters and is not cosmetic. <see cref="AppearanceState"/> has a single
         /// accessory layer, and <see cref="CharacterCatalog.Compose"/> applies accessories in the
@@ -376,6 +384,18 @@ namespace SheepGate.Player
         ///
         /// This ordering makes the default set safe. It does not make an arbitrary set safe — see
         /// the note in <see cref="VerifyAgainstCatalog"/>.
+        ///
+        /// <b>An id the catalogue cannot resolve is skipped, never blanked around.</b> The two files
+        /// are authored by different hands, so a preset can legitimately name an item on a build
+        /// where the catalogue has not caught up. Dropping only the id that does not resolve keeps
+        /// the rest of the character dressed and, more importantly, keeps it out of the save:
+        /// <see cref="GameState.equippedItems"/> is persisted, so an id seeded here that draws
+        /// nothing would sit in the file being warned about long after the mistake was fixed.
+        ///
+        /// Skipping is silent on purpose. It is not this method's job to report content mistakes —
+        /// <see cref="VerifyAgainstCatalog"/> is the loud path and names every unresolvable default
+        /// id, once, with what to change; this one runs on every character switch in creation, and
+        /// a log here would bury that message under its own repetitions.
         /// </summary>
         public static List<string> DefaultEquipped(string presetId)
         {
@@ -390,31 +410,52 @@ namespace SheepGate.Player
             PresetDefaultItems items = preset.default_items;
             if (items != null)
             {
-                Add(equipped, items.base_item);
-                Add(equipped, items.outfit);
-                Add(equipped, items.hair);
+                AddIfResolvable(equipped, items.base_item);
+                AddIfResolvable(equipped, items.outfit);
+                AddIfResolvable(equipped, items.hair);
 
                 if (items.accessories != null)
                 {
                     for (int i = 0; i < items.accessories.Length; i++)
                     {
-                        Add(equipped, items.accessories[i]);
+                        AddIfResolvable(equipped, items.accessories[i]);
                     }
                 }
             }
 
             // Last, always. See the remark above.
-            Add(equipped, preset.signature_item);
+            AddIfResolvable(equipped, preset.signature_item);
 
             return equipped;
         }
 
-        static void Add(List<string> into, string id)
+        // Appends an id that is worth wearing: named, not already in the list, and something the
+        // catalogue can actually turn into art. Filtering here rather than in the caller is what
+        // keeps the authored order intact — a later pass over the finished list could not tell the
+        // signature piece from an ordinary accessory, and the signature piece has to stay last.
+        static void AddIfResolvable(List<string> into, string id)
         {
-            if (!string.IsNullOrEmpty(id) && !into.Contains(id))
+            if (string.IsNullOrEmpty(id) || into.Contains(id) || !Resolvable(id))
             {
-                into.Add(id);
+                return;
             }
+
+            into.Add(id);
+        }
+
+        // Whether the catalogue can draw this id. While the catalogue is unauthored there is
+        // nothing to ask, so the answer is yes and the authored ids pass through untouched: they
+        // start resolving on the build where character_catalog.json lands, whereas a character
+        // blanked because a file had not arrived yet would stay blank in the save that recorded it.
+        // Same test ApplyTo uses to decide whether the catalogue can dress anyone at all.
+        static bool Resolvable(string id)
+        {
+            if (CharacterCatalog.Items == null || CharacterCatalog.Items.Length == 0)
+            {
+                return true;
+            }
+
+            return CharacterCatalog.Item(id) != null;
         }
 
         /// <summary>
@@ -425,6 +466,22 @@ namespace SheepGate.Player
         /// the floor is what remains and the character still draws — a creation screen that renders
         /// an empty body because content landed in a different order is a bug nobody can see from
         /// the log.
+        ///
+        /// <b>The skin tone is not part of the look this writes.</b> A character supplies the build,
+        /// the face and the silhouette; the tone belongs to whoever is playing, and choosing Adar
+        /// or Neriah must never decide it for them. So <see cref="AppearanceState.skin"/> is read
+        /// before the floors go down and put back after — including over
+        /// <see cref="CharacterCatalog.Compose"/>, which lays the catalogue's own character block
+        /// down as a floor from a file this class does not load and cannot correct.
+        ///
+        /// The restore cannot erase anything real: no catalogue item names the skin layer, because
+        /// a tone is never something worn, never earned and never taken away. If one ever did, this
+        /// line is the one that refuses it, and refusing it is the correct reading of the rule.
+        ///
+        /// Both floors are meant to be authored without a tone in the first place — see the check
+        /// in <see cref="ResolveTokens"/>, which says so out loud for the presets file. This is the
+        /// guarantee behind that check rather than a substitute for it: the check reports the
+        /// mistake, this makes it harmless while it is being fixed.
         /// </summary>
         public static void ApplyTo(AppearanceState into, string presetId)
         {
@@ -440,6 +497,9 @@ namespace SheepGate.Player
                 return;
             }
 
+            // The player's, from before this call and after it. See the remark above.
+            int chosenTone = into.skin;
+
             if (preset.art != null && !preset.art.IsEmpty)
             {
                 preset.art.ApplyTo(into);
@@ -449,6 +509,8 @@ namespace SheepGate.Player
             {
                 CharacterCatalog.Compose(into, presetId, DefaultEquipped(presetId));
             }
+
+            into.skin = chosenTone;
         }
 
         // ------------------------------------------------------------------ the player's name
@@ -710,6 +772,22 @@ namespace SheepGate.Player
                 problems++;
             }
 
+            // The same rule the presets file is held to, checked on the copy this class cannot
+            // correct: CharacterCatalog owns that file, and CharacterCatalog.Compose lays its "art"
+            // block down as a floor. A tone there would take the player's choice away on every
+            // recomposition — CharacterPresets.ApplyTo puts it back on the creation path, but that
+            // is one caller of Compose and not the only one. Reported, never silently patched: this
+            // method's job is to say which file to change.
+            if (twin.art != null && twin.art.skin.HasValue)
+            {
+                Debug.LogError("[Presets] The \"characters\" block of '" + preset.id +
+                               "' in character_catalog.json names a skin tone (\"skin\": " +
+                               twin.art.skin.Value + "). Remove the key: a character declares a build, " +
+                               "and the tone is the player's choice, so a character floor that carries one " +
+                               "overwrites it every time the look is recomposed.");
+                problems++;
+            }
+
             return problems;
         }
 
@@ -889,6 +967,21 @@ namespace SheepGate.Player
                 }
 
                 ResolvePalette(preset);
+
+                // A character declares a build; the tone belongs to the player. A floor that named
+                // one would replace a choice the player made, on every recomposition, without a
+                // word — so the value is dropped here rather than tolerated, and the block is
+                // checked for emptiness afterwards, so an "art" block that named nothing but a tone
+                // is reported for what it leaves behind: nothing to draw.
+                if (preset.art != null && preset.art.skin.HasValue)
+                {
+                    Debug.LogError("[Presets] '" + preset.id + "' names a skin tone (\"skin\": " +
+                                   preset.art.skin.Value + ") in its \"art\" block in character_presets.json. " +
+                                   "Remove the key: a character supplies the build and the player supplies the " +
+                                   "tone, and a floor that carries one overwrites the player's choice every time " +
+                                   "the look is recomposed. Ignoring it.");
+                    preset.art.skin = null;
+                }
 
                 if (preset.art == null || preset.art.IsEmpty)
                 {

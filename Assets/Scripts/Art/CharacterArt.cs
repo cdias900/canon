@@ -29,11 +29,18 @@ namespace SheepGate.Art
     /// or resizes a silhouette an overlay draws on. That is what lets a single static
     /// `top_2` sprite sit correctly on all 48 body sprites.
     ///
-    /// Only three regions animate, and no overlay ever covers them:
+    /// Only three regions animate:
     ///   - the arms, outside the torso columns
     ///   - the boots, below the lowest trouser hem
     ///   - the work tool
-    /// Anything added here must respect that split or the overlays will drift.
+    /// An overlay stays out of all three, and anything added here must respect that split or the
+    /// overlays will drift.
+    ///
+    /// ONE OVERLAY IS EXEMPT, and the exemption is what proves the rule: the wrist beads
+    /// (accessory variant 4) sit ON an arm, because the catalogue puts them on a wrist and a wrist
+    /// is nowhere else. They are allowed there only because they do not assume a row — they read
+    /// the same <see cref="HandTop"/> the arm is drawn from, so they move with it instead of
+    /// drifting off it. Any future overlay that wants an animated region owes the same proof.
     /// </summary>
     public static class CharacterArt
     {
@@ -47,10 +54,16 @@ namespace SheepGate.Art
         public const int BodyVariants = 8;
 
         public const int SkinCount = 4;
-        public const int HairVariants = 4;
+
+        /// <summary>
+        /// One variant per catalogue item, deliberately: two pieces with different names that draw
+        /// the same shape read as a bug the moment a wardrobe puts them side by side.
+        /// </summary>
+        public const int HairVariants = 7;
+
         public const int TopVariants = 4;
         public const int LegsVariants = 4;
-        public const int AccessoryVariants = 4;
+        public const int AccessoryVariants = 6;
 
         // ---- Rig, in top-left origin coordinates. Every rectangle is symmetric about x 15.5,
         //      so MirrorHorizontal() maps the rig onto itself exactly.
@@ -212,6 +225,41 @@ namespace SheepGate.Art
         }
 
         /// <summary>
+        /// Top row of one hand, for the pose the body is drawing.
+        ///
+        /// Public because an overlay that has to meet the hand — the wrist beads — must not carry
+        /// its own copy of these numbers: both it and the arm read the same
+        /// <see cref="ArmPose"/>, so they cannot drift apart when a pose is retimed.
+        ///
+        /// <paramref name="leftArm"/> picks which of the two, and it is not cosmetic: a walk
+        /// swings the arms in opposite directions, so asking for the wrong one is four rows out.
+        /// </summary>
+        public static int HandTop(ArtAnim anim, int frame, bool leftArm)
+        {
+            int armTop, armHeight, leftOffset, rightOffset;
+            bool handsUp;
+            ArmPose(anim, Mathf.Clamp(frame, 0, 1),
+                    out armTop, out armHeight, out leftOffset, out rightOffset, out handsUp);
+
+            int top = armTop + (leftArm ? leftOffset : rightOffset);
+            return handsUp ? top : top + armHeight - 3;
+        }
+
+        /// <summary>
+        /// True when the pose lifts the hands above the shoulders, as the work swing does. The
+        /// wrist is below the hand when an arm hangs and above it when the arm is raised, and
+        /// nothing else in the rig exposes which of the two is happening.
+        /// </summary>
+        public static bool HandsRaised(ArtAnim anim, int frame)
+        {
+            int armTop, armHeight, leftOffset, rightOffset;
+            bool handsUp;
+            ArmPose(anim, Mathf.Clamp(frame, 0, 1),
+                    out armTop, out armHeight, out leftOffset, out rightOffset, out handsUp);
+            return handsUp;
+        }
+
+        /// <summary>
         /// One arm. The column facing the torso is darkened, because the body outline only
         /// wraps the outer silhouette: without that seam the arms and the chest read as a
         /// single barrel, and a torso garment cannot fix it since it stops at the torso.
@@ -270,8 +318,20 @@ namespace SheepGate.Art
         }
 
         /// <summary>
-        /// Hair, lifted out of the head so it can be chosen apart from skin. Four looks, each with
-        /// its own colour, drawn to sit on the same head rectangle the body paints.
+        /// Hair, lifted out of the head so it can be chosen apart from skin. Seven looks, each
+        /// drawn onto the same head rectangle the body paints.
+        ///
+        /// Every look is a shared crown plus one distinguishing MASS, and that is the whole method
+        /// here: at 32x48 a strand is one pixel and reads as dirt, so what separates two variants
+        /// is always the silhouette — a braid past the jaw, a bun clearing the crown, a band of
+        /// cloth — and never a difference in texture. The test the design system sets is that a
+        /// piece which disappears at 30 pixels is not a piece.
+        ///
+        /// Two variants are load bearing and their indices must not move:
+        ///   - 3 is the head cloth. Every hooded outfit and every art_hooded rule in the catalogue
+        ///     forces hair 3, so renumbering it silently unhoods six items.
+        ///   - 0 is the short crop, which is what the catalogue's free hair and Adar's default
+        ///     both point at.
         /// </summary>
         public static PixelCanvas Hair(int variant, ArtFacing facing)
         {
@@ -284,54 +344,229 @@ namespace SheepGate.Art
 
             PixelCanvas canvas = new PixelCanvas(Width, Height);
 
-            switch (drawn)
+            switch (variant)
             {
-                case ArtFacing.Up:
-                    // From behind, every style is a full back of the head.
-                    canvas.FillRect(HeadX, HeadY, HeadW, 9, hair);
-                    canvas.HLine(HeadX, HeadY + 8, HeadW, shade);
-                    if (variant == 2) canvas.FillRect(HeadX + 2, HeadY + 9, HeadW - 4, 3, hair);
-                    break;
+                // The two covered looks draw INSTEAD of the crown rather than over it: a crown
+                // underneath would only be repainted, and for the shaved band it would put hair
+                // back on the temples the razor took off.
+                case 3: DrawHeadCloth(canvas, drawn, hair, shade); break;
+                case 4: DrawShavedBand(canvas, drawn, hair, shade); break;
 
-                case ArtFacing.Right:
-                    canvas.FillRect(HeadX, HeadY, HeadW, 4, hair);
-                    canvas.FillRect(HeadX, HeadY, 6, 9, hair);
-                    canvas.HLine(HeadX, HeadY + 8, 6, shade);
-                    if (variant == 2) canvas.FillRect(HeadX, HeadY + 8, 4, 5, hair);       // longer
-                    if (variant == 3) canvas.HLine(HeadX + 1, HeadY, HeadW - 2, shade);    // receding
-                    break;
+                case 1: DrawCrown(canvas, drawn, hair, shade); DrawSideBraid(canvas, drawn, hair, shade); break;
+                case 2: DrawCrown(canvas, drawn, hair, shade); DrawLooseWaves(canvas, drawn, hair, shade); break;
+                case 5: DrawCrown(canvas, drawn, hair, shade); DrawWorkBun(canvas, drawn, hair, shade); break;
+                case 6: DrawCrown(canvas, drawn, hair, shade); DrawTiedBack(canvas, drawn, hair, shade); break;
 
-                default: // Down
-                    canvas.FillRect(HeadX, HeadY, HeadW, 4, hair);
-                    canvas.VLine(HeadX, HeadY, 7, hair);
-                    canvas.VLine(HeadX + HeadW - 1, HeadY, 7, hair);
-                    canvas.HLine(HeadX + 1, HeadY + 3, HeadW - 2, shade);
-
-                    switch (variant)
-                    {
-                        case 1: // cropped: no sides below the brow
-                            canvas.VLine(HeadX, HeadY + 4, 3, ArtPalette.Transparent);
-                            canvas.VLine(HeadX + HeadW - 1, HeadY + 4, 3, ArtPalette.Transparent);
-                            break;
-                        case 2: // long: down past the jaw on both sides
-                            canvas.VLine(HeadX, HeadY, 12, hair);
-                            canvas.VLine(HeadX + HeadW - 1, HeadY, 12, hair);
-                            canvas.VLine(HeadX + 1, HeadY + 7, 5, shade);
-                            canvas.VLine(HeadX + HeadW - 2, HeadY + 7, 5, shade);
-                            break;
-                        case 3: // covered: a worker's head cloth rather than a style
-                            canvas.FillRect(HeadX - 1, HeadY, HeadW + 2, 6, hair);
-                            canvas.HLine(HeadX - 1, HeadY + 5, HeadW + 2, shade);
-                            canvas.VLine(HeadX - 1, HeadY, 9, hair);
-                            canvas.VLine(HeadX + HeadW, HeadY, 9, hair);
-                            break;
-                    }
-
-                    break;
+                default: DrawCrown(canvas, drawn, hair, shade); break;  // 0, the short crop itself
             }
 
             if (mirrored) canvas.MirrorHorizontal();
             return canvas;
+        }
+
+        /// <summary>
+        /// hair_short_crop on its own, and the base every uncovered look is built on: cut close all
+        /// round, nothing hanging below the brow. The crown ADDS nothing past the brow line so that
+        /// a variant wanting length can add it, rather than every long variant having to erase a
+        /// side the crown drew — which is how the old numbering ended up with the dense cut mapped
+        /// to the cropped name.
+        /// </summary>
+        static void DrawCrown(PixelCanvas canvas, ArtFacing facing, Color32 hair, Color32 shade)
+        {
+            switch (facing)
+            {
+                case ArtFacing.Up:
+                    // From behind there is no face to stop at, so the crown is the whole skull.
+                    canvas.FillRect(HeadX, HeadY, HeadW, 7, hair);
+                    canvas.HLine(HeadX, HeadY + 6, HeadW, shade);
+                    break;
+
+                case ArtFacing.Right:
+                    canvas.FillRect(HeadX, HeadY, HeadW, 4, hair);
+                    canvas.FillRect(HeadX, HeadY, 4, 5, hair);          // the back of the skull
+                    canvas.HLine(HeadX, HeadY + 4, 4, shade);
+                    break;
+
+                default: // Down
+                    canvas.FillRect(HeadX, HeadY, HeadW, 4, hair);
+                    canvas.HLine(HeadX + 1, HeadY + 3, HeadW - 2, shade); // the brow it stops at
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// hair_side_braid: one thick plait on the character's right. Drawn as a two pixel column
+        /// with a tie every third row, because at this size a plait can only be read from its
+        /// rhythm — weave it pixel by pixel and it turns to noise.
+        ///
+        /// It ends at y15, above ArmY, so no frame of any arm animation runs into it. The side it
+        /// falls on flips between Left and Right because Hair() mirrors the whole canvas, which is
+        /// what the rest of the rig already does.
+        /// </summary>
+        static void DrawSideBraid(PixelCanvas canvas, ArtFacing facing, Color32 hair, Color32 shade)
+        {
+            // Seen from behind, the character's right side is on the viewer's left.
+            int x = facing == ArtFacing.Up ? HeadX - 1 : HeadX + HeadW - 1;
+            canvas.FillRect(x, HeadY + 4, 2, 10, hair);
+            for (int y = HeadY + 6; y <= HeadY + 12; y += 3) canvas.HLine(x, y, 2, shade);
+        }
+
+        /// <summary>
+        /// hair_loose_waves: down past the jaw on both sides. The two pixels pushed outward at y9
+        /// and y12 are the whole difference between a wave and a curtain — without them the fall
+        /// is a dead straight edge and reads as the cropped cut grown long.
+        /// </summary>
+        static void DrawLooseWaves(PixelCanvas canvas, ArtFacing facing, Color32 hair, Color32 shade)
+        {
+            switch (facing)
+            {
+                case ArtFacing.Up:
+                    // Starts at the crown's last row rather than at the length itself: a fill that
+                    // began where the extra length begins would float clear of the head.
+                    canvas.FillRect(HeadX + 2, HeadY + 7, HeadW - 4, 5, hair);
+                    canvas.HLine(HeadX + 2, HeadY + 11, HeadW - 4, shade);
+                    break;
+
+                case ArtFacing.Right:
+                    canvas.FillRect(HeadX, HeadY + 4, 4, 9, hair);
+                    canvas.HLine(HeadX, HeadY + 12, 4, shade);
+                    break;
+
+                default: // Down
+                    canvas.VLine(HeadX, HeadY, 12, hair);
+                    canvas.VLine(HeadX + HeadW - 1, HeadY, 12, hair);
+                    canvas.VLine(HeadX + 1, HeadY + 7, 5, shade);
+                    canvas.VLine(HeadX + HeadW - 2, HeadY + 7, 5, shade);
+                    canvas.Set(HeadX - 1, 9, hair);
+                    canvas.Set(HeadX - 1, 12, hair);
+                    canvas.Set(HeadX + HeadW, 9, hair);
+                    canvas.Set(HeadX + HeadW, 12, hair);
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// hair_headscarf, which is not a hairstyle at all: it is the worker's head cloth, and it
+        /// is also the shape every hooded outfit forces. That is why it covers the skull outright
+        /// and why its colour pair is bleached linen rather than a hair colour.
+        /// </summary>
+        static void DrawHeadCloth(PixelCanvas canvas, ArtFacing facing, Color32 cloth, Color32 shade)
+        {
+            switch (facing)
+            {
+                case ArtFacing.Up:
+                    canvas.FillRect(HeadX - 1, HeadY, HeadW + 2, 9, cloth);
+                    canvas.HLine(HeadX - 1, HeadY + 8, HeadW + 2, shade);
+                    break;
+
+                case ArtFacing.Right:
+                    canvas.FillRect(HeadX - 1, HeadY, HeadW + 2, 6, cloth);
+                    canvas.HLine(HeadX - 1, HeadY + 5, HeadW + 2, shade);
+                    canvas.FillRect(HeadX - 1, HeadY, 5, 9, cloth);      // the drape at the nape
+                    canvas.HLine(HeadX - 1, HeadY + 8, 5, shade);
+                    break;
+
+                default: // Down
+                    canvas.FillRect(HeadX - 1, HeadY, HeadW + 2, 6, cloth);
+                    canvas.HLine(HeadX - 1, HeadY + 5, HeadW + 2, shade);
+                    canvas.VLine(HeadX - 1, HeadY, 9, cloth);
+                    canvas.VLine(HeadX + HeadW, HeadY, 9, cloth);
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// hair_shaved_band: shaved at the sides, a strip of cloth holding what is left. The band
+        /// is drawn from the stone ramp and not in a hair colour, because the words say cloth —
+        /// the same reason Accessory() reaches into ArtPalette for a strap.
+        ///
+        /// There are no side columns at all, which is the point: past the crown it is bare skin,
+        /// and that is what tells this look apart from the crop at a glance.
+        /// </summary>
+        static void DrawShavedBand(PixelCanvas canvas, ArtFacing facing, Color32 hair, Color32 shade)
+        {
+            // Widest from behind, narrowest face on: face on, the temples are what the band holds.
+            int stripX, stripW;
+            switch (facing)
+            {
+                case ArtFacing.Up:    stripX = HeadX + 2; stripW = HeadW - 4; break;
+                case ArtFacing.Right: stripX = HeadX + 1; stripW = 6;         break;
+                default:              stripX = HeadX + 3; stripW = HeadW - 6; break;
+            }
+            canvas.FillRect(stripX, HeadY, stripW, 3, hair);
+            canvas.HLine(stripX, HeadY + 2, stripW, shade);
+
+            canvas.HLine(HeadX - 1, HeadY + 3, HeadW + 2, ArtPalette.StoneLight);
+            canvas.HLine(HeadX - 1, HeadY + 4, HeadW + 2, ArtPalette.StoneMid);
+
+            // The knot tail. Above ArmY, and moved to the other side from behind so it stays on
+            // the same side of the character's head whichever way they are looking.
+            int tailX = facing == ArtFacing.Up ? HeadX + HeadW : HeadX - 2;
+            canvas.FillRect(tailX, HeadY + 5, 2, 3, ArtPalette.StoneMid);
+            canvas.HLine(tailX, HeadY + 5, 2, ArtPalette.StoneLight);
+        }
+
+        /// <summary>
+        /// hair_work_bun: pinned high and tight, clear of rope and scaffold. A compact round mass
+        /// held above the skull, which is the one thing that keeps it distinct from hair_tied_back
+        /// — that one is a length that hangs, this one is a ball that sits.
+        ///
+        /// Face on, only two rows of it clear the crown, and that is enough: a bun on a 12 pixel
+        /// head is read from the bump in the outline, not from the bun.
+        /// </summary>
+        static void DrawWorkBun(PixelCanvas canvas, ArtFacing facing, Color32 hair, Color32 shade)
+        {
+            switch (facing)
+            {
+                case ArtFacing.Up:
+                    canvas.FillRect(HeadX + 4, HeadY + 4, 4, 4, hair);
+                    canvas.Outline(HeadX + 3, HeadY + 3, 6, 6, shade);   // the tie, ringing it
+                    break;
+
+                case ArtFacing.Right:
+                    canvas.FillRect(HeadX - 2, HeadY + 3, 3, 4, hair);
+                    canvas.HLine(HeadX - 2, HeadY + 6, 3, shade);
+                    break;
+
+                default: // Down
+                    canvas.FillRect(HeadX + 4, HeadY - 2, 4, 2, hair);
+                    canvas.HLine(HeadX + 4, HeadY - 1, 4, shade);
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// hair_tied_back, and Neriah's default: a smooth crown with the length gathered at the
+        /// nape into a low tail. Face on it is almost the crop — swept sides, then two pixels of
+        /// tail past the jaw. That restraint is deliberate: the look belongs to the back and the
+        /// side, and faking it from the front would only make it read as loose hair.
+        /// </summary>
+        static void DrawTiedBack(PixelCanvas canvas, ArtFacing facing, Color32 hair, Color32 shade)
+        {
+            switch (facing)
+            {
+                case ArtFacing.Up:
+                    // Contiguous with the crown, then tapered to two pixels: a hanging length,
+                    // where the bun is a mass.
+                    canvas.FillRect(HeadX + 4, HeadY + 7, 4, 8, hair);
+                    canvas.HLine(HeadX + 4, HeadY + 9, 4, shade);            // the tie
+                    canvas.VLine(HeadX + 4, HeadY + 13, 2, ArtPalette.Transparent);
+                    canvas.VLine(HeadX + 7, HeadY + 13, 2, ArtPalette.Transparent);
+                    break;
+
+                case ArtFacing.Right:
+                    canvas.FillRect(HeadX - 1, HeadY + 5, 2, 9, hair);
+                    canvas.HLine(HeadX - 1, HeadY + 7, 2, shade);            // the tie
+                    break;
+
+                default: // Down
+                    // Swept, not loose: the sides come down a pixel INSIDE the crown line.
+                    canvas.VLine(HeadX + 1, HeadY + 4, 2, hair);
+                    canvas.VLine(HeadX + HeadW - 2, HeadY + 4, 2, hair);
+                    canvas.VLine(HeadX, HeadY + 12, 2, hair);
+                    canvas.VLine(HeadX + HeadW - 1, HeadY + 12, 2, hair);
+                    break;
+            }
         }
 
         // ------------------------------------------------------------------ overlays
@@ -443,50 +678,212 @@ namespace SheepGate.Art
         }
 
         /// <summary>
-        /// Accessory. Confined to the head crown and the waist, both static regions, and
-        /// deliberately mundane: a cap, a band, a strap, a belt. Nothing ceremonial.
+        /// Accessory: a rope coil, a map tube, a tool bag, a ring belt, a bead bracelet, an old
+        /// stone seal. Deliberately mundane — the read is a crew at work, never a vestment.
+        ///
+        /// THE RULE THIS METHOD EXISTS TO KEEP: every variant sits where its catalogue name and
+        /// description say it sits. A wardrobe puts the words next to the picture, so an item
+        /// called "no pulso direito" that drew a hip pouch read as a bug, and was one.
+        ///
+        /// Five of the six live in regions the rig never moves — the torso, the waist, the neck —
+        /// so one sprite lies correctly over any body frame. The wrist beads cannot: the wrist is
+        /// on an arm, and across idle, walk and work the hand rows never once overlap, so no
+        /// static row IS the wrist. That single variant reads the live arm pose, and it is the
+        /// only reason this method takes an animation at all.
         /// </summary>
-        public static PixelCanvas Accessory(int variant, ArtFacing facing)
+        public static PixelCanvas Accessory(int variant, ArtFacing facing, ArtAnim anim, int frame)
         {
             variant = Mathf.Clamp(variant, 0, AccessoryVariants - 1);
+            frame = Mathf.Clamp(frame, 0, 1);
             bool mirrored = facing == ArtFacing.Left;
+            ArtFacing drawn = mirrored ? ArtFacing.Right : facing;
 
             PixelCanvas canvas = new PixelCanvas(Width, Height);
 
             switch (variant)
             {
-                case 1: // headband
-                    canvas.FillRect(HeadX, HeadY + 3, HeadW, 2, ArtPalette.ClayDark);
-                    canvas.HLine(HeadX, HeadY + 3, HeadW, ArtPalette.ClayMid);
-                    canvas.FillRect(HeadX - 2, HeadY + 3, 2, 2, ArtPalette.ClayDark);
-                    canvas.Set(HeadX - 2, HeadY + 5, ArtPalette.ClayDeep);
-                    break;
-
-                case 2: // carrying strap and hip pouch
-                    canvas.Line(TorsoX + 1, TorsoY + 1, TorsoX + TorsoW - 3, TorsoY + 11, ArtPalette.ClayDark);
-                    canvas.Line(TorsoX + 2, TorsoY + 1, TorsoX + TorsoW - 2, TorsoY + 11, ArtPalette.ClayDeep);
-                    canvas.FillRect(17, 25, 5, 5, ArtPalette.ClayMid);
-                    canvas.HLine(17, 25, 5, ArtPalette.ClayLight);
-                    canvas.HLine(17, 29, 5, ArtPalette.ClayDeep);
-                    break;
-
-                case 3: // wide belt with a tool loop
-                    canvas.FillRect(TorsoX - 1, 28, TorsoW + 2, 3, ArtPalette.ClayDark);
-                    canvas.HLine(TorsoX - 1, 28, TorsoW + 2, ArtPalette.ClayMid);
-                    canvas.FillRect(15, 28, 2, 3, ArtPalette.StoneLight);
-                    canvas.FillRect(19, 31, 2, 4, ArtPalette.ClayDeep);
-                    break;
-
-                default: // flat work cap
-                    canvas.FillRect(HeadX - 1, HeadY, HeadW + 2, 4, ArtPalette.StoneDark);
-                    canvas.HLine(HeadX - 1, HeadY, HeadW + 2, ArtPalette.StoneMid);
-                    canvas.HLine(HeadX - 2, HeadY + 4, HeadW + 4, ArtPalette.StoneDeep);
-                    break;
+                case 1: DrawMapTube(canvas, drawn); break;
+                case 2: DrawToolBag(canvas, drawn); break;
+                case 3: DrawRingBelt(canvas, drawn); break;
+                case 4: DrawBeadBracelet(canvas, drawn, anim, frame); break;
+                case 5: DrawOldSeal(canvas, drawn); break;
+                default: DrawRopeCoil(canvas, drawn); break;
             }
 
             canvas.OutlineOpaque(ArtPalette.Ink);
             if (mirrored) canvas.MirrorHorizontal();
             return canvas;
+        }
+
+        /// <summary>
+        /// Pose free overload. Stands in until the art library passes the animation it already
+        /// parses through to this layer; only variant 4 differs between poses, so the other five
+        /// are identical either way and this is not a second drawing path.
+        /// </summary>
+        public static PixelCanvas Accessory(int variant, ArtFacing facing)
+        {
+            return Accessory(variant, facing, ArtAnim.Idle, 0);
+        }
+
+        /// <summary>
+        /// acc_rope_coil: three stacked hoops over the character's right shoulder, and Adar's
+        /// signature piece. It has to break the silhouette OUTWARD, because the coil is what tells
+        /// him apart at a distance long after the face has stopped being legible.
+        ///
+        /// Three two pixel bands with a one pixel gap between them need eight rows, so the coil
+        /// runs a row further down the torso than the shoulder alone offers. That is safe: the
+        /// torso columns are static. Only the single wrap at x22 reaches the arm columns, which is
+        /// exactly why that wrap stops above ArmY.
+        /// </summary>
+        static void DrawRopeCoil(PixelCanvas canvas, ArtFacing facing)
+        {
+            // Seen from behind, the character's right shoulder is on the viewer's left.
+            bool behind = facing == ArtFacing.Up;
+            int x = behind ? TorsoX : TorsoX + 7;             // x10..14 from behind, x17..21 in front
+            int wrapX = behind ? ArmLX + ArmW - 1 : ArmRX;    // x9 or x22
+
+            for (int band = 0; band < 3; band++)
+            {
+                int top = NeckY - 1 + band * 3;               // y13, y16, y19
+                canvas.FillRect(x, top, 5, 2, ArtPalette.ClayMid);
+                canvas.HLine(x, top, 5, ArtPalette.ClayPale);
+                if (band < 2) canvas.HLine(x, top + 2, 5, ArtPalette.ClayDeep);  // the gap between hoops
+            }
+
+            canvas.FillRect(wrapX, ArmY - 3, 1, 3, ArtPalette.ClayMid);
+        }
+
+        /// <summary>
+        /// acc_map_tube: a tube on a carrying strap across the back, and Neriah's signature piece.
+        /// Slung across the back is precisely why it shows face on — the strap crosses the chest
+        /// and the tube's head clears the shoulder. Every pixel below ArmY stays inside the torso
+        /// columns, so the strap never crosses an arm.
+        /// </summary>
+        static void DrawMapTube(PixelCanvas canvas, ArtFacing facing)
+        {
+            if (facing == ArtFacing.Up)
+            {
+                // From behind the tube is the whole item, laid across the back.
+                canvas.Line(TorsoX + 1, TorsoY + 4, TorsoX + 9, TorsoY + 12, ArtPalette.StoneDark);
+                canvas.Line(TorsoX + 2, TorsoY + 4, TorsoX + 10, TorsoY + 12, ArtPalette.StoneMid);
+                canvas.Line(TorsoX + 3, TorsoY + 4, TorsoX + 11, TorsoY + 12, ArtPalette.StoneLight);
+                canvas.FillRect(TorsoX + 1, TorsoY + 2, 3, 2, ArtPalette.StoneLight);   // the cap
+                return;
+            }
+
+            canvas.Line(TorsoX + 1, TorsoY + 13, TorsoX + 10, TorsoY + 2, ArtPalette.ClayDark);
+            canvas.Line(TorsoX + 2, TorsoY + 13, TorsoX + 11, TorsoY + 2, ArtPalette.ClayDeep);
+
+            canvas.FillRect(TorsoX + 9, HeadY + 8, 3, 7, ArtPalette.StoneMid);
+            canvas.FillRect(TorsoX + 9, HeadY + 8, 3, 2, ArtPalette.StoneLight);        // the cap ring
+        }
+
+        /// <summary>
+        /// acc_tool_bag: a pouch hanging at the side of the belt. The cross body strap this shape
+        /// used to carry is gone on purpose — that silhouette belongs to acc_map_tube now, and a
+        /// bag sitting on the belt does not hang from the opposite shoulder.
+        /// </summary>
+        static void DrawToolBag(PixelCanvas canvas, ArtFacing facing)
+        {
+            bool behind = facing == ArtFacing.Up;
+            int x = behind ? TorsoX : TorsoX + 7;
+
+            canvas.FillRect(x, TorsoY + 9, 5, 6, ArtPalette.ClayMid);
+            canvas.HLine(x, TorsoY + 9, 5, ArtPalette.ClayLight);
+            canvas.HLine(x, TorsoY + 11, 5, ArtPalette.ClayDark);     // the flap
+            canvas.HLine(x, TorsoY + 14, 5, ArtPalette.ClayDeep);
+
+            // The hanger, tying the pouch up to the belt line. Offset the other way from behind so
+            // the two facings are a true mirror of each other rather than a pixel apart.
+            canvas.FillRect(x + (behind ? 2 : 1), TorsoY + 7, 2, 2, ArtPalette.ClayDark);
+        }
+
+        /// <summary>
+        /// acc_ring_belt: a wide band with two iron rings at the front.
+        ///
+        /// Trimmed to the torso columns, which is a fix and not a restyle: the band used to run a
+        /// pixel into each arm at y28 and y29, breaking the one rule the whole layering scheme
+        /// rests on — no overlay covers a part that animates. The hanging tool loop is gone for a
+        /// second reason: it read as a bag, which is acc_tool_bag's job, and it hung into the legs.
+        /// </summary>
+        static void DrawRingBelt(PixelCanvas canvas, ArtFacing facing)
+        {
+            canvas.FillRect(TorsoX, TorsoY + 12, TorsoW, 3, ArtPalette.ClayDark);
+            canvas.HLine(TorsoX, TorsoY + 12, TorsoW, ArtPalette.ClayMid);
+
+            if (facing == ArtFacing.Up)
+            {
+                // The rings are at the front. From behind what shows is where it is tied.
+                canvas.FillRect(TorsoX + 5, TorsoY + 11, 2, 4, ArtPalette.ClayDark);
+                canvas.HLine(TorsoX + 5, TorsoY + 11, 2, ArtPalette.ClayMid);
+                return;
+            }
+
+            DrawBeltRing(canvas, TorsoX + 3);
+            DrawBeltRing(canvas, TorsoX + 7);
+        }
+
+        static void DrawBeltRing(PixelCanvas canvas, int x)
+        {
+            canvas.FillRect(x, TorsoY + 12, 2, 2, ArtPalette.StoneLight);
+            canvas.Set(x + 1, TorsoY + 13, ArtPalette.StoneDeep);   // the hole through it
+        }
+
+        /// <summary>
+        /// acc_bead_bracelet: clay beads on a cord at the character's right wrist. The one
+        /// accessory that cannot be a still.
+        ///
+        /// The wrist is immediately above the hand, the hand moves in every pose, and the hand
+        /// rows across idle, walk and work share no row at all — so there is no pixel that is the
+        /// wrist in general. The beads therefore take their rows from the same <see cref="ArmPose"/>
+        /// the body draws from: below the hand when the arm hangs, above it when the arm is
+        /// raised, which is where a wrist actually is in each case.
+        ///
+        /// KNOWN AND ACCEPTED: build 1 pulls both arms a pixel inward and this layer does not know
+        /// the build, so on the narrower frame the band overhangs the forearm by one pixel. The
+        /// alternatives were a key format change or packing accessory against build the way the
+        /// body packs build against tone, and neither buys enough to be worth it.
+        /// </summary>
+        static void DrawBeadBracelet(PixelCanvas canvas, ArtFacing facing, ArtAnim anim, int frame)
+        {
+            // From behind, the character's right arm is the one painted on the viewer's left, and
+            // it is THAT arm's offset the beads must follow: a walk swings the two opposite ways.
+            bool behind = facing == ArtFacing.Up;
+            int x = behind ? ArmLX : ArmRX;
+
+            int handTop = HandTop(anim, frame, behind);
+            int wristTop = HandsRaised(anim, frame) ? handTop + 3 : handTop - 2;
+
+            for (int i = 0; i < ArmW; i++)
+            {
+                canvas.Set(x + i, wristTop, i % 2 == 0 ? ArtPalette.ClayMid : ArtPalette.ClayLight);
+                canvas.Set(x + i, wristTop + 1, ArtPalette.ClayDeep);
+            }
+        }
+
+        /// <summary>
+        /// acc_old_seal: a small stone seal on a cord, turned up in the foundation. Worn smooth —
+        /// the single dark pixel on the disc is an engraving nobody can read any more, and that is
+        /// both why the piece is interesting and why it carries no symbol of any kind.
+        /// </summary>
+        static void DrawOldSeal(PixelCanvas canvas, ArtFacing facing)
+        {
+            if (facing == ArtFacing.Up)
+            {
+                // From behind the disc is against the chest; only the knot at the nape shows.
+                canvas.FillRect(NeckX + 1, NeckY + 1, 2, 2, ArtPalette.ClayDeep);
+                canvas.Line(TorsoX + 2, TorsoY + 2, NeckX + 1, NeckY + 2, ArtPalette.ClayDeep);
+                canvas.Line(TorsoX + 9, TorsoY + 2, NeckX + 2, NeckY + 2, ArtPalette.ClayDeep);
+                return;
+            }
+
+            // The cord sits on the collarbones, just below the neck.
+            canvas.Line(TorsoX + 2, TorsoY + 1, TorsoX + 5, TorsoY + 5, ArtPalette.ClayDeep);
+            canvas.Line(TorsoX + 5, TorsoY + 5, TorsoX + 9, TorsoY + 1, ArtPalette.ClayDeep);
+
+            canvas.FillRect(TorsoX + 4, TorsoY + 5, 3, 3, ArtPalette.StoneMid);
+            canvas.HLine(TorsoX + 4, TorsoY + 5, 3, ArtPalette.StoneLight);
+            canvas.Set(TorsoX + 5, TorsoY + 6, ArtPalette.StoneDeep);
         }
     }
 }

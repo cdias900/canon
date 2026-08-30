@@ -6,10 +6,9 @@
       "silhouette_anchor": "shoulder_r",
       "art": {
         "body": 0,
-        "skin": 1,
         "hair": 0,
         "top": 0,
-        "legs": 0,
+        "legs": 3,
         "accessory": 0
       },
       "hair_tint": 0,
@@ -21,9 +20,8 @@
       "silhouette_anchor": "back_center",
       "art": {
         "body": 1,
-        "skin": 2,
-        "hair": 2,
-        "top": 1,
+        "hair": 6,
+        "top": 2,
         "legs": 1,
         "accessory": 1
       },
@@ -32,6 +30,32 @@
     }
   ],
   "items": [
+    {
+      "id": "base_adar",
+      "slot": "base",
+      "anchor": "",
+      "unlock_condition": null,
+      "incompatible_with": [],
+      "tint_channels": [],
+      "art": {
+        "body": 0
+      },
+      "hides_slots": [],
+      "replaces_shoulder": false
+    },
+    {
+      "id": "base_neriah",
+      "slot": "base",
+      "anchor": "",
+      "unlock_condition": null,
+      "incompatible_with": [],
+      "tint_channels": [],
+      "art": {
+        "body": 1
+      },
+      "hides_slots": [],
+      "replaces_shoulder": false
+    },
     {
       "id": "hair_short_crop",
       "slot": "hair",
@@ -43,6 +67,24 @@
       ],
       "art": {
         "hair": 0
+      },
+      "art_hooded": {
+        "hair": 3
+      },
+      "hides_slots": [],
+      "replaces_shoulder": false
+    },
+    {
+      "id": "hair_tied_back",
+      "slot": "hair",
+      "anchor": "",
+      "unlock_condition": null,
+      "incompatible_with": [],
+      "tint_channels": [
+        "hair"
+      ],
+      "art": {
+        "hair": 6
       },
       "art_hooded": {
         "hair": 3
@@ -102,7 +144,7 @@
         "hair"
       ],
       "art": {
-        "hair": 0
+        "hair": 4
       },
       "art_hooded": {
         "hair": 3
@@ -144,10 +186,42 @@
         "hair"
       ],
       "art": {
-        "hair": 1
+        "hair": 5
       },
       "art_hooded": {
         "hair": 3
+      },
+      "hides_slots": [],
+      "replaces_shoulder": false
+    },
+    {
+      "id": "outfit_carrier_tunic",
+      "slot": "outfit",
+      "anchor": "",
+      "unlock_condition": null,
+      "incompatible_with": [],
+      "tint_channels": [
+        "fabric"
+      ],
+      "art": {
+        "top": 0,
+        "legs": 3
+      },
+      "hides_slots": [],
+      "replaces_shoulder": false
+    },
+    {
+      "id": "outfit_surveyor_wrap",
+      "slot": "outfit",
+      "anchor": "",
+      "unlock_condition": null,
+      "incompatible_with": [],
+      "tint_channels": [
+        "fabric"
+      ],
+      "art": {
+        "top": 2,
+        "legs": 1
       },
       "hides_slots": [],
       "replaces_shoulder": false
@@ -345,7 +419,7 @@
         "fabric"
       ],
       "art": {
-        "accessory": 2
+        "accessory": 4
       },
       "hides_slots": [],
       "replaces_shoulder": false
@@ -363,7 +437,7 @@
         "fabric"
       ],
       "art": {
-        "accessory": 3
+        "accessory": 5
       },
       "hides_slots": [],
       "replaces_shoulder": false

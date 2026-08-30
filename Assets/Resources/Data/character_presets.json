@@ -21,11 +21,10 @@
       "fabric_tint": 0,
       "art": {
         "body": 0,
-        "skin": 1,
         "hair": 0,
         "top": 0,
-        "legs": 0,
-        "accessory": 1
+        "legs": 3,
+        "accessory": 0
       }
     },
     {
@@ -49,11 +48,10 @@
       "fabric_tint": 1,
       "art": {
         "body": 1,
-        "skin": 2,
-        "hair": 2,
-        "top": 1,
+        "hair": 6,
+        "top": 2,
         "legs": 1,
-        "accessory": 2
+        "accessory": 1
       }
     }
   ]

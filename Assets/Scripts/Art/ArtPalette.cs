@@ -105,13 +105,28 @@ namespace SheepGate.Art
                          new Color32(70, 41, 26, 255), new Color32(48, 28, 18, 255))
         };
 
-        /// <summary>Hair, as a colour pair. Index is the player's hair choice.</summary>
+        /// <summary>
+        /// Hair, as a colour pair. The index is the hair VARIANT, not a swatch the player picked:
+        /// the two arrays below are parallel to <c>CharacterArt.Hair</c>'s variants, so growing one
+        /// without the other indexes off the end at runtime rather than at compile time.
+        ///
+        /// Tying colour to shape is a known wart — the catalogue already carries a hair tint
+        /// channel and its own swatch list, which is where colour is meant to come from, and as
+        /// things stand choosing a work bun also chooses ash brown. Merging the two is a separate
+        /// change; until it lands, every variant needs an entry here.
+        ///
+        /// Index 3 is the head cloth, not hair, so it is tinted in bleached linen. Grey read as
+        /// grey hair on a character who is wearing a scarf.
+        /// </summary>
         public static readonly Color32[] HairColours =
         {
-            HairA,
-            HairB,
-            new Color32(122, 84, 44, 255),      // lighter brown
-            new Color32(88, 88, 92, 255)        // grey
+            HairA,                              // 0 short crop
+            HairB,                              // 1 side braid
+            new Color32(122, 84, 44, 255),      // 2 loose waves, lighter brown
+            StoneLight,                         // 3 headscarf: cloth, not hair
+            new Color32(107, 58, 36, 255),      // 4 shaved band, red earth
+            new Color32(92, 84, 74, 255),       // 5 work bun, ash brown
+            new Color32(160, 113, 76, 255)      // 6 tied back, sandy light brown
         };
 
         public static readonly Color32[] HairShades =
@@ -119,7 +134,10 @@ namespace SheepGate.Art
             HairAShade,
             HairBShade,
             new Color32(88, 58, 30, 255),
-            new Color32(62, 62, 66, 255)
+            StoneMid,
+            new Color32(74, 39, 24, 255),
+            new Color32(62, 56, 48, 255),
+            new Color32(110, 75, 49, 255)
         };
 
         /// <summary>Debug-only marker for an unknown art key. Never part of shipped art.</summary>

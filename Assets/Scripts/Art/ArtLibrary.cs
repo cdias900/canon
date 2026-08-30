@@ -244,7 +244,11 @@ namespace SheepGate.Art
                 return Character(key, CharacterArt.Top(variant, facing));
 
             if (ArtKeys.TryParsePart(key, ArtKeys.AccessoryPrefix, CharacterArt.AccessoryVariants, out variant, out facing, out anim, out frame))
-                return Character(key, CharacterArt.Accessory(variant, facing));
+                // anim and frame are passed through, not discarded: a wrist piece has to follow
+                // the hand, and the pose-aware overload is the only thing that knows where the
+                // hand is this frame. Dropping them pinned the beads to the idle pose, where
+                // they floated off the body entirely during the work swing.
+                return Character(key, CharacterArt.Accessory(variant, facing, anim, frame));
 
             if (ArtKeys.TryParsePart(key, ArtKeys.HairPrefix, CharacterArt.HairVariants, out variant, out facing, out anim, out frame))
                 return Character(key, CharacterArt.Hair(variant, facing));

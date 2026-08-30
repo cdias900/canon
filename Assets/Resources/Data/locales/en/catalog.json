@@ -11,9 +11,22 @@
   },
 
   "items": {
+    "base_adar": {
+      "display": "Adar's build",
+      "description": "Broad in the shoulders and short in the trunk, from lifting stone all day."
+    },
+    "base_neriah": {
+      "display": "Neriah's build",
+      "description": "Tall and narrow, from crossing the valley end to end on foot."
+    },
+
     "hair_short_crop": {
       "display": "Short crop",
       "description": "Cut close, the way that stays out of a working day."
+    },
+    "hair_tied_back": {
+      "display": "Tied back",
+      "description": "Combed back and tied at the nape, in a low ponytail."
     },
     "hair_side_braid": {
       "display": "Side braid",
@@ -36,6 +49,14 @@
       "description": "Pinned high and tight, clear of rope, scaffold and fire."
     },
 
+    "outfit_carrier_tunic": {
+      "display": "Carrier's tunic",
+      "description": "Short sleeves and the hem tied at the waist, the way stone gets carried."
+    },
+    "outfit_surveyor_wrap": {
+      "display": "Surveyor's wrap",
+      "description": "Cloth crossed at the chest and tied at the waist, with room for line and plumb."
+    },
     "outfit_clay_tunic": {
       "display": "Clay tunic",
       "description": "Heavy cloth the colour of the ground here. It stains and nobody notices."

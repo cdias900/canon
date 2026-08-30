@@ -11,9 +11,22 @@
   },
 
   "items": {
+    "base_adar": {
+      "display": "Corpo de Adar",
+      "description": "Largo de ombros e curto de tronco, de quem levanta pedra o dia inteiro."
+    },
+    "base_neriah": {
+      "display": "Corpo de Neriá",
+      "description": "Alta e estreita, de quem atravessa o vale de ponta a ponta a pé."
+    },
+
     "hair_short_crop": {
       "display": "Curto denso",
       "description": "Cortado rente, do jeito que não atrapalha o dia."
+    },
+    "hair_tied_back": {
+      "display": "Preso atrás",
+      "description": "Penteado para trás e amarrado na nuca, num rabo de cavalo baixo."
     },
     "hair_side_braid": {
       "display": "Trança lateral",
@@ -36,6 +49,14 @@
       "description": "Preso alto e apertado, longe de corda, andaime e fogo."
     },
 
+    "outfit_carrier_tunic": {
+      "display": "Túnica de carregador",
+      "description": "Manga curta e barra amarrada na cintura, do jeito que se carrega pedra."
+    },
+    "outfit_surveyor_wrap": {
+      "display": "Traje de medição",
+      "description": "Pano cruzado no peito e preso na cintura, com espaço para fita e prumo."
+    },
     "outfit_clay_tunic": {
       "display": "Túnica de barro",
       "description": "Pano grosso na cor do chão daqui. Suja e ninguém repara."

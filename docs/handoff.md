@@ -1,16 +1,16 @@
 # Handoff
 
-State of the POC, and the things that are not obvious from reading the code.
+State of the build, and the things that are not obvious from reading the code.
 
 Start with `README.md` for how to run it and `docs/architecture-contract.md` for the interfaces.
 This file is the part that would otherwise have to be rediscovered.
 
 ## Where it is
 
-Three days play end to end. Compiles at 0 errors and 0 warnings across ~60 C# files. Desktop and
+Three days play end to end. Compiles at 0 errors and 0 warnings across ~85 C# files. Desktop and
 iOS both build. `tools/acceptance.sh` passes every criterion **in both languages**, the content
-validator is clean, and `tools/e2e.sh` plays the opening and a whole day of a real build in each
-language and screenshots it.
+validator is clean, and `tools/e2e.sh` plays **all three days** of a real build in each language —
+the opening, the split, the trial, A Página, the reader and the vocation reveal — and screenshots it.
 
 **The game is bilingual: pt-BR and English.** pt-BR is the authoring locale. No player-facing string
 exists in C# any more; they all live in `Assets/Resources/Data/locales/<locale>/` and are read
@@ -22,7 +22,7 @@ through `Loc.T`. Structure and numbers are shared, so balance cannot diverge bet
 | Desktop | `Builds/mac/SheepGate.app` — runnable |
 | iOS simulator | `tools/ios-sim.sh` — builds, installs, boots and plays, on iPhone 17 Pro / Pro Max |
 | iOS device | `Builds/ios/Unity-iPhone.xcodeproj` — valid project, **never run on a device** |
-| Android | Out of scope by decision. Toolchain is installed if it comes back. |
+| Android | Build target exists (`BuildScript.BuildAndroid`); **no APK has ever been installed**. |
 
 **The opening**: region shot with the other cities shut → push-in to the ruined circular city → a
 neighbour crosses the square and speaks → you follow him into his house → character creation → you
@@ -88,28 +88,12 @@ break by accident:
 
   In the close view one cell is about **58 device points** (`CameraRig.CloseSize` 7.5 gives 15
   cells over 874 points). Fix the cell from a save, then compute — do not eyeball it.
-- **Tapping the Simulator goes through idb, and takes nothing from the user.** `tools/ios-sim.sh
-  setup` once, then `tap`/`press`/`swipe`/`text`/`key` in device points. idb injects through
-  IndigoHID, the path a real device uses, so the cursor does not move, focus stays where it was,
-  and the Simulator window can be hidden the entire time — verified by hiding it and watching a
-  tap land while iTerm kept focus and the pointer did not move a pixel.
-
-  Two dead ends it replaces, both of which cost a session. `osascript ... click at` **reports
-  success and does nothing**, because the Metal view ignores synthetic accessibility clicks, so a
-  run using it looks exactly like a frozen game. A real `CGEvent` posted to `.cghidEventTap` does
-  work, but only by moving the physical pointer and raising the window, which makes the machine
-  unusable while a session plays and fails outright on a locked Mac — if `System Events` answers a
-  click with `window Login of application process loginwindow`, that is what happened.
-
-  Also: read the screen with `xcrun simctl io booted screenshot`, which grabs the framebuffer and
-  cannot be fooled by window stacking. `screencapture -R` silently photographs whatever window is
-  on top, and once returned a picture of the terminal where the game should have been.
-
-  What does not port from the platform repo's version of this: there is no finding an element by
-  its label. `idb ui describe-all` reports one node for the whole application and `describe-point`
-  reports none, because Unity draws into a single Metal view and publishes no accessibility tree.
-  Tap a point, screenshot, look. Anything that needs to assert on the hierarchy belongs in
-  `tools/e2e.sh`, which drives the real EventSystem from inside the build.
+- **Tapping the Simulator goes through idb**, which takes neither the pointer nor the focus, so the
+  window can stay hidden for a whole session. The two dead ends that cost this project a session
+  each — `osascript ... click at`, which reports success and does nothing, and anything that moves
+  the physical cursor — plus how to read the screen and why there is no finding a control by name,
+  are documented once in [`development-guidelines.md`](development-guidelines.md) §3. Read that
+  before driving a phone.
 - **The framing of the opening has ~10 px of margin.** `WorldMapOverlay` places the closed cities
   at x ±14 to ±17 world units and the camera half-width at 19.5:9 is 20.2, so the leftmost city
   clears the screen edge by about a third of a world unit. At the 1080×1920 the project nominally
@@ -117,9 +101,6 @@ break by accident:
   tested; there is simply no room left, and a squarer screen would eat into it.
 - **`WorldMapOverlay.Place.Caption` is never drawn.** Every entry carries `"fechada"` and
   `BuildPlace` ignores it. Either the caption was meant to render or the field should go.
-- **Day 1 has no daily check-in.** The quiz used to fire on scene composition, which put a question
-  on top of the opening; it now arrives only from `MorningStarted`, which never fires on day 1. If
-  it is wanted back, the end of the day is the right home — not the start.
 - **The buildable wall is a straight run** along the north of a circular city. `WallSystem` places
   a segment by `grid_x` on one row. Nehemiah 3 assigns each group a stretch, so it reads correctly,
   but a true arc would need `WallSystem`, the contest and the patrol camera to change together.
@@ -152,13 +133,10 @@ persisted preference meant the *next* launch was the one that actually switched.
 
 Still open:
 
-- **`tools/e2e.sh` stops at the second morning.** It plays the opening through character creation
-  into day 1, spends that day, turns the night down once, lets the day end on its own and confirms
-  the split — then stops. Days 2 and 3, the trial, the Page and the reveal are asserted nowhere.
-  Extending it is mostly a matter of naming more beats; the machinery for waiting, tapping and
-  screenshotting is there. Note what it deliberately does *not* drive: it spends the day through
-  `ResourceSystem` rather than walking the player to the wall, so the interaction layer between a
-  tap on the ground and a stone on the wall is still only covered by playing.
+- **`tools/e2e.sh` reaches day 3, but not through the world.** It now plays all three days, the
+  trial, the Page, the reader and the reveal. What it deliberately does *not* drive: it spends a day
+  through `ResourceSystem` rather than walking the player to the wall, so the interaction layer
+  between a tap on the ground and a stone on the wall is still only covered by playing it.
 - **Nobody has read the English translation against the passage.** `node tools/list-curation.mjs`
   now queues both languages and `intro_gathering` is in the queue for `en` as well as `pt-BR`. A
   translation of a canonical figure's speech is newly authored speech in that language, so rule 4's
@@ -286,7 +264,7 @@ path by disabling the component. The live Page beat is still only verified by pl
 1. `tools/unity-check.sh` — compiles, reports C# errors.
 2. `node tools/validate-content.mjs` — scripture integrity, the forbidden-word checklist per
    language, locale parity, and hardcoded player strings.
-3. `tools/acceptance.sh` — asserts the rules from POC-IMPLEMENTATION.md §13, once per language.
+3. `tools/acceptance.sh` — asserts the rules from MVP-SCOPE.md §13, once per language.
 4. `tools/e2e.sh` — builds a player and plays the opening and a day in every language, screenshots in
    `Builds/e2e/`. **Read the screenshots.** A green exit code means nothing was covered and no
    string was missing; it does not mean the screen looks right.

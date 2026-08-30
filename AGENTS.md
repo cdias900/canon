@@ -1,150 +1,258 @@
-# Create Hack 2026 — contexto de produto
+# Create Hack 2026 — product context
 
-Repositório de um jogo de engajamento bíblico. Este arquivo é o contexto que todo agente lê antes de qualquer coisa. Os detalhes estão em `docs/`; **as regras abaixo não estão lá — estão aqui porque não podem ser violadas.**
+Repository of a Bible-engagement game. This file is the context every agent reads before anything
+else. The details live in `docs/`; **the rules below are not there — they are here because they
+cannot be violated.**
 
-## O que estamos construindo
+## What we are building
 
-Dois conceitos irmãos, com a mesma tese e mecânicas diferentes.
+**A Cidade Quebrada** — a turn-based building-and-defence game set in the book of Nehemiah. The
+player is one of the people called up to rebuild the wall of Jerusalem. Scripture arrives as a
+**strategy guide**. See `docs/nehemiah-game-design.md`.
 
-**Cânon** — RPG narrativo em texto (chat fiction) com trilha de progressão. O jogador vive dilemas da vida real dele e descobre, no fim de cada capítulo, que alguém já viveu aquilo. Roupagem moderna, discrição total, o texto bíblico entra como *loot* equipável ("Âncoras"). Ver `docs/canon-24h-plan.md`.
+**In development now:** the MVP — three days of play, one gate, Unity, iOS and desktop. It is what
+gets presented at the end of the hackathon. See `MVP-SCOPE.md`.
 
-**Cinquenta e Dois Dias** — jogo de construção e defesa por turnos, ambientado no livro de Neemias. O jogador é um dos convocados que reconstroem a muralha de Jerusalém. O texto bíblico entra como *guia de estratégia*. Ver `docs/nehemiah-game-design.md`.
+Names, in three layers, because four of them circulated and only these three mean anything:
 
-**Em desenvolvimento agora:** o POC do segundo — três dias de jogo, uma porta, Unity. Ver `POC-IMPLEMENTATION.md`.
-
-Os dois compartilham a métrica, os guardrails, o sistema de vocação e o pipeline de versículo. Não compartilham engine.
-
-## A métrica-norte
-
-**Taxa de aprofundamento: o jogador sai do jogo, por vontade própria, para ler o capítulo inteiro.**
-
-O evento é `deep_read`. Toda decisão de produto se resolve perguntando se ela aumenta ou diminui esse número. Se uma feature bonita não move isso, ela não é prioridade. Se uma feature move isso, ela é o produto.
-
-Corolário prático: **nunca mande a leitura para fora do app.** Deep link para o YouVersion, envio por e-mail, abrir o navegador — tudo isso destrói a medição, que é a razão de ser do produto. Leitor interno sempre; canal externo é botão secundário, opcional.
-
-## Regras inegociáveis
-
-### Integridade do texto
-
-1. **O LLM nunca escreve Escritura.** O modelo escolhe a *referência*; o texto literal é buscado por essa referência. Elimina alucinação de versículo por construção, não por prompt.
-2. **Nem código, nem spec, nem prompt contém versículo escrito à mão.** O que circula é `NEH.4.6`. Verificável por grep, e é critério de aceite.
-3. **Deus nunca fala em texto gerado.** Nada de colocar palavras na boca de Deus, de Jesus ou do Espírito Santo.
-4. **Figura canônica pode falar; o que ela afirma é que não pode extrapolar o texto.** Personagem nomeado no texto mas *sem fala registrada* (os 40+ construtores de Neemias 3) fala à vontade — a Bíblia os nomeia e não os cita. Personagem inventado, idem. E **figura com fala registrada também pode receber diálogo autoral**, desde que ele não afirme nada que a passagem não sustente: sem evento novo, sem motivo novo, sem tese teológica nova. O modelo é *The Chosen* — fala atestada preservada, lacuna preenchida com ficção que não contradiz.
-    - **Citação continua sendo só referência.** Uma linha tem `text` **ou** `verse`, nunca os dois; o texto de uma citação é resolvido de `verses.json`. Diálogo autoral preenche a lacuna *em volta* da fala registrada, nunca a reescreve com outras palavras. O validador quebra a build em qualquer sequência de 8+ palavras compartilhada com a Escritura, e é isso que impede paráfrase de entrar de fininho.
-    - **Isso é julgamento, não checagem.** Nenhum script decide se uma fala autoral extrapola. Os nós onde isso se aplica são marcados com `canonical_speaker` e `needs_curation` em `dialogue.json`, e `node tools/list-curation.mjs` imprime a fila para leitura humana contra o texto. Nada com fala autoral de figura canônica chega ao jogador sem essa passagem.
-    - A regra 3 continua intacta e sem exceção: **Deus, Jesus e o Espírito Santo nunca falam em texto gerado.**
-5. **Sem viés denominacional.** Onde há divergência de leitura, mostrar as leituras.
-6. **Validador de duas camadas.** Determinística: a referência existe? o trecho bate caractere a caractere? há termo do checklist do cheiro? Por modelo: o texto afirma algo que a passagem não sustenta? Conteúdo sem validação não chega ao jogador.
-
-### Desenho
-
-7. **Nunca punir.** Punir erro num jogo sobre culpa é autogol. Regra operacional: **dá para perder o amanhã, nunca o ontem** — ausência atrasa, nunca retrocede; progresso concluído jamais regride; não existe tela de game over.
-8. **Sem botão de oração como poder.** Oração devolve *informação*, nunca força, e custa tempo. A regra está em `NEH.4.9`: oraram **e** puseram guarda. Só oração perde a muralha; só guarda perde o sentido.
-9. **Sem contador de mortes.** A defesa é dissuasão, não abate — que é o que o texto de fato descreve. Barra de **ânimo**, não barra de vida; vence quem faz o outro desistir.
-10. **Nunca mostrar progresso de vocação.** Se o jogador vê que faltam três ações para virar Zelote, a descoberta vira lista de tarefas. Acumula escondido, revela o nome.
-11. **Ninguém vê a escolha de ninguém antes de escolher.** E a regra mora no servidor — no cliente é uma linha de DevTools.
-
-### Discrição
-
-12. **Não anunciar não é esconder.** Adiar um nome é legítimo (um pedreiro não sabe quem é o homem que veio da capital); **trocar ou remover um nome não é**.
-    - **A citação pode ser adiada; o acesso, nunca.** O rodapé com `ref_display` fica oculto até a revelação — quem não sabe que aquilo é Escritura lê a citação como o que ela é na ficção, e chapter-and-verse responderia uma pergunta que ninguém fez. Mas o botão **Saber mais** existe em toda citação desde o primeiro minuto, e abre o capítulo com nome e numeração completos. O jogador curioso está sempre a um toque da resposta inteira. `ScriptureVisibility` implementa isso, e a revelação é de mão única: um jogo que mostrasse referências e parasse leria como ocultação.
-    - **Adiar é da ficção, não do produto.** *The Chosen* é abertamente bíblico na embalagem e adia só a revelação interna à narrativa. Loja, título e códex são honestos sobre o que isto é. A versão que trai o jogador é a que esconde no produto.
-    - **Custo aceito conscientemente:** enquanto a referência não aparece, `deep_read` mede menos gente. O sinal que importa — `unprompted_read` — é justamente o de quem abre sem o jogo pedir.
-13. **Checklist do cheiro — o que nunca entra.**
-    - *Palavras:* bênção, propósito, jornada de fé, devocional, versículo do dia, testemunho, "Deus tem um plano".
-    - *Arte:* luz dourada, pomba, cruz, mãos em oração, túnica, sandália.
-    - *Mecânica:* botão de oração, convite para igreja, campo "qual sua igreja", pergunta de religião no onboarding. **Nunca.**
-    - *Voz:* narrador que sabe a resposta certa e corrige o jogador moralmente. Pode discordar; não pode pastorear.
-14. **A revelação é presente, não aviso.** Projetem o momento em que a ficha cai como capítulo. No POC, ele acontece quando o texto vira a arma mais forte disponível.
-
-### Privacidade e segurança
-
-15. **O perfil de escolhas é um dossiê moral.** Não existe painel de líder, mentor ou pastor. Vê-se a classe do outro, nunca os atributos.
-16. **Nenhuma chave de IA no cliente.** Toda chamada por função no servidor, com rate limit por jogador e teto de gasto diário.
-17. **Menores (13-17) são arquitetura, não configuração.** Faixa etária no perfil, matchmaking bloqueado, entrada em time só por código, falas pré-formadas com moderação. Times de menores e adultos não se misturam — constraint no banco.
-18. **Sem pagar para avançar.** Num jogo sobre obra erguida por sacrifício voluntário, vender o atalho refuta o tema. Monetização: temporada nova ou cosmético. Nunca recurso, nunca timer, nunca atalho de obra.
-
-### A leitura
-
-19. **Leitura paga em entendimento, nunca em número.** Ler nunca dá bônus, stat ou nível — dá saber **qual verbo funciona quando**. Os verbos centrais (construir, vigiar, dividir obra/guarda) nunca são trancados atrás de leitura: quem não leu tem jogada válida, só que pior. Bônus por ler é caça-níquel com skin de Bíblia, e a motivação evapora junto com o bônus.
-20. **A leitura é sempre pulável, e a pulabilidade é o instrumento.** Se ler desse número, 100% dos jogadores "leriam" e `deep_read` deixaria de medir qualquer coisa. A pergunta de produto nunca é *como impedir que pulem*; é **que fração converte, e ela cresce?** Planejar funil: o segundo e o terceiro convite, não só o primeiro.
-
-## Decisões tomadas
-
-| Tema | Decisão |
+| Name | What it names |
 |---|---|
-| Engine do POC | **Unity 6 LTS · 2D URP.** Mais C#/Unity em treino de modelo que GDScript, e a implementação é feita por agentes. |
-| Fonte do texto | **YouVersion** (acesso concedido para o projeto). Licença destravada. |
-| Arquitetura do corpus | **Corpus duplo:** embeddings sobre tradução de domínio público (índice devolve só *referência*); exibição via YouVersion. Funciona mesmo se os termos proibirem armazenar. |
-| Modo do POC | Single player, sem cadastro, offline em runtime. |
-| Classes | **Vocação / Ofício / Posto** em três camadas. Vocação é arquétipo portável entre temporadas, descoberta pelo comportamento — nunca escolhida em menu. |
-| Multiplayer | **No MVP** — convite de amigo é o motor de aquisição da faixa, e é o que faz "entendimento em vez de número" motivar. **Co-op assíncrono** sobre estado compartilhado: NPCs do capítulo 3 ocupam assentos que viram jogadores, **na mesma tabela, sem migração de esquema**. Nunca tempo real. **O POC segue solo.** |
-| Persona | **13-19 direto; 10-12 só pelo canal do adulto** (líder, escola, responsável). Crê que o texto importa, acha o texto chato, tem opções melhores no bolso. O concorrente é o feed, não outro app de Bíblia. **O jogo não gasta um segundo convencendo ninguém** — o trabalho é logística e contexto. Ver `docs/persona-e-proposito.md`. |
-| Calendário | 12 a 15 sessões por temporada. Os 52 dias são a façanha que o texto anuncia, não a contagem de sessões. |
-| Monetização | Primeira temporada gratuita e completa; temporadas seguintes pagas. Cosmético secundário. Licença institucional é o canal não explorado. |
+| **A Cidade Quebrada** | The game. The product name, and what appears on screen. |
+| **Cinquenta e Dois Dias** | The season — the whole wall, 12 to 15 sessions. The MVP is its opening. |
+| **Porta das Ovelhas** | This chapter. It is `NEH.3.1`, and it is fiction before it is a label: the gate the player raises. |
 
-## Decisões em aberto
+`SheepGate` is the Sheep Gate in English, and remains the namespace for all the code. The bundle id
+(`com.createhack.portadasovelhas`) **does not change** — changing it orphans the save and the run
+parked on the simulator, and buys nothing.
 
-- **`version_id` da tradução** — depende de três perguntas nos termos do YouVersion: dá para armazenar? dá para puxar em lote? quais versões a chave habilita? Enquanto não sair, usar domínio público e trocar o id depois.
-- **Jesus/Espírito Santo como guia** — adiado para fora do POC. A leitura tipológica é legítima; volta como easter egg numa temporada que a mereça, nunca como fala gerada.
-- **Qual conceito vence** — o POC decide entre ir fundo em Neemias, voltar ao Cânon, ou fundir. Por isso a camada compartilhada (versículo, vocação, telemetria) se escreve com capricho e a camada de jogo se escreve descartável.
-- **A faixa 13-19 cruza a fronteira menor/adulto da regra 17**, que proíbe times mistos por constraint no banco — e com multiplayer no MVP isso virou decisão de esquema. Refinamento proposto em `docs/persona-e-proposito.md`: matchmaking aberto nunca cruza; time fechado por código pode. **Pendente de ratificação por Pedro + cibersegurança. Não alterar a regra 17 antes disso.**
+> **Cânon is discontinued.** It was the sibling concept — a text-based narrative RPG with scripture
+> as equippable *loot*. The decision to go deep on Nehemiah is made. The shared layer (verse
+> pipeline, vocation, telemetry) is still written with care because that is good engineering, no
+> longer because another product depends on it. The Cânon plan leaves `docs/`; `git log` keeps it.
 
-## O time
+## The north-star metric
 
-Cinco pessoas: 1 backend, 2 frontend, 1 especialista em cibersegurança, 1 product designer. **Ninguém é game dev, e não há escritor nem teólogo no time** — a implementação é feita por agentes, e o conteúdo narrativo se adapta do material já escrito em vez de ser inventado do zero.
+**Deepening rate: the player leaves the game, of their own accord, to read the whole chapter.**
 
-Brainstorm ativo do time (Google Docs) tem contribuições de João, Cris, Pedro, Juliana e Matheus, consolidadas em `docs/poc-scope.md`.
+The event is `deep_read`. Every product decision resolves by asking whether it raises or lowers that
+number. A beautiful feature that does not move it is not a priority. A feature that moves it is the
+product.
 
-## Mapa dos documentos
+Practical corollary: **never send the reading outside the app.** A deep link to YouVersion, sending
+by email, opening the browser — all of it destroys the measurement, which is the product's reason to
+exist. Always an internal reader; an external channel is a secondary, optional button.
 
-| Arquivo | O que é |
+## Non-negotiable rules
+
+### Text integrity
+
+1. **The LLM never writes Scripture.** The model picks the *reference*; the literal text is fetched
+   by that reference. This eliminates verse hallucination by construction, not by prompting.
+2. **Neither code, nor spec, nor prompt contains a hand-written verse.** What circulates is
+   `NEH.4.6`. Checkable with grep, and it is an acceptance criterion.
+3. **God never speaks in generated text.** Never put words in the mouth of God, of Jesus, or of the
+   Holy Spirit.
+4. **A canonical figure may speak; what it may not do is go beyond the text.** A character named in
+   the text but *with no recorded speech* (the 40+ builders of Nehemiah 3) speaks freely — the Bible
+   names them and does not quote them. An invented character, likewise. And **a figure with recorded
+   speech may also receive authored dialogue**, as long as it asserts nothing the passage does not
+   support: no new event, no new motive, no new theological claim. The model is *The Chosen* —
+   attested speech preserved, the gap filled with fiction that does not contradict it.
+   - **Quotation is still reference only.** A line has `text` **or** `verse`, never both; the text of
+     a quotation is resolved from `verses.json`. Authored dialogue fills the gap *around* recorded
+     speech, never rewrites it in other words. The validator breaks the build on any run of 8+ words
+     shared with Scripture, and that is what stops paraphrase creeping in.
+   - **This is judgement, not a check.** No script decides whether an authored line overreaches. The
+     nodes where this applies are marked `canonical_speaker` and `needs_curation` in `dialogue.json`,
+     and `node tools/list-curation.mjs` prints the queue for a human read against the text. Nothing
+     with authored speech by a canonical figure reaches the player without that pass.
+   - Rule 3 remains intact and without exception: **God, Jesus and the Holy Spirit never speak in
+     generated text.**
+5. **No denominational bias.** Where readings diverge, show the readings.
+6. **Two-layer validator.** Deterministic: does the reference exist? does the passage match character
+   for character? is there a term from the smell checklist? By model: does the text assert something
+   the passage does not support? Unvalidated content does not reach the player.
+
+### Design
+
+7. **Never punish.** Punishing failure in a game about guilt is an own goal. Operating rule: **you
+   can lose tomorrow, never yesterday** — absence delays, never regresses; completed progress never
+   rolls back; there is no game-over screen.
+8. **No prayer button as a power.** Prayer returns *information*, never force, and costs time. The
+   rule is in `NEH.4.9`: they prayed **and** posted a guard. Prayer alone loses the wall; guard alone
+   loses the point.
+9. **No death counter.** Defence is deterrence, not killing — which is what the text actually
+   describes. A **morale** bar, not a health bar; you win by making the other side give up.
+10. **Never show vocation progress.** If the player sees that three more actions make them a Zealot,
+    discovery becomes a to-do list. Accumulate hidden, reveal the name.
+11. **Nobody sees anyone's choice before choosing.** And the rule lives on the server — on the client
+    it is one line of DevTools.
+
+### Discretion
+
+12. **Not announcing is not hiding.** Deferring a name is legitimate (a stonemason does not know who
+    the man from the capital is); **swapping or removing a name is not.**
+    - **The citation may be deferred; the access, never.** The footer with `ref_display` stays hidden
+      until the reveal — someone who does not know that this is Scripture reads the quotation as what
+      it is in the fiction, and chapter-and-verse would answer a question nobody asked. But the
+      **Saber mais** button exists on every quotation from the first minute, and opens the chapter
+      with its full name and numbering. The curious player is always one tap from the whole answer.
+      `ScriptureVisibility` implements this, and the reveal is one-way: a game that showed references
+      and then stopped would read as concealment.
+    - **Deferral belongs to the fiction, not to the product.** *The Chosen* is openly biblical on the
+      packaging and defers only the reveal internal to the narrative. Store, title and codex are
+      honest about what this is. The version that betrays the player is the one that hides it in the
+      product.
+    - **Consciously accepted cost:** while the reference is absent, `deep_read` measures fewer people.
+      The signal that matters — `unprompted_read` — is precisely the one from whoever opens it
+      without the game asking.
+13. **The smell checklist — what never gets in.**
+    - *Words:* the forbidden terms are enforced per language by `tools/validate-content.mjs`, and are
+      curated per language rather than translated. In pt-BR: `bênção`, `propósito`, `jornada de fé`,
+      `devocional`, `versículo do dia`, `testemunho`, `Deus tem um plano`. In English: `blessing`,
+      `faith journey`, `devotional`, `verse of the day`, `testimony`, `quiet time`, `God has a plan`.
+    - *Art:* golden light, dove, cross, praying hands, robe, sandal.
+    - *Mechanics:* prayer button, church invitation, a "which church do you attend" field, a religion
+      question in onboarding. **Never.**
+    - *Voice:* a narrator who knows the right answer and morally corrects the player. It may disagree;
+      it may not pastor.
+14. **The reveal is a gift, not a notice.** Design the moment the penny drops as a chapter. In this
+    build it happens when the text becomes the strongest weapon available.
+
+### Privacy and security
+
+15. **The choice profile is a moral dossier.** There is no leader, mentor or pastor dashboard. You see
+    another player's class, never their attributes.
+16. **No AI key on the client.** Every call goes through a server function, with a per-player rate
+    limit and a daily spend ceiling.
+17. **Minors (13-17) are architecture, not configuration.** Age band in the profile, matchmaking
+    blocked, team entry by code only, pre-composed lines with moderation. Minor and adult teams do not
+    mix — a database constraint.
+18. **No pay-to-advance.** In a game about a work raised by voluntary sacrifice, selling the shortcut
+    refutes the theme. Monetisation: a new season, or cosmetics. Never a resource, never a timer,
+    never a shortcut through the work.
+
+### The reading
+
+19. **Reading pays in understanding, never in numbers.** Reading never grants a bonus, a stat or a
+    level — it grants knowing **which verb works when**. The central verbs (build, watch, split
+    work/watch) are never locked behind reading: whoever did not read has a valid play, just a worse
+    one. A bonus for reading is a slot machine with a Bible skin, and the motivation evaporates along
+    with the bonus.
+20. **Reading is always skippable, and the skippability is the instrument.** If reading paid a number,
+    100% of players would "read" and `deep_read` would stop measuring anything. The product question
+    is never *how do we stop them skipping*; it is **what fraction converts, and is it growing?** Plan
+    the funnel: the second and third invitation, not only the first.
+
+## Decisions taken
+
+| Topic | Decision |
 |---|---|
-| `POC-IMPLEMENTATION.md` | **Spec de implementação do POC.** Estrutura de projeto, esquemas de dados, sistemas, conteúdo dos três dias, prova de ânimo, critérios de aceite. É o que se executa. |
-| `docs/development-guidelines.md` | **Como se escreve código aqui.** Inglês no código, texto de jogador só em `locales/`, como adicionar uma string e um idioma, e a política de testar em build. |
-| `docs/persona-e-proposito.md` | **Para quem o jogo é e o que ele precisa causar.** Faixa etária, a tese de transformação, a escada de degraus, as métricas de desejo, e as regras 19-20. |
-| `docs/poc-scope.md` | Escopo e justificativa do POC: as três sessões, o corte, as quatro decisões pendentes, o que é descartável e o que fica. |
-| `docs/nehemiah-game-design.md` | Desenho completo do jogo de Neemias: vocações, loop dia/noite, quatro ameaças, prova de ânimo, discrição, produção, riscos. |
-| `docs/canon-24h-plan.md` | Plano do hackathon para o Cânon. Histórico, mas os guardrails e a divisão de frentes seguem válidos. |
+| Concept | **Nehemiah.** Cânon is discontinued; it is no longer an open fork. |
+| Engine | **Unity 6 LTS · 2D URP.** More C#/Unity in model training than GDScript, and the implementation is done by agents. |
+| Text source | **YouVersion** (access granted for the project). Licence unblocked. |
+| Translation | **NVI (`129`) in pt-BR, World English Bible (`206`) in English.** The three licence questions are answered — see `docs/youversion-api.md`. NVI is all-rights-reserved, and **that is why this repository is private**; the copyright notice ships in `verses.json` and must appear in-game. English is public domain on purpose: it is the locale that could ship publicly first. |
+| Corpus architecture | **Dual corpus:** embeddings over a public-domain translation (the index returns only a *reference*); display via YouVersion. With NVI back in play, the design regains its point. |
+| MVP mode | Single player, no sign-up, offline at runtime. |
+| Platforms | **iOS and desktop.** Android stays in the definition of done and keeps its build target (`BuildScript.BuildAndroid`), but **only iOS and macOS have been played** — no APK has ever been installed. A known gap, not a scope change. |
+| Classes | **Vocation / Trade / Post**, three layers. Vocation is a portable archetype across seasons, discovered through behaviour — never chosen from a menu. |
+| Multiplayer | **Out of the hackathon MVP** — this one is solo, full stop. It remains the design for the next version: **asynchronous co-op** over shared state, with the NPCs of chapter 3 occupying seats that become players, **in the same table, with no schema migration**. Never real time. The schema is already born in that shape; none of it is implemented now. |
+| Persona | **13-19 directly; 10-12 only through an adult channel** (youth leader, school, guardian). Believes the text matters, finds the text boring, has better options in their pocket. The competitor is the feed, not another Bible app. **The game does not spend a second convincing anyone** — the work is logistics and context. See `docs/persona-and-purpose.md`. |
+| Calendar | 12 to 15 sessions per season. The 52 days are the feat the text announces, not the session count. |
+| Monetisation | First season free and complete; later seasons paid. Cosmetics secondary. An institutional licence is the unexplored channel. |
 
-## Convenções
+## Open decisions
 
-**Regras de engenharia detalhadas em [`docs/development-guidelines.md`](docs/development-guidelines.md).** O resumo:
+- **Reading level of the pt-BR translation** — the licence is settled, this is **not**. NVI is dynamic
+  equivalence and passes; NTLH or NVT would pass better at 13, and the `deep_read` conversion rate
+  depends on it. A product decision, not a licence one, and swapping is one line in
+  `tools/verses.manifest.json`. Decides: Pedro.
+- **Jesus / the Holy Spirit as a guide** — deferred. The typological reading is legitimate; it comes
+  back as an easter egg in a season that earns it, never as generated speech.
+- **The human read of the curation queue** — `intro_gathering` (the governor) awaits a read against
+  the passage, **in both languages**. Rule 4 requires it, and no script decides it.
+  `node tools/list-curation.mjs` prints the queue.
+- **The English has never had a native pass.** It reads correctly and holds the register, but it was
+  written by the same agent that wrote the code.
+- **The 13-19 band crosses the minor/adult boundary of rule 17**, which forbids mixed teams by a
+  database constraint — and with multiplayer in the MVP that became a schema decision. Refinement
+  proposed in `docs/persona-and-purpose.md`: open matchmaking never crosses; a closed team joined by
+  code may. **Pending ratification by Pedro + cybersecurity. Do not change rule 17 before that.**
 
-- **Tudo que um desenvolvedor lê é em inglês. Só o que o jogador lê é traduzido.** Sem exceção, e isto vale inclusive para o que não é código:
+## The team
 
-  | Em inglês | |
-  |---|---|
-  | Identificadores | tipos, métodos, campos, variáveis |
-  | Comentários e XML docs | inclusive os longos, que este projeto usa bastante |
-  | Mensagens de log | `Debug.Log`, warning, error — são diagnóstico, nunca texto de jogador |
-  | Chaves de JSON | `stage_cost`, `reveal_line` |
-  | Nomes de arquivo e de pasta | `WallSystem.cs`, `wall_segments.json` |
-  | Nomes de GameObject | `"PatrolButton"`, `"HUDCanvas"` — são a alça dos testes de e2e |
-  | Eventos de telemetria e flags | `deep_read`, `watch_posted_d1` |
-  | **Mensagens de commit** | assunto e corpo |
-  | **Nomes de branch** | `add-english-locale`, nunca `adiciona-idioma` |
-  | **Títulos e descrição de PR** | |
-  | Documento de engenharia | `README.md`, `docs/architecture-contract.md`, `docs/handoff.md`, `tools/README.md` |
+Five people: 1 backend, 2 frontend, 1 cybersecurity specialist, 1 product designer. **Nobody is a
+game developer, and there is no writer and no theologian on the team** — the implementation is done
+by agents, and narrative content is adapted from material already written rather than invented from
+scratch.
 
-  Duas coisas continuam em pt-BR de propósito, e as duas são sobre público: **o conteúdo** (pt-BR é a língua de autoria) e **o documento de produto** — este arquivo, persona, design, escopo. A linha cai onde o leitor muda: documento sobre *como o código funciona* é inglês, documento sobre *o que o jogo é* é pt-BR.
+The team's brainstorm (Google Docs) had contributions from João, Cris, Pedro, Juliana and Matheus.
+What survived it lives in `MVP-SCOPE.md` and in the decisions above.
 
-- **Citar pt-BR dentro de um texto em inglês é correto, não exceção.** Um commit que explica por que uma fala mudou precisa poder nomear a fala. O que se pede é que as frases *em volta* da citação sejam inglês:
+## Document map
+
+Eleven files. **Everything a developer reads is English** — this file included. Only what a *player*
+reads is pt-BR, because pt-BR is the authoring locale for the content.
+
+| File | What it is |
+|---|---|
+| **`AGENTS.md`** (this one) | The constitution. North-star metric, the 20 non-negotiable rules, decisions taken and open. Every agent reads it before anything else. |
+| `MVP-SCOPE.md` | **What gets executed.** The three days, the systems, the morale trial, what is done, what is left, and the acceptance criteria. |
+| `README.md` | How to run, build, test and play it. The first file for anyone arriving. |
+| `docs/persona-and-purpose.md` | **Who the game is for and what it has to cause.** Age band, the transformation thesis, the ladder of steps, the desire metrics, and rules 19-20. |
+| `docs/nehemiah-game-design.md` | The design of the whole season, beyond the MVP: vocations, the day/night loop, the four threats, discretion, risks. |
+| `docs/character-creation-scope.md` | **Open work order.** Why creation and the backpack disagree today, the decisions taken, the art cost, and the order of execution. |
+| `docs/development-guidelines.md` | **How code is written here.** English in the code, player text only in `locales/`, how to add a string and a language, and what "tested" means — including the simulator dead ends. |
+| `docs/architecture-contract.md` | The public seams nobody changes alone: scene names, signatures, schemas. |
+| `docs/design-system.md` | Sistema Vale: tokens, typography, and the rules that are design rather than style. |
+| `docs/handoff.md` | State of the build and what is not finished. |
+| `docs/youversion-api.md` | The verified API surface, and the licence obligations. |
+
+## Conventions
+
+**Detailed engineering rules in [`docs/development-guidelines.md`](docs/development-guidelines.md).**
+The summary:
+
+- **Everything a developer reads is in English. Only what a player reads is translated.** Identifiers,
+  comments, log messages, JSON keys, file and directory names, GameObject names, telemetry events and
+  flags, commit messages, branch names, PR titles — and **every document in this repository,
+  including the product ones.** The one thing that stays pt-BR is **the content**: pt-BR is the
+  authoring locale, and other languages are translations of it.
+
+- **Quoting pt-BR inside an English text is correct, not an exception.** A commit that explains why a
+  line of dialogue changed has to be able to name the line. What is asked is that the sentences
+  *around* the quotation are English:
 
   ```
-  Remove "Ele foi mais educado que você." from the refusal branch      certo
-  Corrige a fala do vizinho no dia 2                                   errado
+  Remove "Ele foi mais educado que você." from the refusal branch      yes
+  Corrige a fala do vizinho no dia 2                                   no
   ```
 
-- **Nada disso é verificado por script.** Não há hook nem CI para língua de commit: é regra de leitura, e vale porque quem escreve — pessoa ou agente — leu isto aqui. Rever numa code review é o suficiente.
-- **Nenhuma string que o jogador lê mora em `.cs`.** Toda ela vive em `Assets/Resources/Data/locales/<locale>/` e é lida por `Loc.T("chave")`. O validador quebra a build se um literal chegar à tela.
-- **O jogo é bilíngue: pt-BR e en.** `pt-BR` é a língua de autoria; as outras são tradução dela. Estrutura e números têm **uma cópia só**, compartilhada — só as palavras se duplicam por idioma, para que balanceamento não possa divergir entre línguas.
-- Referências bíblicas no formato **`LIVRO.CAP.VERS`** (`NEH.4.17`, `JHN.21.6`), sempre em código e em spec.
-- Conteúdo de jogo vive em JSON sob `Resources/Data/`, não em ScriptableObject — precisa ser editável fora do Unity.
-- `verses.json` é **gerado**, um por locale. Nunca editar à mão.
-- **Mudança só está pronta depois de rodar numa build.** `tools/unity-check.sh` compila, `node tools/validate-content.mjs` valida o conteúdo, `tools/acceptance.sh` afere as regras, e `tools/e2e.sh` constrói o player e joga a abertura **e um dia inteiro** em cada idioma, com screenshot. Os três primeiros não bastam: este projeto já embarcou código correto que nada chamava, e bugs que eram invisíveis em vez de quebrados.
-- **Teste em iPhone é sempre `tools/ios-sim.sh`, e o toque é sempre por ele.** `setup` uma vez por máquina; depois `tap`/`press`/`swipe`/`text`/`key` em **pontos de device**, e `shot` para ver o resultado. Por baixo é **idb**, que injeta como um device real: o cursor não se move, o foco não muda, e a janela do Simulator pode ficar escondida a sessão inteira — dá para jogar o POC enquanto a pessoa continua trabalhando na máquina.
-    - **Proibido `osascript ... click at`.** Ele **reporta sucesso e não faz nada**: a view Metal ignora clique sintético de acessibilidade. Uma sessão inteira já foi gasta achando que o jogo estava travado.
-    - **Proibido `CGEvent`/`cliclick` e qualquer coisa que mova o ponteiro.** Funciona, mas sequestra a máquina de quem está usando, e falha com o Mac bloqueado. Se um clique responder `window Login of application process loginwindow`, é isso.
-    - **Ler a tela é `xcrun simctl io booted screenshot`** (framebuffer, imune a empilhamento de janela). `screencapture -R` fotografa a janela que estiver por cima e já devolveu o terminal no lugar do jogo.
-    - **Não existe achar botão por nome.** Unity desenha numa view Metal só e não publica árvore de acessibilidade. Toca ponto, tira screenshot, olha. Asserção sobre hierarquia é papel do `tools/e2e.sh`, que dirige o EventSystem de dentro da build.
+- **None of this is enforced by a script.** There is no hook and no CI for the language of a commit:
+  it is a reading rule, and it holds because whoever writes — person or agent — has read this. Catching
+  it in code review is enough.
+- **No string a player reads lives in a `.cs` file.** All of it lives in
+  `Assets/Resources/Data/locales/<locale>/` and is read with `Loc.T("key")`. The validator breaks the
+  build if a literal reaches the screen.
+- **The game is bilingual: pt-BR and en.** `pt-BR` is the authoring language; the others are
+  translations of it. Structure and numbers have **exactly one copy**, shared — only words duplicate
+  per language, so balance cannot diverge between them.
+- Biblical references in the form **`BOOK.CHAPTER.VERSE`** (`NEH.4.17`, `JHN.21.6`), always, in code
+  and in spec.
+- Game content lives in JSON under `Resources/Data/`, never in a ScriptableObject — it has to be
+  editable outside Unity.
+- `verses.json` is **generated**, one per locale. Never edit it by hand.
+- **A change is not done until it has run in a build.** `tools/unity-check.sh` compiles,
+  `node tools/validate-content.mjs` validates the content, `tools/acceptance.sh` asserts the rules,
+  and `tools/e2e.sh` builds the player and plays the opening **and all three days** in every language,
+  with screenshots. The first three are not enough: this project has already shipped correct code that
+  nothing called, and bugs that were invisible rather than broken.
+- **Testing on an iPhone is always `tools/ios-sim.sh`, and touch always goes through it.** `setup`
+  once per machine; then `tap`/`press`/`swipe`/`text`/`key` in **device points**, and `shot` to see the
+  result. Underneath is **idb**, which injects like a real device: the cursor does not move, focus does
+  not change, and the Simulator window can stay hidden for the whole session — the game can be played
+  while the person keeps working on the machine. The dead ends that cost this project a session each
+  are listed in `docs/development-guidelines.md` §3, and the short version is: **never
+  `osascript ... click at`** (reports success, does nothing), **never anything that moves the pointer**,
+  read the screen with `xcrun simctl io booted screenshot`, and **there is no finding a button by
+  name** — tap a point, screenshot, look.

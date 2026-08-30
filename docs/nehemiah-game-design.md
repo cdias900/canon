@@ -1,212 +1,256 @@
-# Cinquenta e Dois Dias — desenho do jogo
+# A Cidade Quebrada — season design
 
-> Conceito paralelo ao Cânon. Solo primeiro, co-op depois.
-> Mundo compartilhado sobre a reconstrução da muralha de Jerusalém.
+> The design of the whole season, beyond the MVP. Solo first, co-op after.
+> A shared world built on the rebuilding of the wall of Jerusalem.
 
-## A tese
+## The thesis
 
-O livro de Neemias não precisa ser adaptado para virar jogo. **Ele já é um.** Traz ordem de construção, sistema de ameaça, crise econômica, guerra de informação e um cronômetro — tudo escrito, capítulo por capítulo.
+The book of Nehemiah does not need adapting to become a game. **It already is one.** It brings a build
+order, a threat system, an economic crisis, an information war and a countdown — all of it written,
+chapter by chapter.
 
-| Capítulo | Sistema que já está no texto |
+| Chapter | System already in the text |
 |---|---|
-| 2 | Reconhecimento noturno, sem contar a ninguém. Tutorial de scouting. |
-| 3 | Manifesto de construção: 40+ grupos nomeados, cada um com seu trecho. |
-| 4 | Escalada de ameaça em três estágios + a mecânica de alocação (metade constrói, metade vigia). |
-| 5 | Crise econômica interna: fome, campos hipotecados, juros cobrados pelos próprios nobres. |
-| 6 | Guerra de informação: quatro cartas para atrair, depois um profeta pago. |
-| 6:15 | 52 dias. O cronômetro da temporada. |
-| 8 | O clímax: leitura pública da Lei. |
+| 2 | Night reconnaissance, telling nobody. A scouting tutorial. |
+| 3 | A build manifest: 40+ named groups, each with its own stretch. |
+| 4 | Threat escalation in three stages + the allocation mechanic (half build, half watch). |
+| 5 | Internal economic crisis: hunger, mortgaged fields, interest charged by the nobles themselves. |
+| 6 | Information war: four letters to lure, then a paid prophet. |
+| 6:15 | 52 days. The season's countdown. |
+| 8 | The climax: a public reading of the Law. |
 
-## A muralha é o servidor
+## The wall is the server
 
-Neemias 3 é um manifesto multiplayer — lista mais de quarenta grupos e diz qual trecho cada um levantou. A muralha não é cenário: é o estado do mundo, e ele é de todos.
+Nehemiah 3 is a multiplayer manifest — it lists more than forty groups and says which stretch each one
+raised. The wall is not scenery: it is the state of the world, and it belongs to everyone.
 
-Dez portas, com os construtores registrados no texto:
+Ten gates, with their builders recorded in the text:
 
-| Porta | Construtor | Ref |
+| Gate | Builder | Ref |
 |---|---|---|
-| Ovelhas | Eliasibe, o sumo sacerdote, e seus irmãos | `NEH.3.1` |
-| Peixes | Filhos de Hassenaá | `NEH.3.3` |
-| Velha | Joiada e Mesulão | `NEH.3.6` |
-| Vale | Hanum e os moradores de Zanoa | `NEH.3.13` |
-| Esterco | Malquias, governador de Bete-Haquerem | `NEH.3.14` |
-| Fonte | Salum, governador de Mispá | `NEH.3.15` |
-| Águas | Os netineus, servos do templo | `NEH.3.26` |
-| Cavalos | Os sacerdotes, cada um defronte da sua casa | `NEH.3.28` |
-| Oriental | Semaías, guarda da porta oriental | `NEH.3.29` |
-| Guarda | Malquias, filho dos ourives | `NEH.3.31` |
+| Sheep | Eliashib the high priest, and his brothers | `NEH.3.1` |
+| Fish | The sons of Hassenaah | `NEH.3.3` |
+| Old | Joiada and Meshullam | `NEH.3.6` |
+| Valley | Hanun and the inhabitants of Zanoah | `NEH.3.13` |
+| Dung | Malchijah, ruler of Beth Haccherem | `NEH.3.14` |
+| Fountain | Shallun, ruler of Mizpah | `NEH.3.15` |
+| Water | The temple servants | `NEH.3.26` |
+| Horse | The priests, each in front of his own house | `NEH.3.28` |
+| East | Shemaiah, keeper of the east gate | `NEH.3.29` |
+| Guard | Malchijah, son of the goldsmiths | `NEH.3.31` |
 
-**O gancho:** no fim da temporada, o nome de quem levantou cada trecho fica gravado no trecho. É o que o capítulo 3 faz com os construtores reais.
+**The hook:** at the end of the season, the name of whoever raised each stretch is engraved on that
+stretch. It is what chapter 3 does with the real builders.
 
-## O problema do final conhecido
+## The problem of the known ending
 
-Todo mundo já sabe que a muralha fica de pé. A liberdade não está no *se*, está no *como*: quais portas primeiro, a que custo, com quem ainda ao seu lado. O texto ajuda — o capítulo 3 já registra uma deserção: os nobres de Tecoa "não meteram o pescoço na obra do seu Senhor" (`NEH.3.5`).
+Everyone already knows the wall gets built. The freedom is not in *whether*, it is in *how*: which
+gates first, at what cost, with who still beside you. The text helps — chapter 3 already records a
+desertion — `NEH.3.5` records, in writing and for good, that the nobles of Tekoa would not stoop to
+the work.
 
-## Quem você é — três camadas
+## Who you are — three layers
 
-Você não é Neemias. Você é quem ele convenceu. Se todo jogador é o herói, ninguém é.
+You are not Nehemiah. You are one of the people he convinced. If every player is the hero, nobody is.
 
-A primeira versão errou a altura: ourives e perfumista são **ofícios de canteiro de obra**, e não sobrevivem à troca de temporada — não existe perfumista na história de José do Egito.
+The first version got the altitude wrong: goldsmith and perfumer are **building-site trades**, and they
+do not survive a change of season — there is no perfumer in the story of Joseph in Egypt.
 
-| Camada | Escopo | O que é |
+| Layer | Scope | What it is |
 |---|---|---|
-| **Vocação** | Permanente, entre temporadas | Não se escolhe: o jogo observa o que você faz e te dá um nome. Identidade e assimetria. |
-| **Ofício** | Por temporada | Vem da história. Pedreiro em Neemias, escriba de celeiro com José. Traz os verbos e o visual. Customização cosmética vive aqui. |
-| **Posto** | Por sessão | O que você faz hoje: pedreira, muralha, guarda, livro de contas. Variedade sem compromisso. |
+| **Vocation** | Permanent, across seasons | Not chosen: the game watches what you do and gives you a name. Identity and asymmetry. |
+| **Trade** | Per season | Comes from the story. Stonemason in Nehemiah, granary scribe with Joseph. Brings the verbs and the look. Cosmetic customisation lives here. |
+| **Post** | Per session | What you are doing today: quarry, wall, watch, ledger. Variety without commitment. |
 
-### As seis vocações
+### The six vocations
 
-Arquétipos, não profissões. Testados contra duas temporadas diferentes.
+Archetypes, not professions. Tested against two different seasons.
 
-| Vocação | Em Neemias | Em José do Egito |
+| Vocation | In Nehemiah | In Joseph in Egypt |
 |---|---|---|
-| **O Zelote** | Trabalha o trecho exposto, onde o dano chega primeiro | Recusa a mulher de Potifar. Confronta os irmãos. |
-| **O Escriba** | Lê as quatro cartas e enxerga a armadilha de Ono | O livro do celeiro: sete anos de conta que ninguém fez |
-| **O Pastor** | Cobre o trecho de quem não veio | Alimenta o Egito, e depois a família que o vendeu |
-| **O Exilado** | Sabe o preço de voltar, e não idealiza a cidade | Estrangeiro do primeiro capítulo ao último |
-| **O Profeta** | Percebe que Semaías foi pago | Lê o sonho e vê os sete anos |
-| **O Mordomo** | Copeiro que vira governador — e recusa a ração do cargo | Casa de Potifar, prisão, Egito inteiro |
+| **The Zealot** | Works the exposed stretch, where damage lands first | Refuses Potiphar's wife. Confronts the brothers. |
+| **The Scribe** | Reads the four letters and sees the trap of Ono | The granary ledger: seven years of accounting nobody did |
+| **The Shepherd** | Covers the stretch of whoever did not come | Feeds Egypt, and then the family that sold him |
+| **The Exile** | Knows the price of returning, and does not idealise the city | A foreigner from the first chapter to the last |
+| **The Prophet** | Realises Shemaiah was paid | Reads the dream and sees the seven years |
+| **The Steward** | A cupbearer who becomes governor — and refuses the office's ration | Potiphar's house, prison, all of Egypt |
 
-**Regra de desenho das habilidades:** cada vocação dá uma habilidade de obra e uma de prova, e as duas têm que ser **o mesmo conceito em dois contextos** — nunca um martelo mais uma espada. O Escriba *lê antes*: na obra revela a ordem ótima de construção; na prova revela a intenção real do adversário.
+**Ability design rule:** each vocation gives one work ability and one trial ability, and the two have
+to be **the same concept in two contexts** — never a hammer plus a sword. The Scribe *reads ahead*: on
+the work it reveals the optimal build order; in the trial it reveals the adversary's real intent.
 
-**Regra da descoberta:** nunca mostre a barra de progresso da vocação. Se o jogador vê que faltam três ações corajosas para virar Zelote, vira lista de tarefas. Acumule escondido, revele o nome.
+**Discovery rule:** never show the vocation progress bar. If the player sees that three more brave
+actions make them a Zealot, it becomes a to-do list. Accumulate hidden, reveal the name. This is rule
+10.
 
-**Ponte com o Cânon:** as vocações são as mesmas classes que o Cânon já tinha (Zelote, Escriba, Pastor, Exilado, Profeta), e a Âncora do Cânon é o mesmo conceito — texto que se equipa.
+**Reading pays in understanding, never in numbers.** Reading gives knowing which verb works when — never
+a bonus or a level — and the central verbs are never locked behind it. See
+[`persona-and-purpose.md`](persona-and-purpose.md) §*Rule 19*.
 
-> ⚠️ **Substituído.** Este parágrafo dizia que *a habilidade sobe de nível quando o jogador lê o capítulo de onde ela vem*. **Não é mais assim.** Leitura paga em **entendimento, nunca em número** — dá saber qual verbo funciona quando, jamais um bônus ou um nível. Os verbos centrais nunca são trancados atrás de leitura. Ver `persona-e-proposito.md` §*Regra — leitura paga em entendimento, nunca em número*.
+## The loop — half build, half watch
 
-## O loop — metade constrói, metade vigia
+### Day
+- **Gather rubble.** The stone comes from the burnt ruins of the city itself (`NEH.4.2`).
+- **Lay it.** Direct control on your stretch.
+- **Negotiate timber.** It is not gathered: it comes by letter to the keeper of the king's forest. A
+  resource unlocked by diplomacy.
+- **Sustain morale.** What `NEH.4.6` credits the wall's first half to is the people's will to work.
+  Here that is a resource, and it drains.
 
-### Dia
-- **Catar entulho.** A pedra vem dos escombros queimados da própria cidade (`NEH.4.2`).
-- **Assentar.** Controle direto no seu trecho.
-- **Negociar madeira.** Não se coleta: vem por carta ao guarda da floresta do rei. Recurso destravado por diplomacia.
-- **Sustentar o ânimo.** "O povo tinha ânimo para trabalhar" (`NEH.4.6`) é um recurso, e ele drena.
+### Night
+- **Post the watch.** A stretch with no watch wakes up damaged.
+- **The trumpet.** Whoever is attacked sounds it, and the others converge on the breach (`NEH.4.20`).
+- **The patrol.** A night inspection of the wall (`NEH.2.13`).
+- **Cover for someone.** Whoever could not come has their stretch covered by another, by name.
 
-### Noite
-- **Postar a guarda.** Trecho sem vigia amanhece com dano.
-- **A trombeta.** Quem é atacado toca, e os outros convergem para a brecha (`NEH.4.20`).
-- **A ronda.** Inspeção noturna da muralha (`NEH.2.13`).
-- **Cobrir por alguém.** Quem não pôde entrar tem o trecho coberto por outro, com nome.
+**The decision that repeats:** every worker on watch is a worker off the work. One control, and neither
+end may go to zero (`NEH.4.16`).
 
-**A decisão que se repete:** cada trabalhador na guarda é um trabalhador fora da obra. Um único controle, e nenhuma das duas pontas pode zerar (`NEH.4.16`).
+**How time passes.** There is no end-of-day button. The day has a work budget, the village's light is
+that budget seen another way, and every stone laid pulls the sun down — slowly in the morning, fast at
+the end, the way an afternoon really does escape someone. Budget spent, night falls and the work/watch
+split presents itself. Whoever wants to stop early has the mat, and that is all it does.
 
-**Como o tempo passa.** Não existe botão de encerrar o dia. O dia tem um orçamento de obra, a luz da
-aldeia é esse orçamento visto de outro jeito, e cada pedra assentada puxa o sol para baixo — devagar
-de manhã, rápido no fim, do jeito que uma tarde escapa de alguém de verdade. Gasto o orçamento,
-anoitece e a divisão obra/guarda se apresenta sozinha. Quem quer parar antes da hora tem a esteira,
-e é só isso que ela faz.
+Three rules hold that clock:
 
-Três regras seguram esse relógio:
+- **It only moves when the player acts.** No wall clock. Standing still costs nothing, and neither does
+  talking — dialogue is where the citations live, and charging time for it would be a toll on the
+  north-star metric.
+- **The night waits.** A panel open, a cutscene, a conversation: dusk waits. The chapter reader is a
+  panel like any other, so a day never ends while someone is reading.
+- **Stopping early is a choice, never a chore.** The mat exists for whoever is finished before their
+  capacity is, and for whoever decided to build nothing today. The day would end by itself anyway.
 
-- **Ele só anda quando o jogador age.** Nada de relógio de parede. Ficar parado não custa nada, e
-  conversar também não — o diálogo é onde as citações moram, e cobrar tempo por ele seria cobrar
-  pedágio na métrica-norte.
-- **A noite espera.** Painel aberto, cena, conversa: o anoitecer aguarda. O leitor de capítulo é um
-  painel como outro qualquer, então um dia jamais termina enquanto alguém lê.
-- **Parar cedo é escolha, nunca tarefa.** A esteira existe para quem terminou antes da capacidade, e
-  para quem decidiu não construir nada hoje. O dia acabaria sozinho de qualquer jeito.
+## Four threat vectors
 
-## Quatro vetores de ameaça
+What makes Nehemiah good material is not that it has enemies — it is that the four attacks are of
+**different kinds**, and each demands a response the previous one did not teach.
 
-O que torna Neemias bom material não é ter inimigos — é que os quatro ataques são de **tipos diferentes**, e cada um exige uma resposta que a anterior não ensina.
-
-| Cap. | Ameaça | Resposta |
+| Ch. | Threat | Response |
 |---|---|---|
-| 4 | **Escárnio** — ridicularizam a obra em público | Não há alvo para atacar. Dreno de ânimo puro; a resposta é liderança e discurso. |
-| 4 | **Conspiração armada** — coalizão combina atacar de surpresa | Vigília e dissuasão. **No texto o ataque nunca acontece** — a vitória é não precisar lutar. |
-| 5 | **A fome, e os próprios nobres** — famílias vendem filhos enquanto os nobres cobram juros | Insolúvel por muralha. Exige redistribuição e o líder abrindo mão do privilégio. Jogada correta = perder recurso de propósito. |
-| 6 | **Falsa profecia** — cartas para atrair, depois um profeta pago | Separar a verdadeira da falsa pelo que já está escrito. Hermenêutica virando mecânica. |
+| 4 | **Mockery** — the work is ridiculed in public | There is no target to attack. A pure morale drain; the response is leadership and speech. |
+| 4 | **Armed conspiracy** — a coalition agrees to attack by surprise | Vigilance and deterrence. **In the text the attack never happens** — the victory is not needing to fight. |
+| 5 | **The famine, and your own nobles** — families sell children while nobles charge interest | Unsolvable by wall. Requires redistribution and the leader giving up privilege. The correct play = deliberately losing a resource. |
+| 6 | **False prophecy** — letters to lure, then a paid prophet | Telling the true from the false by what is already written. Hermeneutics becoming a mechanic. |
 
-## Sistema de prova — barra de ânimo, não barra de vida
+## The trial system — a morale bar, not a health bar
 
-Se é RPG por turnos precisa haver "batalha", mas em Neemias o ataque nunca acontece e contador de mortes seria o pior erro do projeto. **Troque a barra de vida por uma barra de ânimo.** A matemática é idêntica, a ficção é a que o texto sustenta, e a vitória passa a ser o adversário desistir (`NEH.6.16`).
+If it is a turn-based RPG there has to be "combat", but in Nehemiah the attack never happens and a
+death counter would be the project's worst mistake. **Swap the health bar for a morale bar.** The
+maths is identical, the fiction is one the text supports, and victory becomes the adversary giving up
+(`NEH.6.16`).
 
-- **Um motor, quatro gramáticas.** Escárnio é prova só de ânimo. A brecha pesa posição e preparo. A fome pesa recurso próprio. A profecia pesa discernimento.
-- **Nenhuma vocação cobre as quatro.** O Pastor defende contra escárnio e nada pode contra profecia falsa. Sua vocação decide de qual capítulo você tem medo.
-- **Turnos compram muito de graça:** sem netcode, sem janela de acerto, sem animação de impacto. E habilidade em jogo de ação é efeito de partícula; em turnos é uma escolha com a conta à vista.
-- **Recrutamento, não coleção.** NPCs aceitam trabalhar no seu trecho conforme sua reputação. "Colecionar personagens bíblicos" é a versão que daria errado.
+- **One engine, four grammars.** Mockery is a pure morale trial. The breach weighs position and
+  preparation. The famine weighs your own resources. Prophecy weighs discernment.
+- **No vocation covers all four.** The Shepherd defends against mockery and can do nothing against
+  false prophecy. Your vocation decides which chapter you are afraid of.
+- **Turns buy a great deal for free:** no netcode, no timing window, no impact animation. And skill in
+  an action game is a particle effect; in turns it is a choice with the bill in plain sight.
+- **Recruitment, not collection.** NPCs agree to work your stretch according to your reputation.
+  "Collecting biblical characters" is the version that would go wrong.
 
-## A regra da oração
+## The rule of prayer
 
-> "Fizemos a nossa oração ao nosso Deus, **e** pusemos guarda contra eles, de dia e de noite." — `NEH.4.9`
+`NEH.4.9` solves the concept's most delicate problem, and the whole of it is in one conjunction:
+they prayed **and** they posted a watch. Neither instead of the other.
 
-Esta linha resolve o problema mais delicado do conceito.
+- **Prayer returns information, never force.** Clarity about the enemy's intent, about which faction is
+  wavering, about the state of the economy. Never damage.
+- **It costs the night.** On a tight countdown, the vigil takes a cycle away from the work. Devotion
+  that costs nothing is a mana recharge.
+- **The rule closes in both directions:** prayer alone loses the wall, watch alone loses the point.
+- **God never speaks in generated text.** A canonical figure says only what is attested; an invented
+  character beside them talks freely.
 
-- **Orar devolve informação, nunca força.** Clareza sobre a intenção do inimigo, sobre qual facção vacila, sobre o estado da economia. Nunca dano.
-- **Custa a noite.** Num cronômetro apertado, a vigília tira um ciclo de obra. Devoção que não custa nada é recarga de mana.
-- **A regra fecha nos dois sentidos:** só oração perde a muralha, só guarda perde o sentido.
-- **Deus nunca fala em texto gerado.** Figura canônica só diz o que está atestado; personagem inventado ao lado dela conversa à vontade.
+## The season
 
-## A temporada
+- The work ends on day 52 — the text marks the date.
+- **The win condition is not killing anyone.** In `NEH.6.16` the enemies lose their own confidence
+  on seeing the finished wall. You win by the adversary's acknowledgement.
+- **The prize for building the city is reading the book.** With the wall finished, the people ask Ezra
+  to bring the Law, and he reads from morning until midday (`NEH.8`). The closing event is a public
+  reading, with the whole server present. The north-star metric becomes the ending.
 
-- A obra termina no dia 52 — o texto marca a data.
-- **A condição de vitória não é matar ninguém.** Os inimigos "caíram muito em seu próprio conceito" (`NEH.6.16`). Ganha-se por reconhecimento do adversário.
-- **O prêmio por construir a cidade é ler o livro.** Terminada a muralha, o povo pede que Esdras traga a Lei, e ele lê da manhã ao meio-dia (`NEH.8`). O evento de encerramento é uma leitura pública, com todo o servidor presente. A métrica-norte vira o final do jogo.
+**Calendar note:** 52 sessions is too long for a game. Aim for **12 to 15 sessions per season**, each
+covering a few days of the fiction. The 52 days remain the feat the text announces.
 
-**Nota de calendário:** 52 sessões é longo demais para um jogo. Mire **12 a 15 sessões por temporada**, cada uma cobrindo alguns dias da ficção. Os 52 dias continuam sendo a façanha que o texto anuncia.
+## Discretion
 
-## A discrição, revisada
+Playing a follower rather than the leader is what makes the discretion honest: a stonemason newly back
+from exile **genuinely does not know** who the man from the capital with letters from the king is.
+Point-of-view discipline, not a marketing trick.
 
-Jogar um seguidor em vez do líder é o que torna a discrição honesta: um pedreiro recém-chegado do exílio **de fato não sabe** quem é o homem que veio da capital com cartas do rei. Disciplina de ponto de vista, não truque de marketing.
+- **Deferring a name is legitimate. Swapping a name is not.** In the first hours he is *the governor*.
+  Renaming Jerusalem to throw people off is the trap: strip the references and let the player find out
+  too late.
+- **Nothing is denied, nothing is highlighted.** Every gate has a codex entry with its reference from
+  the first hour. And the real names sound invented: *Dung Gate*, *Sheep Gate* read as worldbuilding.
+- **The reveal is a weapon, not a notice.** A threat arrives that cannot be solved, and the game shows
+  the page: half held spears, half built. The instant you discover it is the Bible is the same instant
+  the Bible becomes useful.
 
-- **Adiar nome é legítimo. Trocar nome, não.** Nas primeiras horas ele é *o governador*. Rebatizar Jerusalém para despistar vira a armadilha que o Cânon já identificou: tirar as referências e deixar o jogador descobrir tarde.
-- **Nada é negado, nada é destacado.** Cada porta tem entrada de códex com a referência desde a primeira hora. E os nomes reais soam inventados: *Porta do Esterco*, *Porta das Ovelhas* leem como worldbuilding.
-- **A revelação é uma arma, não um aviso.** Chega uma ameaça que não dá para resolver, e o jogo mostra a página: metade empunhava lanças, metade construía. O instante em que se descobre que é a Bíblia é o mesmo em que a Bíblia passa a ser útil.
-- **Diferença para o Cânon:** lá o texto era loot; aqui é o guia da fase. Por isso o pavio mais curto não é problema.
+## Production — solo first, co-op without migration
 
-## Produção — solo primeiro, co-op sem migração
-
-| Fase | O que é |
+| Phase | What it is |
 |---|---|
-| **Solo** *(recomendado)* | Neemias 3 tem 40+ grupos. Você joga um; a IA joga os outros. Ameaças, ciclo, economia e cronômetro funcionam inteiros sozinhos. |
-| **Co-op** | Jogadores substituem NPCs, um assento por vez, **na mesma tabela**. Nenhuma troca de esquema. A trombeta liga aqui. |
-| **MMO de verdade** | Não façam. Centenas de avatares concorrentes não compra nada que o item acima não entregue. |
+| **Solo** *(this MVP)* | Nehemiah 3 has 40+ groups. You play one; the AI plays the others. Threats, cycle, economy and countdown all work alone. |
+| **Co-op** | Players replace NPCs, one seat at a time, **in the same table**. No schema change. The trumpet switches on here. |
+| **A real MMO** | Do not. Hundreds of concurrent avatars buys nothing the item above does not deliver. |
 
-**O problema do solo:** sem gente esperando por você, o que traz de volta? Os quarenta e um grupos **têm nome**. Você volta por Hananias, o perfumista, que está penando no trecho dele — e é a mesma tabela que depois vira assento de jogador.
+**The problem with solo:** with nobody waiting for you, what brings you back? The forty-one groups
+**have names**. You come back for Hananias, the perfumer, who is struggling on his stretch — and it is
+the same table that later becomes a player's seat.
 
-## Câmera, controle e referência
+## Camera, control and reference
 
-Pixel art em vista 3/4 é o caminho mais curto para parecer jogo de verdade com equipe pequena — e é a melhor camuflagem possível.
+Pixel art in a 3/4 view is the shortest path to looking like a real game with a small team — and it is
+the best possible camouflage.
 
-1. **3/4, nunca topo puro.** O retorno visual central é a muralha subindo, e altura é o eixo que a vista de topo achata.
-2. **Stardew promete segurança; este jogo, não.** A gramática serve, a paleta não. A referência de *loop* mais próxima é **Kingdom: Two Crowns** — recrutar, mandar construir muro, e à noite algo vem do escuro.
-3. **Retrato, com duas câmeras.** Perto seguindo o personagem; e a **Ronda**, vista da muralha inteira que rola na horizontal.
-4. **Menos tiles, maiores, UI na zona do polegar.** Zoom maior que Stardew, encaixe automático no trecho, sem tooltip por hover.
+1. **3/4, never pure top-down.** The central visual payoff is the wall going up, and height is the axis
+   a top-down view flattens.
+2. **Stardew promises safety; this game does not.** The grammar works, the palette does not. The closest
+   *loop* reference is **Kingdom: Two Crowns** — recruit, order a wall built, and at night something
+   comes out of the dark.
+3. **Portrait, with two cameras.** Close, following the character; and the **Patrol**, a view of the
+   whole wall that scrolls horizontally.
+4. **Fewer, larger tiles, UI in the thumb zone.** More zoom than Stardew, automatic snapping to the
+   stretch, no hover tooltips.
 
-**Controle:** clique/toque para mover funciona porque não há combate. A defesa é dissuasão e posicionamento.
+**Control:** tap to move works because there is no combat. Defence is deterrence and positioning.
 
-**Custo escondido:** tileset é barato, animação não. Quatro direções em vez de oito, um esqueleto só com troca de paleta e adereço.
+**Hidden cost:** a tileset is cheap, animation is not. Four directions instead of eight, one skeleton
+with palette and prop swaps.
 
-> **Engine:** este documento recomendava Godot. **A decisão final foi Unity 6 LTS** — ver `POC-IMPLEMENTATION.md` §01. O motivo é que a implementação é feita por agentes, e há muito mais C#/Unity em treino de modelo do que GDScript.
+> **Engine: Unity 6 LTS.** The implementation is done by agents, and there is far more C#/Unity in model
+> training than GDScript. See [`../MVP-SCOPE.md`](../MVP-SCOPE.md) §01.
 
-## O que pegar do Clash of Clans, e o que recusar
+## What to take from Clash of Clans, and what to refuse
 
 | | |
 |---|---|
-| **Pegar** | Trabalho que roda enquanto você está fora. Tematicamente exato — o capítulo 3 é sobre obra acontecendo em quarenta trechos ao mesmo tempo. |
-| **Pegar** | A noite resolve na sua ausência. Ficar sabendo é o gancho. Um timer curto de duas horas, um longo que atravessa a noite. |
-| **Recusar** | Pular timer pagando. Num jogo sobre muralha erguida por sacrifício voluntário, vender o atalho refuta o tema. |
-| **Recusar** | Perder o que já estava de pé. Dano de noite atinge o trecho **inacabado**. **Dá para perder o amanhã, nunca o ontem.** |
+| **Take** | Work that runs while you are away. Thematically exact — chapter 3 is about work happening on forty stretches at once. |
+| **Take** | The night resolves in your absence. Finding out is the hook. A short two-hour timer, a long one that crosses the night. |
+| **Refuse** | Paying to skip a timer. In a game about a wall raised by voluntary sacrifice, selling the shortcut refutes the theme. |
+| **Refuse** | Losing what was already standing. Night damage hits the **unfinished** stretch. **You can lose tomorrow, never yesterday.** |
 
-## O padrão se repete por livro
+## The pattern repeats by book
 
-| Livro | Gênero mecânico |
+| Book | Mechanical genre |
 |---|---|
-| Neemias | Construção e defesa. O piloto. |
-| José no Egito | Previsão e estoque. Sete anos de fartura, sete de fome. |
-| Noé | Prazo e logística. Data final desconhecida, manifesto de carga impossível. |
-| Os valentes de Davi | Esquadrão. 2 Samuel 23 lista os homens pelo nome e pelo feito. |
-| Ester | Intriga e timing. Dedução social sem uma batalha. |
-| Atos | Expansão e mapa. Comunidades plantadas num mapa que vai abrindo. |
+| Nehemiah | Building and defence. The pilot. |
+| Joseph in Egypt | Forecasting and stockpiling. Seven years of plenty, seven of famine. |
+| Noah | Deadline and logistics. Unknown end date, an impossible cargo manifest. |
+| David's mighty men | Squad. 2 Samuel 23 lists the men by name and by deed. |
+| Esther | Intrigue and timing. Social deduction without a battle. |
+| Acts | Expansion and map. Communities planted on a map that keeps opening. |
 
-## Riscos
+## Risks
 
-| Risco | Antídoto |
+| Risk | Antidote |
 |---|---|
-| **Farmar samaritanos** — Sambalate, Tobias e Gesém eram figuras políticas reais | A defesa é dissuasão, não abate. Sem contador de mortes. |
-| **Escritura virando recurso** — "colete 50 pedras" | O capítulo 8: a obra existe para chegar na leitura, não o contrário. |
-| **Custo de arte** — avatares, animação, tileset, construção em estágios | Ordens de magnitude mais asset que o Cânon. É o maior custo escondido. |
-| **O pavio é mais curto que o do Cânon** | Basta alguém dizer "Jerusalém" e acabou. A virada tem que estar desenhada como capítulo desde o começo. |
+| **Farming Samaritans** — Sanballat, Tobiah and Geshem were real political figures | Defence is deterrence, not killing. No death counter. |
+| **Scripture becoming a resource** — "collect 50 stones" | Chapter 8: the work exists to arrive at the reading, not the other way round. |
+| **Art cost** — avatars, animation, tileset, staged construction | Orders of magnitude more asset than a text game. It is the biggest hidden cost. |
+| **The fuse is short** | Someone only has to say "Jerusalem" and it is over. The turn has to be designed as a chapter from the start. |
 
-> "Estou fazendo uma grande obra, de modo que não poderei descer." — `NEH.6.3`
+> The refusal the whole day-2 invitation is built on: `NEH.6.3`.

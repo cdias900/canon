@@ -41,7 +41,7 @@ Two role layers sit on top, and are what screens should actually ask for:
 ### Gold
 
 `Brand.Secondary` (`#E8B44A`) is the system accent: it marks what can be touched, what is new, and
-where keyboard focus is. It is ratified against the smell checklist in `CLAUDE.md` rule 13 — what
+where keyboard focus is. It is ratified against the smell checklist in `AGENTS.md` rule 13 — what
 that rule bans is *luz dourada* as art direction, a devotional glow over a scene. This is an
 interaction colour. **It never lights a scene and never decorates one.** A gold gradient behind a
 character, a gold vignette, a gold shaft through a doorway: all still banned.
@@ -96,7 +96,7 @@ progress bar that does not move reads as broken, not as calm.
 
 ## Rules that are not style
 
-These come from the design system and from `CLAUDE.md`, and a screen that breaks one is wrong even
+These come from the design system and from `AGENTS.md`, and a screen that breaks one is wrong even
 if it looks right.
 
 1. **Progress is never a bare bar.** Always label + bar + fraction. The bar is never thinner than
@@ -122,7 +122,7 @@ and are not pixel-matched against anything.
 
 The document also has no morale or night screen, because it was drawn for an explore-collect-build
 loop rather than this project's day/night turn structure. Where the two conflict,
-`POC-IMPLEMENTATION.md` describes the game and this describes how it looks.
+`MVP-SCOPE.md` describes the game and this describes how it looks.
 
 **Camera:** the document specifies first-person cinematic. This project is and stays a 2D top-down
 tilemap. The camera direction applies to key art and to a future production, not to the POC.
@@ -131,7 +131,7 @@ tilemap. The camera direction applies to key art and to a future production, not
 
 The mocks contain written-out Scripture — the mission-complete screen carries
 *"Vinde, e reedifiquemos o muro"*, which is `NEH.2.17`. Copying that into a locale file violates
-`CLAUDE.md` rule 2, and at five words it slips **under** the content validator's 8-word n-gram
+`AGENTS.md` rule 2, and at five words it slips **under** the content validator's 8-word n-gram
 threshold, so nothing catches it mechanically.
 
 **Every quotation lifted from the design document goes through the reference pipeline**: the line

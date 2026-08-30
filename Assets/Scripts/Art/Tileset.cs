@@ -7,7 +7,7 @@ namespace SheepGate.Art
     /// Drawn tiles, read out of one CC0 spritesheet.
     ///
     /// The rest of this folder generates its art from code, which was always meant to be
-    /// temporary: POC-IMPLEMENTATION.md section 11 asks for "Tileset CC0 (Kenney ou equivalente)",
+    /// temporary: MVP-SCOPE.md section 11 asks for "Tileset CC0 (Kenney ou equivalente)",
     /// and the README calls what the code draws "placeholder art" whose replacement means
     /// implementing one seam. This is that seam being implemented. Code can lay out a map and it
     /// can draw a line, but it cannot compete with tiles somebody sat down and shaded, and two

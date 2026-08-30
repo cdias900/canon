@@ -1,13 +1,22 @@
-# Architecture Contract — Sheep Gate POC
+# Architecture Contract — Sheep Gate
 
-Binding interface spec for all implementation agents. Every public signature here is
-frozen: implement exactly, do not rename, do not add parameters. If something is missing,
-add it *inside* your own files without changing anything declared here.
+The public seams nobody changes alone. **Accurate as of 2026-08-30**, which is a claim this file has
+to keep earning: it was written as a frozen spec before the code existed, and by the time anyone
+checked, eight of its declarations had drifted from the code they described. A frozen document that
+is wrong is worse than no document.
+
+So it is no longer frozen — it is **load-bearing**. What it lists are the signatures, scene names
+and schemas that other modules and the test harnesses depend on: change one and something you are
+not editing breaks. Read it before widening a public signature, and update it in the same commit
+that changes one. Where this file and the code disagree, **the code wins and this file is stale —
+fix it.**
 
 ## Non-negotiable rules (repeat to every agent)
 
 1. **English only** for identifiers, comments, file names, commit messages, docs.
-   **pt-BR only** for strings displayed to the player.
+   **No player-facing string in C# at all** — the game is bilingual (pt-BR authoring, en
+   translation), every such string lives in `Assets/Resources/Data/locales/<locale>/` and is read
+   through `Loc.T`, and the validator fails the build on a literal reaching the screen.
 2. **Scripture never appears as literal text** in C#, JSON authored by hand, prompts, or
    tests. Only references circulate: `NEH.4.6`. Literal text lives solely in the generated
    `verses.json`. Test fixtures use obviously synthetic strings such as
@@ -41,7 +50,7 @@ construction is verifiable by the compiler.
   ratifying.** The ban existed because hand-authored image assets bring import settings, `.meta`
   files and stored slicing that no agent can review; decoding one sheet in code keeps all of that
   inside compiler-checked source, which is the property the rule was protecting. See §11 of
-  `POC-IMPLEMENTATION.md`, which asked for a CC0 tileset from the start.
+  `MVP-SCOPE.md`, which asked for a CC0 tileset from the start.
 - Never write a `[SerializeField]` that must be wired in the inspector. Resolve dependencies
   through `ServiceLocator` or `FindFirstObjectByType`.
 
@@ -69,10 +78,14 @@ public class WallSegmentState {
 
 [Serializable]
 public class AppearanceState {
-    public int body;               // 0..1
+    public int body;               // 0..1  build
+    public int skin;               // 0..3  skin tone
+    public int hair;               // 0..3
     public int top;                // 0..3
     public int legs;               // 0..3
     public int accessory;          // 0..3
+
+    public int BodyArtVariant { get; }   // build and tone PACKED: build * SkinTones + skin
 }
 
 [Serializable]
@@ -137,7 +150,7 @@ public static class TelemetryEvents {
 ```
 
 ```csharp
-public static class GameData {                          // loads every JSON in Resources/Data
+public static class GameData {   // structure from Resources/Data, words merged from locales/<locale>
     public static void LoadAll();
     public static NpcDef[] Npcs { get; }
     public static IReadOnlyDictionary<string, DialogueNode> Dialogue { get; }
@@ -146,6 +159,7 @@ public static class GameData {                          // loads every JSON in R
     public static VocationDef[] Vocations { get; }
     public static QuizQuestion[] Quiz { get; }
     public static MapDef Map { get; }
+    public static string LoadedLocale { get; }
 }
 ```
 
@@ -176,7 +190,8 @@ public class VersionInfo  { public string id; public string abbrev; public strin
 public static class ScriptureService {
     public static bool IsPlaceholderBuild { get; }       // true when verses.json was generated without a real fetch
     public static VersionInfo Version { get; }
-    public static void Load();                           // reads Resources/Data/verses.json, never hits network
+    public static void Load();                           // reads Resources/Data/locales/<locale>/verses.json,
+                                                         // never hits the network
     public static bool TryGetVerse(string reference, out VerseEntry verse);
     public static VerseEntry GetVerse(string reference);     // never null; returns a visible missing-text marker
     public static ChapterEntry GetChapter(string chapterRef);
@@ -208,9 +223,16 @@ public class ResourceSystem : MonoBehaviour {
 
 public class DayCycle : MonoBehaviour {
     public event Action<int> MorningStarted;                 // day number
+    public event Action<int> DuskBegan;                      // the day is turning to evening
     public void RequestEndDay();                             // opens the split panel
     public void EndDay(int workers, int watchers);           // resolves the night, advances the day
-    public float NightAmount { get; }                        // 0 day .. 1 night, drives Light2D or the tint overlay
+    public void HoldDusk(string reason);                     // named hold; ReleaseDusk gives it back
+    public void ReleaseDusk(string reason);
+    public float NightAmount { get; }                        // 0 day .. 1 night
+
+    // The night waits for whatever has the screen. The chapter reader is a panel like any other,
+    // so a day must never end during a reading — rule 20 pointed at its own foot.
+    public static bool DuskWaits(bool held, bool inputLocked, bool modalOpen);
 }
 ```
 
@@ -259,23 +281,37 @@ public static class ArtLibrary {
     public static Sprite GetTinted(string key, Color tint);
 }
 ```
-Keys: `tile_ground`, `tile_rubble`, `tile_water`, `tile_house`, `wall_0`..`wall_4`,
-`prop_rubble`, `prop_well`, `body_0`/`body_1` + `_dir` + `_frame`, `top_0..3`, `legs_0..3`,
-`acc_0..3`, `ui_panel`, `ui_bubble`, `ui_button`. Palette is limited to three base colors
-plus neutrals. No gold light, no dove, no cross, no praying hands, no robes, no sandals.
+Keys are declared in `SheepGate.Art.ArtKeys` — read that rather than a list here, which is how this
+section drifted last time. Ground, rubble and water resolve from a drawn CC0 sheet decoded at
+runtime; every other key is generated procedurally, and a key with no drawn tile behind it falls
+through to the generated one.
 
-## Content guardrails for authored pt-BR text
+**No gold light, no dove, no cross, no praying hands, no robes, no sandals** — rule 13. Note that
+`Brand.Secondary` gold *is* ratified as an interaction colour: see `design-system.md` §Gold. It
+never lights or decorates a scene.
 
-Forbidden words anywhere in player-facing strings: bênção, propósito, jornada de fé,
-devocional, versículo do dia, testemunho, "Deus tem um plano". The narrator never corrects
-the player morally. God, Jesus and the Holy Spirit never speak in authored text.
+## Content guardrails for authored text
+
+Forbidden terms are **curated per language**, never translated between them, and live in
+`FORBIDDEN_TERMS_BY_LOCALE` in `tools/validate-content.mjs`. A literal translation of the pt-BR list
+puts bare "purpose" on the English one, which fires on "picked on purpose" and teaches everyone to
+ignore the validator.
+
+The narrator never corrects the player morally. God, Jesus and the Holy Spirit never speak in
+authored text — rule 3, without exception. A canonical figure *may* speak authored dialogue that
+asserts nothing the passage does not support (rule 4); those nodes carry `canonical_speaker` and
+`needs_curation`, and `node tools/list-curation.mjs` prints them for a human read.
 
 ## Build/verify commands
 
 ```
-node tools/fetch-verses.mjs --provider youversion     # needs YOUVERSION_API_KEY
-node tools/fetch-verses.mjs --placeholder             # structure-only, marks is_placeholder
+node tools/fetch-verses.mjs                           # every locale; needs YOUVERSION_API_KEY
+node tools/fetch-verses.mjs --locale en               # just one
 node tools/validate-content.mjs                       # deterministic layer-1 validator
+node tools/list-curation.mjs                          # authored canonical speech awaiting a read
+tools/unity-check.sh                                  # headless compile
+tools/acceptance.sh                                   # the product rules, per locale
+tools/e2e.sh                                          # build a player and play all three days
 ```
 
 ## Scene entry points (the integration seam)

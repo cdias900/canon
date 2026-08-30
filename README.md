@@ -1,13 +1,17 @@
-# Porta das Ovelhas
+# A Cidade Quebrada
 
-POC for **Cinquenta e Dois Dias** — a turn-based building-and-defence game set in the book of
-Nehemiah. Three days of play, one gate, Unity 6.
+A turn-based building-and-defence game set in the book of Nehemiah. Three days of play, one gate,
+Unity 6.
 
-The POC exists to answer one question: **does the player open the chapter of their own accord?**
+Names, in three layers: **A Cidade Quebrada** is the game, **Cinquenta e Dois Dias** is the season,
+and **Porta das Ovelhas** is this chapter — `NEH.3.1`, the gate the player raises. `SheepGate` is
+that gate in English, and it is the namespace for all the code.
+
+The build exists to answer one question: **does the player open the chapter of their own accord?**
 Everything else is a means. The event that answers it is `deep_read`.
 
-Product context and the non-negotiable rules live in [`AGENTS.md`](AGENTS.md). The implementation
-spec is [`POC-IMPLEMENTATION.md`](POC-IMPLEMENTATION.md). **Before writing code, read
+Product context and the non-negotiable rules live in [`AGENTS.md`](AGENTS.md). The scope being
+executed is [`MVP-SCOPE.md`](MVP-SCOPE.md). **Before writing code, read
 [`docs/development-guidelines.md`](docs/development-guidelines.md)** — how this codebase is written,
 where player-facing text is allowed to live, and what "tested" means here.
 
@@ -35,13 +39,16 @@ tools/unity-check.sh --open      # open the project in the editor, then press Pl
 tools/unity-check.sh             # headless compile, reports C# errors
 node tools/validate-content.mjs  # scripture integrity, locale parity, hardcoded strings
 tools/acceptance.sh              # assert the acceptance criteria, once per language
-tools/e2e.sh                     # build a player, play the opening and a whole day, every language
+tools/e2e.sh                     # build a player and play all three days, every language
 ```
 
-`tools/e2e.sh` is the one that runs a real build. It launches the player per locale, drives it
-through the EventSystem — refusing to click a control that something else is covering — screenshots
-three beats into `Builds/e2e/`, and fails on an unresolved string or any error in the log. The other
-three are necessary and not sufficient: nothing before it composes a scene.
+`tools/e2e.sh` is the one that runs a real build. It launches the player per locale and plays all
+three days — the opening, character creation, the split, the night, the trial, A Página, the reader
+and the vocation reveal — driving it through the EventSystem, refusing to click a control that
+something else is covering. It screenshots into `Builds/e2e/` and fails on an unresolved string or
+any error in the log. The other three are necessary and not sufficient: nothing before it composes a
+scene. **Read the screenshots** — a green exit code means nothing was missing, not that the screen
+looks right.
 
 Run it in one language only with `tools/e2e.sh --locale en`, or against the player already built
 with `tools/e2e.sh --no-build`.
@@ -94,15 +101,19 @@ both.
 Reset a playtest — the save is meant to survive restarts, so clear it deliberately:
 
 ```bash
-rm -rf ~/Library/Application\ Support/com.Create-Hack.Porta-das-Ovelhas   # player build
+rm -rf ~/Library/Application\ Support/com.Create-Hack.A-Cidade-Quebrada   # player build
 rm -rf ~/Library/Application\ Support/Create\ Hack                        # editor Play mode
 ```
 
 **Both paths, because `Application.persistentDataPath` is not the same in the two.** A player
 build resolves it from the bundle identifier; the editor resolves it from company and product
 name. Clearing only one leaves the other's save behind, and the game resumes a run you thought
-you had deleted. Boot logs the resolved paths for exactly this reason — read
-`[Boot] Save ->` in the log rather than guessing.
+you had deleted.
+
+**Do not trust the paths above — read `[Boot] Save ->` in the log.** Both are derived from
+`productName`, so they move whenever the product is renamed, and the macOS player has no explicit
+bundle identifier of its own (iOS and Android do: `com.createhack.portadasovelhas`). Boot logs the
+resolved paths for exactly this reason.
 
 Telemetry, including `deep_read` and `unprompted_read`, is appended to `telemetry.jsonl`
 alongside the save, in whichever of those two roots the run actually used.

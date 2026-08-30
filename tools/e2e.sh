@@ -18,7 +18,6 @@ UNITY_VERSION="${UNITY_VERSION:-6000.3.23f1}"
 UNITY_BIN="/Applications/Unity/Hub/Editor/${UNITY_VERSION}/Unity.app/Contents/MacOS/Unity"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP="${ROOT}/Builds/mac/SheepGate.app"
-BINARY="${APP}/Contents/MacOS/Porta das Ovelhas"
 OUT="${ROOT}/Builds/e2e"
 
 # Every locale with a content directory. Discovered rather than listed, so adding a language
@@ -57,10 +56,15 @@ if [[ ${BUILD} -eq 1 ]]; then
   echo "Built ${APP}"
 fi
 
+# Derived, never hardcoded: the executable inside the bundle is named from PlayerSettings
+# productName, so spelling it here means a product rename silently breaks the run with a
+# "no such file" that reads like a failed build. Resolved after the build, not before it.
+BINARY="$(find "${APP}/Contents/MacOS" -maxdepth 1 -type f -perm -u+x 2>/dev/null | head -1)"
+
 # The binary is launched directly rather than through `open`, because `open` returns as soon as
 # the app is handed to LaunchServices: it reports neither the exit code nor the player's log.
-if [[ ! -x "${BINARY}" ]]; then
-  echo "No player binary at ${BINARY}. Run without --no-build." >&2
+if [[ -z "${BINARY}" || ! -x "${BINARY}" ]]; then
+  echo "No player binary inside ${APP}. Run without --no-build." >&2
   exit 1
 fi
 

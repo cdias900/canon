@@ -36,16 +36,17 @@ controls by name — `QuickStart`, `HUDCanvas`, `Locale_en`. Those names are the
 UI that is entirely constructed at runtime, and they are stable precisely because they are not
 translated. Renaming one breaks a test; translating one breaks it in exactly one language.
 
-Two things are deliberately **not** English, and both are about audience rather than preference.
+**Every document in this repository is English, product documents included** — `AGENTS.md`,
+`MVP-SCOPE.md`, `docs/persona-and-purpose.md`, `docs/nehemiah-game-design.md`,
+`docs/character-creation-scope.md`. This was not always the rule: product docs used to be written in
+pt-BR on the grounds that they were the team thinking in the team's own language. That split cost
+more than it bought. Half the repository is read by agents that also read the code, the line between
+"what the game is" and "how the code works" was never as clean as it looked — `MVP-SCOPE.md` is both
+— and a rule with an exception is a rule people have to remember.
 
-**The content is authored in pt-BR.** It is the authoring locale: the game is written in Portuguese
-first and translated outward.
-
-**Product and design documents stay in pt-BR** — `AGENTS.md`, `docs/persona-e-proposito.md`,
-`docs/nehemiah-game-design.md`, `docs/poc-scope.md`, `docs/canon-24h-plan.md`. These are the team
-thinking about the product in the team's own language, and they are read by the five people who
-decide what this is, not by the compiler. The line falls where the audience changes: a document
-about *how the code works* is English, a document about *what the game is* is pt-BR.
+One thing is deliberately **not** English, and it is about audience rather than preference: **the
+content is authored in pt-BR.** It is the authoring locale — the game is written in Portuguese first
+and translated outward. That is the only pt-BR that belongs in this repository.
 
 ### Commit messages and branch names
 

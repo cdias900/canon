@@ -14,7 +14,7 @@ namespace SheepGate.EditorTools
 {
     /// <summary>
     /// Drives the real systems headlessly and asserts the acceptance criteria from
-    /// POC-IMPLEMENTATION.md §13 that cannot be checked by playing for a minute — the ones about
+    /// MVP-SCOPE.md §13 that cannot be checked by playing for a minute — the ones about
     /// rules rather than about pixels.
     ///
     /// Run with:

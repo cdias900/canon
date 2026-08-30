@@ -28,37 +28,15 @@ chapter reader fetches verse by verse to keep verse numbers.
 | en | 11 | 12 ASV, 42 CPDV, 206 engWEBUS, 3034 BSB, 2660 LSV, 1932 FBV, … |
 | es | 3 | 147 RVES, 3291 VBL, 3365 spaPdDpt |
 
-## The translation decision — now answerable
+## The translation decision — settled
 
-**Superseded — see the NVI update at the end of this file.** What follows described the state
-before NVI was enabled in the developer portal, and is kept because the licence reasoning about
-the public-domain fallback is still what applies if NVI is ever withdrawn.
+**pt-BR resolves against `129` (NVI, Nova Versão Internacional); English against `206` (World
+English Bible).** Every manifest reference and every cited chapter resolves under both.
 
-`version_id = 3254` (BLT) was the only Portuguese option the key exposed before NVI was enabled,
-so it was the choice by elimination rather than by preference.
-
-Its licence resolves the three open questions in `CLAUDE.md`:
-
-> Dr. Jonathan Gallagher. Released under Creative Commons Attribution-ShareAlike 4.0 Unported.
-
-- **May we store it?** Yes — CC BY-SA 4.0 permits storage and redistribution.
-- **May we batch fetch?** Yes, subject to ordinary rate limiting.
-- **Which versions does the key enable?** The table above.
-
-Consequence for the dual-corpus architecture: because BLT is CC BY-SA rather than
-all-rights-reserved, the fallback design (embeddings over a public-domain text, display via
-YouVersion) is not forced here. Attribution and share-alike still must be carried in the build —
-`verses.json` keeps the `copyright` string and the game must display it.
-
-**Open:** whether BLT is the right *reading level and register* for the audience is a product
-question, not a licence one, and has not been decided. Swapping it later is a one-line change to
-`tools/verses.manifest.json`.
-
-
-## Update — NVI access granted
-
-`version_id` is now **129 (NVI, Nova Versão Internacional)**, in Portuguese, which is what the
-game ships against. All ten manifest references plus the whole of NEH.4 resolve under it.
+English was chosen public domain deliberately — NIV (`111`) is served by the same key and was
+rejected for it, which makes `en` the locale that could ship publicly first. BLT (`3254`, CC BY-SA)
+was the pt-BR choice by elimination before NVI was enabled, and remains the fallback to regenerate
+against if NVI is ever withdrawn or if this repository needs to go public.
 
 Two things worth knowing, both learned the hard way:
 
@@ -84,5 +62,5 @@ Consequences for the build:
   contractual requirement, not a courtesy.
 - The "can we store the text?" question is answered by the YouVersion licence agreement, not by an
   open licence. Re-read the accepted terms before caching text anywhere beyond the built app.
-- The dual-corpus design in `CLAUDE.md` regains its point: embeddings should run over a
+- The dual-corpus design in `AGENTS.md` regains its point: embeddings should run over a
   public-domain text that returns only *references*, with NVI used for display only.

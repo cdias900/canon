@@ -177,7 +177,7 @@ namespace SheepGate.Core
         public const string DeepRead = "deep_read";
 
         /// <summary>
-        /// Opened without the game asking. The funnel in docs/persona-e-proposito.md separates
+        /// Opened without the game asking. The funnel in docs/persona-and-purpose.md separates
         /// compliance from desire, and this is the first rung where the player is the one who
         /// decided. read_ahead, offday_read and ungamed_read are season-scale and out of POC scope.
         /// </summary>

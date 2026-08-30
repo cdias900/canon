@@ -31,7 +31,7 @@ namespace SheepGate.EditorTools
         private const string PipelineAssetPath = SettingsFolder + "/SheepGateRenderPipeline.asset";
         private const string UniversalPackagePath = "Packages/com.unity.render-pipelines.universal";
 
-        private const string ProductName = "Porta das Ovelhas";
+        private const string ProductName = "A Cidade Quebrada";
         private const string CompanyName = "Create Hack";
         private const int DefaultScreenWidth = 1080;
         private const int DefaultScreenHeight = 1920;

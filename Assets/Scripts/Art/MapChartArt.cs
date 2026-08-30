@@ -2,22 +2,27 @@ using UnityEngine;
 
 namespace SheepGate.Art
 {
+    /// <summary>The three states a stop on the journey map may show.</summary>
+    public enum JourneyNodeState
+    {
+        Complete,
+        Current,
+        Locked
+    }
+
     /// <summary>
-    /// The region as a chart somebody drew, rendered once into a single texture.
+    /// Image sprites and stable overlay anchors for the journey map.
     ///
-    /// The earlier map was the live world seen from far away, and it could not be made to look
-    /// like a map: every surface on it was the same noise tile under a different tint, which at
-    /// that distance reads as camouflage rather than as country. A drawing does not have that
-    /// problem, because a drawing is made of lines — a coast is a line, a road is a line, high
-    /// ground is a few strokes — and lines are what a pixel canvas is good at.
+    /// The generated PNGs are authored imagery, but they still enter through one code-owned seam:
+    /// callers ask this class for a Sprite and never depend on importer slicing, inspector fields
+    /// or scene GUIDs. The background is one image and every marker/reward is an isolated image with
+    /// alpha; labels remain live localized UI so words are never baked into art.
     ///
-    /// It also fits what the game is. Nehemiah rode the wall at night to see the size of the
-    /// damage before he said a word about repairing it; a survey drawn by somebody who walked the
-    /// ground is the artefact this fiction would actually produce, and it earns its parchment
-    /// instead of borrowing a lush overworld the palette here could never render.
+    /// The procedural parchment chart below remains as a deliberate fallback. A missing image is
+    /// loud in the log and still leaves a usable map rather than a blank modal.
     ///
-    /// The geography lives in this file because it is a drawing, not a simulation. Callers get
-    /// normalised anchor points back so their labels land on the right places.
+    /// Overlay positions are normalised against the source image. That keeps the road stops and
+    /// their labels together on every phone, because the sheet itself preserves this aspect ratio.
     /// </summary>
     public static class MapChartArt
     {
@@ -41,6 +46,57 @@ namespace SheepGate.Art
         const int CityRadius = 60;
         const int BorderInset = 9;
 
+        const string MapResource = "Art/Map/map_background";
+        const string CompleteNodeResource = "Art/Map/node_complete";
+        const string CurrentNodeResource = "Art/Map/node_current";
+        const string LockedNodeResource = "Art/Map/node_locked";
+        const string ToolBagResource = "Art/Map/item_tool_bag";
+        const string HeadscarfResource = "Art/Map/item_headscarf";
+        const string ValleyMantleResource = "Art/Map/item_valley_mantle";
+
+        /// <summary>The generated map is a wide 3:2 valley explored through a portrait viewport.</summary>
+        public const float BackgroundAspect = 3f / 2f;
+
+        /// <summary>Logical size of the pannable map content in canvas units.</summary>
+        public static readonly Vector2 ContentSize = new Vector2(1536f, 1024f);
+
+        /// <summary>
+        /// The three clearings painted into the road, from the first stop at the lower left to the
+        /// repaired gate in the north. UI coordinates use a bottom-left origin.
+        /// </summary>
+        static readonly Vector2[] JourneyAnchors =
+        {
+            new Vector2(0.19f, 0.25f),
+            new Vector2(0.52f, 0.50f),
+            new Vector2(0.88f, 0.83f)
+        };
+
+        /// <summary>
+        /// Where the viewport centres for each day. A focus includes the node's card as well as its
+        /// marker, which is why day two looks to the right and day three back to the left.
+        /// </summary>
+        static readonly Vector2[] JourneyFocusAnchors =
+        {
+            new Vector2(0.24f, 0.39f),
+            new Vector2(0.70f, 0.53f),
+            new Vector2(0.72f, 0.82f)
+        };
+
+        /// <summary>
+        /// The complete opaque vocabulary of world art. Generated images are suggestions of shape;
+        /// every shipped pixel is remapped onto these existing colours before a Sprite is created.
+        /// </summary>
+        static readonly Color32[] ExactPalette =
+        {
+            ArtPalette.Ink, ArtPalette.Shadow, ArtPalette.Neutral, ArtPalette.Light, ArtPalette.Paper,
+            ArtPalette.StoneDeep, ArtPalette.StoneDark, ArtPalette.StoneMid,
+            ArtPalette.StoneLight, ArtPalette.StonePale,
+            ArtPalette.ClayDeep, ArtPalette.ClayDark, ArtPalette.ClayMid,
+            ArtPalette.ClayLight, ArtPalette.ClayPale,
+            ArtPalette.TealDeep, ArtPalette.TealDark, ArtPalette.TealMid,
+            ArtPalette.TealLight, ArtPalette.TealPale
+        };
+
         // Where the four shut cities sit. Same arrangement as the region the opening shows, moved
         // in from the coast so the drawn coastline still has room to run behind them.
         static readonly Vector2Int[] Places =
@@ -52,10 +108,18 @@ namespace SheepGate.Art
         };
 
         static Sprite _sprite;
+        static readonly System.Collections.Generic.Dictionary<string, Sprite> ImageSprites =
+            new System.Collections.Generic.Dictionary<string, Sprite>(System.StringComparer.Ordinal);
 
         /// <summary>The chart. Drawn on the first call and kept.</summary>
         public static Sprite Get()
         {
+            if (_sprite != null)
+            {
+                return _sprite;
+            }
+
+            _sprite = LoadImageSprite(MapResource, "map_progress_background");
             if (_sprite != null)
             {
                 return _sprite;
@@ -74,6 +138,183 @@ namespace SheepGate.Art
                 SpriteMeshType.FullRect);
             _sprite.name = "map_chart";
             return _sprite;
+        }
+
+        /// <summary>How many real POC days the journey map contains.</summary>
+        public static int JourneyCount
+        {
+            get { return JourneyAnchors.Length; }
+        }
+
+        /// <summary>Where one day marker sits on the generated road.</summary>
+        public static Vector2 JourneyAnchor(int index)
+        {
+            return JourneyAnchors[Mathf.Clamp(index, 0, JourneyAnchors.Length - 1)];
+        }
+
+        /// <summary>Where the clipped viewport should open for one day.</summary>
+        public static Vector2 JourneyFocusAnchor(int index)
+        {
+            return JourneyFocusAnchors[Mathf.Clamp(index, 0, JourneyFocusAnchors.Length - 1)];
+        }
+
+        /// <summary>The image sprite for one progression state.</summary>
+        public static Sprite NodeSprite(JourneyNodeState state)
+        {
+            switch (state)
+            {
+                case JourneyNodeState.Complete:
+                    return LoadImageSprite(CompleteNodeResource, "map_node_complete");
+                case JourneyNodeState.Current:
+                    return LoadImageSprite(CurrentNodeResource, "map_node_current");
+                default:
+                    return LoadImageSprite(LockedNodeResource, "map_node_locked");
+            }
+        }
+
+        /// <summary>
+        /// The featured item image beside each day. These ids are character_catalog.json ids, never
+        /// player-facing copy; the display name comes from the loaded locale catalogue.
+        /// </summary>
+        public static Sprite RewardSprite(string itemId)
+        {
+            switch (itemId)
+            {
+                case "acc_tool_bag":
+                    return LoadImageSprite(ToolBagResource, "map_reward_tool_bag");
+                case "hair_headscarf":
+                    return LoadImageSprite(HeadscarfResource, "map_reward_headscarf");
+                case "outfit_valley_mantle":
+                    return LoadImageSprite(ValleyMantleResource, "map_reward_valley_mantle");
+                default:
+                    Debug.LogWarning("[MapArt] No generated reward sprite is mapped for catalog item '" + itemId + "'.");
+                    return null;
+            }
+        }
+
+        static Sprite LoadImageSprite(string resourcePath, string spriteName)
+        {
+            Sprite cached;
+            if (ImageSprites.TryGetValue(resourcePath, out cached) && cached != null)
+            {
+                return cached;
+            }
+
+            Texture2D texture = Resources.Load<Texture2D>(resourcePath);
+            if (texture == null)
+            {
+                Debug.LogError("[MapArt] Missing generated image at Resources/" + resourcePath + ".png.");
+                return null;
+            }
+
+            Texture2D exactTexture = RemapToExactPalette(texture, spriteName);
+
+            Sprite sprite = Sprite.Create(
+                exactTexture,
+                new Rect(0f, 0f, exactTexture.width, exactTexture.height),
+                new Vector2(0.5f, 0.5f),
+                100f,
+                0u,
+                SpriteMeshType.FullRect);
+            sprite.name = spriteName;
+            ImageSprites[resourcePath] = sprite;
+            return sprite;
+        }
+
+        static Texture2D RemapToExactPalette(Texture2D source, string name)
+        {
+            Color32[] pixels;
+            try
+            {
+                pixels = source.GetPixels32();
+            }
+            catch (UnityException exception)
+            {
+                Debug.LogError("[MapArt] Generated texture '" + source.name +
+                    "' is not readable, so its palette cannot be enforced: " + exception.Message);
+                return source;
+            }
+
+            for (int i = 0; i < pixels.Length; i++)
+            {
+                if (pixels[i].a < 128)
+                {
+                    pixels[i] = ArtPalette.Transparent;
+                    continue;
+                }
+
+                pixels[i] = NearestPaletteColour(pixels[i]);
+            }
+
+            var exact = new Texture2D(source.width, source.height, TextureFormat.RGBA32, false);
+            exact.name = "palette_" + name;
+            exact.filterMode = FilterMode.Point;
+            exact.wrapMode = TextureWrapMode.Clamp;
+            exact.SetPixels32(pixels);
+            exact.Apply(false, false);
+            return exact;
+        }
+
+        static Color32 NearestPaletteColour(Color32 source)
+        {
+            int bestDistance = int.MaxValue;
+            Color32 best = ExactPalette[0];
+            for (int i = 0; i < ExactPalette.Length; i++)
+            {
+                int red = source.r - ExactPalette[i].r;
+                int green = source.g - ExactPalette[i].g;
+                int blue = source.b - ExactPalette[i].b;
+                int distance = red * red + green * green + blue * blue;
+                if (distance >= bestDistance)
+                {
+                    continue;
+                }
+
+                bestDistance = distance;
+                best = ExactPalette[i];
+            }
+
+            best.a = 255;
+            return best;
+        }
+
+        /// <summary>Used by the built-player run to prove no generated colour escaped the remap.</summary>
+        public static bool UsesExactPalette(Sprite sprite)
+        {
+            if (sprite == null || sprite.texture == null || !sprite.texture.isReadable)
+            {
+                return false;
+            }
+
+            Color32[] pixels = sprite.texture.GetPixels32();
+            for (int i = 0; i < pixels.Length; i++)
+            {
+                if (pixels[i].a == 0)
+                {
+                    continue;
+                }
+
+                if (pixels[i].a != 255 || !PaletteContains(pixels[i]))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        static bool PaletteContains(Color32 colour)
+        {
+            for (int i = 0; i < ExactPalette.Length; i++)
+            {
+                if (colour.r == ExactPalette[i].r && colour.g == ExactPalette[i].g &&
+                    colour.b == ExactPalette[i].b)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>Where the player's own city sits, as a fraction of the sheet.</summary>

@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using SheepGate.Art;
 using SheepGate.Core;
 using SheepGate.Dialogue;
 using SheepGate.Player;
@@ -165,7 +166,13 @@ namespace SheepGate.E2E
             // 5. The whole-screen sweep. Cheap, and it catches every missing string at once.
             CheckNoMissingStrings();
 
-            // 6. The toggle, in the authoring locale's run only — one pass is enough to prove the
+            // 6. The HUD map is a real progression surface now: generated sprites underneath,
+            // localized state and reward copy above, and catalogue conditions deciding what is
+            // actually open. Exercise the public button so a beautiful map hidden behind a broken
+            // route cannot pass.
+            yield return VerifyProgressMap();
+
+            // 7. The toggle, in the authoring locale's run only — one pass is enough to prove the
             // path, and it is the only thing here that exercises a language change at runtime
             // rather than a language pinned at boot. Everything else in this file would pass on a
             // build whose toggle did nothing at all, which is exactly what it once did.
@@ -174,7 +181,7 @@ namespace SheepGate.E2E
                 yield return SwitchLanguageAndVerify();
             }
 
-            // 7. A whole day, ended by nobody.
+            // 8. A whole day, ended by nobody.
             yield return PlayADayToItsEnd();
 
             // 8. Day two, and the night that follows it.
@@ -422,6 +429,132 @@ namespace SheepGate.E2E
             {
                 return null;
             }
+        }
+
+        IEnumerator VerifyProgressMap()
+        {
+            yield return Tap("MapButton", "the progression map button");
+            yield return WaitForObject("WorldMapViewCanvas", "the progression map");
+            yield return null;
+
+            Record("the progression map opens from the HUD", WorldMapView.IsOpen,
+                "WorldMapView.IsOpen=" + WorldMapView.IsOpen);
+            Record("the progression map has all three real days",
+                Find("MapNode1Marker") != null && Find("MapNode2Marker") != null && Find("MapNode3Marker") != null,
+                "day1=" + (Find("MapNode1Marker") != null) + " day2=" + (Find("MapNode2Marker") != null) +
+                " day3=" + (Find("MapNode3Marker") != null));
+            Record("the progression map reports catalogue unlocks", Find("ProgressSummary") != null &&
+                Find("UnlockCount") != null && CharacterCatalog.LoadedLocale == Locales.Active,
+                "summary=" + (Find("ProgressSummary") != null) + " count=" + (Find("UnlockCount") != null) +
+                " catalog locale=" + CharacterCatalog.LoadedLocale);
+            Record("the progression map uses generated image sprites", CountMapSprites() >= 5,
+                "found " + CountMapSprites() + " generated map sprites on screen");
+            Record("the progression map discloses one node detail at a time",
+                Find("SelectedNodeTitle") != null && Find("MapNode1Card") == null &&
+                TextOf("SelectedNodeTitle") == Loc.T("world.progress_map.day.1.title"),
+                "selected title=\"" + (TextOf("SelectedNodeTitle") ?? "missing") +
+                "\" legacy card=" + (Find("MapNode1Card") != null));
+
+            MapViewportController viewport = UnityEngine.Object.FindFirstObjectByType<MapViewportController>();
+            Record("the progression map is explored section by section",
+                viewport != null && viewport.CanPanHorizontally,
+                viewport == null ? "no MapViewportController" :
+                "horizontal pan=" + viewport.CanPanHorizontally + " scale=" + viewport.CurrentScale.ToString("0.00"));
+            Record("the progression map makes the current position explicit",
+                Find("CurrentLocationRing") != null && Find("CurrentLocationLabel") != null,
+                "ring=" + (Find("CurrentLocationRing") != null) +
+                " label=" + (Find("CurrentLocationLabel") != null));
+
+            if (viewport != null)
+            {
+                viewport.FocusNormalized(MapChartArt.JourneyFocusAnchor(1));
+                yield return null;
+                yield return Tap("MapNode2Marker", "the second progression annotation");
+                Record("selecting a map annotation updates the one detail card",
+                    TextOf("SelectedNodeTitle") == Loc.T("world.progress_map.day.2.title"),
+                    "selected title=\"" + (TextOf("SelectedNodeTitle") ?? "missing") + "\"");
+
+                viewport.FocusNormalized(MapChartArt.JourneyFocusAnchor(0));
+                yield return null;
+                yield return Tap("MapNode1Marker", "the current progression annotation");
+            }
+
+            float scaleBefore = viewport != null ? viewport.CurrentScale : 0f;
+            RectTransform currentCard = Find("MapNode1Label") != null
+                ? Find("MapNode1Label").transform as RectTransform
+                : null;
+            float cardWidthBefore = ScreenWidth(currentCard);
+            yield return Tap("ZoomIn", "the progression map zoom-in button");
+            yield return null;
+            Record("the progression map zooms through a real control",
+                viewport != null && viewport.CurrentScale > scaleBefore,
+                "scale " + scaleBefore.ToString("0.00") + " -> " +
+                (viewport != null ? viewport.CurrentScale.ToString("0.00") : "missing"));
+            float cardWidthAfter = ScreenWidth(currentCard);
+            Record("map labels stay readable instead of scaling with the terrain",
+                cardWidthBefore > 0f && Mathf.Abs(cardWidthAfter - cardWidthBefore) / cardWidthBefore < 0.03f,
+                "card width " + cardWidthBefore.ToString("0.0") + " -> " + cardWidthAfter.ToString("0.0"));
+            yield return Tap("ZoomOut", "the progression map zoom-out button");
+
+            int offPalette = CountOffPaletteMapSprites();
+            Record("generated map art uses only the exact world palette", offPalette == 0,
+                offPalette + " generated sprite(s) contained an out-of-palette pixel");
+
+            CheckNoMissingStrings();
+            yield return Capture("04-progress-map");
+
+            yield return Tap("CloseMap", "the progression map close button");
+            yield return WaitUntil(() => !WorldMapView.IsOpen, "the progression map to close");
+        }
+
+        static int CountMapSprites()
+        {
+            int count = 0;
+            foreach (Image image in Resources.FindObjectsOfTypeAll<Image>())
+            {
+                if (image == null || image.sprite == null || !IsInLiveScene(image.gameObject))
+                {
+                    continue;
+                }
+
+                string spriteName = image.sprite.name ?? string.Empty;
+                if (spriteName.StartsWith("map_progress_", StringComparison.Ordinal) ||
+                    spriteName.StartsWith("map_node_", StringComparison.Ordinal) ||
+                    spriteName.StartsWith("map_reward_", StringComparison.Ordinal))
+                {
+                    count++;
+                }
+            }
+
+            return count;
+        }
+
+        static float ScreenWidth(RectTransform rect)
+        {
+            return rect != null ? rect.rect.width * rect.lossyScale.x : 0f;
+        }
+
+        static int CountOffPaletteMapSprites()
+        {
+            int count = 0;
+            foreach (Image image in Resources.FindObjectsOfTypeAll<Image>())
+            {
+                if (image == null || image.sprite == null || !IsInLiveScene(image.gameObject))
+                {
+                    continue;
+                }
+
+                string spriteName = image.sprite.name ?? string.Empty;
+                bool isMapSprite = spriteName.StartsWith("map_progress_", StringComparison.Ordinal) ||
+                    spriteName.StartsWith("map_node_", StringComparison.Ordinal) ||
+                    spriteName.StartsWith("map_reward_", StringComparison.Ordinal);
+                if (isMapSprite && !MapChartArt.UsesExactPalette(image.sprite))
+                {
+                    count++;
+                }
+            }
+
+            return count;
         }
 
         /// <summary>

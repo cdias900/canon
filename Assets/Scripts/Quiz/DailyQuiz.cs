@@ -37,8 +37,15 @@ namespace SheepGate.Quiz
         const string SeenCounterPrefix = "quiz_seen_d";
         const string AnswerCounterPrefix = "quiz_answer_d";
 
-        const float SideMargin = 56f;
-        const float CardPadding = 44f;
+        /// <summary>
+        /// Left and right inset of the card. The screen gutter, so the check-in lines up with
+        /// every other panel in the game rather than with the number it happened to be built at.
+        /// </summary>
+        static readonly float SideMargin = DesignTokens.Space.Gutter;
+
+        /// <summary>Padding inside the card: a little tighter across than down the page.</summary>
+        static readonly float CardPaddingX = DesignTokens.Space.S20;
+        static readonly float CardPaddingY = DesignTokens.Space.S24;
 
         /// <summary>Quiet time the screen must have before a queued check-in appears.</summary>
         const float SettleSeconds = 0.6f;
@@ -381,9 +388,24 @@ namespace SheepGate.Quiz
 
         // ------------------------------------------------------------------ construction
 
+        /// <summary>
+        /// Builds the card.
+        ///
+        /// SURFACE: a modal is elev.2 in the design system, which it defines as
+        /// <c>Surface.Card</c> over <c>Surface.Scrim</c>. <see cref="ModalRoot"/> draws the scrim,
+        /// so the card is a <see cref="UIKit.CardStyle.Card"/> and not the pergaminho. The
+        /// pergaminho is the surface for reading at length, and it is also the one surface in the
+        /// game where the secondary and ghost button skins — near-white fills — disappear. This
+        /// screen is three quarters buttons, so it takes the surface the buttons were drawn for
+        /// and leaves the scroll to the vocation reveal.
+        ///
+        /// Height is left to a <see cref="ContentSizeFitter"/>. The card grows twice: once for the
+        /// prompt, which is authored per day and per locale, and again when the note and the way
+        /// out appear after an answer.
+        /// </summary>
         void Build()
         {
-            Image card = UIKit.CreatePanel(_container, "QuizCard", UIKit.Palette.Parchment, UiSpriteKeys.Panel);
+            Image card = UIKit.CreateCard(_container, "QuizCard", UIKit.CardStyle.Card);
             _card = (RectTransform)card.transform;
             _card.anchorMin = new Vector2(0f, 0.5f);
             _card.anchorMax = new Vector2(1f, 0.5f);
@@ -391,30 +413,31 @@ namespace SheepGate.Quiz
             _card.offsetMin = new Vector2(SideMargin, _card.offsetMin.y);
             _card.offsetMax = new Vector2(-SideMargin, _card.offsetMax.y);
 
-            UIKit.VerticalGroup(
-                card.gameObject,
-                22f,
-                new RectOffset((int)CardPadding, (int)CardPadding, (int)CardPadding, (int)CardPadding));
+            UIKit.VerticalGroup(card.gameObject, DesignTokens.Space.S16, Pad(CardPaddingX, CardPaddingY));
 
             var fitter = card.gameObject.AddComponent<ContentSizeFitter>();
             fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
             fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
+            // Eyebrow in the accent, which is what marks a thing as new. Gold reads at about 8:1
+            // on this card, and the words carry the meaning on their own if it does not.
             UIKit.CreateText(
                 _card,
                 "Eyebrow",
                 Loc.T("quiz.eyebrow"),
-                UIKit.FontSize.Meta,
-                UIKit.Palette.Stone,
-                TextAnchor.UpperLeft);
+                DesignTokens.Type.Mono,
+                DesignTokens.Brand.Secondary,
+                TextAnchor.UpperLeft,
+                DesignTokens.TypeRole.BodyStrong);
 
             UIKit.CreateText(
                 _card,
                 "Prompt",
                 _question.prompt,
-                UIKit.FontSize.Heading,
-                UIKit.Palette.Ink,
-                TextAnchor.UpperLeft);
+                DesignTokens.Type.Title,
+                DesignTokens.Ink.Primary,
+                TextAnchor.UpperLeft,
+                DesignTokens.TypeRole.Title);
 
             BuildOptions();
 
@@ -422,29 +445,39 @@ namespace SheepGate.Quiz
                 _card,
                 "Note",
                 string.Empty,
-                UIKit.FontSize.Body,
-                UIKit.Palette.Ink,
+                DesignTokens.Type.Body,
+                DesignTokens.Ink.Secondary,
                 TextAnchor.UpperLeft);
-            _noteText.lineSpacing = 1.1f;
             _noteText.gameObject.SetActive(false);
 
             _continueButton = UIKit.CreateButton(
                 _card,
                 "Continue",
                 Loc.T("quiz.continue"),
-                UIKit.Palette.Clay,
-                UIKit.Palette.Parchment,
+                UIKit.ButtonVariant.Primary,
                 Close);
-            LayoutElement continueLayout = UIKit.Layout(_continueButton);
-            if (continueLayout != null)
+            _continueButton.gameObject.SetActive(false);
+
+            // The option labels wrap, and how many lines they wrap to depends on the day, the
+            // locale and the width the phone ended up with. Measure once the card has a real
+            // width, then give each button the height its own label turned out to need.
+            UIKit.RebuildNow(_card);
+            for (int i = 0; i < _optionButtons.Count; i++)
             {
-                continueLayout.minHeight = 112f;
-                continueLayout.preferredHeight = 112f;
+                FitOptionHeight(_optionButtons[i]);
             }
 
-            _continueButton.gameObject.SetActive(false);
+            UIKit.RebuildNow(_card);
         }
 
+        /// <summary>
+        /// The options, as design-system secondary buttons: a translucent fill with a hairline
+        /// border, which is the variant for "one of several equal choices".
+        ///
+        /// They are grouped in a rect of their own so the gap between two touch targets can be
+        /// tighter than the gap between the sections of the card, and still clear the accessibility
+        /// floor of eight design points between them.
+        /// </summary>
         void BuildOptions()
         {
             string[] options = _question.options;
@@ -454,28 +487,24 @@ namespace SheepGate.Quiz
                 return;
             }
 
+            RectTransform group = UIKit.CreateRect("Options", _card);
+            UIKit.VerticalGroup(group.gameObject, DesignTokens.Space.S12, new RectOffset());
+
             for (int i = 0; i < options.Length; i++)
             {
                 int index = i;
                 Button button = UIKit.CreateButton(
-                    _card,
+                    group,
                     "Option_" + i,
                     options[i] ?? string.Empty,
-                    UIKit.Palette.PanelSoft,
-                    UIKit.Palette.Parchment,
+                    UIKit.ButtonVariant.Secondary,
                     () => OnOptionChosen(index));
 
-                LayoutElement layout = UIKit.Layout(button);
-                if (layout != null)
-                {
-                    layout.minHeight = 116f;
-                    layout.preferredHeight = 116f;
-                }
-
-                Text label = button.GetComponentInChildren<Text>();
+                // Left-aligned: these are sentences, and a centred sentence that wraps to two
+                // lines makes a ragged shape the eye has to re-find on every row.
+                Text label = LabelOf(button);
                 if (label != null)
                 {
-                    label.fontSize = UIKit.FontSize.Body;
                     label.alignment = TextAnchor.MiddleLeft;
                 }
 
@@ -483,11 +512,106 @@ namespace SheepGate.Quiz
             }
         }
 
+        /// <summary>
+        /// Grows one option button until its wrapped label fits inside it, never below the touch
+        /// target of 48 design points.
+        ///
+        /// This is called again after an answer, because both marks this screen can apply — the
+        /// check on the answer and the dot on the player's own choice — take room out of the
+        /// label's leading padding and can push it onto one more line. The content is data, so the
+        /// day where that happens cannot be ruled out by reading quiz.json today.
+        /// </summary>
+        void FitOptionHeight(Button button)
+        {
+            if (button == null)
+            {
+                return;
+            }
+
+            Text label = LabelOf(button);
+            LayoutElement layout = UIKit.Layout(button);
+            if (label == null || layout == null)
+            {
+                return;
+            }
+
+            float needed = label.preferredHeight + UIKit.ButtonVerticalPadding * 2f;
+            float height = Mathf.Max(UIKit.ButtonMinHeight, needed);
+
+            layout.minHeight = height;
+            layout.preferredHeight = height;
+        }
+
+        /// <summary>
+        /// Marks the option the player chose, when it was not the one quiz.json names.
+        ///
+        /// A dot in <c>Feedback.Info</c>, in the same leading padding the success check uses, so
+        /// the two marks sit in one column and the row reads as "this is the answer, and this is
+        /// what you said" rather than as a correction. It is information and it is drawn as
+        /// information: <c>Feedback.Error</c> never appears on this screen.
+        ///
+        /// A dot and not a character. None of the three bundled font families carries a bullet,
+        /// and the design system's rule is that a missing glyph is never solved by substituting a
+        /// lookalike, so status marks are sprites.
+        /// </summary>
+        void MarkChosen(Button button)
+        {
+            Text label = LabelOf(button);
+            if (label == null)
+            {
+                return;
+            }
+
+            Image mark = UIKit.CreateIcon(button.transform, "ChoiceMark", UiSpriteKeys.IconDot,
+                                          DesignTokens.Feedback.Info, UIKit.ButtonCheckSize);
+            var markRect = (RectTransform)mark.transform;
+            markRect.anchorMin = new Vector2(0f, 0.5f);
+            markRect.anchorMax = new Vector2(0f, 0.5f);
+            markRect.pivot = new Vector2(0f, 0.5f);
+            markRect.anchoredPosition = new Vector2(UIKit.ButtonPadding, 0f);
+
+            // The same inset VariantButton reserves for its own check. This button never enters
+            // the loading or success state, so nothing will recompute the insets underneath us.
+            var labelRect = (RectTransform)label.transform;
+            labelRect.offsetMin = new Vector2(
+                UIKit.ButtonPadding + UIKit.ButtonCheckSize + DesignTokens.Space.S8,
+                UIKit.ButtonVerticalPadding);
+            labelRect.offsetMax = new Vector2(-UIKit.ButtonPadding, -UIKit.ButtonVerticalPadding);
+        }
+
+        /// <summary>The button's own label, by name, so an added mark cannot be picked up instead.</summary>
+        static Text LabelOf(Button button)
+        {
+            if (button == null)
+            {
+                return null;
+            }
+
+            Transform label = button.transform.Find("Label");
+            return label != null ? label.GetComponent<Text>() : null;
+        }
+
+        /// <summary>Layout padding from two spacing tokens. RectOffset is integral; tokens are not.</summary>
+        static RectOffset Pad(float horizontal, float vertical)
+        {
+            int h = Mathf.RoundToInt(horizontal);
+            int v = Mathf.RoundToInt(vertical);
+            return new RectOffset(h, h, v, v);
+        }
+
         // ------------------------------------------------------------------ answering
 
         /// <summary>
         /// Records the answer and shows the note. The only difference a wrong answer makes is
         /// which option carries the quiet mark afterwards; nothing is added or taken away.
+        ///
+        /// Nothing on this path is allowed to read as a penalty, so nothing here uses
+        /// <c>Feedback.Error</c>. There is no cross, no red, no score and no word for "wrong":
+        /// the answer is shown in <c>Feedback.Success</c> with a check beside it, the option the
+        /// player actually chose carries a <c>Feedback.Info</c> dot when it was a different one,
+        /// and the note underneath is the same note either way. Colour never carries either of
+        /// those states alone — both are a mark plus a colour, which is the accessibility rule and
+        /// also what keeps the screen legible to a player who reads the two hues as one.
         /// </summary>
         void OnOptionChosen(int index)
         {
@@ -519,19 +643,29 @@ namespace SheepGate.Quiz
                     continue;
                 }
 
+                // Every option stops taking taps and keeps its words. The design system draws a
+                // disabled control at 0.40 with its label intact, which is what turns the row into
+                // something to read rather than something that has been taken away.
                 button.interactable = false;
 
                 if (i == correct)
                 {
-                    UIKit.TintButton(button, UIKit.Palette.Olive, UIKit.Palette.Parchment);
+                    // The success state is a fill plus a check sprite, and it outranks disabled in
+                    // the button's own precedence chain, so the answer stays at full strength
+                    // while everything around it recedes. Set, never flashed: the answer has to
+                    // still be on screen while the player reads the note under it.
+                    var variant = button as VariantButton;
+                    if (variant != null)
+                    {
+                        variant.SetSuccess(true);
+                    }
+
+                    FitOptionHeight(button);
                 }
                 else if (i == index)
                 {
-                    UIKit.TintButton(button, UIKit.Palette.PanelSoft, UIKit.Palette.Parchment);
-                }
-                else
-                {
-                    UIKit.TintButton(button, UIKit.Palette.Panel, UIKit.Palette.Stone);
+                    MarkChosen(button);
+                    FitOptionHeight(button);
                 }
             }
 

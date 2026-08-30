@@ -1,4 +1,5 @@
 {
+  "_sources": "rubble is the stone source and timber is the timber source; a pile hands over one block's worth of its material. Their order is a save key: appending a cell is safe, inserting or reordering one makes a mid-run save think a different pile is the one it already emptied today. Timber is not in the village on day 1 - the piles exist but stay inert until day 2 - so a timber cell may sit on ground the player walks over on the first day.",
   "_convention": "rows[0] is the TOP row. Every x/y in this file and in npcs.json is a tilemap CELL coordinate with y growing UP, so the tile under an entity at (x,y) is rows[height - 1 - y][x]. A space is void: off-map, never walkable.",
   "_shape": "A circular city. The ring is the wall, broken open in three stretches; the run of W along y=22 is the stretch this player is assigned, which is why it is straight. The centre is left clear for the gathering.",
   "width": 40,
@@ -57,6 +58,24 @@
     {
       "x": 20,
       "y": 17
+    }
+  ],
+  "timber": [
+    {
+      "x": 12,
+      "y": 20
+    },
+    {
+      "x": 27,
+      "y": 20
+    },
+    {
+      "x": 10,
+      "y": 15
+    },
+    {
+      "x": 30,
+      "y": 13
     }
   ],
   "well": {

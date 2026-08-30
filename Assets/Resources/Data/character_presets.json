@@ -1,0 +1,60 @@
+{
+  "presets": [
+    {
+      "id": "adar",
+      "accent": "#4E86A8",
+      "silhouette_anchor": "shoulder_r",
+      "signature_item": "acc_rope_coil",
+      "default_items": {
+        "base": "base_adar",
+        "hair": "hair_short_crop",
+        "outfit": "outfit_carrier_tunic",
+        "accessories": []
+      },
+      "palette": {
+        "skin": "#8A5F3F",
+        "tunic": "#A8724A",
+        "outer": "#6B4A2C",
+        "linen": "#D6C4A8"
+      },
+      "hair_tint": 0,
+      "fabric_tint": 0,
+      "art": {
+        "body": 0,
+        "skin": 1,
+        "hair": 0,
+        "top": 0,
+        "legs": 0,
+        "accessory": 1
+      }
+    },
+    {
+      "id": "neriah",
+      "accent": "#4E9A6A",
+      "silhouette_anchor": "back_center",
+      "signature_item": "acc_map_tube",
+      "default_items": {
+        "base": "base_neriah",
+        "hair": "hair_tied_back",
+        "outfit": "outfit_surveyor_wrap",
+        "accessories": []
+      },
+      "palette": {
+        "skin": "#A0714C",
+        "tunic": "#C2643A",
+        "outer": "#8A6320",
+        "linen": "#E8DCC2"
+      },
+      "hair_tint": 2,
+      "fabric_tint": 1,
+      "art": {
+        "body": 1,
+        "skin": 2,
+        "hair": 2,
+        "top": 1,
+        "legs": 1,
+        "accessory": 2
+      }
+    }
+  ]
+}

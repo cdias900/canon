@@ -16,6 +16,14 @@ namespace SheepGate.UI
     ///
     /// Anything that must cover the whole screen — a fade, a scrim — stays outside this and uses
     /// <see cref="SafeAreaBleed"/> instead.
+    ///
+    /// <b>This is the hardware inset and nothing else.</b> It knows where the camera housing and
+    /// the home indicator are; it does not know what a comfortable margin looks like. Those are
+    /// design decisions with tokens of their own, and a screen applies them on top of this rect
+    /// rather than expecting this to have applied them: <c>DesignTokens.Space.Gutter</c> for the
+    /// left and right edges, and <c>DesignTokens.Space.SafeAreaBottom</c> for the clearance a
+    /// control needs above the gesture bar. Folding either of them in here would mean every screen
+    /// in the game silently lost the ability to reach its own edges.
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class SafeAreaFitter : MonoBehaviour
@@ -83,7 +91,9 @@ namespace SheepGate.UI
     /// the safe area still covers the entire screen.
     ///
     /// A scrim that stops at the safe area is worse than no scrim: it leaves a lit strip along the
-    /// top and bottom of a dimmed screen and reads as a rendering fault rather than a modal.
+    /// top and bottom of a dimmed screen and reads as a rendering fault rather than a modal. The
+    /// same holds for the fade between cutscene beats — anything drawn in <c>Surface.Scrim</c> or
+    /// in black is claiming to cover the screen, and the claim has to be true at the corners.
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class SafeAreaBleed : MonoBehaviour

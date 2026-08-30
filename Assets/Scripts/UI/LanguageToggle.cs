@@ -12,10 +12,10 @@ namespace SheepGate.UI
     /// who cannot read the screen cannot tell whether it reports the current language or offers
     /// the next one. A lit chip among dim ones says which is which without a word.
     ///
-    /// There is no settings screen in this build, so the toggle is placed where a player who needs
-    /// it will actually be: on the character creation screen, which is the game's only setup beat,
-    /// and in the HUD for the rest of the run. It is deliberately absent during the cutscene, where
-    /// the HUD is hidden and nothing is meant to compete with the opening.
+    /// The toggle is placed where a player who needs it will actually be: on the character
+    /// creation screen, which is the game's only setup beat, and behind the settings button for
+    /// the rest of the run. It is deliberately absent during the cutscene, where the HUD is hidden
+    /// and nothing is meant to compete with the opening.
     ///
     /// Switching reloads the scene. See BootSequence.SwitchLocale for why.
     /// </summary>
@@ -24,15 +24,19 @@ namespace SheepGate.UI
         /// <summary>
         /// Width of one chip. Two of them plus the spacing is the control's width.
         ///
-        /// UIKit.CreateButton insets its label by 18px on each side, so the usable width is this
-        /// minus 36. At 76 that left 40px for a two-letter code at button size and both chips
-        /// rendered their label stacked vertically.
+        /// A chip is a button, so it inherits the design system's floor: 48 design points on both
+        /// axes with 8 of clear space beside it. 64 rather than the bare 48 because a button insets
+        /// its label by 18 design points either side, and a two-letter code at body-strong weight
+        /// needs the difference — at the old 116 reference units the label had 40 left and both
+        /// chips rendered "PT" stacked vertically.
         /// </summary>
-        public const float ChipWidth = 116f;
+        public static readonly float ChipWidth = DesignTokens.Px(64f);
 
-        public const float Height = 64f;
+        /// <summary>The design system's touch target. A chip is never shorter than a thumb.</summary>
+        public static readonly float Height = DesignTokens.Space.TouchTarget;
 
-        const float Spacing = 8f;
+        /// <summary>Clear space the accessibility rule requires between two touch targets.</summary>
+        static readonly float Spacing = DesignTokens.Space.TouchGap;
 
         /// <summary>The control's total width for the locales this build ships.</summary>
         public static float Width
@@ -47,10 +51,21 @@ namespace SheepGate.UI
         /// <summary>
         /// Builds the row under <paramref name="parent"/> and returns its RectTransform, positioned
         /// by the caller. Every chip is live except the one for the language already running.
+        ///
+        /// The row carries a <see cref="LayoutElement"/> as well as a size, so it is correct in a
+        /// layout group and outside one. Without it a column would hand the row zero height and
+        /// the chips — which stretch to their parent's height — would disappear rather than
+        /// misdraw, which is the failure mode nothing in this project logs.
         /// </summary>
         public static RectTransform Create(RectTransform parent, string name = "LanguageToggle")
         {
             RectTransform row = UIKit.CreateRect(name, parent);
+            row.sizeDelta = new Vector2(Width, Height);
+
+            LayoutElement rowLayout = UIKit.Layout(row);
+            rowLayout.minHeight = Height;
+            rowLayout.preferredHeight = Height;
+            rowLayout.flexibleHeight = 0f;
 
             string active = Locales.Active;
             for (int i = 0; i < Locales.Supported.Length; i++)
@@ -58,16 +73,17 @@ namespace SheepGate.UI
                 string locale = Locales.Supported[i];
                 bool isActive = locale == active;
 
-                // Both labels are parchment. The dim label the inactive chip used to carry was
-                // Muted on PanelSoft, which is about 4:1 against its own background — under the
-                // readable threshold for text this small, and unreadable is the one thing a
-                // language control cannot afford. The lit chip is told apart by its clay fill.
+                // Clay against a translucent parchment fill with a hairline border: the design
+                // system's primary and secondary, doing exactly what they are for. Both labels
+                // stay fully opaque, which is the point — the dim label the inactive chip used to
+                // carry was about 4:1 against its own background, under the readable threshold for
+                // text this small, and unreadable is the one thing a language control cannot
+                // afford. The lit chip is told apart by its fill, never by its ink.
                 Button chip = UIKit.CreateButton(
                     row,
                     "Locale_" + locale,
                     Locales.ShortLabel(locale),
-                    isActive ? UIKit.Palette.Clay : UIKit.Palette.PanelSoft,
-                    UIKit.Palette.Parchment,
+                    isActive ? UIKit.ButtonVariant.Primary : UIKit.ButtonVariant.Secondary,
                     () => OnChipClicked(locale));
 
                 // The active chip is not a no-op waiting to happen: it is not clickable at all,
@@ -76,13 +92,7 @@ namespace SheepGate.UI
 
                 if (isActive)
                 {
-                    // Non-interactable is how the chip refuses the tap, not a statement that it is
-                    // unavailable, so it must not inherit the 35% wash Button paints on a disabled
-                    // graphic — that wash is what made the current language the faintest thing in
-                    // the row, which is precisely backwards.
-                    ColorBlock colours = chip.colors;
-                    colours.disabledColor = Color.white;
-                    chip.colors = colours;
+                    NeutraliseDisabledDimming(chip);
                 }
 
                 var chipRect = (RectTransform)chip.transform;
@@ -94,6 +104,30 @@ namespace SheepGate.UI
             }
 
             return row;
+        }
+
+        /// <summary>
+        /// Stops the current language from being drawn as an unavailable control.
+        ///
+        /// <see cref="VariantButton"/> implements the design system's rule 6 — disabled is opacity
+        /// 0.40 — through a <see cref="CanvasGroup"/> it dims whenever the button is not
+        /// interactable. That rule is right, and it is about a control the player cannot use yet.
+        /// This chip is not unavailable: it is the answer. Dimming it to 40% would make the
+        /// language actually running the faintest thing in the row while the language on offer sat
+        /// at full strength, which is precisely backwards, and it is the same mistake the base
+        /// Button's disabled wash used to make here.
+        ///
+        /// Removing the group rather than fighting it: VariantButton null-checks before dimming,
+        /// so with the component gone the state simply has no visual, and nothing re-applies an
+        /// alpha on the next pointer event. Destruction lands before the first frame is drawn.
+        /// </summary>
+        static void NeutraliseDisabledDimming(Button chip)
+        {
+            var dimmer = chip.GetComponent<CanvasGroup>();
+            if (dimmer != null)
+            {
+                UnityEngine.Object.Destroy(dimmer);
+            }
         }
 
         static void OnChipClicked(string locale)

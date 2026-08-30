@@ -69,8 +69,13 @@ namespace SheepGate.World
             // 3. Wall segments (visuals plus their interactables).
             wall.Build(builder);
 
-            // 4. Props.
+            // 4. Props. Both material sources are built here, on every day: a timber pile knows
+            // for itself that day one is stone only and stays inert until its morning. Spawning
+            // it only on the day it is due would strand a player who crosses midnight without
+            // relaunching, because this method runs once per launch and DayCycle advances the day
+            // in place. See RubblePile for the whole argument.
             BuildRubblePiles(map, builder);
+            BuildTimberPiles(map, builder);
             BuildWell(map, builder);
             BuildRestPoint(map, builder);
 
@@ -259,9 +264,28 @@ namespace SheepGate.World
                 new GridPos { x = 30, y = 12 },
                 new GridPos { x = 34, y = 8 }
             };
+
+            // Fewer timber spots than stone ones, clear of this layout's own houses, water and
+            // wall row. They are inert until day two, exactly as they are on the authored map.
+            map.timber = new GridPos[]
+            {
+                new GridPos { x = 7, y = 9 },
+                new GridPos { x = 14, y = 12 },
+                new GridPos { x = 24, y = 13 },
+                new GridPos { x = 31, y = 9 }
+            };
             return map;
         }
 
+        /// <summary>
+        /// The stone sources, from the map's "rubble" array. The array keeps its old name because
+        /// map.json is content other people edit; what it hands out is stone.
+        ///
+        /// The index passed to each pile is its position in that array, and that index is half of
+        /// the save key recording which piles a run has already emptied today. Reordering the array
+        /// therefore reshuffles which pile a mid-run save thinks is empty; adding to the end never
+        /// does. Append rather than insert.
+        /// </summary>
         private static void BuildRubblePiles(MapDef map, TilemapBuilder builder)
         {
             GridPos[] spots = map != null ? map.rubble : null;
@@ -271,7 +295,32 @@ namespace SheepGate.World
                 return;
             }
 
-            GameObject parent = new GameObject("RubblePiles");
+            BuildPiles(spots, PileMaterial.Stone, "RubblePiles", builder);
+        }
+
+        /// <summary>
+        /// The timber sources, from the map's "timber" array. A map written before timber existed
+        /// simply has none, which is a stone-only village and not an error, so this one says so at
+        /// log level rather than warning.
+        ///
+        /// Its index space is its own: see <see cref="RubblePile"/>. The same append-don't-insert
+        /// rule applies for the same reason.
+        /// </summary>
+        private static void BuildTimberPiles(MapDef map, TilemapBuilder builder)
+        {
+            GridPos[] spots = map != null ? map.timber : null;
+            if (spots == null || spots.Length == 0)
+            {
+                Debug.Log("[World] Map names no timber positions; the village is stone only.");
+                return;
+            }
+
+            BuildPiles(spots, PileMaterial.Timber, "TimberPiles", builder);
+        }
+
+        private static void BuildPiles(GridPos[] spots, PileMaterial material, string parentName, TilemapBuilder builder)
+        {
+            GameObject parent = new GameObject(parentName);
             parent.transform.SetParent(Root, false);
 
             for (int i = 0; i < spots.Length; i++)
@@ -283,7 +332,7 @@ namespace SheepGate.World
                 }
 
                 Vector2Int cell = builder.NearestWalkable(builder.ClampCell(new Vector2Int(spot.x, spot.y)));
-                RubblePile.Spawn(i, cell, parent.transform, builder);
+                RubblePile.Spawn(material, i, cell, parent.transform, builder);
             }
         }
 

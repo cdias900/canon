@@ -1,0 +1,18 @@
+{
+  "presets": {
+    "adar": {
+      "suggested_name": "Adar",
+      "personality": "Stone carrier. Says little."
+    },
+    "neriah": {
+      "suggested_name": "Neriah",
+      "personality": "Reads maps. Not easily discouraged."
+    }
+  },
+  "name": {
+    "unset": "With no name typed, the valley calls you {0}.",
+    "too_short": "Use at least {0} characters.",
+    "too_long": "The field holds {0} characters."
+  },
+  "player_name_fallback": "traveller"
+}

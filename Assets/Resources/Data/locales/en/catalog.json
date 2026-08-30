@@ -1,0 +1,101 @@
+{
+  "characters": {
+    "adar": {
+      "suggested_name": "Adar",
+      "description": "Has carried stone since the first morning. Says little, always turns up."
+    },
+    "neriah": {
+      "suggested_name": "Neriah",
+      "description": "Came to measure the valley's ruins. Stayed because the place was worth remaking."
+    }
+  },
+
+  "items": {
+    "hair_short_crop": {
+      "display": "Short crop",
+      "description": "Cut close, the way that stays out of a working day."
+    },
+    "hair_side_braid": {
+      "display": "Side braid",
+      "description": "Tied to one side, so the wind does not decide for you."
+    },
+    "hair_loose_waves": {
+      "display": "Loose waves",
+      "description": "Worn loose, like someone who has only just arrived."
+    },
+    "hair_shaved_band": {
+      "display": "Shaved with a band",
+      "description": "Shaved at the sides, a strip of cloth holding the rest."
+    },
+    "hair_headscarf": {
+      "display": "Headscarf",
+      "description": "Knotted over the top: midday sun, dust all day long."
+    },
+    "hair_work_bun": {
+      "display": "Work bun",
+      "description": "Pinned high and tight, clear of rope, scaffold and fire."
+    },
+
+    "outfit_clay_tunic": {
+      "display": "Clay tunic",
+      "description": "Heavy cloth the colour of the ground here. It stains and nobody notices."
+    },
+    "outfit_terracotta_tunic": {
+      "display": "Terracotta tunic",
+      "description": "Lighter and cooler, good for walking the whole valley."
+    },
+    "outfit_expedition_gear": {
+      "display": "Expedition gear",
+      "description": "Hood, tied sleeves and pockets: made for days away from the wall."
+    },
+    "outfit_work_apron": {
+      "display": "Work apron",
+      "description": "Reinforced leather across chest and thighs, for carrying stone without cuts."
+    },
+    "outfit_travel_cloak": {
+      "display": "Travel cloak",
+      "description": "Falls over both shoulders and closes the hood. People from far away arrive in these."
+    },
+    "outfit_valley_mantle": {
+      "display": "Valley mantle",
+      "description": "Falls from the back alone: the shoulder stays clear, and you are known from a distance."
+    },
+
+    "acc_rope_coil": {
+      "display": "Rope coil",
+      "description": "Coiled on the right shoulder, always ready. It is how people pick you out."
+    },
+    "acc_map_tube": {
+      "display": "Map tube",
+      "description": "Slung across the back, the whole valley drawn inside it."
+    },
+    "acc_tool_bag": {
+      "display": "Tool bag",
+      "description": "At the side of the belt, with what breaks stone and what lifts it."
+    },
+    "acc_ring_belt": {
+      "display": "Ring belt",
+      "description": "Iron rings at the front of the belt, to tie rope to anything."
+    },
+    "acc_bead_bracelet": {
+      "display": "Bead bracelet",
+      "description": "Clay beads on a cord, on the right wrist. Someone in the valley made it."
+    },
+    "acc_old_seal": {
+      "display": "Old seal",
+      "description": "Found in the foundation, a name cut into it that nobody here can read."
+    }
+  },
+
+  "unlock": {
+    "wall_stage.one": "Take a stretch of the wall to stage {0}.",
+    "wall_stage.other": "Take a stretch of the wall to stage {0}.",
+    "segments_complete.one": "Close {0} whole stretch of the wall.",
+    "segments_complete.other": "Close {0} whole stretches of the wall.",
+    "day_reached.one": "Reach day {0} in the valley.",
+    "day_reached.other": "Reach day {0} in the valley.",
+    "discovery.intro_seen": "Go down to the wall and hear the man from the capital speak."
+  },
+
+  "player_name_fallback": "traveller"
+}

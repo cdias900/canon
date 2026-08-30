@@ -2,29 +2,43 @@ using System;
 using System.Collections.Generic;
 using SheepGate.Core;
 using UnityEngine;
-using UnityEngine.EventSystems;
 using UnityEngine.UI;
-#if ENABLE_INPUT_SYSTEM && !ENABLE_LEGACY_INPUT_MANAGER
-using UnityEngine.InputSystem.UI;
-#endif
 
-// Aliased rather than imported: SheepGate.UI and SheepGate.Art both publish a type called
-// ArtKeys, and a plain using of either namespace here would make every unqualified mention
-// of that name ambiguous.
+// Aliased rather than imported. This file needs exactly two types from SheepGate.UI, and naming
+// them one at a time keeps the token visible at the call site: the point of writing
+// DesignTokens.Ink.Muted rather than a hex is that a reader sees where the value came from
+// without leaving the line. SafeAreaFitter, the only other one, is written out in full below.
 using UIKit = SheepGate.UI.UIKit;
+using DesignTokens = SheepGate.UI.DesignTokens;
 
 namespace SheepGate.Dialogue
 {
     /// <summary>
-    /// The dialogue bubble, built entirely in code with uGUI. Anchored to the bottom of a portrait
-    /// screen, it shows one line at a time: an optional framing line written by us, the line body
-    /// (italic when the body is scripture), and a footer carrying the reference.
+    /// The dialogue bubble, built entirely in code with uGUI, in Sistema Vale's type and colour.
+    /// Anchored to the bottom of a portrait screen, it shows one line at a time: the speaker's name,
+    /// an optional framing line written by us, the line body (italic when the body is scripture),
+    /// a footer carrying the reference and the way into the chapter, and the branches when a node
+    /// ends in a decision.
     ///
-    /// Two rules are load bearing here.
-    /// 1. The reference sits in the footer at the same type size as every other metadata on the
-    ///    bubble. It is visible from the very first line, never hidden and never enlarged.
-    /// 2. The "Saber mais" affordance is secondary by construction: metadata type size, muted fill,
-    ///    muted label. It must never compete with the line itself.
+    /// Design mock 05 is what the look is measured against: the name in <c>Brand.Secondary</c>, a
+    /// quieter supporting line under it in <c>Ink.Muted</c>, and the body in <c>Ink.OnScene</c> over
+    /// a veiled panel. The veil is not a taste decision — the design system's floor for text laid
+    /// over the game scene is 72% opacity and our scene is a lit tilemap rather than key art, which
+    /// is why the bubble is a <c>CardStyle.Glass</c> and may not be anything else.
+    ///
+    /// The mock's supporting line is a one-line description of who is speaking. This game has no
+    /// such field: the only per-line supporting text the authored data carries is the framing line,
+    /// so that is what fills the slot. Adding a role parameter nobody could pass would be correct
+    /// code that nothing calls, which is a failure mode this project has already paid for twice.
+    ///
+    /// Two rules are load bearing here, and both survived the restyle with different numbers.
+    /// 1. The reference is metadata and is drawn as metadata: mono, muted, never enlarged, never
+    ///    emphasised, never made to look like the line it belongs to. Whether it is printed at all
+    ///    is <see cref="ScriptureVisibility"/>'s decision and nothing in this file.
+    /// 2. The "Saber mais" affordance is secondary by construction — a Secondary button and never
+    ///    the gold Quest one — and it is on screen for every citation from the very first line. It
+    ///    must never compete with the line itself: the game never pushes the read (AGENTS.md rule
+    ///    20), it only keeps it one tap away.
     /// </summary>
     public class DialogueUI : MonoBehaviour
     {
@@ -42,42 +56,75 @@ namespace SheepGate.Dialogue
         public event Action<int> ChoiceSelected;
 
         private const int CanvasSortingOrder = 100;
-        private const float ReferenceWidth = 1080f;
-        private const float ReferenceHeight = 1920f;
-        private const float Margin = 28f;
-        private const float Padding = 30f;
-        private const float Spacing = 14f;
-        private const int BodyFontSize = 34;
+
+        // Taken from the kit rather than restated: every screen in the game is laid out against the
+        // same 1080x1920, and a second copy of the number is a second thing to get wrong.
+        private const float ReferenceWidth = UIKit.ReferenceWidth;
+        private const float ReferenceHeight = UIKit.ReferenceHeight;
+
+        /// <summary>Screen gutter around the bubble. The design system's 21 design points.</summary>
+        private static readonly float Margin = DesignTokens.Space.Gutter;
 
         /// <summary>
-        /// One size for every piece of metadata on the bubble: speaker, reference, secondary label,
-        /// advance hint. The reference is not allowed to be smaller or larger than its neighbours.
+        /// Inset between the bubble's edge and its content. Equal to <c>Radius.Lg</c> on purpose:
+        /// the card's corner is drawn at that radius, so a smaller inset would let the first
+        /// character of a line sit inside the curve.
         /// </summary>
-        private const int MetadataFontSize = 26;
+        private static readonly float Padding = DesignTokens.Space.S20;
+
+        /// <summary>Gap between the bubble's blocks: header, body, footer, branches, hint.</summary>
+        private static readonly float Spacing = DesignTokens.Space.S16;
+
+        /// <summary>
+        /// Gap between the speaker's name and the framing line under it. Tighter than
+        /// <see cref="Spacing"/> because the two are one unit — a name with its caption — and a gap
+        /// the size of the others would break them into two unrelated blocks.
+        /// </summary>
+        private static readonly float HeaderSpacing = DesignTokens.Space.S4;
+
+        /// <summary>Gap between the reference and the affordance that opens the chapter.</summary>
+        private static readonly float FooterSpacing = DesignTokens.Space.S12;
+
+        /// <summary>
+        /// Width reserved for "Saber mais". Measured against the longer of the two locales at
+        /// <c>Type.Body</c> in the bold face, plus the padding the kit puts either side of a button
+        /// label, so neither language wraps a two-word control onto two lines.
+        /// </summary>
+        private static readonly float MoreButtonWidth = DesignTokens.Px(140f);
+
+        /// <summary>
+        /// Least height of the footer row when the chapter affordance is not on it. With the button
+        /// present the button is taller and decides the row; this is what keeps the reference from
+        /// sitting in a hairline of its own when it is alone there.
+        /// </summary>
+        private static readonly float MetadataRowHeight = DesignTokens.Space.S24;
 
         // Keys, not sentences. Resolved through Loc at the point of use so a language change
         // between two builds of this screen picks up the new words.
         private const string MoreButtonKey = "dialogue.read_more";
         private const string AdvanceHintKey = "dialogue.advance_hint";
 
-        /// <summary>Tall enough for a two-line branch label at body size, plus its insets.</summary>
-        private const float ChoiceButtonHeight = 108f;
+        /// <summary>
+        /// Height of one branch row: two lines of body copy at the design system's leading, plus the
+        /// vertical padding a button puts around its own label.
+        ///
+        /// Two lines and not one because the longest authored branch is 44 characters in English and
+        /// wraps at this width; not three, because nothing in the data reaches a third and an empty
+        /// line is a hole in the column. Never below the 48 point touch target whatever the
+        /// arithmetic says — that floor is an accessibility rule, not a minimum this may undercut.
+        /// </summary>
+        private static readonly float ChoiceButtonHeight = Mathf.Max(
+            UIKit.ButtonMinHeight,
+            (2f * DesignTokens.Type.Body * DesignTokens.Type.BodyLeading)
+            + (2f * UIKit.ButtonVerticalPadding));
 
-        private const float ChoiceSpacing = 12f;
-
-        private static readonly Color BubbleTint = new Color(0.94f, 0.92f, 0.88f, 1f);
-        private static readonly Color BodyColor = new Color(0.13f, 0.12f, 0.10f, 1f);
-        private static readonly Color SpeakerColor = new Color(0.27f, 0.24f, 0.20f, 1f);
-        // Secondary, not faint. At 0.44 this was about 4.4:1 against the bubble, which is under the
-        // readable threshold for text this size — and the advance hint is the one line that has to
-        // be read by someone who does not yet know the screen wants a tap.
-        private static readonly Color MetadataColor = new Color(0.34f, 0.31f, 0.26f, 1f);
-        private static readonly Color SecondaryFill = new Color(0.87f, 0.85f, 0.80f, 1f);
-        private static readonly Color ButtonLabelColor = new Color(0.93f, 0.90f, 0.85f, 1f);
+        /// <summary>The clear space the design system requires between two touch targets.</summary>
+        private static readonly float ChoiceSpacing = DesignTokens.Space.TouchGap;
 
         private bool built;
         private GameObject root;
         private Image bubbleImage;
+        private GameObject header;
         private Text speakerText;
         private Text frameText;
         private Text bodyText;
@@ -170,18 +217,26 @@ namespace SheepGate.Dialogue
             currentVerseRef = verseRef;
             lastRevealed = -1;
 
+            bool hasSpeaker = !string.IsNullOrEmpty(speaker);
+            bool hasFrame = !string.IsNullOrEmpty(frame);
+
             if (speakerText != null)
             {
-                bool hasSpeaker = !string.IsNullOrEmpty(speaker);
                 speakerText.gameObject.SetActive(hasSpeaker);
                 speakerText.text = hasSpeaker ? speaker : string.Empty;
             }
 
             if (frameText != null)
             {
-                bool hasFrame = !string.IsNullOrEmpty(frame);
                 frameText.gameObject.SetActive(hasFrame);
                 frameText.text = hasFrame ? frame : string.Empty;
+            }
+
+            if (header != null)
+            {
+                // A header with nothing in it still costs the bubble one gap of Spacing at the top,
+                // which does not read as nothing — it reads as a crooked inset.
+                header.SetActive(hasSpeaker || hasFrame);
             }
 
             if (bodyText != null)
@@ -346,12 +401,16 @@ namespace SheepGate.Dialogue
             // loop variable that created it.
             int captured = index;
 
+            // Secondary for every branch, and deliberately not one Primary among them. The design
+            // system allows the forward-most choice to be clay, but nothing in the authored data
+            // says which branch that is — and painting one of them the action colour would tell the
+            // player which answer the game prefers, on a screen whose branches are scored into a
+            // vocation the player is never shown. A row of equals is the honest shape.
             Button button = UIKit.CreateButton(
                 choicesRoot.transform,
                 "Choice" + index,
                 string.Empty,
-                UIKit.Palette.PanelSoft,
-                UIKit.Palette.Parchment,
+                UIKit.ButtonVariant.Secondary,
                 () => OnChoiceClicked(captured));
 
             if (button == null)
@@ -359,8 +418,8 @@ namespace SheepGate.Dialogue
                 return null;
             }
 
-            // The bubble's vertical group controls child sizes, so an Image alone gives the row no
-            // height to work with; the layout element is what makes the button a real row.
+            // The kit already gives a button a layout element at the 48 point touch height; a branch
+            // needs a taller one because its label is a sentence that wraps.
             LayoutElement layout = UIKit.Layout(button);
             if (layout != null)
             {
@@ -372,9 +431,10 @@ namespace SheepGate.Dialogue
             Text label = button.GetComponentInChildren<Text>();
             if (label != null)
             {
-                // Body size, not button size: a branch is a sentence the player says, and it has to
-                // sit at the same weight as the line it answers.
-                label.fontSize = UIKit.FontSize.Body;
+                // Left aligned, because a branch is a sentence the player says rather than a verb on
+                // a control. The old override that forced it to body size is gone: the kit builds
+                // every button label at Type.Body already, so a branch now sits at the size of the
+                // line it answers by construction instead of by correction.
                 label.alignment = TextAnchor.MiddleLeft;
             }
 
@@ -410,10 +470,8 @@ namespace SheepGate.Dialogue
 
             built = true;
 
-            EnsureEventSystem();
+            UIKit.EnsureEventSystem();
             EnsureCanvas();
-
-            Font font = ResolveFont();
 
             RectTransform rootRect = NewRect("DialogueRoot", transform);
             Stretch(rootRect);
@@ -434,91 +492,115 @@ namespace SheepGate.Dialogue
             Stretch(safeRect);
             safeRect.gameObject.AddComponent<SheepGate.UI.SafeAreaFitter>();
 
-            RectTransform bubbleRect = NewRect("Bubble", safeRect);
+            // Glass, which is the one card style allowed over the game scene: it sits on
+            // Surface.SceneVeil at 88%, above the design system's 72% floor for text over a scene.
+            bubbleImage = UIKit.CreateCard(safeRect, "Bubble", UIKit.CardStyle.Glass);
+
+            // A card is a raycast target everywhere else in the game, and here that would kill the
+            // screen: the catcher is behind the bubble, so a bubble that eats the tap makes the
+            // middle of the screen the one place tapping does not advance the line.
+            bubbleImage.raycastTarget = false;
+
+            RectTransform bubbleRect = (RectTransform)bubbleImage.transform;
             bubbleRect.anchorMin = new Vector2(0f, 0f);
             bubbleRect.anchorMax = new Vector2(1f, 0f);
             bubbleRect.pivot = new Vector2(0.5f, 0f);
             bubbleRect.sizeDelta = new Vector2(-2f * Margin, 0f);
             bubbleRect.anchoredPosition = new Vector2(0f, Margin);
 
-            bubbleImage = bubbleRect.gameObject.AddComponent<Image>();
-            ApplySprite(bubbleImage, "ui_bubble", BubbleTint);
-            bubbleImage.raycastTarget = false;
+            UIKit.VerticalGroup(bubbleRect.gameObject, Spacing,
+                new RectOffset((int)Padding, (int)Padding, (int)Padding, (int)Padding));
 
-            VerticalLayoutGroup layout = bubbleRect.gameObject.AddComponent<VerticalLayoutGroup>();
-            layout.padding = new RectOffset((int)Padding, (int)Padding, (int)Padding, (int)Padding);
-            layout.spacing = Spacing;
-            layout.childAlignment = TextAnchor.UpperLeft;
-            layout.childControlWidth = true;
-            layout.childControlHeight = true;
-            layout.childForceExpandWidth = true;
-            layout.childForceExpandHeight = false;
-
+            // The bubble is as tall as its line and no taller, and it grows upward from the bottom
+            // because its pivot is there. Nothing here is a fixed height: the type scale decides
+            // how many lines a paragraph takes, and a hardcoded height would clip the day the
+            // language changed.
             ContentSizeFitter fitter = bubbleRect.gameObject.AddComponent<ContentSizeFitter>();
             fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
             fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
-            speakerText = NewText("Speaker", bubbleRect, font, MetadataFontSize, SpeakerColor,
-                FontStyle.Bold, TextAnchor.UpperLeft);
-            frameText = NewText("Frame", bubbleRect, font, BodyFontSize, BodyColor,
-                FontStyle.Normal, TextAnchor.UpperLeft);
-            bodyText = NewText("Body", bubbleRect, font, BodyFontSize, BodyColor,
-                FontStyle.Normal, TextAnchor.UpperLeft);
+            BuildHeader(bubbleRect);
 
-            BuildFooter(bubbleRect, font);
+            bodyText = NewText("Body", bubbleRect, DesignTokens.TypeRole.Body,
+                DesignTokens.Type.Body, DesignTokens.Ink.OnScene, TextAnchor.UpperLeft);
+
+            // The only markup in the bubble, and it is ours rather than the author's: the reveal
+            // hides the tail of the line inside a transparent colour tag so the block never reflows
+            // mid-sentence. Everything else here is drawn with rich text off, which is what stops an
+            // authored angle bracket from being read as a tag.
+            bodyText.supportRichText = true;
+
+            BuildFooter(bubbleRect);
             BuildChoices(bubbleRect);
 
-            hintText = NewText("AdvanceHint", bubbleRect, font, MetadataFontSize, MetadataColor,
-                FontStyle.Normal, TextAnchor.MiddleRight);
+            hintText = NewText("AdvanceHint", bubbleRect, DesignTokens.TypeRole.Body,
+                DesignTokens.Type.Minimum, DesignTokens.Ink.Secondary, TextAnchor.MiddleRight);
             hintText.text = Loc.T(AdvanceHintKey);
             hintText.gameObject.SetActive(false);
 
             root.SetActive(false);
         }
 
-        private void BuildFooter(RectTransform bubbleRect, Font font)
+        /// <summary>
+        /// The name and the line under it, as one block. They are grouped rather than laid out
+        /// beside the rest so the gap between them can be tighter than the gap between the blocks,
+        /// and so a line with neither a speaker nor a framing line takes no room at all.
+        /// </summary>
+        private void BuildHeader(RectTransform bubbleRect)
+        {
+            RectTransform headerRect = NewRect("Header", bubbleRect);
+            header = headerRect.gameObject;
+
+            UIKit.VerticalGroup(header, HeaderSpacing, new RectOffset());
+
+            // Gold, at the Title role — which the design system names for exactly this: a card
+            // heading, a mission title, a character's name. No bold style is applied on top of it:
+            // the Title role already resolves to the 700 weight file, and asking legacy Text for
+            // bold as well makes Unity synthesise a second, coarser weight over a real one.
+            speakerText = NewText("Speaker", headerRect, DesignTokens.TypeRole.Title,
+                DesignTokens.Type.Title, DesignTokens.Brand.Secondary, TextAnchor.UpperLeft);
+
+            // Mock 05's one-line description of the speaker, filled by the only supporting text the
+            // data has: the authored framing line. Muted, so it reads as the caption of the name
+            // above it rather than as the start of what is being said.
+            frameText = NewText("Frame", headerRect, DesignTokens.TypeRole.Body,
+                DesignTokens.Type.Body, DesignTokens.Ink.Muted, TextAnchor.UpperLeft);
+        }
+
+        private void BuildFooter(RectTransform bubbleRect)
         {
             RectTransform footerRect = NewRect("Footer", bubbleRect);
             footer = footerRect.gameObject;
 
-            HorizontalLayoutGroup row = footerRect.gameObject.AddComponent<HorizontalLayoutGroup>();
-            row.spacing = 16f;
-            row.childAlignment = TextAnchor.MiddleLeft;
-            row.childControlWidth = true;
-            row.childControlHeight = true;
-            row.childForceExpandWidth = false;
-            row.childForceExpandHeight = false;
+            UIKit.HorizontalGroup(footerRect.gameObject, FooterSpacing, new RectOffset(),
+                TextAnchor.MiddleLeft);
 
-            refText = NewText("Reference", footerRect, font, MetadataFontSize, MetadataColor,
-                FontStyle.Normal, TextAnchor.MiddleLeft);
-            LayoutElement refLayout = refText.gameObject.AddComponent<LayoutElement>();
+            // Mono, because the design system's mono role is for quantities, counts and references,
+            // and a chapter-and-verse is a reference. Muted, because it is a label on the line and
+            // never the line itself.
+            refText = NewText("Reference", footerRect, DesignTokens.TypeRole.Mono,
+                DesignTokens.Type.Mono, DesignTokens.Ink.Muted, TextAnchor.MiddleLeft);
+            LayoutElement refLayout = UIKit.Layout(refText);
             refLayout.flexibleWidth = 1f;
-            refLayout.minHeight = 56f;
+            refLayout.minHeight = MetadataRowHeight;
 
-            RectTransform buttonRect = NewRect("MoreButton", footerRect);
-            Image buttonImage = buttonRect.gameObject.AddComponent<Image>();
-            // White, not the pale secondary fill: an Image tint multiplies, and ui_button is clay
-            // chrome, so tinting it cream still renders clay and only darkens it. The pale tint
-            // plus the dark metadata label is what made this button unreadable in the bubble.
-            ApplySprite(buttonImage, "ui_button", Color.white);
-            buttonImage.raycastTarget = true;
+            // Secondary and never Quest. Gold would read as the call to action of the screen, and
+            // this control is the opposite of that by design: the read is always optional, and a
+            // game that pushed it would be measuring people it had pushed. The kit's Secondary
+            // variant also brings the two things this button never had — a 48 point touch target
+            // and the focus ring every button in the system shares.
+            moreButton = UIKit.CreateButton(footerRect, "MoreButton", Loc.T(MoreButtonKey),
+                UIKit.ButtonVariant.Secondary, null);
 
-            moreButton = buttonRect.gameObject.AddComponent<Button>();
-            moreButton.targetGraphic = buttonImage;
+            // Added rather than passed to the builder so the pairing with RemoveListener in
+            // OnDestroy stays a pairing: the builder wraps what it is given in a lambda, which
+            // nothing can later remove.
             moreButton.onClick.AddListener(OnMoreClicked);
 
-            LayoutElement buttonLayout = buttonRect.gameObject.AddComponent<LayoutElement>();
-            buttonLayout.preferredWidth = 210f;
-            buttonLayout.preferredHeight = 56f;
+            LayoutElement buttonLayout = UIKit.Layout(moreButton);
+            buttonLayout.minWidth = MoreButtonWidth;
+            buttonLayout.preferredWidth = MoreButtonWidth;
             buttonLayout.flexibleWidth = 0f;
-
-            // Parchment, because the button under it is clay. Everything else in the bubble is
-            // dark ink on cream; this is the one control that inverts, and it has to say so.
-            Text buttonLabel = NewText("Label", buttonRect, font, MetadataFontSize, ButtonLabelColor,
-                FontStyle.Normal, TextAnchor.MiddleCenter);
-            Stretch(buttonLabel.rectTransform);
-            buttonLabel.text = Loc.T(MoreButtonKey);
-            buttonLabel.raycastTarget = false;
 
             footer.SetActive(false);
         }
@@ -533,14 +615,7 @@ namespace SheepGate.Dialogue
             RectTransform choicesRect = NewRect("Choices", bubbleRect);
             choicesRoot = choicesRect.gameObject;
 
-            VerticalLayoutGroup column = choicesRoot.AddComponent<VerticalLayoutGroup>();
-            column.spacing = ChoiceSpacing;
-            column.childAlignment = TextAnchor.UpperCenter;
-            column.childControlWidth = true;
-            column.childControlHeight = true;
-            column.childForceExpandWidth = true;
-            column.childForceExpandHeight = false;
-
+            UIKit.VerticalGroup(choicesRoot, ChoiceSpacing, new RectOffset(), TextAnchor.UpperCenter);
             choicesRoot.SetActive(false);
         }
 
@@ -603,45 +678,6 @@ namespace SheepGate.Dialogue
             }
         }
 
-        private static void EnsureEventSystem()
-        {
-            if (FindFirstObjectByType<EventSystem>() != null)
-            {
-                return;
-            }
-
-            GameObject go = new GameObject("EventSystem");
-            go.AddComponent<EventSystem>();
-#if ENABLE_LEGACY_INPUT_MANAGER
-            go.AddComponent<StandaloneInputModule>();
-#elif ENABLE_INPUT_SYSTEM
-            go.AddComponent<InputSystemUIInputModule>();
-#endif
-        }
-
-        private static void ApplySprite(Image image, string spriteKey, Color tint)
-        {
-            Sprite sprite = SafeSprite(spriteKey);
-            image.sprite = sprite;
-            image.color = tint;
-            image.type = (sprite != null && sprite.border != Vector4.zero)
-                ? Image.Type.Sliced
-                : Image.Type.Simple;
-        }
-
-        private static Sprite SafeSprite(string spriteKey)
-        {
-            try
-            {
-                return SheepGate.Art.ArtLibrary.Get(spriteKey);
-            }
-            catch (Exception e)
-            {
-                Debug.LogWarning("[Dialogue] ArtLibrary.Get(\"" + spriteKey + "\") failed: " + e.Message);
-                return null;
-            }
-        }
-
         private static RectTransform NewRect(string name, Transform parent)
         {
             GameObject go = new GameObject(name, typeof(RectTransform));
@@ -660,72 +696,21 @@ namespace SheepGate.Dialogue
             rect.offsetMax = Vector2.zero;
         }
 
+        /// <summary>
+        /// An empty text field in the design system's type, through the kit so the font file for the
+        /// role, the leading that goes with it and the 12 point floor are all decided in one place
+        /// rather than five times in this file. Words arrive afterwards, from <c>Loc</c> or from the
+        /// authored line.
+        /// </summary>
         private static Text NewText(
             string name,
             Transform parent,
-            Font font,
-            int fontSize,
+            DesignTokens.TypeRole role,
+            int size,
             Color color,
-            FontStyle style,
             TextAnchor anchor)
         {
-            RectTransform rect = NewRect(name, parent);
-            Text text = rect.gameObject.AddComponent<Text>();
-            text.font = font;
-            text.fontSize = fontSize;
-            text.color = color;
-            text.fontStyle = style;
-            text.alignment = anchor;
-            text.supportRichText = true;
-            text.horizontalOverflow = HorizontalWrapMode.Wrap;
-            text.verticalOverflow = VerticalWrapMode.Overflow;
-            text.raycastTarget = false;
-            text.text = string.Empty;
-            return text;
-        }
-
-        private static Font ResolveFont()
-        {
-            Font font = TryBuiltinFont("LegacyRuntime.ttf");
-            if (font == null)
-            {
-                font = TryBuiltinFont("Arial.ttf");
-            }
-
-            if (font == null)
-            {
-                try
-                {
-                    string[] installed = Font.GetOSInstalledFontNames();
-                    if (installed != null && installed.Length > 0)
-                    {
-                        font = Font.CreateDynamicFontFromOSFont(installed[0], BodyFontSize);
-                    }
-                }
-                catch (Exception)
-                {
-                    font = null;
-                }
-            }
-
-            if (font == null)
-            {
-                Debug.LogWarning("[Dialogue] No usable font was resolved; bubbles will render empty.");
-            }
-
-            return font;
-        }
-
-        private static Font TryBuiltinFont(string resourceName)
-        {
-            try
-            {
-                return Resources.GetBuiltinResource<Font>(resourceName);
-            }
-            catch (Exception)
-            {
-                return null;
-            }
+            return UIKit.CreateText(parent, name, string.Empty, size, color, anchor, role);
         }
     }
 }

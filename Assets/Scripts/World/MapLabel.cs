@@ -51,7 +51,14 @@ namespace SheepGate.World
             fitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
             fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
-            Text label = UIKit.CreateText(rect, "Text", text, UIKit.FontSize.Small, ink, TextAnchor.MiddleCenter);
+            // Type.Minimum and not UIKit.FontSize.Small: Small is 24 reference units, which is 8.7
+            // design points, and the design system's floor is 12 anywhere in the game. UIKit
+            // already raises anything under the floor, so this is the same size on screen either
+            // way — what it removes is the warning, and the impression that a caption on a map is
+            // allowed to be the one thing below the floor. The plate is sized by its
+            // ContentSizeFitter, so nothing here has to be re-measured for the taller line.
+            Text label = UIKit.CreateText(rect, "Text", text, DesignTokens.Type.Minimum, ink,
+                                          TextAnchor.MiddleCenter);
             label.raycastTarget = false;
 
             var follower = rect.gameObject.AddComponent<MapLabel>();

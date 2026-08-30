@@ -3,10 +3,10 @@
     "id": "seg_01",
     "grid_x": 13,
     "stage_cost": [
-      3,
-      3,
-      4,
-      4
+      1,
+      1,
+      1,
+      1
     ],
     "exposed": false
   },
@@ -14,10 +14,10 @@
     "id": "seg_02",
     "grid_x": 18,
     "stage_cost": [
-      3,
-      3,
-      4,
-      4
+      1,
+      1,
+      1,
+      1
     ],
     "exposed": true
   },
@@ -25,10 +25,10 @@
     "id": "seg_03",
     "grid_x": 23,
     "stage_cost": [
-      3,
-      3,
-      4,
-      4
+      1,
+      1,
+      1,
+      1
     ],
     "exposed": false
   },
@@ -36,10 +36,10 @@
     "id": "seg_04",
     "grid_x": 27,
     "stage_cost": [
-      3,
-      3,
-      4,
-      4
+      1,
+      1,
+      1,
+      1
     ],
     "exposed": false
   }

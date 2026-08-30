@@ -1,11 +1,13 @@
 {
+  "common.fraction": "{0}/{1}",
   "hud.day": "Day {0}",
   "hud.work": "Work {0}/{1}",
   "hud.rubble": "Rubble {0}",
+  "hud.wall": "Wall",
   "hud.patrol": "Patrol",
   "hud.patrol_return": "Back",
   "hud.map": "Map",
-
+  "creation.eyebrow": "NO SIGN-UP",
   "creation.title": "Before the first stone goes up",
   "creation.subtitle": "Choose how you look on the job.",
   "creation.quick_start": "Doesn't matter, let's go",
@@ -22,7 +24,6 @@
   "creation.slot.top": "Shirt",
   "creation.slot.legs": "Trousers",
   "creation.slot.accessory": "Detail",
-
   "end_day.title": "End of the day",
   "end_day.subtitle": "Split your people for tonight.",
   "end_day.bounds": "Somebody always stays on each side.",
@@ -38,14 +39,13 @@
   "end_day.watch_posted": "Watch posted.",
   "end_day.watch_none": "No watch tonight.",
   "end_day.watch_rule": "A watch counts from {0} on the wall.",
-
-  "morning.kicker": "Morning of day {0}",
+  "morning.eyebrow": "MORNING",
+  "morning.day": "Day {0}",
   "morning.confirm": "Start the day",
   "morning.headline.watched": "There was a watch on the wall all night.",
   "morning.headline.unwatched": "The wall went through the night unwatched.",
   "morning.chip.watched": "WATCHED",
   "morning.chip.unwatched": "UNWATCHED",
-  "morning.split": "On the work: {0}.   On the wall: {1}.",
   "morning.watch_rule": "A watch counts from {0} on the wall.",
   "morning.work.one": "The night brought in 1 of work on the wall.",
   "morning.work.other": "The night brought in {0} of work on the wall.",
@@ -54,7 +54,6 @@
   "morning.damage.other": "{0} stretches woke up with stone out of place.",
   "morning.damage.none": "No stretch shifted.",
   "morning.no_regress": "Nothing already finished went backwards.",
-
   "contest.title": "THE PUSH",
   "contest.meter.morale": "MORALE",
   "contest.meter.resolve": "THE OTHER SIDE'S RESOLVE",
@@ -66,7 +65,6 @@
   "contest.outcome.withdrew.body": "They leave by the same road they came in on. The wall is still where it was, and so are you.",
   "contest.outcome.broke.body": "They pull back anyway, late. What was half-done on your stretch is loose stone again; what was already standing is still standing. Tomorrow it gets laid again.",
   "contest.outcome.limit.body": "The whole day went by without either side giving way. They leave tired, and they come back whenever they like.",
-
   "contest.move.watch.spent_note": " They have seen the torch once already, and they don't look twice.",
   "contest.log.page_unlocked": "The wall is still standing, and now there is one more way to answer.",
   "contest.log.hold.built": "Nobody moves. The stretch you raised takes the push.",
@@ -84,21 +82,16 @@
   "contest.log.end.withdrew": "The other side pulls back. Nobody comes down off the wall to go after them.",
   "contest.log.end.broke": "Yours let go of the line, and the other side pulls back anyway, late. What was half-done on your stretch is loose stone again; what was already standing is still standing.",
   "contest.log.end.limit": "They tire before you do and leave without saying anything.",
-
   "page.eyebrow": "THIS WAS WRITTEN DOWN BEFORE YOU GOT HERE",
   "page.close": "Back to the wall",
   "page.skip": "Skip",
   "page.read_more": "Read more",
-
   "quiz.eyebrow": "ONE QUESTION. IT ISN'T MARKED.",
   "quiz.continue": "Continue",
-
   "reader.close": "Close",
   "reader.empty": "This chapter isn't available in this version of the app.",
-
   "dialogue.read_more": "Read more",
   "dialogue.advance_hint": "tap to continue",
-
   "vocation.kicker": "Day 3",
   "vocation.headline": "The breach is closed.",
   "vocation.body": "The stretch was standing before the day ran out. Tomorrow it doesn't have to go up again.",
@@ -111,7 +104,6 @@
   "vocation.reveal.fallback_name": "Three days on the wall.",
   "vocation.reveal.fallback_line": "The stretch stands, and so does what you did to raise it.",
   "vocation.reveal.close": "Back to the wall",
-
   "world.map.heading": "The cities of the exile",
   "world.map.note": "You came back to one of them.",
   "world.map.close": "Back to the city",
@@ -125,6 +117,7 @@
   "world.wall_segment": "Stretch of wall",
   "world.well": "Well",
   "world.rubble": "Rubble",
+  "world.timber": "Timber",
   "world.rest_point": "Your mat",
   "hud.settings": "Settings",
   "settings.title": "Settings",
@@ -134,8 +127,6 @@
   "world.speaker.neighbour": "Neighbour",
   "world.speaker.governor": "The man from the capital",
   "world.speaker.crowd": "Someone on the job",
-
   "scripture.unavailable": "⟨text unavailable — {0}⟩",
-
   "language.toggle_hint": "Language"
 }

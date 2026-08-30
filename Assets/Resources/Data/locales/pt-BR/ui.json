@@ -1,11 +1,13 @@
 {
+  "common.fraction": "{0}/{1}",
   "hud.day": "Dia {0}",
   "hud.work": "Trabalho {0}/{1}",
   "hud.rubble": "Entulho {0}",
+  "hud.wall": "Muralha",
   "hud.patrol": "Ronda",
   "hud.patrol_return": "Voltar",
   "hud.map": "Mapa",
-
+  "creation.eyebrow": "SEM CADASTRO",
   "creation.title": "Antes de subir a primeira pedra",
   "creation.subtitle": "Escolha como você aparece na obra.",
   "creation.quick_start": "Tanto faz, vamos",
@@ -22,7 +24,6 @@
   "creation.slot.top": "Camisa",
   "creation.slot.legs": "Calça",
   "creation.slot.accessory": "Detalhe",
-
   "end_day.title": "Fim do dia",
   "end_day.subtitle": "Divida a sua gente para esta noite.",
   "end_day.bounds": "Sempre fica alguém dos dois lados.",
@@ -38,14 +39,13 @@
   "end_day.watch_posted": "Guarda posta.",
   "end_day.watch_none": "Sem guarda esta noite.",
   "end_day.watch_rule": "A guarda se conta a partir de {0} no muro.",
-
-  "morning.kicker": "Manhã do dia {0}",
+  "morning.eyebrow": "MANHÃ",
+  "morning.day": "Dia {0}",
   "morning.confirm": "Começar o dia",
   "morning.headline.watched": "Houve vigia no muro a noite toda.",
   "morning.headline.unwatched": "O muro passou a noite sem vigia.",
   "morning.chip.watched": "COM VIGIA",
   "morning.chip.unwatched": "SEM VIGIA",
-  "morning.split": "Na obra: {0}.   No muro: {1}.",
   "morning.watch_rule": "A guarda se conta a partir de {0} no muro.",
   "morning.work.one": "A noite rendeu 1 de trabalho na muralha.",
   "morning.work.other": "A noite rendeu {0} de trabalho na muralha.",
@@ -54,7 +54,6 @@
   "morning.damage.other": "{0} trechos amanheceram com pedra fora do lugar.",
   "morning.damage.none": "Nenhum trecho saiu do lugar.",
   "morning.no_regress": "Nada do que já ficou pronto voltou atrás.",
-
   "contest.title": "A INVESTIDA",
   "contest.meter.morale": "ÂNIMO",
   "contest.meter.resolve": "FIRMEZA DO OUTRO LADO",
@@ -66,7 +65,6 @@
   "contest.outcome.withdrew.body": "Eles vão embora pela mesma estrada por onde vieram. A muralha continua onde estava, e você também.",
   "contest.outcome.broke.body": "Eles recuam assim mesmo, tarde. O que estava pela metade no seu trecho voltou a ser pedra solta; o que já estava de pé continua de pé. Amanhã se assenta de novo.",
   "contest.outcome.limit.body": "Passou o dia inteiro sem que ninguém cedesse. Eles vão embora cansados, e voltam quando quiserem.",
-
   "contest.move.watch.spent_note": " Eles já viram a tocha uma vez, e não olham duas.",
   "contest.log.page_unlocked": "O muro continua de pé, e agora há um jeito a mais de responder.",
   "contest.log.hold.built": "Ninguém sai do lugar. O trecho que você levantou aguenta o empurrão.",
@@ -84,21 +82,16 @@
   "contest.log.end.withdrew": "O outro lado recua. Ninguém desce do muro para ir atrás deles.",
   "contest.log.end.broke": "Os seus largam a linha, e o outro lado recua assim mesmo, tarde. O que estava pela metade no seu trecho virou pedra solta de novo; o que já estava de pé continua de pé.",
   "contest.log.end.limit": "Eles se cansam antes de você e vão embora sem dizer nada.",
-
   "page.eyebrow": "ISTO JÁ ESTAVA ESCRITO ANTES DE VOCÊ CHEGAR",
   "page.close": "Voltar para o muro",
   "page.skip": "Pular",
   "page.read_more": "Saber mais",
-
   "quiz.eyebrow": "UMA PERGUNTA. NÃO VALE NOTA.",
   "quiz.continue": "Continuar",
-
   "reader.close": "Fechar",
   "reader.empty": "Este capítulo não está disponível nesta versão do aplicativo.",
-
   "dialogue.read_more": "Saber mais",
   "dialogue.advance_hint": "toque para continuar",
-
   "vocation.kicker": "Dia 3",
   "vocation.headline": "A brecha fechou.",
   "vocation.body": "O trecho ficou de pé antes de o dia acabar. Amanhã ele não precisa ser levantado de novo.",
@@ -111,7 +104,6 @@
   "vocation.reveal.fallback_name": "Três dias de obra.",
   "vocation.reveal.fallback_line": "Fica o trecho de pé, e fica o que você fez para levantá-lo.",
   "vocation.reveal.close": "Voltar para a muralha",
-
   "world.map.heading": "As cidades do exílio",
   "world.map.note": "Você voltou para uma delas.",
   "world.map.close": "Voltar para a cidade",
@@ -125,6 +117,7 @@
   "world.wall_segment": "Trecho da muralha",
   "world.well": "Poço",
   "world.rubble": "Entulho",
+  "world.timber": "Madeira",
   "world.rest_point": "Sua esteira",
   "hud.settings": "Ajustes",
   "settings.title": "Ajustes",
@@ -134,8 +127,6 @@
   "world.speaker.neighbour": "Vizinho",
   "world.speaker.governor": "O homem da capital",
   "world.speaker.crowd": "Alguém da obra",
-
   "scripture.unavailable": "⟨texto indisponível — {0}⟩",
-
   "language.toggle_hint": "Idioma"
 }

@@ -20,9 +20,6 @@ namespace SheepGate.UI
     {
         public const string ModalId = "settings";
 
-        const float CardWidth = 900f;
-        const float CardHeight = 560f;
-
         bool _closed;
 
         /// <summary>Opens the modal, or does nothing when it is already up.</summary>
@@ -62,39 +59,74 @@ namespace SheepGate.UI
             ModalRoot.CloseId(ModalId);
         }
 
+        /// <summary>
+        /// Title, one labelled field, and the way out — stacked, not positioned.
+        ///
+        /// The card used to be 900x560 with four hand-tuned offsets inside it. Every number in
+        /// that arrangement was measured against a type scale two steps below the design system's
+        /// floor, so raising the type would have pushed the close button off the bottom of a card
+        /// whose height was a constant. A column that measures itself cannot go wrong that way,
+        /// and it is what lets the next setting be one more child rather than four more offsets.
+        ///
+        /// The card is elev.1 over the modal scrim <see cref="ModalRoot"/> already painted, which
+        /// is the design system's elev.2: a modal is a card with a dimmed world behind it, never a
+        /// third surface colour.
+        /// </summary>
         void Build(RectTransform container)
         {
-            Image card = UIKit.CreatePanel(container, "Card", UIKit.Palette.Panel);
+            Image card = UIKit.CreateCard(container, "Card", UIKit.CardStyle.Card);
             var cardRect = (RectTransform)card.transform;
-            cardRect.anchorMin = new Vector2(0.5f, 0.5f);
-            cardRect.anchorMax = new Vector2(0.5f, 0.5f);
+
+            // The screen gutter either side, measured off the container rather than off a width
+            // written down here. The canvas scaler matches width and height together, so the
+            // number of reference units across a phone is not 1080 and is not the same on two
+            // phones — a card 963 units wide is comfortable on one device and edge to edge on the
+            // next. Stretching to the gutter is the same intent, expressed so it cannot drift.
+            cardRect.anchorMin = new Vector2(0f, 0.5f);
+            cardRect.anchorMax = new Vector2(1f, 0.5f);
             cardRect.pivot = new Vector2(0.5f, 0.5f);
-            cardRect.sizeDelta = new Vector2(CardWidth, CardHeight);
-            cardRect.anchoredPosition = Vector2.zero;
+            cardRect.offsetMin = new Vector2(DesignTokens.Space.Gutter, 0f);
+            cardRect.offsetMax = new Vector2(-DesignTokens.Space.Gutter, 0f);
 
-            Text title = UIKit.CreateText(cardRect, "Title", Loc.T("settings.title"),
-                UIKit.FontSize.Title, UIKit.Palette.Parchment, TextAnchor.MiddleLeft);
-            UIKit.AnchorTop((RectTransform)title.transform, 72f, 44f, 44f, 40f);
+            int pad = Mathf.RoundToInt(DesignTokens.Space.S24);
+            UIKit.VerticalGroup(card.gameObject, DesignTokens.Space.S24, new RectOffset(pad, pad, pad, pad));
 
-            Text label = UIKit.CreateText(cardRect, "LanguageLabel", Loc.T("settings.language"),
-                UIKit.FontSize.Body, UIKit.Palette.Muted, TextAnchor.MiddleLeft);
-            UIKit.AnchorTop((RectTransform)label.transform, 52f, 44f, 44f, 150f);
+            // Height follows the column; width stays with the anchors above. Horizontal fit is
+            // unconstrained on purpose — a fitter that sized the card to its longest word would
+            // make the modal a different width in every language.
+            var fitter = card.gameObject.AddComponent<ContentSizeFitter>();
+            fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
-            RectTransform languageRow = LanguageToggle.Create(cardRect);
-            languageRow.anchorMin = new Vector2(0f, 1f);
-            languageRow.anchorMax = new Vector2(0f, 1f);
-            languageRow.pivot = new Vector2(0f, 1f);
-            languageRow.sizeDelta = new Vector2(LanguageToggle.Width, LanguageToggle.Height);
-            languageRow.anchoredPosition = new Vector2(44f, -214f);
+            UIKit.CreateText(cardRect, "Title", Loc.T("settings.title"),
+                DesignTokens.Type.Title, DesignTokens.Ink.Primary, TextAnchor.MiddleLeft,
+                DesignTokens.TypeRole.Title);
 
-            Button close = UIKit.CreateButton(cardRect, "Close", Loc.T("settings.close"),
-                UIKit.Palette.Clay, UIKit.Palette.Parchment, Close);
-            var closeRect = (RectTransform)close.transform;
-            closeRect.anchorMin = new Vector2(0.5f, 0f);
-            closeRect.anchorMax = new Vector2(0.5f, 0f);
-            closeRect.pivot = new Vector2(0.5f, 0f);
-            closeRect.sizeDelta = new Vector2(320f, 104f);
-            closeRect.anchoredPosition = new Vector2(0f, 48f);
+            BuildLanguageField(cardRect);
+
+            UIKit.CreateButton(cardRect, "Close", Loc.T("settings.close"),
+                UIKit.ButtonVariant.Primary, Close);
+        }
+
+        /// <summary>
+        /// The label and its control, in their own column.
+        ///
+        /// Nested rather than flat so a label sits nearer the thing it names than the next setting
+        /// does: a single spacing value down the card would put exactly as much air between
+        /// "Idioma" and the chips as between the chips and the way out, and a form read that way
+        /// makes the player work out which label belongs to which control.
+        /// </summary>
+        static void BuildLanguageField(RectTransform cardRect)
+        {
+            RectTransform field = UIKit.CreateRect("LanguageField", cardRect);
+            UIKit.VerticalGroup(field.gameObject, DesignTokens.Space.S8, new RectOffset());
+
+            UIKit.CreateText(field, "LanguageLabel", Loc.T("settings.language"),
+                DesignTokens.Type.Body, DesignTokens.Ink.Secondary, TextAnchor.MiddleLeft);
+
+            // The row carries its own LayoutElement, so it arrives in a column already knowing how
+            // tall a chip is; see LanguageToggle.Create.
+            LanguageToggle.Create(field);
         }
     }
 }

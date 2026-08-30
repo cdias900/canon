@@ -1,0 +1,101 @@
+{
+  "characters": {
+    "adar": {
+      "suggested_name": "Adar",
+      "description": "Carrega pedra desde a primeira manhã. Fala pouco, aparece sempre."
+    },
+    "neriah": {
+      "suggested_name": "Neriá",
+      "description": "Veio medir as ruínas do vale. Ficou porque o lugar valia refazer."
+    }
+  },
+
+  "items": {
+    "hair_short_crop": {
+      "display": "Curto denso",
+      "description": "Cortado rente, do jeito que não atrapalha o dia."
+    },
+    "hair_side_braid": {
+      "display": "Trança lateral",
+      "description": "Presa de lado, para o vento não resolver por você."
+    },
+    "hair_loose_waves": {
+      "display": "Solto ondulado",
+      "description": "Solto, como quem acabou de chegar e ainda não se ajeitou."
+    },
+    "hair_shaved_band": {
+      "display": "Raspado com faixa",
+      "description": "Raspado dos lados, com uma faixa de pano segurando o resto."
+    },
+    "hair_headscarf": {
+      "display": "Coberto por lenço",
+      "description": "Um lenço amarrado por cima: sol de meio-dia, poeira o dia inteiro."
+    },
+    "hair_work_bun": {
+      "display": "Coque de obra",
+      "description": "Preso alto e apertado, longe de corda, andaime e fogo."
+    },
+
+    "outfit_clay_tunic": {
+      "display": "Túnica de barro",
+      "description": "Pano grosso na cor do chão daqui. Suja e ninguém repara."
+    },
+    "outfit_terracotta_tunic": {
+      "display": "Túnica terracota",
+      "description": "Mais clara e mais leve, boa para andar o vale inteiro."
+    },
+    "outfit_expedition_gear": {
+      "display": "Roupa de expedição",
+      "description": "Capuz, mangas presas e bolsos: feita para dias longe do muro."
+    },
+    "outfit_work_apron": {
+      "display": "Avental de obra",
+      "description": "Couro reforçado no peito e nas coxas, para carregar pedra sem se cortar."
+    },
+    "outfit_travel_cloak": {
+      "display": "Manto de viagem",
+      "description": "Cai sobre os dois ombros e fecha o capuz. Quem vem de longe chega assim."
+    },
+    "outfit_valley_mantle": {
+      "display": "Manto do vale",
+      "description": "Cai só das costas: o ombro fica à mostra, e de longe já sabem quem é."
+    },
+
+    "acc_rope_coil": {
+      "display": "Rolo de corda",
+      "description": "Enrolada no ombro direito, sempre pronta. É por ela que reconhecem você."
+    },
+    "acc_map_tube": {
+      "display": "Tubo de mapas",
+      "description": "Atravessado nas costas, com o vale inteiro desenhado dentro."
+    },
+    "acc_tool_bag": {
+      "display": "Bolsa de ferramentas",
+      "description": "Na lateral da cintura, com o que quebra pedra e o que a levanta."
+    },
+    "acc_ring_belt": {
+      "display": "Cinto de anilhas",
+      "description": "Argolas de ferro na frente da cintura, para prender corda em qualquer coisa."
+    },
+    "acc_bead_bracelet": {
+      "display": "Bracelete de contas",
+      "description": "Contas de barro num cordão, no pulso direito. Alguém do vale fez."
+    },
+    "acc_old_seal": {
+      "display": "Selo antigo",
+      "description": "Achado no alicerce, com um nome gravado que ninguém aqui sabe ler."
+    }
+  },
+
+  "unlock": {
+    "wall_stage.one": "Leve um trecho da muralha até a etapa {0}.",
+    "wall_stage.other": "Leve um trecho da muralha até a etapa {0}.",
+    "segments_complete.one": "Feche {0} trecho inteiro da muralha.",
+    "segments_complete.other": "Feche {0} trechos inteiros da muralha.",
+    "day_reached.one": "Chegue ao dia {0} no vale.",
+    "day_reached.other": "Chegue ao dia {0} no vale.",
+    "discovery.intro_seen": "Desça até o muro e ouça o homem da capital falar."
+  },
+
+  "player_name_fallback": "viajante"
+}

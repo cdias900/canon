@@ -28,6 +28,19 @@ namespace SheepGate.UI
     /// who cannot see the line cannot gamble against it — they can only guess, and a guess is not
     /// a decision. What the night then did with that split is the morning report's to tell, and
     /// this screen still never marks a split as the right one.
+    ///
+    /// <b>One action, and no gold.</b> This is a decision screen, so exactly one control is drawn
+    /// as the primary: the confirm. The way back is a secondary, which is what it is — an
+    /// alternative, not a control the player is being steered away from. Gold is reserved for the
+    /// one call to action per screen that opens something new, and on a screen whose whole weight
+    /// belongs on the split itself, a gold button would be pulling attention off the decision to
+    /// put it on the button that ends the deciding.
+    ///
+    /// <b>Layout.</b> Everything but the actions lives in one self-measuring column inside a
+    /// scroll view: each row is asked how tall it needs to be at the width it was given, so a
+    /// wrapping hint or a longer translation pushes the column down instead of landing on top of
+    /// what is under it. <see cref="FooterHeight"/> is the only measured constant, because the
+    /// actions are pinned outside the scroll view where they can always be reached.
     /// </summary>
     public sealed class EndDayPanel : MonoBehaviour
     {
@@ -52,12 +65,22 @@ namespace SheepGate.UI
         /// </summary>
         public const int MinimumPerSide = 1;
 
-        const float CardWidth = 1000f;
-        const float CardHeight = 1120f;
-        const float ConfirmWidth = 560f;
-        const float DeferWidth = 300f;
-        const float ButtonHeight = 124f;
-        const float ButtonGap = 24f;
+        /// <summary>
+        /// Height of the pinned action strip: a token of clearance, the buttons, and a token again.
+        /// The only hardcoded vertical measurement on this screen.
+        /// </summary>
+        static readonly float FooterHeight =
+            DesignTokens.Space.S24 * 2f + UIKit.ButtonMinHeight;
+
+        /// <summary>A hairline, never thinner than a device pixel at the shortest supported width.</summary>
+        static readonly float HairlineHeight = Mathf.Max(2f, DesignTokens.Px(1f));
+
+        /// <summary>
+        /// Where the two actions meet, as a fraction of the strip. The confirm takes the larger
+        /// share because it is the primary; both sides still clear the 48 point touch target by a
+        /// wide margin at every width this game is laid out for.
+        /// </summary>
+        const float DeferShare = 0.38f;
 
         static EndDayPanel _current;
 
@@ -74,7 +97,8 @@ namespace SheepGate.UI
         Text _workHint;
         Text _watchHint;
         Text _watchStatus;
-        Image _watchAccent;
+        Text _watchRule;
+        Image _watchIcon;
 
         /// <summary>True while the split panel is on screen.</summary>
         public static bool IsOpen
@@ -176,60 +200,49 @@ namespace SheepGate.UI
 
             var container = (RectTransform)transform;
 
-            Image card = UIKit.CreatePanel(container, "Card", UIKit.Palette.Panel);
+            // Full height rather than a fixed card: this is a screen, and a screen that measures
+            // itself cannot be outgrown by a longer translation.
+            Image card = UIKit.CreateCard(container, "Card", UIKit.CardStyle.Panel);
             var cardRect = (RectTransform)card.transform;
-            cardRect.anchorMin = new Vector2(0.5f, 0.5f);
-            cardRect.anchorMax = new Vector2(0.5f, 0.5f);
-            cardRect.pivot = new Vector2(0.5f, 0.5f);
-            cardRect.sizeDelta = new Vector2(CardWidth, CardHeight);
-            cardRect.anchoredPosition = Vector2.zero;
+            UIKit.Stretch(cardRect,
+                          DesignTokens.Space.S16, DesignTokens.Space.S16,
+                          DesignTokens.Space.S24, DesignTokens.Space.S24);
 
-            Text title = UIKit.CreateText(cardRect, "Title", Loc.T("end_day.title"), UIKit.FontSize.Title, UIKit.Palette.Parchment, TextAnchor.MiddleLeft);
-            UIKit.AnchorTop((RectTransform)title.transform, 72f, 56f, 56f, 44f);
+            RectTransform column;
+            ScrollRect scroll = UIKit.CreateScrollView(cardRect, "Sheet", out column);
+            UIKit.Stretch((RectTransform)scroll.transform, 0f, 0f, 0f, FooterHeight);
+            PrepareScroll(scroll, column);
 
-            Text subtitle = UIKit.CreateText(cardRect, "Subtitle", Loc.T("end_day.subtitle"), UIKit.FontSize.Body, UIKit.Palette.Muted, TextAnchor.MiddleLeft);
-            UIKit.AnchorTop((RectTransform)subtitle.transform, 56f, 56f, 56f, 126f);
+            // The one Display on this screen. The split's own numbers are Title sized and mono,
+            // which is what the design system asks a quantity to be, and two Display elements on
+            // one screen would leave neither of them meaning "look here first".
+            UIKit.CreateText(column, "Title", Loc.T("end_day.title"),
+                DesignTokens.Type.Display, DesignTokens.Ink.Primary,
+                TextAnchor.UpperLeft, DesignTokens.TypeRole.Display);
 
-            BuildSplitRow(cardRect);
+            UIKit.CreateText(column, "Subtitle", Loc.T("end_day.subtitle"),
+                DesignTokens.Type.Body, DesignTokens.Ink.Secondary,
+                TextAnchor.UpperLeft, DesignTokens.TypeRole.Body);
 
-            Slider slider = UIKit.CreateSlider(cardRect, "Split", MinimumPerSide, _total - MinimumPerSide, _workers, OnSliderChanged);
-            UIKit.AnchorTop((RectTransform)slider.transform, 84f, 56f, 56f, 400f);
+            BuildSplitRow(column);
+            BuildSlider(column);
 
             // Read through a local so the check is not constant-folded: if the minimum is ever
             // set to zero, this line stops being true and the block stops being unreachable code.
             int minimumPerSide = MinimumPerSide;
             if (minimumPerSide > 0)
             {
-                Text bounds = UIKit.CreateText(cardRect, "Bounds", Loc.T("end_day.bounds"), UIKit.FontSize.Meta, UIKit.Palette.Stone, TextAnchor.MiddleLeft);
-                UIKit.AnchorTop((RectTransform)bounds.transform, 40f, 56f, 56f, 494f);
+                UIKit.CreateText(column, "Bounds", Loc.T("end_day.bounds"),
+                    DesignTokens.Type.Mono, DesignTokens.Ink.Muted,
+                    TextAnchor.UpperLeft, DesignTokens.TypeRole.Mono);
             }
 
-            _workHint = UIKit.CreateText(cardRect, "WorkHint", string.Empty, UIKit.FontSize.Body, UIKit.Palette.Parchment, TextAnchor.UpperLeft);
-            UIKit.AnchorTop((RectTransform)_workHint.transform, 96f, 56f, 56f, 546f);
+            BuildHints(column);
+            BuildWatchStatus(column);
 
-            _watchHint = UIKit.CreateText(cardRect, "WatchHint", string.Empty, UIKit.FontSize.Body, UIKit.Palette.Parchment, TextAnchor.UpperLeft);
-            UIKit.AnchorTop((RectTransform)_watchHint.transform, 96f, 56f, 56f, 646f);
-
-            // Where the watch starts counting, restated on every drag of the slider. The words
-            // stay parchment so they are always legible; the accent bar beside them carries the
-            // same colour pair the morning report uses, so the two screens agree at a glance.
-            RectTransform statusRow = UIKit.CreateRect("Watch Status", cardRect);
-            UIKit.AnchorTop(statusRow, 104f, 56f, 56f, 754f);
-
-            _watchAccent = UIKit.CreatePanel(statusRow, "Accent", UIKit.Palette.Olive);
-            var accentRect = (RectTransform)_watchAccent.transform;
-            accentRect.anchorMin = new Vector2(0f, 0f);
-            accentRect.anchorMax = new Vector2(0f, 1f);
-            accentRect.pivot = new Vector2(0f, 0.5f);
-            accentRect.sizeDelta = new Vector2(10f, 0f);
-            accentRect.anchoredPosition = Vector2.zero;
-            _watchAccent.raycastTarget = false;
-
-            _watchStatus = UIKit.CreateText(statusRow, "Label", string.Empty, UIKit.FontSize.Body, UIKit.Palette.Parchment, TextAnchor.UpperLeft);
-            UIKit.Stretch((RectTransform)_watchStatus.transform, 28f, 0f, 0f, 0f);
-
-            Text note = UIKit.CreateText(cardRect, "Note", Loc.T("end_day.note"), UIKit.FontSize.Meta, UIKit.Palette.Muted, TextAnchor.UpperLeft);
-            UIKit.AnchorTop((RectTransform)note.transform, 56f, 56f, 56f, 866f);
+            UIKit.CreateText(column, "Note", Loc.T("end_day.note"),
+                DesignTokens.Type.Mono, DesignTokens.Ink.Muted,
+                TextAnchor.UpperLeft, DesignTokens.TypeRole.Mono);
 
             BuildActions(cardRect);
 
@@ -237,71 +250,210 @@ namespace SheepGate.UI
         }
 
         /// <summary>
-        /// The confirm, and the way back when there is one. With no way back the confirm sits
-        /// centred, alone, exactly as it did when this screen was something the player summoned.
+        /// Retunes the kit's scroll view to the design system's rhythm, and gives it something to
+        /// be dragged by.
+        ///
+        /// The drag target is not optional. Every text and icon the kit builds is
+        /// <c>raycastTarget = false</c>, so a scroll view full of them has nothing under the
+        /// finger: the ray would pass through the whole column and land on the card behind it,
+        /// which is not inside the scroll view and would never scroll it. An invisible graphic on
+        /// the viewport is Unity's own answer, and it sits behind the content, so the slider on
+        /// top of it still receives its own drags.
+        /// </summary>
+        static void PrepareScroll(ScrollRect scroll, RectTransform column)
+        {
+            if (scroll != null && scroll.viewport != null && scroll.viewport.GetComponent<Graphic>() == null)
+            {
+                var catcher = scroll.viewport.gameObject.AddComponent<Image>();
+                catcher.color = Color.clear;
+                catcher.raycastTarget = true;
+            }
+
+            var group = column != null ? column.GetComponent<VerticalLayoutGroup>() : null;
+            if (group == null)
+            {
+                return;
+            }
+
+            group.spacing = DesignTokens.Space.S16;
+            group.padding = Pad(DesignTokens.Space.Gutter, DesignTokens.Space.S32);
+        }
+
+        /// <summary>
+        /// The two sides of the split, side by side, each a card carrying its own count.
+        ///
+        /// The numbers are mono, which is the design system's rule for every quantity and is what
+        /// stops the digits shuffling sideways as the slider moves. The accent lives in a dot
+        /// beside the caption rather than in a bar down the card's edge: a straight bar cannot
+        /// follow a rounded corner, and a colour that carries a meaning has to arrive with a shape
+        /// anyway.
+        /// </summary>
+        void BuildSplitRow(RectTransform column)
+        {
+            RectTransform row = UIKit.CreateRect("Split Row", column);
+            UIKit.HorizontalGroup(row.gameObject, DesignTokens.Space.S16, new RectOffset(), TextAnchor.UpperLeft);
+
+            _workNumber = BuildSplitBox(row, "Work", Loc.T("end_day.split.work"), DesignTokens.Ambient.Growth);
+            _watchNumber = BuildSplitBox(row, "Watch", Loc.T("end_day.split.watch"), DesignTokens.Ambient.Sky);
+        }
+
+        /// <summary>One side of the split. Returns the label its count is written into.</summary>
+        static Text BuildSplitBox(RectTransform parent, string name, string caption, Color accent)
+        {
+            Image box = UIKit.CreateCard(parent, name, UIKit.CardStyle.Card);
+            box.raycastTarget = false;
+            var boxRect = (RectTransform)box.transform;
+
+            UIKit.VerticalGroup(box.gameObject, DesignTokens.Space.S8,
+                                Pad(DesignTokens.Space.S16, DesignTokens.Space.S16));
+
+            // Half the row each. The preferred width comes from the group inside the card, so the
+            // two boxes only share the surplus rather than fighting over their own contents.
+            LayoutElement boxLayout = UIKit.Layout(box);
+            boxLayout.flexibleWidth = 1f;
+            boxLayout.minWidth = DesignTokens.Space.TouchTarget;
+
+            RectTransform captionRow = UIKit.CreateRect("Caption", boxRect);
+            UIKit.HorizontalGroup(captionRow.gameObject, DesignTokens.Space.S8, new RectOffset(), TextAnchor.MiddleLeft);
+
+            UIKit.CreateIcon(captionRow, "Dot", UiSpriteKeys.IconDot, accent, UIKit.IconSize);
+
+            Text captionText = UIKit.CreateText(captionRow, "Label", caption,
+                DesignTokens.Type.Mono, DesignTokens.Ink.Muted,
+                TextAnchor.MiddleLeft, DesignTokens.TypeRole.Mono);
+            UIKit.Layout(captionText).flexibleWidth = 1f;
+
+            return UIKit.CreateText(boxRect, "Number", string.Empty,
+                DesignTokens.Type.Title, DesignTokens.Ink.Primary,
+                TextAnchor.MiddleLeft, DesignTokens.TypeRole.Mono);
+        }
+
+        /// <summary>
+        /// The one control, at the design system's touch size.
+        ///
+        /// The kit builds its slider at the width its handle was drawn at, which is under the 48
+        /// point floor, so the handle and the area it travels in are both widened here. The height
+        /// carries the same floor, and a <see cref="LayoutElement"/> is what tells the surrounding
+        /// column about it: a Slider is not a layout element of its own, so without one the column
+        /// would size it to nothing and the control would vanish without logging anything.
+        /// </summary>
+        void BuildSlider(RectTransform column)
+        {
+            Slider slider = UIKit.CreateSlider(column, "Split", MinimumPerSide, _total - MinimumPerSide,
+                                               _workers, OnSliderChanged);
+
+            LayoutElement layout = UIKit.Layout(slider);
+            layout.minHeight = DesignTokens.Space.TouchTarget;
+            layout.preferredHeight = DesignTokens.Space.TouchTarget;
+
+            RectTransform handle = slider.handleRect;
+            if (handle == null)
+            {
+                return;
+            }
+
+            handle.sizeDelta = new Vector2(DesignTokens.Space.TouchTarget, 0f);
+
+            // The travel area is inset by exactly the handle's width, or the handle would run off
+            // both ends of the track by half of whatever the two disagreed about.
+            var slideArea = handle.parent as RectTransform;
+            if (slideArea != null)
+            {
+                slideArea.sizeDelta = new Vector2(-DesignTokens.Space.TouchTarget, 0f);
+            }
+        }
+
+        /// <summary>What each side of the split will be doing, in words, under the control.</summary>
+        void BuildHints(RectTransform column)
+        {
+            RectTransform hints = UIKit.CreateRect("Hints", column);
+            UIKit.VerticalGroup(hints.gameObject, DesignTokens.Space.S12, new RectOffset());
+
+            _workHint = UIKit.CreateText(hints, "WorkHint", string.Empty,
+                DesignTokens.Type.Body, DesignTokens.Ink.Secondary,
+                TextAnchor.UpperLeft, DesignTokens.TypeRole.Body);
+
+            _watchHint = UIKit.CreateText(hints, "WatchHint", string.Empty,
+                DesignTokens.Type.Body, DesignTokens.Ink.Secondary,
+                TextAnchor.UpperLeft, DesignTokens.TypeRole.Body);
+        }
+
+        /// <summary>
+        /// Where this split falls against the rule, restated on every drag.
+        ///
+        /// Three signals, as on the morning report, and the same pair of accents: growth when the
+        /// watch counts, sky when it does not. Never the error colour and never a warning — the
+        /// player has not done anything yet, and a screen that reddened while they were still
+        /// choosing would be arguing with them rather than telling them where the line is.
+        /// </summary>
+        void BuildWatchStatus(RectTransform column)
+        {
+            RectTransform row = UIKit.CreateRect("Watch Status", column);
+            UIKit.HorizontalGroup(row.gameObject, DesignTokens.Space.S12, new RectOffset(), TextAnchor.MiddleLeft);
+
+            _watchIcon = UIKit.CreateIcon(row, "Icon", UiSpriteKeys.IconCheck,
+                                          DesignTokens.Ambient.Growth, UIKit.IconSize);
+
+            RectTransform lines = UIKit.CreateRect("Lines", row);
+            UIKit.VerticalGroup(lines.gameObject, DesignTokens.Space.S4, new RectOffset());
+            UIKit.Layout(lines).flexibleWidth = 1f;
+
+            _watchStatus = UIKit.CreateText(lines, "Label", string.Empty,
+                DesignTokens.Type.Body, DesignTokens.Ink.Primary,
+                TextAnchor.UpperLeft, DesignTokens.TypeRole.BodyStrong);
+
+            _watchRule = UIKit.CreateText(lines, "Rule", string.Empty,
+                DesignTokens.Type.Body, DesignTokens.Ink.Secondary,
+                TextAnchor.UpperLeft, DesignTokens.TypeRole.Body);
+        }
+
+        /// <summary>
+        /// The confirm, and the way back when there is one, pinned outside the scroll view so both
+        /// are reachable however long the column runs. Exactly one primary, and no gold.
         /// </summary>
         void BuildActions(RectTransform cardRect)
         {
+            RectTransform footer = UIKit.CreateRect("Footer", cardRect);
+            UIKit.AnchorBottom(footer, FooterHeight, 0f, 0f, 0f);
+
+            Image divider = UIKit.CreatePanel(footer, "Divider", DesignTokens.Surface.Border, null);
+            UIKit.AnchorTop((RectTransform)divider.transform, HairlineHeight,
+                            DesignTokens.Space.Gutter, DesignTokens.Space.Gutter, 0f);
+            divider.raycastTarget = false;
+
             bool deferrable = _onDefer != null;
-            float row = deferrable ? DeferWidth + ButtonGap + ConfirmWidth : ConfirmWidth;
-            float left = -row * 0.5f;
 
             if (deferrable)
             {
-                Button defer = UIKit.CreateButton(cardRect, "Defer", Loc.T("end_day.defer"), UIKit.Palette.PanelSoft, UIKit.Palette.Parchment, Defer);
-                PlaceAction((RectTransform)defer.transform, DeferWidth, left + DeferWidth * 0.5f);
-                left += DeferWidth + ButtonGap;
+                Button defer = UIKit.CreateButton(footer, "Defer", Loc.T("end_day.defer"),
+                                                  UIKit.ButtonVariant.Secondary, Defer);
+                PlaceAction((RectTransform)defer.transform, 0f, DeferShare,
+                            DesignTokens.Space.Gutter, DesignTokens.Space.S8);
             }
 
-            Button confirm = UIKit.CreateButton(cardRect, "Confirm", Loc.T("end_day.confirm"), UIKit.Palette.Clay, UIKit.Palette.Parchment, Confirm);
-            PlaceAction((RectTransform)confirm.transform, ConfirmWidth, left + ConfirmWidth * 0.5f);
+            Button confirm = UIKit.CreateButton(footer, "Confirm", Loc.T("end_day.confirm"),
+                                                UIKit.ButtonVariant.Primary, Confirm);
+            PlaceAction((RectTransform)confirm.transform,
+                        deferrable ? DeferShare : 0f, 1f,
+                        deferrable ? DesignTokens.Space.S8 : DesignTokens.Space.Gutter,
+                        DesignTokens.Space.Gutter);
         }
 
-        static void PlaceAction(RectTransform rect, float width, float centreX)
+        /// <summary>
+        /// Places one action across a fraction of the strip.
+        ///
+        /// Proportional anchors rather than widths, because the strip's real width is not known
+        /// until a layout pass has run and this is built before one has. The two insets meeting in
+        /// the middle add up to the design system's clear space between touch targets.
+        /// </summary>
+        static void PlaceAction(RectTransform rect, float fromFraction, float toFraction,
+                                float leftInset, float rightInset)
         {
-            rect.anchorMin = new Vector2(0.5f, 0f);
-            rect.anchorMax = new Vector2(0.5f, 0f);
+            rect.anchorMin = new Vector2(fromFraction, 0f);
+            rect.anchorMax = new Vector2(toFraction, 0f);
             rect.pivot = new Vector2(0.5f, 0f);
-            rect.sizeDelta = new Vector2(width, ButtonHeight);
-            rect.anchoredPosition = new Vector2(centreX, 52f);
-        }
-
-        void BuildSplitRow(RectTransform cardRect)
-        {
-            RectTransform row = UIKit.CreateRect("Split Row", cardRect);
-            UIKit.AnchorTop(row, 180f, 56f, 56f, 200f);
-
-            _workNumber = BuildSplitBox(row, "Work", Loc.T("end_day.split.work"), UIKit.Palette.Olive, 0f, 0.5f, 0f, 12f);
-            _watchNumber = BuildSplitBox(row, "Watch", Loc.T("end_day.split.watch"), UIKit.Palette.Night, 0.5f, 1f, 12f, 0f);
-        }
-
-        Text BuildSplitBox(RectTransform parent, string name, string label, Color accent, float anchorLeft, float anchorRight, float padLeft, float padRight)
-        {
-            Image box = UIKit.CreatePanel(parent, name, UIKit.Palette.PanelSoft);
-            var boxRect = (RectTransform)box.transform;
-            boxRect.anchorMin = new Vector2(anchorLeft, 0f);
-            boxRect.anchorMax = new Vector2(anchorRight, 1f);
-            boxRect.pivot = new Vector2(0.5f, 0.5f);
-            boxRect.offsetMin = new Vector2(padLeft, 0f);
-            boxRect.offsetMax = new Vector2(-padRight, 0f);
-            box.raycastTarget = false;
-
-            Image bar = UIKit.CreatePanel(boxRect, "Accent", accent);
-            var barRect = (RectTransform)bar.transform;
-            barRect.anchorMin = new Vector2(0f, 0f);
-            barRect.anchorMax = new Vector2(0f, 1f);
-            barRect.pivot = new Vector2(0f, 0.5f);
-            barRect.sizeDelta = new Vector2(10f, 0f);
-            barRect.anchoredPosition = Vector2.zero;
-            bar.raycastTarget = false;
-
-            Text caption = UIKit.CreateText(boxRect, "Caption", label, UIKit.FontSize.Meta, UIKit.Palette.Muted, TextAnchor.UpperLeft);
-            UIKit.AnchorTop((RectTransform)caption.transform, 40f, 32f, 20f, 20f);
-
-            Text number = UIKit.CreateText(boxRect, "Number", string.Empty, UIKit.FontSize.Title, UIKit.Palette.Parchment, TextAnchor.LowerLeft);
-            UIKit.AnchorBottom((RectTransform)number.transform, 92f, 32f, 20f, 18f);
-
-            return number;
+            rect.offsetMin = new Vector2(leftInset, DesignTokens.Space.S24);
+            rect.offsetMax = new Vector2(-rightInset, DesignTokens.Space.S24 + UIKit.ButtonMinHeight);
         }
 
         // ------------------------------------------------------------------ interaction
@@ -346,21 +498,23 @@ namespace SheepGate.UI
         /// </summary>
         void RefreshWatchStatus(int watchers)
         {
-            if (_watchStatus == null)
-            {
-                return;
-            }
-
             int threshold = DayCycle.WatchThreshold(_total);
             bool posted = DayCycle.CountsAsWatch(watchers, _total);
-            string rule = Loc.T("end_day.watch_rule", threshold);
 
-            _watchStatus.text = (posted ? Loc.T("end_day.watch_posted") : Loc.T("end_day.watch_none"))
-                                + "\n" + rule;
-
-            if (_watchAccent != null)
+            if (_watchStatus != null)
             {
-                _watchAccent.color = posted ? UIKit.Palette.Olive : UIKit.Palette.Clay;
+                _watchStatus.text = posted ? Loc.T("end_day.watch_posted") : Loc.T("end_day.watch_none");
+            }
+
+            if (_watchRule != null)
+            {
+                _watchRule.text = Loc.T("end_day.watch_rule", threshold);
+            }
+
+            if (_watchIcon != null)
+            {
+                _watchIcon.sprite = UIKit.GetSprite(posted ? UiSpriteKeys.IconCheck : UiSpriteKeys.IconDot);
+                _watchIcon.color = posted ? DesignTokens.Ambient.Growth : DesignTokens.Ambient.Sky;
             }
         }
 
@@ -435,6 +589,18 @@ namespace SheepGate.UI
 
         // ------------------------------------------------------------------ helpers
 
+        /// <summary>
+        /// A spacing token as layout padding. <see cref="RectOffset"/> is integral, so a token has
+        /// to be rounded on the way in — writing the conversion once keeps the rounding consistent
+        /// and keeps the token names at the call sites.
+        /// </summary>
+        static RectOffset Pad(float horizontal, float vertical)
+        {
+            int x = Mathf.RoundToInt(horizontal);
+            int y = Mathf.RoundToInt(vertical);
+            return new RectOffset(x, x, y, y);
+        }
+
         static int ResolveCrewSize()
         {
             GameState state = TryGetState();
@@ -466,6 +632,5 @@ namespace SheepGate.UI
         {
             return Mathf.Clamp(workers, MinimumPerSide, _total - MinimumPerSide);
         }
-
     }
 }

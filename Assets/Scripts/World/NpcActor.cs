@@ -34,11 +34,17 @@ namespace SheepGate.World
         private const string InviteReturnNodeId = "malquias_d2_return";
         private const string InviteDaySpentKey = "invite_day_spent";
 
-        // Handing a resident material scores the shepherd. The amount mirrors requires_rubble on
-        // the donation branch authored in dialogue.json.
+        // Handing a resident material scores the shepherd. What changes hands is stone - the raw
+        // material, not a finished block: a neighbour who needs to patch a doorway needs stone, and
+        // charging a block would make the kindest move in the day cost the most.
+        //
+        // The amount mirrors "requires_rubble" on the donation branch authored in dialogue.json.
+        // That JSON key, and the "donated_rubble" flag the branch sets, keep the old spelling on
+        // purpose: both are save state and authored content, and renaming either would strand every
+        // run in flight. requires_rubble is checked against the same count this spends.
         private const string DonationNodeId = "hananias_d2_donate";
         private const string DonationPaidKey = "shepherd_donation_paid";
-        private const int DonationRubbleCost = 3;
+        private const int DonationStoneCost = 3;
 
         private static readonly Color[] PaletteColors =
         {
@@ -367,7 +373,7 @@ namespace SheepGate.World
 
         /// <summary>
         /// What a finished conversation costs in the world. The dialogue layer owns points and
-        /// flags; capacity, material and stone are the world's to move.
+        /// flags; capacity and material are the world's to move.
         /// </summary>
         private void ApplyNodeConsequences(string nodeId)
         {
@@ -386,7 +392,7 @@ namespace SheepGate.World
 
             if (nodeId == DonationNodeId)
             {
-                TakeDonatedRubble();
+                TakeDonatedStone();
             }
         }
 
@@ -511,7 +517,7 @@ namespace SheepGate.World
         }
 
         /// <summary>Material actually leaves the player's hands. Charged once.</summary>
-        private void TakeDonatedRubble()
+        private void TakeDonatedStone()
         {
             GameState state = WorldRuntime.State;
             if (state == null || state.Counter(DonationPaidKey) != 0)
@@ -524,11 +530,12 @@ namespace SheepGate.World
             ResourceSystem resources = ResourceSystem.Find();
             if (resources != null)
             {
-                resources.AddRubble(-DonationRubbleCost);
+                // A negative amount is how a donation is paid; AddStone never takes it below zero.
+                resources.AddStone(-DonationStoneCost);
             }
             else
             {
-                state.rubble = Mathf.Max(0, state.rubble - DonationRubbleCost);
+                state.stone = Mathf.Max(0, state.stone - DonationStoneCost);
             }
 
             WorldRuntime.SaveNow();

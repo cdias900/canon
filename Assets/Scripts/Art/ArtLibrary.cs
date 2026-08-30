@@ -31,15 +31,28 @@ namespace SheepGate.Art
     /// head, torso and thigh silhouettes are identical in every pose, which is what lets one
     /// static overlay sprite sit correctly on all 48 body sprites. See CharacterArt.
     ///
-    /// UI, 32x32, nine-slice friendly. Set Image.type = Sliced and the borders come along:
-    ///     ui_panel   border 8    dark chrome
-    ///     ui_bubble  border 9    light chrome, dialogue and reader
-    ///     ui_button  border 8    clay button with a bevel
+    /// UI, the original three, 32x32 at 32 pixels per unit. Nine-slice friendly: set
+    /// Image.type = Sliced and the borders come along.
+    ///     ui_panel   border 8    chrome
+    ///     ui_bubble  border 9    dialogue and reader
+    ///     ui_button  border 8    button with a bevel
+    ///
+    /// UI, Sistema Vale, at 100 pixels per unit so one sprite pixel is one canvas reference unit:
+    ///     ui_frame_sm  ui_frame_md  ui_frame_lg     nine-sliced, one per design radius
+    ///     ui_frame_scroll                           the pergaminho card, soft elevated edge
+    ///     ui_focus_ring                             2 point ring, transparent centre
+    ///     ui_bar_track  ui_bar_fill                 pill ended progress bar
+    ///     ui_icon_check  ui_icon_close  ui_icon_dot
+    ///     ui_icon_arrow  ui_icon_menu   ui_icon_lock
+    /// Every one of these is painted neutral — white body, form in the alpha channel — so that
+    /// Image.color yields the design token colour exactly rather than sprite x tint. See UiArt.
     ///
     /// ---------------------------------------------------------------------------------
     /// CONVENTIONS
     /// ---------------------------------------------------------------------------------
-    /// - 32 pixels per unit, FilterMode.Point, no mipmaps, no filtering, no compression.
+    /// - World and character art: 32 pixels per unit, FilterMode.Point, no mipmaps, no
+    ///   filtering, no compression. The Sistema Vale UI sprites are the one exception and say
+    ///   why below.
     /// - Keys are case insensitive and trimmed.
     /// - An unknown key never returns null and never throws: it logs one warning and returns
     ///   a magenta checker, so a wrong key is loud in play mode instead of invisible.
@@ -71,6 +84,21 @@ namespace SheepGate.Art
             public int height;
             public Vector2 pivot;
             public Vector4 border;
+
+            /// <summary>
+            /// Carried per entry rather than taken from <see cref="PixelsPerUnit"/> because the
+            /// Sistema Vale UI sprites are generated at the canvas's own scale; see
+            /// <see cref="UiArt.PixelsPerUnit"/>.
+            /// </summary>
+            public float pixelsPerUnit;
+
+            /// <summary>
+            /// Point everywhere except the Sistema Vale UI sprites, whose corners and icon
+            /// strokes are antialiased curves rather than pixel art. Point sampling a curve that
+            /// is being resampled at all turns its alpha ramp into a staircase, which is the one
+            /// artefact those sprites exist to avoid.
+            /// </summary>
+            public FilterMode filterMode;
         }
 
         static readonly Dictionary<string, Entry> Cache = new Dictionary<string, Entry>(StringComparer.Ordinal);
@@ -100,7 +128,8 @@ namespace SheepGate.Art
             Color32[] tinted = new Color32[source.pixels.Length];
             for (int i = 0; i < tinted.Length; i++) tinted[i] = ArtPalette.Multiply(source.pixels[i], tint);
 
-            Sprite sprite = BuildSprite(tintKey, tinted, source.width, source.height, source.pivot, source.border);
+            Sprite sprite = BuildSprite(tintKey, tinted, source.width, source.height, source.pivot,
+                                        source.border, source.pixelsPerUnit, source.filterMode);
             TintCache[tintKey] = sprite;
             return sprite;
         }
@@ -144,7 +173,8 @@ namespace SheepGate.Art
             int drawnSize;
             if (Tileset.TryGetPixels(key, out drawn, out drawnSize))
             {
-                return Make(key, drawn, drawnSize, drawnSize, TilePivot, NoBorder);
+                return Make(key, drawn, drawnSize, drawnSize, TilePivot, NoBorder,
+                            PixelsPerUnit, FilterMode.Point);
             }
 
             int seed = ValueNoise.SeedFrom(key);
@@ -161,6 +191,21 @@ namespace SheepGate.Art
                 case ArtKeys.UiPanel: return Ui(key, UiArt.Panel(), UiArt.PanelBorder);
                 case ArtKeys.UiBubble: return Ui(key, UiArt.Bubble(), UiArt.BubbleBorder);
                 case ArtKeys.UiButton: return Ui(key, UiArt.Button(), UiArt.ButtonBorder);
+
+                case ArtKeys.UiFrameSm: return Frame(key, UiArt.FrameSm(), UiArt.FrameSmBorder);
+                case ArtKeys.UiFrameMd: return Frame(key, UiArt.FrameMd(), UiArt.FrameMdBorder);
+                case ArtKeys.UiFrameLg: return Frame(key, UiArt.FrameLg(), UiArt.FrameLgBorder);
+                case ArtKeys.UiFrameScroll: return Frame(key, UiArt.FrameScroll(), UiArt.FrameScrollBorder);
+                case ArtKeys.UiFocusRing: return Frame(key, UiArt.FocusRing(), UiArt.FocusRingBorder);
+                case ArtKeys.UiBarTrack: return Frame(key, UiArt.BarTrack(), UiArt.BarBorder);
+                case ArtKeys.UiBarFill: return Frame(key, UiArt.BarFill(), UiArt.BarBorder);
+
+                case ArtKeys.IconCheck: return Icon(key, UiArt.IconCheck());
+                case ArtKeys.IconClose: return Icon(key, UiArt.IconClose());
+                case ArtKeys.IconDot: return Icon(key, UiArt.IconDot());
+                case ArtKeys.IconArrow: return Icon(key, UiArt.IconArrow());
+                case ArtKeys.IconMenu: return Icon(key, UiArt.IconMenu());
+                case ArtKeys.IconLock: return Icon(key, UiArt.IconLock());
             }
 
             // tile_ground_1 .. tile_ground_5. The seed comes from the key, so each variant is a
@@ -216,33 +261,57 @@ namespace SheepGate.Art
             return Make(key, canvas, CharacterPivot, NoBorder);
         }
 
+        /// <summary>The original three UI frames, at the project's 32 pixels per unit.</summary>
         static Entry Ui(string key, PixelCanvas canvas, Vector4 border)
         {
             return Make(key, canvas, UiPivot, border);
         }
 
-        static Entry Make(string key, PixelCanvas canvas, Vector2 pivot, Vector4 border)
+        /// <summary>
+        /// A Sistema Vale frame, bar or ring. Generated at <see cref="UiArt.PixelsPerUnit"/> so
+        /// its border and corner radius land in canvas reference units one for one, and sampled
+        /// bilinearly because what it carries is a curve.
+        /// </summary>
+        static Entry Frame(string key, PixelCanvas canvas, Vector4 border)
         {
-            return Make(key, canvas.ToArray(), canvas.Width, canvas.Height, pivot, border);
+            return Make(key, canvas.ToArray(), canvas.Width, canvas.Height, UiPivot, border,
+                        UiArt.PixelsPerUnit, FilterMode.Bilinear);
         }
 
-        static Entry Make(string key, Color32[] pixels, int width, int height, Vector2 pivot, Vector4 border)
+        /// <summary>A status icon: same scale as the frames, no border, so it draws unsliced.</summary>
+        static Entry Icon(string key, PixelCanvas canvas)
+        {
+            return Make(key, canvas.ToArray(), canvas.Width, canvas.Height, UiPivot, NoBorder,
+                        UiArt.PixelsPerUnit, FilterMode.Bilinear);
+        }
+
+        static Entry Make(string key, PixelCanvas canvas, Vector2 pivot, Vector4 border)
+        {
+            return Make(key, canvas.ToArray(), canvas.Width, canvas.Height, pivot, border,
+                        PixelsPerUnit, FilterMode.Point);
+        }
+
+        static Entry Make(string key, Color32[] pixels, int width, int height, Vector2 pivot, Vector4 border,
+                          float pixelsPerUnit, FilterMode filterMode)
         {
             Entry entry = new Entry();
-            entry.sprite = BuildSprite(key, pixels, width, height, pivot, border);
+            entry.sprite = BuildSprite(key, pixels, width, height, pivot, border, pixelsPerUnit, filterMode);
             entry.pixels = pixels;
             entry.width = width;
             entry.height = height;
             entry.pivot = pivot;
             entry.border = border;
+            entry.pixelsPerUnit = pixelsPerUnit;
+            entry.filterMode = filterMode;
             return entry;
         }
 
-        static Sprite BuildSprite(string name, Color32[] pixels, int width, int height, Vector2 pivot, Vector4 border)
+        static Sprite BuildSprite(string name, Color32[] pixels, int width, int height, Vector2 pivot,
+                                  Vector4 border, float pixelsPerUnit, FilterMode filterMode)
         {
             Texture2D texture = new Texture2D(width, height, TextureFormat.RGBA32, false);
             texture.name = "art_" + name;
-            texture.filterMode = FilterMode.Point;
+            texture.filterMode = filterMode;
             texture.wrapMode = TextureWrapMode.Clamp;
             texture.SetPixels32(pixels);
             texture.Apply(false, false);
@@ -251,7 +320,7 @@ namespace SheepGate.Art
                 texture,
                 new Rect(0f, 0f, width, height),
                 pivot,
-                PixelsPerUnit,
+                pixelsPerUnit,
                 0u,
                 SpriteMeshType.FullRect,
                 border);

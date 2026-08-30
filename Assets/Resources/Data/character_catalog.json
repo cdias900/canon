@@ -1,0 +1,388 @@
+{
+  "characters": [
+    {
+      "id": "adar",
+      "accent": "#4E86A8",
+      "silhouette_anchor": "shoulder_r",
+      "art": {
+        "body": 0,
+        "skin": 1,
+        "hair": 0,
+        "top": 0,
+        "legs": 0,
+        "accessory": 0
+      },
+      "hair_tint": 0,
+      "fabric_tint": 0
+    },
+    {
+      "id": "neriah",
+      "accent": "#4E9A6A",
+      "silhouette_anchor": "back_center",
+      "art": {
+        "body": 1,
+        "skin": 2,
+        "hair": 2,
+        "top": 1,
+        "legs": 1,
+        "accessory": 1
+      },
+      "hair_tint": 2,
+      "fabric_tint": 1
+    }
+  ],
+  "items": [
+    {
+      "id": "hair_short_crop",
+      "slot": "hair",
+      "anchor": "",
+      "unlock_condition": null,
+      "incompatible_with": [],
+      "tint_channels": [
+        "hair"
+      ],
+      "art": {
+        "hair": 0
+      },
+      "art_hooded": {
+        "hair": 3
+      },
+      "hides_slots": [],
+      "replaces_shoulder": false
+    },
+    {
+      "id": "hair_side_braid",
+      "slot": "hair",
+      "anchor": "",
+      "unlock_condition": null,
+      "incompatible_with": [],
+      "tint_channels": [
+        "hair"
+      ],
+      "art": {
+        "hair": 1
+      },
+      "art_hooded": {
+        "hair": 3
+      },
+      "hides_slots": [],
+      "replaces_shoulder": false
+    },
+    {
+      "id": "hair_loose_waves",
+      "slot": "hair",
+      "anchor": "",
+      "unlock_condition": {
+        "type": "discovery",
+        "id": "intro_seen"
+      },
+      "incompatible_with": [],
+      "tint_channels": [
+        "hair"
+      ],
+      "art": {
+        "hair": 2
+      },
+      "art_hooded": {
+        "hair": 3
+      },
+      "hides_slots": [],
+      "replaces_shoulder": false
+    },
+    {
+      "id": "hair_shaved_band",
+      "slot": "hair",
+      "anchor": "",
+      "unlock_condition": {
+        "type": "wall_stage",
+        "value": 1
+      },
+      "incompatible_with": [],
+      "tint_channels": [
+        "hair"
+      ],
+      "art": {
+        "hair": 0
+      },
+      "art_hooded": {
+        "hair": 3
+      },
+      "hides_slots": [],
+      "replaces_shoulder": false
+    },
+    {
+      "id": "hair_headscarf",
+      "slot": "hair",
+      "anchor": "",
+      "unlock_condition": {
+        "type": "day_reached",
+        "value": 2
+      },
+      "incompatible_with": [],
+      "tint_channels": [
+        "hair"
+      ],
+      "art": {
+        "hair": 3
+      },
+      "art_hooded": {
+        "hair": 3
+      },
+      "hides_slots": [],
+      "replaces_shoulder": false
+    },
+    {
+      "id": "hair_work_bun",
+      "slot": "hair",
+      "anchor": "",
+      "unlock_condition": {
+        "type": "wall_stage",
+        "value": 3
+      },
+      "incompatible_with": [],
+      "tint_channels": [
+        "hair"
+      ],
+      "art": {
+        "hair": 1
+      },
+      "art_hooded": {
+        "hair": 3
+      },
+      "hides_slots": [],
+      "replaces_shoulder": false
+    },
+    {
+      "id": "outfit_clay_tunic",
+      "slot": "outfit",
+      "anchor": "",
+      "unlock_condition": null,
+      "incompatible_with": [],
+      "tint_channels": [
+        "fabric"
+      ],
+      "art": {
+        "top": 0,
+        "legs": 0
+      },
+      "hides_slots": [],
+      "replaces_shoulder": false
+    },
+    {
+      "id": "outfit_terracotta_tunic",
+      "slot": "outfit",
+      "anchor": "",
+      "unlock_condition": null,
+      "incompatible_with": [],
+      "tint_channels": [
+        "fabric"
+      ],
+      "art": {
+        "top": 1,
+        "legs": 1
+      },
+      "hides_slots": [],
+      "replaces_shoulder": false
+    },
+    {
+      "id": "outfit_expedition_gear",
+      "slot": "outfit",
+      "anchor": "",
+      "unlock_condition": {
+        "type": "wall_stage",
+        "value": 1
+      },
+      "incompatible_with": [],
+      "tint_channels": [
+        "fabric"
+      ],
+      "art": {
+        "top": 2,
+        "legs": 2,
+        "hair": 3
+      },
+      "hides_slots": [
+        "hair"
+      ],
+      "replaces_shoulder": false
+    },
+    {
+      "id": "outfit_work_apron",
+      "slot": "outfit",
+      "anchor": "",
+      "unlock_condition": {
+        "type": "wall_stage",
+        "value": 2
+      },
+      "incompatible_with": [],
+      "tint_channels": [
+        "fabric"
+      ],
+      "art": {
+        "top": 3,
+        "legs": 0
+      },
+      "hides_slots": [],
+      "replaces_shoulder": false
+    },
+    {
+      "id": "outfit_travel_cloak",
+      "slot": "outfit",
+      "anchor": "",
+      "unlock_condition": {
+        "type": "day_reached",
+        "value": 2
+      },
+      "incompatible_with": [],
+      "tint_channels": [
+        "fabric"
+      ],
+      "art": {
+        "top": 3,
+        "legs": 2,
+        "hair": 3
+      },
+      "hides_slots": [
+        "hair"
+      ],
+      "replaces_shoulder": true
+    },
+    {
+      "id": "outfit_valley_mantle",
+      "slot": "outfit",
+      "anchor": "",
+      "unlock_condition": {
+        "type": "day_reached",
+        "value": 3
+      },
+      "incompatible_with": [],
+      "tint_channels": [
+        "fabric"
+      ],
+      "art": {
+        "top": 2,
+        "legs": 3
+      },
+      "hides_slots": [],
+      "replaces_shoulder": false
+    },
+    {
+      "id": "acc_rope_coil",
+      "slot": "accessory",
+      "anchor": "",
+      "unlock_condition": null,
+      "incompatible_with": [],
+      "tint_channels": [
+        "fabric"
+      ],
+      "art": {
+        "accessory": 0
+      },
+      "hides_slots": [],
+      "replaces_shoulder": false
+    },
+    {
+      "id": "acc_map_tube",
+      "slot": "accessory",
+      "anchor": "",
+      "unlock_condition": null,
+      "incompatible_with": [],
+      "tint_channels": [
+        "fabric"
+      ],
+      "art": {
+        "accessory": 1
+      },
+      "hides_slots": [],
+      "replaces_shoulder": false
+    },
+    {
+      "id": "acc_tool_bag",
+      "slot": "accessory",
+      "anchor": "waist_side",
+      "unlock_condition": {
+        "type": "discovery",
+        "id": "intro_seen"
+      },
+      "incompatible_with": [],
+      "tint_channels": [
+        "fabric"
+      ],
+      "art": {
+        "accessory": 2
+      },
+      "hides_slots": [],
+      "replaces_shoulder": false
+    },
+    {
+      "id": "acc_ring_belt",
+      "slot": "accessory",
+      "anchor": "waist_front",
+      "unlock_condition": {
+        "type": "wall_stage",
+        "value": 2
+      },
+      "incompatible_with": [],
+      "tint_channels": [
+        "fabric"
+      ],
+      "art": {
+        "accessory": 3
+      },
+      "hides_slots": [],
+      "replaces_shoulder": false
+    },
+    {
+      "id": "acc_bead_bracelet",
+      "slot": "accessory",
+      "anchor": "wrist_r",
+      "unlock_condition": {
+        "type": "wall_stage",
+        "value": 3
+      },
+      "incompatible_with": [],
+      "tint_channels": [
+        "fabric"
+      ],
+      "art": {
+        "accessory": 2
+      },
+      "hides_slots": [],
+      "replaces_shoulder": false
+    },
+    {
+      "id": "acc_old_seal",
+      "slot": "accessory",
+      "anchor": "neck",
+      "unlock_condition": {
+        "type": "segments_complete",
+        "value": 1
+      },
+      "incompatible_with": [],
+      "tint_channels": [
+        "fabric"
+      ],
+      "art": {
+        "accessory": 3
+      },
+      "hides_slots": [],
+      "replaces_shoulder": false
+    }
+  ],
+  "palette": {
+    "hair": [
+      "#2B1F1A",
+      "#4A3225",
+      "#6B4A2C",
+      "#8A5F3F",
+      "#A0714C",
+      "#D6C4A8"
+    ],
+    "fabric": [
+      "#A8724A",
+      "#C2643A",
+      "#8A6320",
+      "#4E86A8"
+    ]
+  }
+}

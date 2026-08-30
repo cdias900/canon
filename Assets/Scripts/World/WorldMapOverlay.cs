@@ -108,8 +108,32 @@ namespace SheepGate.World
         const float RoadBow = 5.5f;
 
         // ---- chrome --------------------------------------------------------
-        const float FrameInset = 16f;
-        const float FrameThickness = 3f;
+        //
+        // Everything below this line is UI and takes its lengths from DesignTokens. Everything
+        // above it is world art, drawn in world units and tinted by a cartographer's palette
+        // rather than by the interface's: a map reads by value contrast between land, shore and
+        // water, and those three are not roles the design system has.
+        static readonly float FrameInset = DesignTokens.Space.S8;
+        static readonly float FrameThickness = DesignTokens.Px(1f);
+
+        /// <summary>How far the corner cards sit inside the frame.</summary>
+        static readonly float ChromeInset = DesignTokens.Space.S8;
+
+        /// <summary>The compass needle, one step heavier than the frame so it reads as a mark.</summary>
+        static readonly float NeedleThickness = DesignTokens.Px(1.5f);
+
+        /// <summary>
+        /// Width of the text column inside the title card, and the only thing stopping it from
+        /// growing into the compass.
+        ///
+        /// A card that sizes itself to its longest line is a card whose width is a property of the
+        /// translation, and at the design system's Title size "The cities of the exile" is wide
+        /// enough to reach the corner the compass sits in. Capping the column makes the heading
+        /// wrap instead, so the card is the same shape in every language and the collision cannot
+        /// come back with the next one.
+        /// </summary>
+        static readonly float CardTextWidth = DesignTokens.Px(170f);
+
         const float PlateOffsetY = -2.4f;   // world units below a marker
 
         // Three tones of the same ground, not three colours: the palette is stone, clay and teal,
@@ -131,12 +155,21 @@ namespace SheepGate.World
         static readonly Color RoadColour = new Color(0.86f, 0.79f, 0.62f, 1f);
         static readonly Color RoadEdgeColour = new Color(0.56f, 0.50f, 0.39f, 1f);
         static readonly Color TownGroundColour = new Color(0.88f, 0.83f, 0.70f, 1f);
-        static readonly Color FrameColour = new Color(0.63f, 0.58f, 0.48f, 0.55f);
         static readonly Color CityRingColour = new Color(0.66f, 0.60f, 0.49f, 0.30f);
-        static readonly Color PlateFill = new Color(0.91f, 0.88f, 0.81f, 0.96f);
-        static readonly Color PlateInk = new Color(0.17f, 0.15f, 0.13f, 1f);
-        static readonly Color HomePlateFill = new Color(0.78f, 0.42f, 0.29f, 0.96f);
-        static readonly Color HomePlateInk = new Color(0.97f, 0.94f, 0.89f, 1f);
+
+        // The chrome, on design system tokens. Opacity is the one modification a token allows, and
+        // it is what the plates use to let the region show faintly through them.
+        static readonly Color FrameColour = UIKit.WithAlpha(DesignTokens.Neutral.N500, 0.55f);
+        static readonly Color PlateFill = UIKit.WithAlpha(DesignTokens.Surface.Scroll, 0.96f);
+        static readonly Color PlateInk = DesignTokens.Ink.OnScroll;
+        static readonly Color PlateMutedInk = DesignTokens.Ink.OnScrollMuted;
+
+        /// <summary>This city, in the action colour. The one plate that is not somewhere else.</summary>
+        static readonly Color HomePlateFill = UIKit.WithAlpha(DesignTokens.Brand.Primary, 0.96f);
+        static readonly Color HomePlateInk = DesignTokens.Ink.OnPrimary;
+
+        /// <summary>The key's swatch for a shut city: the darkest neutral, not a fifth grey.</summary>
+        static readonly Color ClosedSwatch = DesignTokens.Neutral.N700;
 
         readonly List<SpriteRenderer> _renderers = new List<SpriteRenderer>();
         readonly List<Renderer> _hiddenActors = new List<Renderer>();
@@ -709,50 +742,59 @@ namespace SheepGate.World
             // Top centre, not the corner. A corner card is where a paper map keeps its name, but
             // this map's corners are where two of the cities project, and a card over a city is
             // the map hiding the thing it exists to show.
-            RectTransform card = Plate(root, "TitleCard", PlateFill, new RectOffset(24, 24, 14, 16), 2f);
+            RectTransform card = Plate(root, "TitleCard", PlateFill,
+                Inset(DesignTokens.Space.S16, DesignTokens.Space.S8), DesignTokens.Space.S4);
             Track(card.GetComponent<Image>());
             card.anchorMin = new Vector2(0.5f, 1f);
             card.anchorMax = new Vector2(0.5f, 1f);
             card.pivot = new Vector2(0.5f, 1f);
-            card.anchoredPosition = new Vector2(0f, -(FrameInset + 20f));
+            card.anchoredPosition = new Vector2(0f, -(FrameInset + ChromeInset));
 
             Text heading = UIKit.CreateText(card, "Heading", Loc.T("world.map.heading"),
-                UIKit.FontSize.Body, PlateInk, TextAnchor.MiddleLeft);
+                DesignTokens.Type.Title, PlateInk, TextAnchor.MiddleLeft, DesignTokens.TypeRole.Title);
             heading.raycastTarget = false;
+            UIKit.Layout(heading).preferredWidth = CardTextWidth;
             Track(heading);
 
             Text note = UIKit.CreateText(card, "Note", Loc.T("world.map.note"),
-                UIKit.FontSize.Small, new Color(0.35f, 0.32f, 0.27f, 1f), TextAnchor.MiddleLeft);
+                DesignTokens.Type.Minimum, PlateMutedInk, TextAnchor.MiddleLeft);
             note.raycastTarget = false;
+            UIKit.Layout(note).preferredWidth = CardTextWidth;
             Track(note);
         }
 
         /// <summary>
         /// North, and a stroke pointing at it. The places are laid out around the village rather
         /// than surveyed, so this claims an orientation and nothing more precise than that.
+        ///
+        /// On a plate, like every other word on this map. The letter used to be parchment ink laid
+        /// straight over the region, and the design system's floor for text over the scene is a
+        /// veil at 72% — the terrain underneath is a lit tilemap, not key art, so whether an "N"
+        /// was readable depended on which band of shore or water happened to be behind it.
         /// </summary>
         void BuildCompass(RectTransform root)
         {
-            Text north = UIKit.CreateText(root, "CompassNorth", Loc.T("world.map.north"),
-                UIKit.FontSize.Body, UIKit.Palette.Parchment, TextAnchor.MiddleCenter);
-            var northRect = (RectTransform)north.transform;
-            northRect.anchorMin = new Vector2(1f, 1f);
-            northRect.anchorMax = new Vector2(1f, 1f);
-            northRect.pivot = new Vector2(1f, 1f);
-            northRect.sizeDelta = new Vector2(64f, 48f);
-            northRect.anchoredPosition = new Vector2(-(FrameInset + 26f), -(FrameInset + 26f));
+            RectTransform card = Plate(root, "Compass", PlateFill,
+                Inset(DesignTokens.Space.S12, DesignTokens.Space.S8), DesignTokens.Space.S4,
+                TextAnchor.UpperCenter);
+            Track(card.GetComponent<Image>());
+            card.anchorMin = new Vector2(1f, 1f);
+            card.anchorMax = new Vector2(1f, 1f);
+            card.pivot = new Vector2(1f, 1f);
+            card.anchoredPosition = new Vector2(-(FrameInset + ChromeInset), -(FrameInset + ChromeInset));
+
+            Text north = UIKit.CreateText(card, "CompassNorth", Loc.T("world.map.north"),
+                DesignTokens.Type.Title, PlateInk, TextAnchor.MiddleCenter, DesignTokens.TypeRole.Title);
             north.raycastTarget = false;
             Track(north);
 
-            RectTransform needle = UIKit.CreateRect("CompassNeedle", root);
-            needle.anchorMin = new Vector2(1f, 1f);
-            needle.anchorMax = new Vector2(1f, 1f);
-            needle.pivot = new Vector2(0.5f, 1f);
-            needle.sizeDelta = new Vector2(FrameThickness, 40f);
-            needle.anchoredPosition = new Vector2(-(FrameInset + 52f), -(FrameInset + 78f));
+            RectTransform needle = UIKit.CreateRect("CompassNeedle", card);
+            var needleLayout = needle.gameObject.AddComponent<LayoutElement>();
+            needleLayout.preferredWidth = NeedleThickness;
+            needleLayout.preferredHeight = DesignTokens.Px(14f);
 
             var image = needle.gameObject.AddComponent<Image>();
-            image.color = FrameColour;
+            image.color = PlateMutedInk;
             image.raycastTarget = false;
             Track(image);
         }
@@ -779,24 +821,29 @@ namespace SheepGate.World
         /// </summary>
         void BuildLegend(RectTransform root)
         {
-            RectTransform legend = Plate(root, "Legend", PlateFill, new RectOffset(20, 20, 12, 14), 6f);
+            RectTransform legend = Plate(root, "Legend", PlateFill,
+                Inset(DesignTokens.Space.S12, DesignTokens.Space.S8), DesignTokens.Space.S4);
             Track(legend.GetComponent<Image>());
             legend.anchorMin = new Vector2(0f, 0f);
             legend.anchorMax = new Vector2(0f, 0f);
             legend.pivot = new Vector2(0f, 0f);
-            legend.anchoredPosition = new Vector2(FrameInset + 20f, FrameInset + 20f);
+            legend.anchoredPosition = new Vector2(FrameInset + ChromeInset, FrameInset + ChromeInset);
 
             AddLegendRow(legend, "LegendHome", HomePlateFill, Loc.T("world.map.legend.home"));
-            AddLegendRow(legend, "LegendClosed", new Color(0.42f, 0.40f, 0.36f, 1f), Loc.T("world.map.legend.closed"));
+            AddLegendRow(legend, "LegendClosed", ClosedSwatch, Loc.T("world.map.legend.closed"));
             AddLegendRow(legend, "LegendRoad", RoadColour, Loc.T("world.map.legend.road"));
         }
 
+        /// <summary>
+        /// One key row: a swatch and the word for it. Both, always — the design system's rule that
+        /// colour never carries a meaning on its own is the whole reason a legend exists.
+        /// </summary>
         void AddLegendRow(RectTransform parent, string name, Color swatchColour, string text)
         {
             RectTransform row = UIKit.CreateRect(name, parent);
 
             var layout = row.gameObject.AddComponent<HorizontalLayoutGroup>();
-            layout.spacing = 12f;
+            layout.spacing = DesignTokens.Space.S8;
             layout.childAlignment = TextAnchor.MiddleLeft;
             layout.childControlWidth = true;
             layout.childControlHeight = true;
@@ -808,11 +855,12 @@ namespace SheepGate.World
             swatchImage.color = swatchColour;
             swatchImage.raycastTarget = false;
             var swatchLayout = swatch.gameObject.AddComponent<LayoutElement>();
-            swatchLayout.preferredWidth = 26f;
-            swatchLayout.preferredHeight = 18f;
+            swatchLayout.preferredWidth = DesignTokens.Px(12f);
+            swatchLayout.preferredHeight = DesignTokens.Px(8f);
             Track(swatchImage);
 
-            Text label = UIKit.CreateText(row, "Text", text, UIKit.FontSize.Small, PlateInk, TextAnchor.MiddleLeft);
+            Text label = UIKit.CreateText(row, "Text", text, DesignTokens.Type.Minimum, PlateInk,
+                TextAnchor.MiddleLeft);
             label.raycastTarget = false;
             Track(label);
         }
@@ -822,7 +870,8 @@ namespace SheepGate.World
         /// contents stack, because a GameObject can only carry one layout group and adding the
         /// wrong one first leaves two fighting over the same children.
         /// </summary>
-        static RectTransform Plate(RectTransform parent, string name, Color fill, RectOffset padding, float spacing)
+        static RectTransform Plate(RectTransform parent, string name, Color fill, RectOffset padding,
+            float spacing, TextAnchor alignment = TextAnchor.UpperLeft)
         {
             RectTransform rect = UIKit.CreateRect(name, parent);
 
@@ -835,7 +884,7 @@ namespace SheepGate.World
             var column = rect.gameObject.AddComponent<VerticalLayoutGroup>();
             column.padding = padding;
             column.spacing = spacing;
-            column.childAlignment = TextAnchor.UpperLeft;
+            column.childAlignment = alignment;
             column.childControlWidth = true;
             column.childControlHeight = true;
             column.childForceExpandWidth = false;
@@ -845,6 +894,18 @@ namespace SheepGate.World
             fitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
             fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
             return rect;
+        }
+
+        /// <summary>
+        /// A symmetric padding from two spacing tokens. <see cref="RectOffset"/> takes whole
+        /// pixels and the tokens are the design document's points converted, so they round here
+        /// rather than at every call site.
+        /// </summary>
+        static RectOffset Inset(float horizontal, float vertical)
+        {
+            int x = Mathf.RoundToInt(horizontal);
+            int y = Mathf.RoundToInt(vertical);
+            return new RectOffset(x, x, y, y);
         }
 
         // ------------------------------------------------------------------ fade and teardown

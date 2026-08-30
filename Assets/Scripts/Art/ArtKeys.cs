@@ -27,9 +27,54 @@ namespace SheepGate.Art
         public const string PropWell = "prop_well";
         public const string PropMat = "prop_mat";
 
+        /// <summary>
+        /// The three original frames, kept at their 32 pixel geometry because fifteen screens are
+        /// laid out against the sizes they produce. Repainted neutral like everything else, so a
+        /// tint now lands on them exactly; see <see cref="UiArt"/> for why that matters.
+        /// </summary>
         public const string UiPanel = "ui_panel";
         public const string UiBubble = "ui_bubble";
         public const string UiButton = "ui_button";
+
+        /// <summary>
+        /// The Sistema Vale frames, one per design radius. Nine-sliced, painted neutral so
+        /// <c>Image.color</c> yields the token colour exactly, and generated at the size they
+        /// render at so a corner is a curve rather than a staircase.
+        /// </summary>
+        public const string UiFrameSm = "ui_frame_sm";
+        public const string UiFrameMd = "ui_frame_md";
+        public const string UiFrameLg = "ui_frame_lg";
+
+        /// <summary>
+        /// The pergaminho card of variation 1b: radius Lg with a soft elevated edge instead of a
+        /// border. Its visible body is inset by <see cref="UiArt.ScrollHalo"/> on every side.
+        /// </summary>
+        public const string UiFrameScroll = "ui_frame_scroll";
+
+        /// <summary>
+        /// The focus outline, identical on every button variant including ghost. Stretch it to the
+        /// control's rect expanded by <see cref="UiArt.FocusOutset"/> on each side.
+        /// </summary>
+        public const string UiFocusRing = "ui_focus_ring";
+
+        /// <summary>Pill ended progress bar, in two halves. Draw them at <see cref="UiArt.BarHeight"/>.</summary>
+        public const string UiBarTrack = "ui_bar_track";
+        public const string UiBarFill = "ui_bar_fill";
+
+        /// <summary>
+        /// The six status icons.
+        ///
+        /// These are sprites and not text because none of the three bundled font families carries
+        /// the characters the design mocks use for them. Substituting a lookalike character for a
+        /// missing glyph is what the design system's iconography note forbids, so the icons are
+        /// drawn: 2 point stroke, 2 point corners, on a 24 grid.
+        /// </summary>
+        public const string IconCheck = "ui_icon_check";
+        public const string IconClose = "ui_icon_close";
+        public const string IconDot = "ui_icon_dot";
+        public const string IconArrow = "ui_icon_arrow";
+        public const string IconMenu = "ui_icon_menu";
+        public const string IconLock = "ui_icon_lock";
 
         public const string WallPrefix = "wall_";
         public const string BodyPrefix = "body";

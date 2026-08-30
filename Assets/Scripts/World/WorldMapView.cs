@@ -20,14 +20,57 @@ namespace SheepGate.World
     ///
     /// The opening keeps the world view. That beat has to push the camera in from the region to
     /// the city in one continuous move, which a sheet of paper cannot do.
+    ///
+    /// Everything drawn on the sheet is on the design system's pergaminho ink: <c>Ink.OnScroll</c>
+    /// and <c>Ink.OnScrollMuted</c> over <c>Surface.Scroll</c>. The screen was carrying six
+    /// hand-mixed colours before, all of them approximations of tokens that already existed.
     /// </summary>
     public sealed class WorldMapView : MonoBehaviour
     {
         /// <summary>Above the HUD (50) and below the dialogue canvas (100) and every modal (300).</summary>
         public const int CanvasSortingOrder = 90;
 
-        const float SheetMargin = 26f;
-        const float PlateDropPixels = 14f;
+        /// <summary>Gap between the safe area and the sheet, so the chart reads as paper on a table.</summary>
+        static readonly float SheetMargin = DesignTokens.Space.S12;
+
+        /// <summary>How far a name plate hangs below the place it names.</summary>
+        static readonly float PlateDropPixels = DesignTokens.Space.S8;
+
+        /// <summary>
+        /// Width of the way out. Wide enough for "Voltar para a cidade" on one line at the design
+        /// system's body size — at the width this button used to be, the label wrapped to two
+        /// lines inside a control that was also below the 48 point touch floor.
+        /// </summary>
+        static readonly float CloseButtonWidth = DesignTokens.Px(280f);
+
+        /// <summary>Clearance above the home indicator, on top of the safe area the button is in.</summary>
+        static readonly float CloseButtonMargin = DesignTokens.Space.SafeAreaBottom;
+
+        /// <summary>
+        /// How far the legend and the scale bar sit above the bottom of the sheet.
+        ///
+        /// Derived from the close button rather than chosen, because the button is anchored to the
+        /// safe area and the cards are anchored to the sheet inside it: with both numbers written
+        /// by hand the two overlapped, and at the design system's type they would have overlapped
+        /// by more. Subtracting <see cref="SheetMargin"/> converts the button's own clearance out
+        /// of safe-area coordinates and into the sheet's.
+        /// </summary>
+        static readonly float CornerCardInsetY =
+            CloseButtonMargin + UIKit.ButtonMinHeight + DesignTokens.Space.S12 - SheetMargin;
+
+        static readonly float CornerCardInsetX = DesignTokens.Space.S12;
+
+        /// <summary>
+        /// Width of the text column inside the cartouche, and the only thing stopping it from
+        /// growing into the compass.
+        ///
+        /// A card that sizes itself to its longest line is a card whose width is a property of the
+        /// translation, and at the design system's Title size "The cities of the exile" is wide
+        /// enough to reach the corner where the compass is. Capping the column makes the heading
+        /// wrap instead, so the cartouche is the same shape in every language and the collision
+        /// cannot come back with the next one.
+        /// </summary>
+        static readonly float CardTextWidth = DesignTokens.Px(170f);
 
         static WorldMapView _current;
 
@@ -222,7 +265,7 @@ namespace SheepGate.World
             image.raycastTarget = false;
 
             var layout = plate.gameObject.AddComponent<HorizontalLayoutGroup>();
-            layout.padding = new RectOffset(16, 16, 4, 6);
+            layout.padding = Inset(DesignTokens.Space.S12, DesignTokens.Space.S4);
             layout.childAlignment = TextAnchor.MiddleCenter;
             layout.childControlWidth = true;
             layout.childControlHeight = true;
@@ -233,46 +276,59 @@ namespace SheepGate.World
             fitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
             fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
-            Text label = UIKit.CreateText(plate, "Text", text, UIKit.FontSize.Small, ink, TextAnchor.MiddleCenter);
+            // The floor of the type scale, at body-strong weight. A plate is one or two words on a
+            // small parchment tab, and weight is what keeps them legible there without making the
+            // tab big enough to cover the place it points at.
+            Text label = UIKit.CreateText(plate, "Text", text, DesignTokens.Type.Minimum, ink,
+                TextAnchor.MiddleCenter, DesignTokens.TypeRole.BodyStrong);
             label.raycastTarget = false;
         }
 
         /// <summary>The cartouche, in the water above the island where a chart keeps its name.</summary>
         void BuildTitle(RectTransform sheet)
         {
-            RectTransform card = Card(sheet, "TitleCard", new RectOffset(22, 22, 12, 14), 2f);
+            RectTransform card = Card(sheet, "TitleCard",
+                Inset(DesignTokens.Space.S16, DesignTokens.Space.S8), DesignTokens.Space.S4,
+                TextAnchor.UpperCenter);
             card.anchorMin = new Vector2(0.5f, 1f);
             card.anchorMax = new Vector2(0.5f, 1f);
             card.pivot = new Vector2(0.5f, 1f);
-            card.anchoredPosition = new Vector2(0f, -30f);
+            card.anchoredPosition = new Vector2(0f, -DesignTokens.Space.S12);
 
             Text heading = UIKit.CreateText(card, "Heading", Loc.T("world.map.heading"),
-                UIKit.FontSize.Body, PlateInk, TextAnchor.MiddleCenter);
+                DesignTokens.Type.Title, PlateInk, TextAnchor.MiddleCenter, DesignTokens.TypeRole.Title);
             heading.raycastTarget = false;
+            UIKit.Layout(heading).preferredWidth = CardTextWidth;
 
             Text note = UIKit.CreateText(card, "Note", Loc.T("world.map.note"),
-                UIKit.FontSize.Small, MutedInk, TextAnchor.MiddleCenter);
+                DesignTokens.Type.Minimum, MutedInk, TextAnchor.MiddleCenter);
             note.raycastTarget = false;
+            UIKit.Layout(note).preferredWidth = CardTextWidth;
         }
 
         void BuildCompass(RectTransform sheet)
         {
             Text north = UIKit.CreateText(sheet, "CompassNorth", Loc.T("world.map.north"),
-                UIKit.FontSize.Body, PlateInk, TextAnchor.MiddleCenter);
+                DesignTokens.Type.Title, PlateInk, TextAnchor.MiddleCenter, DesignTokens.TypeRole.Title);
             var rect = (RectTransform)north.transform;
             rect.anchorMin = new Vector2(1f, 1f);
             rect.anchorMax = new Vector2(1f, 1f);
             rect.pivot = new Vector2(1f, 1f);
-            rect.sizeDelta = new Vector2(58f, 44f);
-            rect.anchoredPosition = new Vector2(-34f, -34f);
+            rect.sizeDelta = new Vector2(CompassLetterWidth, CompassLetterHeight);
+            rect.anchoredPosition = new Vector2(-DesignTokens.Space.S16, -DesignTokens.Space.S16);
             north.raycastTarget = false;
 
             RectTransform needle = UIKit.CreateRect("CompassNeedle", sheet);
             needle.anchorMin = new Vector2(1f, 1f);
             needle.anchorMax = new Vector2(1f, 1f);
             needle.pivot = new Vector2(0.5f, 1f);
-            needle.sizeDelta = new Vector2(3f, 34f);
-            needle.anchoredPosition = new Vector2(-59f, -78f);
+            needle.sizeDelta = new Vector2(NeedleThickness, DesignTokens.Px(14f));
+
+            // Centred under the letter, which is itself pinned to the corner: both offsets are read
+            // off the letter's own box rather than measured a second time.
+            needle.anchoredPosition = new Vector2(
+                -(DesignTokens.Space.S16 + CompassLetterWidth * 0.5f),
+                -(DesignTokens.Space.S16 + CompassLetterHeight + DesignTokens.Space.S4));
 
             var image = needle.gameObject.AddComponent<Image>();
             image.color = PlateInk;
@@ -286,15 +342,16 @@ namespace SheepGate.World
         /// </summary>
         void BuildScaleBar(RectTransform sheet)
         {
-            RectTransform card = Card(sheet, "ScaleBar", new RectOffset(18, 18, 10, 12), 5f);
+            RectTransform card = Card(sheet, "ScaleBar",
+                Inset(DesignTokens.Space.S12, DesignTokens.Space.S8), DesignTokens.Space.S4);
             card.anchorMin = new Vector2(1f, 0f);
             card.anchorMax = new Vector2(1f, 0f);
             card.pivot = new Vector2(1f, 0f);
-            card.anchoredPosition = new Vector2(-30f, 30f);
+            card.anchoredPosition = new Vector2(-CornerCardInsetX, CornerCardInsetY);
 
             RectTransform bar = UIKit.CreateRect("Bar", card);
             var barLayout = bar.gameObject.AddComponent<HorizontalLayoutGroup>();
-            barLayout.spacing = 3f;
+            barLayout.spacing = DesignTokens.Px(2f);
             barLayout.childAlignment = TextAnchor.MiddleLeft;
             barLayout.childControlWidth = true;
             barLayout.childControlHeight = true;
@@ -309,34 +366,39 @@ namespace SheepGate.World
                 tickImage.raycastTarget = false;
 
                 var element = tick.gameObject.AddComponent<LayoutElement>();
-                element.preferredWidth = 26f;
-                element.preferredHeight = 9f;
+                element.preferredWidth = DesignTokens.Px(12f);
+                element.preferredHeight = DesignTokens.Px(4f);
             }
 
             Text label = UIKit.CreateText(card, "Label", Loc.T("world.map.scale"),
-                UIKit.FontSize.Small, MutedInk, TextAnchor.MiddleLeft);
+                DesignTokens.Type.Minimum, MutedInk, TextAnchor.MiddleLeft);
             label.raycastTarget = false;
         }
 
         void BuildLegend(RectTransform sheet)
         {
-            RectTransform card = Card(sheet, "Legend", new RectOffset(18, 18, 10, 12), 5f);
+            RectTransform card = Card(sheet, "Legend",
+                Inset(DesignTokens.Space.S12, DesignTokens.Space.S8), DesignTokens.Space.S4);
             card.anchorMin = new Vector2(0f, 0f);
             card.anchorMax = new Vector2(0f, 0f);
             card.pivot = new Vector2(0f, 0f);
-            card.anchoredPosition = new Vector2(30f, 30f);
+            card.anchoredPosition = new Vector2(CornerCardInsetX, CornerCardInsetY);
 
             AddLegendRow(card, "LegendHome", HomePlateFill, Loc.T("world.map.legend.home"));
             AddLegendRow(card, "LegendClosed", PlateInk, Loc.T("world.map.legend.closed"));
             AddLegendRow(card, "LegendRoad", MutedInk, Loc.T("world.map.legend.road"));
         }
 
+        /// <summary>
+        /// One key row: a swatch and the word for it. Both, always — the design system's rule that
+        /// colour never carries a meaning on its own is exactly what a legend is for.
+        /// </summary>
         void AddLegendRow(RectTransform parent, string name, Color swatchColour, string text)
         {
             RectTransform row = UIKit.CreateRect(name, parent);
 
             var layout = row.gameObject.AddComponent<HorizontalLayoutGroup>();
-            layout.spacing = 10f;
+            layout.spacing = DesignTokens.Space.S8;
             layout.childAlignment = TextAnchor.MiddleLeft;
             layout.childControlWidth = true;
             layout.childControlHeight = true;
@@ -349,23 +411,35 @@ namespace SheepGate.World
             image.raycastTarget = false;
 
             var element = swatch.gameObject.AddComponent<LayoutElement>();
-            element.preferredWidth = 22f;
-            element.preferredHeight = 14f;
+            element.preferredWidth = DesignTokens.Px(12f);
+            element.preferredHeight = DesignTokens.Px(8f);
 
-            Text label = UIKit.CreateText(row, "Text", text, UIKit.FontSize.Small, PlateInk, TextAnchor.MiddleLeft);
+            Text label = UIKit.CreateText(row, "Text", text, DesignTokens.Type.Minimum, PlateInk,
+                TextAnchor.MiddleLeft);
             label.raycastTarget = false;
         }
 
+        /// <summary>
+        /// The way back. Clay, because it is the one action on the screen and it sits over the dark
+        /// backdrop rather than on the sheet, where the filled variants are the only ones that keep
+        /// their contrast.
+        /// </summary>
         void BuildCloseButton(RectTransform root)
         {
             Button close = UIKit.CreateButton(root, "CloseMap", Loc.T("world.map.close"),
-                UIKit.Palette.Clay, UIKit.Palette.Parchment, CloseNow);
+                UIKit.ButtonVariant.Primary, CloseNow);
             UIKit.AnchorCorner((RectTransform)close.transform, new Vector2(0.5f, 0f),
-                new Vector2(330f, 118f), new Vector2(0f, 26f));
+                new Vector2(CloseButtonWidth, UIKit.ButtonMinHeight),
+                new Vector2(0f, CloseButtonMargin));
         }
 
-        /// <summary>A parchment card that grows to whatever is put inside it.</summary>
-        static RectTransform Card(RectTransform parent, string name, RectOffset padding, float spacing)
+        /// <summary>
+        /// A parchment card that grows to whatever is put inside it. The caller says how its
+        /// contents sit across the card, because a cartouche centres its two lines and a key does
+        /// not.
+        /// </summary>
+        static RectTransform Card(RectTransform parent, string name, RectOffset padding, float spacing,
+            TextAnchor alignment = TextAnchor.UpperLeft)
         {
             RectTransform rect = UIKit.CreateRect(name, parent);
 
@@ -378,7 +452,7 @@ namespace SheepGate.World
             var column = rect.gameObject.AddComponent<VerticalLayoutGroup>();
             column.padding = padding;
             column.spacing = spacing;
-            column.childAlignment = TextAnchor.UpperLeft;
+            column.childAlignment = alignment;
             column.childControlWidth = true;
             column.childControlHeight = true;
             column.childForceExpandWidth = false;
@@ -390,18 +464,43 @@ namespace SheepGate.World
             return rect;
         }
 
+        /// <summary>
+        /// A symmetric padding from two spacing tokens. <see cref="RectOffset"/> takes whole
+        /// pixels, and the tokens are the design document's points converted, so they round here
+        /// rather than at every call site.
+        /// </summary>
+        static RectOffset Inset(float horizontal, float vertical)
+        {
+            int x = Mathf.RoundToInt(horizontal);
+            int y = Mathf.RoundToInt(vertical);
+            return new RectOffset(x, x, y, y);
+        }
+
         void CloseNow()
         {
             Destroy(gameObject);
         }
 
-        // ------------------------------------------------------------------ ink
+        // ------------------------------------------------------------------ ink and metrics
 
-        static readonly Color BackdropColour = new Color(0.13f, 0.12f, 0.10f, 1f);
-        static readonly Color PlateFill = new Color(0.93f, 0.90f, 0.83f, 0.97f);
-        static readonly Color PlateInk = new Color(0.15f, 0.14f, 0.12f, 1f);
-        static readonly Color MutedInk = new Color(0.38f, 0.35f, 0.30f, 1f);
-        static readonly Color HomePlateFill = new Color(0.76f, 0.40f, 0.27f, 0.97f);
-        static readonly Color HomePlateInk = new Color(0.97f, 0.94f, 0.89f, 1f);
+        static readonly float CompassLetterWidth = DesignTokens.Px(28f);
+        static readonly float CompassLetterHeight = DesignTokens.Px(26f);
+        static readonly float NeedleThickness = DesignTokens.Px(1.5f);
+
+        /// <summary>Below the sheet: the table the chart is lying on, not a colour of its own.</summary>
+        static readonly Color BackdropColour = DesignTokens.Surface.Background;
+
+        /// <summary>
+        /// The plates are pergaminho, very slightly transparent so the chart under them is still
+        /// felt. Opacity is the one modification the design system allows to a token; a fifth
+        /// off-white would not have been.
+        /// </summary>
+        static readonly Color PlateFill = UIKit.WithAlpha(DesignTokens.Surface.Scroll, 0.97f);
+        static readonly Color PlateInk = DesignTokens.Ink.OnScroll;
+        static readonly Color MutedInk = DesignTokens.Ink.OnScrollMuted;
+
+        /// <summary>This city, in the action colour. The one plate that is not a place to go.</summary>
+        static readonly Color HomePlateFill = UIKit.WithAlpha(DesignTokens.Brand.Primary, 0.97f);
+        static readonly Color HomePlateInk = DesignTokens.Ink.OnPrimary;
     }
 }

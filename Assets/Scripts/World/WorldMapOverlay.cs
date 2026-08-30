@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using SheepGate.Art;
 using SheepGate.Core;
+using SheepGate.Player;
 using SheepGate.UI;
 using UnityEngine;
 using UnityEngine.UI;
@@ -60,26 +61,76 @@ namespace SheepGate.World
         const float IslandRadiusX = 34f;
         const float IslandRadiusY = 38f;
         const float CoastWobble = 2.4f;
-        const int ScatterCount = 14;
+
+        // Two bays, one per side, at different heights. Named heights rather than noise: a coast
+        // the player can navigate by needs features that stay where they were last time.
+        const float BayDepth = 6.5f;
+        const float BayWidth = 7f;
+        const float BayNorthY = 13f;
+        const float BaySouthY = -19f;
+
+        /// <summary>Where the stony upland gives way to the low ground, in world units.</summary>
+        const float DistrictBoundaryY = 4f;
+        const float DistrictBlend = 9f;
+        const int ScatterCount = 90;
+
+        /// <summary>Above the terrain bands and below everything the player is meant to read.</summary>
+        const int ScatterOrder = -1020;
+
+        // Sorting orders for the terrain. TilemapBuilder draws the village at -1000, so everything
+        // the region is made of has to sit below that; the cells outside the map take the land
+        // sprite instead, which is what keeps the two seamless.
+        const int TerrainOrderWater = -1060;
+        const int TerrainOrderShallow = -1050;
+        const int TerrainOrderShore = -1040;
+        const int TerrainOrderLand = -1030;
+
+        /// <summary>Width of the pale band where the land meets the water.</summary>
+        const float ShoreWidth = 1.8f;
+
+        /// <summary>Width of the lighter water just off the shore.</summary>
+        const float ShallowWidth = 2.6f;
 
         // ---- roads ---------------------------------------------------------
-        const int RoadDashes = 8;
-        const float RoadEdgeMargin = 1.6f;
-        const float RoadEndInset = 3.4f;
+        // Roads are drawn as a continuous trail rather than a dashed line. A dash reads as a
+        // legend symbol; the reference this is drawn against uses trodden paths, and a path is
+        // what a player is meant to imagine themselves walking.
+        const int RoadSegments = 34;
+        const float RoadEdgeMargin = 0.1f;
+        const float RoadEndInset = 1.2f;
         const float RoadFallbackStart = 12f;
-        const float RoadDashLength = 2.1f;
-        const float RoadDashWidth = 0.5f;
+
+        /// <summary>How much of the map's bounding box the built city actually fills.</summary>
+        const float VisibleCityFactor = 0.78f;
+        const float RoadWidth = 1.15f;
+
+        /// <summary>How far a road bows sideways between the village and a neighbour.</summary>
+        const float RoadBow = 5.5f;
 
         // ---- chrome --------------------------------------------------------
         const float FrameInset = 16f;
         const float FrameThickness = 3f;
         const float PlateOffsetY = -2.4f;   // world units below a marker
 
-        static readonly Color LandTint = new Color(0.74f, 0.71f, 0.62f, 1f);
-        static readonly Color WaterTint = new Color(0.74f, 0.86f, 0.88f, 1f);
+        // Three tones of the same ground, not three colours: the palette is stone, clay and teal,
+        // and a map reads by value contrast long before it reads by hue.
+        static readonly Color LandTint = new Color(0.70f, 0.67f, 0.57f, 1f);
+        static readonly Color ShoreTint = new Color(0.93f, 0.89f, 0.76f, 1f);
+        static readonly Color WaterTint = new Color(0.52f, 0.70f, 0.74f, 1f);
+        static readonly Color ShallowTint = new Color(0.78f, 0.92f, 0.93f, 1f);
         static readonly Color DeepWater = new Color(0.13f, 0.21f, 0.24f, 1f);
-        static readonly Color ScatterTint = new Color(0.55f, 0.52f, 0.45f, 1f);
-        static readonly Color RoadColour = new Color(0.53f, 0.48f, 0.38f, 0.95f);
+        // Multipliers, not colours: the district shading tints whatever band it is applied to, so
+        // shore and land shift together and the coastline never splits into two palettes.
+        static readonly Color UplandShade = new Color(1.06f, 1.05f, 1.02f, 1f);
+        static readonly Color LowlandShade = new Color(0.92f, 0.89f, 0.83f, 1f);
+
+        static readonly Color RockTint = new Color(0.56f, 0.53f, 0.46f, 1f);
+        static readonly Color BrokenTint = new Color(0.78f, 0.74f, 0.65f, 1f);
+        static readonly Color RiseTint = new Color(0.79f, 0.75f, 0.65f, 1f);
+        static readonly Color RiseShadowTint = new Color(0.56f, 0.53f, 0.45f, 1f);
+        static readonly Color RoadColour = new Color(0.86f, 0.79f, 0.62f, 1f);
+        static readonly Color RoadEdgeColour = new Color(0.56f, 0.50f, 0.39f, 1f);
+        static readonly Color TownGroundColour = new Color(0.88f, 0.83f, 0.70f, 1f);
         static readonly Color FrameColour = new Color(0.63f, 0.58f, 0.48f, 0.55f);
         static readonly Color CityRingColour = new Color(0.66f, 0.60f, 0.49f, 0.30f);
         static readonly Color PlateFill = new Color(0.91f, 0.88f, 0.81f, 0.96f);
@@ -88,6 +139,7 @@ namespace SheepGate.World
         static readonly Color HomePlateInk = new Color(0.97f, 0.94f, 0.89f, 1f);
 
         readonly List<SpriteRenderer> _renderers = new List<SpriteRenderer>();
+        readonly List<Renderer> _hiddenActors = new List<Renderer>();
         readonly List<Graphic> _chrome = new List<Graphic>();
         readonly List<float> _chromeAlpha = new List<float>();
 
@@ -121,6 +173,7 @@ namespace SheepGate.World
             }
 
             ApplyField();
+            HideActors();
             BuildTerrain(centre);
 
             Vector3 extents = map != null ? map.WorldBounds.extents : Vector3.zero;
@@ -174,6 +227,66 @@ namespace SheepGate.World
             }
         }
 
+        /// <summary>
+        /// Takes the people off the map.
+        ///
+        /// At this distance a resident is a four-pixel figure standing in open country, and a
+        /// dozen of them read as litter rather than as a population. A map shows where a city is,
+        /// not who is currently standing in it — and the city itself is still drawn, so nothing
+        /// about where anything is has changed.
+        /// </summary>
+        void HideActors()
+        {
+            HideRenderersOn<NpcActor>();
+            HideRenderersOn<StandingNpc>();
+            HideRenderersOn<CutsceneActor>();
+            HideRenderersOn<PlayerController>();
+            HideRenderersOn<CharacterAppearance>();
+        }
+
+        void HideRenderersOn<T>() where T : MonoBehaviour
+        {
+            T[] found = Object.FindObjectsByType<T>(FindObjectsSortMode.None);
+            for (int i = 0; i < found.Length; i++)
+            {
+                if (found[i] == null)
+                {
+                    continue;
+                }
+
+                Renderer[] renderers = found[i].GetComponentsInChildren<Renderer>(true);
+                for (int j = 0; j < renderers.Length; j++)
+                {
+                    Renderer renderer = renderers[j];
+                    if (renderer == null || renderer.forceRenderingOff)
+                    {
+                        continue;
+                    }
+
+                    // forceRenderingOff, not enabled. CharacterAppearance sets enabled itself
+                    // whenever it refreshes a layer, so a renderer switched off here comes back on
+                    // the next time the player's sprite is rebuilt - which is why the player was
+                    // still standing in the middle of the map after everyone else had gone.
+                    renderer.forceRenderingOff = true;
+                    _hiddenActors.Add(renderer);
+                }
+            }
+        }
+
+        void RestoreActors()
+        {
+            for (int i = 0; i < _hiddenActors.Count; i++)
+            {
+                Renderer renderer = _hiddenActors[i];
+                if (renderer != null)
+                {
+                    renderer.forceRenderingOff = false;
+                }
+            }
+
+            _hiddenActors.Clear();
+        }
+
         void RestoreField()
         {
             if (_fieldApplied && _camera != null)
@@ -202,98 +315,226 @@ namespace SheepGate.World
             var host = new GameObject("Terrain");
             host.transform.SetParent(_root.transform, false);
 
-            SpriteRenderer water = NewRenderer(host.transform, "Water", -40);
+            // Every terrain order is below TilemapBuilder's own -1000. The tilemap is drawn far
+            // behind everything else in the scene, and terrain at the orders the rest of this
+            // class uses covered the village completely: the map showed residents standing on
+            // open ground with no city under them.
+            SpriteRenderer water = NewRenderer(host.transform, "Water", TerrainOrderWater);
             water.sprite = ArtLibrary.Get(ArtKeys.TileWater);
             water.color = WaterTint;
             water.drawMode = SpriteDrawMode.Tiled;
             water.size = new Vector2(FieldHalfWidth * 2f, FieldHalfHeight * 2f);
             water.transform.position = new Vector3(centre.x, centre.y, 0f);
 
-            Sprite land = ArtLibrary.Get(ArtKeys.TileGround);
-            for (float y = -FieldHalfHeight; y <= FieldHalfHeight; y += 1f)
-            {
-                float half = LandHalfWidthAt(y);
-                if (half <= 0.5f)
-                {
-                    continue;
-                }
+            // Three bands, each an ellipse a little wider than the last, drawn outermost first:
+            // shallow water, then the shore, then the land. Emitting a band a world-unit row at a
+            // time keeps the coast stepping at the same scale as the village, and costs one
+            // renderer per row instead of one per cell.
+            Sprite waterSprite = ArtLibrary.Get(ArtKeys.TileWater);
+            Sprite groundSprite = ArtLibrary.Get(ArtKeys.TileGround);
 
-                SpriteRenderer row = NewRenderer(host.transform, "Land", -30);
-                row.sprite = land;
-                row.color = LandTint;
-                row.drawMode = SpriteDrawMode.Tiled;
-                row.size = new Vector2(half * 2f, 1f);
-                row.transform.position = new Vector3(centre.x, centre.y + y, 0f);
-            }
+            BuildBand(host.transform, centre, "Shallow", waterSprite, ShallowTint, ShoreWidth + ShallowWidth, TerrainOrderShallow);
+            BuildBand(host.transform, centre, "Shore", groundSprite, ShoreTint, ShoreWidth, TerrainOrderShore);
+            BuildBand(host.transform, centre, "Land", groundSprite, LandTint, 0f, TerrainOrderLand);
 
             BuildScatter(centre);
         }
 
         /// <summary>
-        /// Half the island's width at one height: an ellipse with the coast pushed in and out so it
-        /// does not read as a drawn oval. Deterministic, because two runs of the same map must
-        /// produce the same coast.
+        /// One terrain band: the island outline grown by <paramref name="expand"/>, filled row by
+        /// row with a tiled sprite.
         /// </summary>
-        static float LandHalfWidthAt(float y)
+        void BuildBand(Transform parent, Vector3 centre, string name, Sprite sprite, Color tint, float expand, int order)
         {
-            float t = Mathf.Abs(y) / IslandRadiusY;
+            var host = new GameObject(name);
+            host.transform.SetParent(parent, false);
+
+            for (float y = -FieldHalfHeight; y <= FieldHalfHeight; y += 1f)
+            {
+                float left = CoastAt(y, expand, -1);
+                float right = CoastAt(y, expand, 1);
+                float width = left + right;
+                if (width <= 1f)
+                {
+                    continue;
+                }
+
+                SpriteRenderer row = NewRenderer(host.transform, "Row", order);
+                row.sprite = sprite;
+                row.color = tint * DistrictShade(y);
+                row.drawMode = SpriteDrawMode.Tiled;
+                row.size = new Vector2(width, 1f);
+                row.transform.position = new Vector3(centre.x + (right - left) * 0.5f, centre.y + y, 0f);
+            }
+        }
+
+        /// <summary>
+        /// How far the coast lies from the centre line at one height, on one side.
+        ///
+        /// The two sides are computed separately and bow differently, and each carries a bay cut
+        /// into it at its own height. A symmetrical outline reads as a drawn oval no matter how
+        /// much is placed on top of it; an asymmetrical one reads as a coast, and the bays give
+        /// the eye two fixed points to navigate by.
+        ///
+        /// <paramref name="expand"/> grows the same outline for the shore and shallow bands, so
+        /// every band shares one coastline instead of three that only nearly agree. Deterministic,
+        /// because two runs of the same map must produce the same coast.
+        /// </summary>
+        static float CoastAt(float y, float expand, int side)
+        {
+            float radiusY = IslandRadiusY + expand;
+            float t = Mathf.Abs(y) / radiusY;
             if (t >= 1f)
             {
                 return 0f;
             }
 
-            float wobble = Mathf.Sin(y * 0.21f) * CoastWobble
-                         + Mathf.Sin(y * 0.073f + 1.7f) * (CoastWobble * 0.55f);
+            float basis = (IslandRadiusX + expand) * Mathf.Sqrt(1f - t * t);
+            float phase = side > 0 ? 0f : 2.2f;
 
-            return IslandRadiusX * Mathf.Sqrt(1f - t * t) + wobble;
+            float wobble = Mathf.Sin(y * 0.21f + phase) * CoastWobble
+                         + Mathf.Sin(y * 0.073f + 1.7f + phase) * (CoastWobble * 0.55f);
+
+            float bay = side > 0 ? Bay(y, BayNorthY) : Bay(y, BaySouthY);
+
+            return Mathf.Max(0f, basis + wobble - bay);
         }
 
         /// <summary>
-        /// Rocks and scrub on the open ground. Placed on a fixed sequence rather than at random:
-        /// the map has to look the same every time it is opened, or it stops being a map.
+        /// A district tint: cooler and paler in the north, warmer and darker in the south, blended
+        /// across a band rather than switched at a line.
+        ///
+        /// This is the piece the map was missing most. Lynch's account of what makes a place
+        /// legible lists districts alongside paths, edges, nodes and landmarks — and until now the
+        /// whole interior was one undifferentiated tone, so every part of the map looked like
+        /// every other part and distance carried no information.
+        /// </summary>
+        static Color DistrictShade(float y)
+        {
+            float t = Mathf.Clamp01((y - DistrictBoundaryY) / DistrictBlend + 0.5f);
+            return Color.Lerp(LowlandShade, UplandShade, t);
+        }
+
+        /// <summary>A rounded bite out of the coast, deepest at <paramref name="at"/>.</summary>
+        static float Bay(float y, float at)
+        {
+            float distance = (y - at) / BayWidth;
+            return BayDepth * Mathf.Exp(-distance * distance);
+        }
+
+        /// <summary>
+        /// What the country between the cities is made of: high ground, broken ground and rock.
+        ///
+        /// Three kinds rather than one, and ninety of them rather than a dozen, because the thing
+        /// that made the first version read as a flat expanse was not the colour — it was that
+        /// most of the map had nothing on it at all. A map earns its distances by filling them.
+        ///
+        /// Everything is placed on a fixed sequence, never at random: the map has to look the same
+        /// every time it is opened, or it stops being a map of anywhere.
         /// </summary>
         void BuildScatter(Vector3 centre)
         {
             var host = new GameObject("Scatter");
             host.transform.SetParent(_root.transform, false);
 
-            // The rubble prop is a pale heap and at this distance a field of them reads as litter
-            // dropped on the map. The rubble tile, darkened, reads as broken ground.
-            Sprite mark = ArtLibrary.GetTinted(ArtKeys.TileRubble, ScatterTint);
-            float villageClearance = _map != null ? Mathf.Max(_map.WorldBounds.extents.x, _map.WorldBounds.extents.y) : 16f;
+            Sprite rock = ArtLibrary.Get(ArtKeys.PropRubble);
+            Sprite broken = ArtLibrary.Get(ArtKeys.TileRubble);
+            Sprite ground = ArtLibrary.Get(ArtKeys.TileGround);
+
+            float villageClearance = _map != null
+                ? Mathf.Max(_map.WorldBounds.extents.x, _map.WorldBounds.extents.y)
+                : 16f;
 
             for (int i = 0; i < ScatterCount; i++)
             {
-                // A cheap deterministic spiral: successive marks land far apart without a table.
+                // Golden-angle spiral: successive points land far apart and the set covers the
+                // disc evenly, from a counter and no table.
                 float angle = i * 2.39996f;
                 float radius = Mathf.Sqrt((i + 0.5f) / ScatterCount);
-                float x = Mathf.Cos(angle) * radius * IslandRadiusX * 0.96f;
-                float y = Mathf.Sin(angle) * radius * IslandRadiusY * 0.96f;
+                float x = Mathf.Cos(angle) * radius * (IslandRadiusX * 0.97f);
+                float y = Mathf.Sin(angle) * radius * (IslandRadiusY * 0.97f);
 
-                if (Mathf.Abs(x) > LandHalfWidthAt(y) - 1.6f)
+                float edge = x >= 0f ? CoastAt(y, 0f, 1) : CoastAt(y, 0f, -1);
+                if (Mathf.Abs(x) > edge - 2.2f)
                 {
                     continue;
                 }
 
-                // Nothing is dropped on the village or on the ring around it.
-                if (new Vector2(x, y).magnitude < villageClearance + 2f)
+                if (new Vector2(x, y).magnitude < villageClearance + 2.5f)
                 {
                     continue;
                 }
 
-                SpriteRenderer renderer = NewRenderer(host.transform, "Mark" + i, -20);
-                renderer.sprite = mark;
-                renderer.transform.position = new Vector3(centre.x + x, centre.y + y, 0f);
-                renderer.transform.localScale = Vector3.one * (1.4f + (i % 3) * 0.35f);
+                var position = new Vector3(centre.x + x, centre.y + y, 0f);
+                float wobble = Mathf.Sin(i * 12.9898f) * 0.5f + 0.5f;   // deterministic 0..1
+
+                switch (i % 5)
+                {
+                    case 0:
+                    case 3:
+                        BuildRock(host.transform, rock, position, wobble);
+                        break;
+                    case 1:
+                    case 4:
+                        BuildHighGround(host.transform, ground, position, wobble);
+                        break;
+                    default:
+                        BuildBrokenGround(host.transform, broken, position, wobble);
+                        break;
+                }
             }
+        }
+
+        void BuildRock(Transform parent, Sprite sprite, Vector3 position, float wobble)
+        {
+            SpriteRenderer renderer = NewRenderer(parent, "Rock", ScatterOrder);
+            renderer.sprite = sprite;
+            renderer.color = RockTint;
+            renderer.transform.position = position;
+            renderer.transform.localScale = Vector3.one * (1.1f + wobble * 0.9f);
+        }
+
+        /// <summary>
+        /// A rise: a pale patch with its own shadow under it. Two quads is all the relief a flat
+        /// map needs to stop reading as a sheet of one colour.
+        /// </summary>
+        void BuildHighGround(Transform parent, Sprite sprite, Vector3 position, float wobble)
+        {
+            float width = 3.4f + wobble * 3.6f;
+            float height = 1.9f + wobble * 1.5f;
+
+            SpriteRenderer shadow = NewRenderer(parent, "RiseShadow", ScatterOrder);
+            shadow.sprite = sprite;
+            shadow.color = RiseShadowTint;
+            shadow.transform.position = position + new Vector3(0f, -0.45f, 0f);
+            shadow.transform.localScale = new Vector3(width, height, 1f);
+
+            SpriteRenderer rise = NewRenderer(parent, "Rise", ScatterOrder + 1);
+            rise.sprite = sprite;
+            rise.color = RiseTint;
+            rise.transform.position = position;
+            rise.transform.localScale = new Vector3(width, height, 1f);
+        }
+
+        void BuildBrokenGround(Transform parent, Sprite sprite, Vector3 position, float wobble)
+        {
+            SpriteRenderer renderer = NewRenderer(parent, "Broken", ScatterOrder);
+            renderer.sprite = sprite;
+            renderer.color = BrokenTint;
+            renderer.transform.position = position;
+            renderer.transform.localScale = new Vector3(2.2f + wobble * 2.4f, 1.6f + wobble * 1.4f, 1f);
         }
 
         // ------------------------------------------------------------------ roads and places
 
         /// <summary>
-        /// A track from the village out towards one neighbour: short dashes angled along the
-        /// direction of travel, starting where the line leaves the village and stopping short of
-        /// the city, so the road leads to it rather than ending on it.
+        /// A trail from the village out to one neighbour: a curve, drawn twice — once wide in the
+        /// darker verge colour and once narrow in the pale trodden colour on top. The outline is
+        /// what makes a path read as a path at a glance instead of as a smear of ground.
+        ///
+        /// The curve bows to one side rather than running straight, and alternates which side by
+        /// index. Four straight spokes out of one point read as a diagram; four bowed trails read
+        /// as roads that had a reason to go where they went.
         /// </summary>
         void BuildRoad(Place place, Vector3 centre, Vector3 villageExtents, int index)
         {
@@ -311,26 +552,55 @@ namespace SheepGate.World
                 return;
             }
 
-            float angle = Mathf.Atan2(heading.y, heading.x) * Mathf.Rad2Deg;
+            Vector2 startPoint = heading * from;
+            Vector2 endPoint = heading * to;
+            Vector2 perpendicular = new Vector2(-heading.y, heading.x);
+            float side = (index % 2 == 0) ? 1f : -1f;
+            Vector2 control = (startPoint + endPoint) * 0.5f + perpendicular * (RoadBow * side);
 
             var host = new GameObject("Road" + index);
             host.transform.SetParent(_root.transform, false);
 
-            for (int i = 0; i < RoadDashes; i++)
-            {
-                float step = RoadDashes == 1 ? 0.5f : i / (float)(RoadDashes - 1);
-                float distance = Mathf.Lerp(from, to, step);
+            BuildTrail(host.transform, centre, startPoint, control, endPoint, RoadWidth + 0.5f, RoadEdgeColour, -14);
+            BuildTrail(host.transform, centre, startPoint, control, endPoint, RoadWidth, RoadColour, -12);
+        }
 
-                SpriteRenderer dash = NewRenderer(host.transform, "Dash" + i, -10);
-                dash.sprite = ArtLibrary.Get(ArtKeys.TileGround);
-                dash.color = RoadColour;
-                dash.transform.position = new Vector3(
-                    centre.x + heading.x * distance,
-                    centre.y + heading.y * distance,
-                    0f);
-                dash.transform.rotation = Quaternion.Euler(0f, 0f, angle);
-                dash.transform.localScale = new Vector3(RoadDashLength, RoadDashWidth, 1f);
+        /// <summary>
+        /// Lays one pass of a trail: quads along a quadratic curve, each turned to the direction of
+        /// travel and long enough to overlap its neighbour, so the line has no gaps on the bends.
+        /// </summary>
+        void BuildTrail(Transform parent, Vector3 centre, Vector2 a, Vector2 control, Vector2 b, float width, Color colour, int order)
+        {
+            Vector2 previous = a;
+
+            for (int i = 1; i <= RoadSegments; i++)
+            {
+                float t = i / (float)RoadSegments;
+                Vector2 point = QuadraticPoint(a, control, b, t);
+                Vector2 delta = point - previous;
+                float length = delta.magnitude;
+
+                if (length > 0.0001f)
+                {
+                    Vector2 middle = (previous + point) * 0.5f;
+                    float angle = Mathf.Atan2(delta.y, delta.x) * Mathf.Rad2Deg;
+
+                    SpriteRenderer piece = NewRenderer(parent, "Segment" + i, order);
+                    piece.sprite = ArtLibrary.Get(ArtKeys.TileGround);
+                    piece.color = colour;
+                    piece.transform.position = new Vector3(centre.x + middle.x, centre.y + middle.y, 0f);
+                    piece.transform.rotation = Quaternion.Euler(0f, 0f, angle);
+                    piece.transform.localScale = new Vector3(length * 1.8f, width, 1f);
+                }
+
+                previous = point;
             }
+        }
+
+        static Vector2 QuadraticPoint(Vector2 a, Vector2 control, Vector2 b, float t)
+        {
+            float inverse = 1f - t;
+            return inverse * inverse * a + 2f * inverse * t * control + t * t * b;
         }
 
         /// <summary>
@@ -340,8 +610,11 @@ namespace SheepGate.World
         /// </summary>
         static float RoadStart(Vector2 heading, Vector3 villageExtents)
         {
-            float halfWidth = villageExtents.x;
-            float halfHeight = villageExtents.y;
+            // The built ground is a rough disc inside the map's rectangle, so the rectangle's own
+            // extents overshoot the edge the player can see by several units and left every road
+            // starting in open country with a gap behind it.
+            float halfWidth = villageExtents.x * VisibleCityFactor;
+            float halfHeight = villageExtents.y * VisibleCityFactor;
             if (halfWidth <= 0.01f || halfHeight <= 0.01f)
             {
                 return RoadFallbackStart;
@@ -358,22 +631,36 @@ namespace SheepGate.World
             return 1f / scale + RoadEdgeMargin;
         }
 
+        /// <summary>
+        /// A neighbouring city: a cleared patch of ground with a few roofs on it, not one scaled
+        /// house. A single sprite at this distance is a blob; three at different sizes read as a
+        /// place where people live, which is the whole point of showing it.
+        /// </summary>
         void BuildPlace(Place place, Vector3 centre, int index)
         {
             var host = new GameObject("Place" + index);
             host.transform.SetParent(_root.transform, false);
             host.transform.position = new Vector3(centre.x + place.Offset.x, centre.y + place.Offset.y, 0f);
 
-            // A closed city reads as a shape behind its own walls, not as a building you can visit.
-            SpriteRenderer body = NewRenderer(host.transform, "Body", 60);
-            body.sprite = ArtLibrary.Get(ArtKeys.TileHouse);
-            body.color = new Color(0.42f, 0.40f, 0.36f, 1f);
-            body.transform.localScale = Vector3.one * place.Size;
+            SpriteRenderer ground = NewRenderer(host.transform, "Ground", -8);
+            ground.sprite = ArtLibrary.Get(ArtKeys.TileGround);
+            ground.color = TownGroundColour;
+            ground.transform.localScale = Vector3.one * (place.Size * 2.4f);
 
-            SpriteRenderer ring = NewRenderer(host.transform, "Ring", 59);
-            ring.sprite = ArtLibrary.Get(ArtKeys.UiPanel);
-            ring.color = new Color(0.22f, 0.21f, 0.19f, 0.75f);
-            ring.transform.localScale = Vector3.one * (place.Size * 2.1f);
+            // Offsets in units of the town's own size, so a bigger town spreads rather than
+            // stacking its roofs on top of each other.
+            BuildRoof(host.transform, place, new Vector2(-0.42f,  0.30f), 0.78f, 10);
+            BuildRoof(host.transform, place, new Vector2( 0.46f,  0.16f), 0.66f, 11);
+            BuildRoof(host.transform, place, new Vector2(-0.04f, -0.34f), 0.92f, 12);
+        }
+
+        void BuildRoof(Transform parent, Place place, Vector2 offset, float scale, int order)
+        {
+            SpriteRenderer roof = NewRenderer(parent, "Roof", order);
+            roof.sprite = ArtLibrary.Get(ArtKeys.TileHouse);
+            roof.color = new Color(0.58f, 0.49f, 0.42f, 1f);
+            roof.transform.localPosition = new Vector3(offset.x * place.Size, offset.y * place.Size, 0f);
+            roof.transform.localScale = Vector3.one * (place.Size * scale);
         }
 
         SpriteRenderer NewRenderer(Transform parent, string name, int order)
@@ -473,7 +760,9 @@ namespace SheepGate.World
         /// <summary>A plate on every place, including this one.</summary>
         void BuildPlates(RectTransform root, Vector3 centre)
         {
-            float homeOffset = _map != null ? -(_map.WorldBounds.extents.y + 2.4f) : PlateOffsetY;
+            float homeOffset = _map != null
+                ? -(_map.WorldBounds.extents.y * VisibleCityFactor + 2.2f)
+                : PlateOffsetY;
             TrackLabel(MapLabel.Create(root, Loc.T("world.map.here"), centre, homeOffset, HomePlateFill, HomePlateInk));
 
             for (int i = 0; i < Places.Length; i++)
@@ -636,6 +925,7 @@ namespace SheepGate.World
 
         public void Dispose()
         {
+            RestoreActors();
             RestoreField();
             _chrome.Clear();
             _chromeAlpha.Clear();

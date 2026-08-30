@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using SheepGate.Core;
 using SheepGate.World;
 using UnityEngine;
@@ -99,14 +98,33 @@ namespace SheepGate.UI
     }
 
     /// <summary>
-    /// The morning after. This screen has one job beyond informing: a night that had a watch on the
-    /// wall must not read like a night that did not. That difference is an acceptance criterion,
-    /// so it is carried by three separate signals at once — the headline sentence, the accent
-    /// colour, and an explicit status chip — rather than by a number the player has to compare
+    /// The morning after, laid out as the design system's progress screen: an eyebrow, one Display
+    /// number, the state of the wall as a heading, then the split as labelled bars and the night's
+    /// facts as step rows.
+    ///
+    /// This screen has one job beyond informing: a night that had a watch on the wall must not read
+    /// like a night that did not. That difference is an acceptance criterion, so it is carried by
+    /// three separate signals at once — the headline sentence, the accent colour, and an explicit
+    /// status chip carrying an icon and a word — rather than by a number the player has to compare
     /// against a memory of yesterday.
+    ///
+    /// <b>The accent pair is deliberately Growth and Sky, never Growth and Clay.</b> An unwatched
+    /// night is a fact, not a penalty, and CLAUDE.md rule 7 forbids anything here reading as
+    /// punishment. Clay is the action colour and sits a hue away from the error red; the sky blue
+    /// is the design system's information colour and says "worth noticing" without saying "you
+    /// failed". Nothing on this screen is ever drawn in <c>Feedback.Error</c>.
     ///
     /// It reports and does not judge. There is no line telling the player they should have split
     /// the crew differently, because there is no split this game considers correct.
+    ///
+    /// <b>Layout.</b> Everything but the confirm lives in one self-measuring column inside a scroll
+    /// view: a vertical layout group asks each row how tall it needs to be at the width it was
+    /// given, so a longer translation or a headline that wraps to three lines pushes the column
+    /// down rather than colliding with what is under it. The one measured constant is
+    /// <see cref="FooterHeight"/>, because the confirm is pinned outside the scroll view where it
+    /// can always be reached. This matters more than it looks: the design system's type is between
+    /// 1.2 and 1.7 times the scale this screen was first built at, and a hand-measured column would
+    /// have had to be re-measured again for every string that changed.
     ///
     /// It appears on its own: <see cref="MorningReportInstaller"/> at the foot of this file holds
     /// the subscription to DayCycle.MorningStarted, so every morning that follows a night opens
@@ -131,8 +149,16 @@ namespace SheepGate.UI
         /// </summary>
         public const string NightDamageCounter = "night_damaged_segments";
 
-        const float CardWidth = 1000f;
-        const float CardHeight = 1000f;
+        /// <summary>
+        /// Height of the pinned action strip: a token of clearance, the button, and a token again.
+        /// The only hardcoded vertical measurement on this screen — everything above it measures
+        /// itself, which is what lets the type scale grow without a second pass over the layout.
+        /// </summary>
+        static readonly float FooterHeight =
+            DesignTokens.Space.S24 * 2f + UIKit.ButtonMinHeight;
+
+        /// <summary>A hairline, never thinner than a device pixel at the shortest supported width.</summary>
+        static readonly float HairlineHeight = Mathf.Max(2f, DesignTokens.Px(1f));
 
         static MorningReportUI _current;
 
@@ -232,71 +258,246 @@ namespace SheepGate.UI
             _onClosed = onClosed;
 
             bool watched = summary.watchPosted;
-            Color accent = watched ? UIKit.Palette.Olive : UIKit.Palette.Clay;
+            Color accent = watched ? DesignTokens.Ambient.Growth : DesignTokens.Ambient.Sky;
 
             var container = (RectTransform)transform;
 
-            Image card = UIKit.CreatePanel(container, "Card", UIKit.Palette.Panel);
+            // Full height rather than a fixed card: the report is a screen, and a screen that
+            // measures itself cannot be outgrown by a longer translation.
+            Image card = UIKit.CreateCard(container, "Card", UIKit.CardStyle.Panel);
             var cardRect = (RectTransform)card.transform;
-            cardRect.anchorMin = new Vector2(0.5f, 0.5f);
-            cardRect.anchorMax = new Vector2(0.5f, 0.5f);
-            cardRect.pivot = new Vector2(0.5f, 0.5f);
-            cardRect.sizeDelta = new Vector2(CardWidth, CardHeight);
-            cardRect.anchoredPosition = Vector2.zero;
+            UIKit.Stretch(cardRect,
+                          DesignTokens.Space.S16, DesignTokens.Space.S16,
+                          DesignTokens.Space.S24, DesignTokens.Space.S24);
 
-            Text kicker = UIKit.CreateText(cardRect, "Kicker", Loc.T("morning.kicker", Mathf.Max(1, summary.day)),
-                UIKit.FontSize.Meta, UIKit.Palette.Muted, TextAnchor.MiddleLeft);
-            UIKit.AnchorTop((RectTransform)kicker.transform, 44f, 56f, 56f, 44f);
+            RectTransform column;
+            ScrollRect scroll = UIKit.CreateScrollView(cardRect, "Report", out column);
+            UIKit.Stretch((RectTransform)scroll.transform, 0f, 0f, 0f, FooterHeight);
+            PrepareScroll(scroll, column);
 
-            Text headline = UIKit.CreateText(cardRect, "Headline", Headline(watched),
-                UIKit.FontSize.Heading, accent, TextAnchor.UpperLeft);
-            UIKit.AnchorTop((RectTransform)headline.transform, 140f, 56f, 56f, 100f);
-
-            Image rule = UIKit.CreatePanel(cardRect, "Accent", accent);
-            var ruleRect = (RectTransform)rule.transform;
-            UIKit.AnchorTop(ruleRect, 8f, 56f, 56f, 252f);
-            rule.raycastTarget = false;
-
-            BuildStatusChip(cardRect, watched, accent);
-            BuildBody(cardRect, summary);
-
-            Button confirm = UIKit.CreateButton(cardRect, "Confirm", Loc.T("morning.confirm"), UIKit.Palette.Clay, UIKit.Palette.Parchment, Close);
-            var confirmRect = (RectTransform)confirm.transform;
-            confirmRect.anchorMin = new Vector2(0.5f, 0f);
-            confirmRect.anchorMax = new Vector2(0.5f, 0f);
-            confirmRect.pivot = new Vector2(0.5f, 0f);
-            confirmRect.sizeDelta = new Vector2(560f, 124f);
-            confirmRect.anchoredPosition = new Vector2(0f, 52f);
+            BuildHeader(column, summary, watched, accent);
+            BuildAssignment(column, summary);
+            BuildSteps(column, summary);
+            BuildFooter(cardRect);
         }
 
-        void BuildStatusChip(RectTransform cardRect, bool watched, Color accent)
+        /// <summary>
+        /// Retunes the kit's scroll view to the design system's rhythm, and gives it something to
+        /// be dragged by.
+        ///
+        /// The drag target is not optional. Every text and icon the kit builds is
+        /// <c>raycastTarget = false</c>, so a scroll view full of them has nothing under the
+        /// finger: the ray would pass through the whole column and land on the card behind it,
+        /// which is not inside the scroll view and would never scroll it. An invisible graphic on
+        /// the viewport is Unity's own answer, and it sits behind the content rather than over it,
+        /// so nothing interactive is covered.
+        /// </summary>
+        static void PrepareScroll(ScrollRect scroll, RectTransform column)
         {
-            Image chip = UIKit.CreatePanel(cardRect, "Status", accent);
-            var chipRect = (RectTransform)chip.transform;
-            chipRect.anchorMin = new Vector2(0f, 1f);
-            chipRect.anchorMax = new Vector2(0f, 1f);
-            chipRect.pivot = new Vector2(0f, 1f);
-            chipRect.sizeDelta = new Vector2(300f, 60f);
-            chipRect.anchoredPosition = new Vector2(56f, -284f);
-            chip.raycastTarget = false;
-
-            Text label = UIKit.CreateText(chipRect, "Label", watched ? Loc.T("morning.chip.watched") : Loc.T("morning.chip.unwatched"),
-                UIKit.FontSize.Meta, UIKit.Palette.Ink, TextAnchor.MiddleCenter);
-            UIKit.Stretch((RectTransform)label.transform, 12f, 12f, 4f, 4f);
-        }
-
-        void BuildBody(RectTransform cardRect, NightSummary summary)
-        {
-            RectTransform body = UIKit.CreateRect("Body", cardRect);
-            UIKit.AnchorTop(body, 420f, 56f, 56f, 376f);
-            UIKit.VerticalGroup(body.gameObject, 22f, new RectOffset(0, 0, 0, 0));
-
-            List<string> lines = BuildLines(summary);
-            for (int i = 0; i < lines.Count; i++)
+            if (scroll != null && scroll.viewport != null && scroll.viewport.GetComponent<Graphic>() == null)
             {
-                Text line = UIKit.CreateText(body, "Line_" + i, lines[i], UIKit.FontSize.Body, UIKit.Palette.Parchment, TextAnchor.UpperLeft);
-                UIKit.Layout(line).flexibleWidth = 1f;
+                var catcher = scroll.viewport.gameObject.AddComponent<Image>();
+                catcher.color = Color.clear;
+                catcher.raycastTarget = true;
             }
+
+            var group = column != null ? column.GetComponent<VerticalLayoutGroup>() : null;
+            if (group == null)
+            {
+                return;
+            }
+
+            group.spacing = DesignTokens.Space.S16;
+            group.padding = Pad(DesignTokens.Space.Gutter, DesignTokens.Space.S32);
+        }
+
+        /// <summary>
+        /// The eyebrow and the status chip on one line, then the one Display number this screen is
+        /// allowed, then the heading.
+        ///
+        /// Eyebrow and chip share a row rather than stacking because this screen is a column that
+        /// can run past the bottom of a short phone, and the line the whole report is written to
+        /// keep in view is the last one — that nothing already finished went backwards. Every row
+        /// the header saves is a row that promise does not have to be scrolled to.
+        /// </summary>
+        static void BuildHeader(RectTransform column, NightSummary summary, bool watched, Color accent)
+        {
+            RectTransform top = UIKit.CreateRect("Header Row", column);
+            UIKit.HorizontalGroup(top.gameObject, DesignTokens.Space.S12, new RectOffset(), TextAnchor.MiddleLeft);
+
+            Text eyebrow = UIKit.CreateText(top, "Eyebrow", Loc.T("morning.eyebrow"),
+                DesignTokens.Type.Mono, DesignTokens.Ink.Muted,
+                TextAnchor.MiddleLeft, DesignTokens.TypeRole.Mono);
+
+            // The eyebrow takes the slack, which is what pushes the chip to the far edge without
+            // anything here having to know how wide the card came out.
+            UIKit.Layout(eyebrow).flexibleWidth = 1f;
+
+            BuildStatusChip(top, watched, accent);
+
+            // Named DayNumber and not "Day": the HUD's own day readout is called "Day", and
+            // tools/e2e.sh reads it by that name three times (TextOf("Day")) to prove the screen
+            // rebuilt in the new language. E2ERunner.Find returns the first ACTIVE match in an
+            // unspecified order, so a second "Day" anywhere in the hierarchy makes those
+            // assertions read whichever object the scan reached first — a test that fails, or
+            // worse passes, for a reason that has nothing to do with what it is checking.
+            UIKit.CreateText(column, "DayNumber", Loc.T("morning.day", Mathf.Max(1, summary.day)),
+                DesignTokens.Type.Display, DesignTokens.Ink.Primary,
+                TextAnchor.UpperLeft, DesignTokens.TypeRole.Display);
+
+            UIKit.CreateText(column, "Headline", Headline(watched),
+                DesignTokens.Type.Title, DesignTokens.Ink.Primary,
+                TextAnchor.UpperLeft, DesignTokens.TypeRole.Title);
+        }
+
+        /// <summary>
+        /// The watched / unwatched state, said three ways at once: filled in the accent colour,
+        /// marked with an icon, and spelled out in a word. The design system's rule is that colour
+        /// never carries a state on its own, and the icon is a sprite rather than a character
+        /// because none of the three bundled font families has a check mark in it.
+        /// </summary>
+        static void BuildStatusChip(RectTransform row, bool watched, Color accent)
+        {
+            // Radius Sm, and no flexible width. Sm because Md is the floor every button in this
+            // game is drawn at, so a chip at Md would read as a control the player can press; no
+            // flexible width because the surrounding row then gives it exactly the width of its
+            // own contents instead of stretching it into a band across the card.
+            Image chip = UIKit.CreatePanel(row, "Status", accent, UiSpriteKeys.FrameSm);
+            chip.raycastTarget = false;
+            UIKit.HorizontalGroup(chip.gameObject, DesignTokens.Space.S8,
+                                  Pad(DesignTokens.Space.S12, DesignTokens.Space.S8), TextAnchor.MiddleLeft);
+
+            UIKit.CreateIcon(chip.transform, "Icon",
+                             watched ? UiSpriteKeys.IconCheck : UiSpriteKeys.IconDot,
+                             DesignTokens.Surface.Background, UIKit.IconSize);
+
+            // Surface.Background rather than Ink.OnSecondary: the dark ink meant for gold falls
+            // just under 4.5:1 on the sky blue, and the background ink clears it on both accents.
+            UIKit.CreateText(chip.transform, "Label",
+                watched ? Loc.T("morning.chip.watched") : Loc.T("morning.chip.unwatched"),
+                DesignTokens.Type.Body, DesignTokens.Surface.Background,
+                TextAnchor.MiddleLeft, DesignTokens.TypeRole.BodyStrong);
+        }
+
+        /// <summary>
+        /// Last night's split, as two labelled bars over the same crew.
+        ///
+        /// A bar and not a sentence because the design system draws every quantity this way —
+        /// label, bar and fraction together — and because the two sides read as one decision when
+        /// they share a denominator. Neither bar is coloured by outcome: the split is the player's
+        /// and the night has already happened, so there is nothing here to approve of.
+        ///
+        /// Skipped entirely when the run recorded no split, which is the only case where the
+        /// fraction would have to read "0 of 0" and mean nothing.
+        /// </summary>
+        static void BuildAssignment(RectTransform column, NightSummary summary)
+        {
+            int workers = Mathf.Max(0, summary.workers);
+            int watchers = Mathf.Max(0, summary.watchers);
+            int crew = workers + watchers;
+
+            if (crew <= 0)
+            {
+                return;
+            }
+
+            RectTransform bars = UIKit.CreateRect("Assignment", column);
+            UIKit.VerticalGroup(bars.gameObject, DesignTokens.Space.S16, new RectOffset());
+
+            ProgressBar work = UIKit.CreateProgress(bars, "WorkProgress", Loc.T("end_day.split.work"));
+            work.SetValue(workers, crew);
+
+            ProgressBar watch = UIKit.CreateProgress(bars, "WatchProgress", Loc.T("end_day.split.watch"));
+            watch.SetValue(watchers, crew);
+        }
+
+        /// <summary>
+        /// The night's facts, one row each, every one of them an icon and a sentence.
+        ///
+        /// The icon set is two marks and never three: a check for something that stands, a dot for
+        /// something worth noticing. There is no cross and no error colour anywhere in here. Stone
+        /// out of place is news, not a verdict, and a report that scored the player's night would
+        /// be exactly the punishment this game does not do.
+        /// </summary>
+        static void BuildSteps(RectTransform column, NightSummary summary)
+        {
+            RectTransform steps = UIKit.CreateRect("Steps", column);
+            UIKit.VerticalGroup(steps.gameObject, DesignTokens.Space.S12, new RectOffset());
+
+            // The rule, restated only on the morning it decided something. Stated after the fact
+            // it is information, not a correction: the next split is the player's to make again.
+            if (!summary.watchPosted && summary.watchThreshold > 0)
+            {
+                BuildStep(steps, "Step_WatchRule", UiSpriteKeys.IconDot, DesignTokens.Ink.Muted,
+                          Loc.T("morning.watch_rule", summary.watchThreshold), DesignTokens.Ink.Secondary);
+            }
+
+            if (summary.workRecorded || summary.workDone > 0)
+            {
+                bool built = summary.workDone > 0;
+                BuildStep(steps, "Step_Work",
+                          built ? UiSpriteKeys.IconCheck : UiSpriteKeys.IconDot,
+                          built ? DesignTokens.Ambient.Growth : DesignTokens.Ink.Muted,
+                          built ? Loc.Plural("morning.work", summary.workDone) : Loc.T("morning.work.none"),
+                          DesignTokens.Ink.Primary);
+            }
+
+            bool moved = summary.damagedSegments > 0;
+            BuildStep(steps, "Step_Damage",
+                      moved ? UiSpriteKeys.IconDot : UiSpriteKeys.IconCheck,
+                      moved ? DesignTokens.Ambient.Sky : DesignTokens.Ambient.Growth,
+                      moved ? Loc.Plural("morning.damage", summary.damagedSegments) : Loc.T("morning.damage.none"),
+                      DesignTokens.Ink.Primary);
+
+            // The promise the whole game is built on, stated as a fact and not as comfort. It is
+            // always a check, because it is always true.
+            BuildStep(steps, "Step_NoRegress", UiSpriteKeys.IconCheck, DesignTokens.Ambient.Growth,
+                      Loc.T("morning.no_regress"), DesignTokens.Ink.Primary);
+        }
+
+        /// <summary>
+        /// One step row: a fixed icon and a sentence that takes whatever height it needs.
+        ///
+        /// The row is centred rather than top-aligned so the icon sits against the middle of a
+        /// two-line sentence instead of floating beside its first line.
+        /// </summary>
+        static void BuildStep(RectTransform parent, string name, string iconKey, Color iconTint,
+                              string content, Color ink)
+        {
+            RectTransform row = UIKit.CreateRect(name, parent);
+            UIKit.HorizontalGroup(row.gameObject, DesignTokens.Space.S12, new RectOffset(), TextAnchor.MiddleLeft);
+
+            UIKit.CreateIcon(row, "Icon", iconKey, iconTint, UIKit.IconSize);
+
+            Text text = UIKit.CreateText(row, "Text", content, DesignTokens.Type.Body, ink,
+                                         TextAnchor.MiddleLeft, DesignTokens.TypeRole.Body);
+            UIKit.Layout(text).flexibleWidth = 1f;
+        }
+
+        /// <summary>
+        /// The one action, pinned outside the scroll view so it is reachable however long the
+        /// report runs. Primary and not Quest: clay is the action that moves the game forward, and
+        /// the gold call to action means "here is something new", which a morning is not.
+        /// </summary>
+        void BuildFooter(RectTransform cardRect)
+        {
+            RectTransform footer = UIKit.CreateRect("Footer", cardRect);
+            UIKit.AnchorBottom(footer, FooterHeight, 0f, 0f, 0f);
+
+            Image divider = UIKit.CreatePanel(footer, "Divider", DesignTokens.Surface.Border, null);
+            UIKit.AnchorTop((RectTransform)divider.transform, HairlineHeight,
+                            DesignTokens.Space.Gutter, DesignTokens.Space.Gutter, 0f);
+            divider.raycastTarget = false;
+
+            Button confirm = UIKit.CreateButton(footer, "Confirm", Loc.T("morning.confirm"),
+                                                UIKit.ButtonVariant.Primary, Close);
+            var rect = (RectTransform)confirm.transform;
+            rect.anchorMin = new Vector2(0f, 0f);
+            rect.anchorMax = new Vector2(1f, 0f);
+            rect.pivot = new Vector2(0.5f, 0f);
+            rect.offsetMin = new Vector2(DesignTokens.Space.Gutter, DesignTokens.Space.S24);
+            rect.offsetMax = new Vector2(-DesignTokens.Space.Gutter,
+                                         DesignTokens.Space.S24 + UIKit.ButtonMinHeight);
         }
 
         // ------------------------------------------------------------------ copy
@@ -306,46 +507,6 @@ namespace SheepGate.UI
             return watched
                 ? Loc.T("morning.headline.watched")
                 : Loc.T("morning.headline.unwatched");
-        }
-
-        static List<string> BuildLines(NightSummary summary)
-        {
-            var lines = new List<string>(5);
-
-            lines.Add(Loc.T("morning.split", Mathf.Max(0, summary.workers), Mathf.Max(0, summary.watchers)));
-
-            // The rule, restated only on the morning it decided something. Stated after the fact
-            // it is information, not a correction: the next split is the player's to make again.
-            if (!summary.watchPosted && summary.watchThreshold > 0)
-            {
-                lines.Add(Loc.T("morning.watch_rule", summary.watchThreshold));
-            }
-
-            if (summary.workRecorded || summary.workDone > 0)
-            {
-                if (summary.workDone > 0)
-                {
-                    lines.Add(Loc.Plural("morning.work", summary.workDone));
-                }
-                else
-                {
-                    lines.Add(Loc.T("morning.work.none"));
-                }
-            }
-
-            if (summary.damagedSegments > 0)
-            {
-                lines.Add(Loc.Plural("morning.damage", summary.damagedSegments));
-            }
-            else
-            {
-                lines.Add(Loc.T("morning.damage.none"));
-            }
-
-            // The promise the whole game is built on, stated as a fact and not as comfort.
-            lines.Add(Loc.T("morning.no_regress"));
-
-            return lines;
         }
 
         // ------------------------------------------------------------------ teardown
@@ -378,6 +539,18 @@ namespace SheepGate.UI
         }
 
         // ------------------------------------------------------------------ helpers
+
+        /// <summary>
+        /// A spacing token as layout padding. <see cref="RectOffset"/> is integral, so a token has
+        /// to be rounded on the way in — writing the conversion once keeps the rounding consistent
+        /// and keeps the token names at the call sites.
+        /// </summary>
+        static RectOffset Pad(float horizontal, float vertical)
+        {
+            int x = Mathf.RoundToInt(horizontal);
+            int y = Mathf.RoundToInt(vertical);
+            return new RectOffset(x, x, y, y);
+        }
 
         static GameState TryGetState()
         {

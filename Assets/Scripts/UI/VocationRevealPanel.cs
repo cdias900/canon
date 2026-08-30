@@ -1,5 +1,5 @@
 using System;
-using System.Collections;
+using System.Collections.Generic;
 using SheepGate.Core;
 using SheepGate.Scripture;
 using SheepGate.Vocation;
@@ -19,6 +19,12 @@ namespace SheepGate.UI
     /// for the reader to be opened, and the reading happens inside the app, never in a browser.
     ///
     /// No scripture is written here. Only references travel, and the reader resolves them.
+    ///
+    /// SURFACE: this is a modal, and the design system puts a modal at elev.2, which it defines as
+    /// <c>Surface.Card</c> over <c>Surface.Scrim</c>. <see cref="ModalRoot"/> supplies the scrim,
+    /// so the panel itself is a <see cref="UIKit.CardStyle.Card"/>. The pergaminho is deliberately
+    /// left to <see cref="VocationRevealPanel"/>, the screen after this one: two consecutive
+    /// full-bleed scrolls would spend the surface that is supposed to mark the bigger moment.
     /// </summary>
     public sealed class GateClosedPanel : MonoBehaviour
     {
@@ -34,9 +40,18 @@ namespace SheepGate.UI
         /// <summary>Telemetry trigger, so a player-chosen open is never confused with a prompted one.</summary>
         public const string OpenTrigger = "know_more";
 
-        const float CardWidth = 1000f;
-        const float CardHeight = 1160f;
-        const float SecondaryButtonWidth = 440f;
+        /// <summary>
+        /// The card stretches to the screen gutter rather than carrying a fixed width.
+        ///
+        /// It used to be 1000 units wide against a 1080 reference, which looked safe and was not:
+        /// a 19.5:9 phone laid out at match 0.5 gives a canvas about 976 units across, so the card
+        /// was wider than the screen it sat on and lost a strip off both edges. Anchoring to the
+        /// gutter is correct at every aspect ratio the game runs at.
+        /// </summary>
+        static readonly float CardSideMargin = DesignTokens.Space.Gutter;
+
+        /// <summary>Width of the secondary way into the chapter. Narrow on purpose; see the class doc.</summary>
+        static readonly float SecondaryButtonWidth = DesignTokens.Px(160f);
 
         static GateClosedPanel _current;
 
@@ -97,6 +112,13 @@ namespace SheepGate.UI
 
         // ------------------------------------------------------------------ construction
 
+        /// <summary>
+        /// Builds the card. Height is left to a <see cref="ContentSizeFitter"/> rather than fixed:
+        /// the design system's type is between 1.2 and 1.4 times what this screen was measured at,
+        /// the record line is one or two lines depending on whether the run carries a name, and
+        /// both of those move again with the locale. A fixed height would have to be right for the
+        /// longest of eight combinations, and would be wrong for the other seven.
+        /// </summary>
         void Build(string builderName)
         {
             if (_built)
@@ -108,106 +130,115 @@ namespace SheepGate.UI
 
             var container = (RectTransform)transform;
 
-            Image card = UIKit.CreatePanel(container, "Card", UIKit.Palette.Panel);
+            Image card = UIKit.CreateCard(container, "Card", UIKit.CardStyle.Card);
             var cardRect = (RectTransform)card.transform;
-            cardRect.anchorMin = new Vector2(0.5f, 0.5f);
-            cardRect.anchorMax = new Vector2(0.5f, 0.5f);
+            cardRect.anchorMin = new Vector2(0f, 0.5f);
+            cardRect.anchorMax = new Vector2(1f, 0.5f);
             cardRect.pivot = new Vector2(0.5f, 0.5f);
-            cardRect.sizeDelta = new Vector2(CardWidth, CardHeight);
-            cardRect.anchoredPosition = Vector2.zero;
+            cardRect.offsetMin = new Vector2(CardSideMargin, cardRect.offsetMin.y);
+            cardRect.offsetMax = new Vector2(-CardSideMargin, cardRect.offsetMax.y);
 
-            UIKit.VerticalGroup(card.gameObject, 26f, new RectOffset(52, 52, 48, 48));
+            UIKit.VerticalGroup(card.gameObject, DesignTokens.Space.S16,
+                Pad(DesignTokens.Space.S24, DesignTokens.Space.S24));
 
-            Text kicker = UIKit.CreateText(cardRect, "Kicker", Loc.T("vocation.kicker"),
-                UIKit.FontSize.Meta, UIKit.Palette.Muted, TextAnchor.UpperLeft);
-            SetMinHeight(kicker, 40f);
+            var fitter = card.gameObject.AddComponent<ContentSizeFitter>();
+            fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
-            Text headline = UIKit.CreateText(cardRect, "Headline", Loc.T("vocation.headline"),
-                UIKit.FontSize.Heading, UIKit.Palette.Olive, TextAnchor.UpperLeft);
-            SetMinHeight(headline, 64f);
+            // Eyebrow. Gold is the accent that marks what is new, and this card is dark enough for
+            // Brand.Secondary itself — about 8:1 against Surface.Card.
+            UIKit.CreateText(cardRect, "Kicker", Loc.T("vocation.kicker"),
+                DesignTokens.Type.Mono, DesignTokens.Brand.Secondary, TextAnchor.UpperLeft,
+                DesignTokens.TypeRole.BodyStrong);
 
-            Image rule = UIKit.CreatePanel(cardRect, "Accent", UIKit.Palette.Olive);
+            UIKit.CreateText(cardRect, "Headline", Loc.T("vocation.headline"),
+                DesignTokens.Type.Title, DesignTokens.Ink.Primary, TextAnchor.UpperLeft,
+                DesignTokens.TypeRole.Title);
+
+            // A hairline, not a bar. Two design points thick and in the ink's own colour at 14%:
+            // the design system's progress track has a floor of six and is always accompanied by a
+            // label and a fraction, so nothing this thin and this quiet can be read as progress.
+            //
+            // Drawn with no sprite at all. The panel art is a nine-slice with a bevel, and a
+            // nine-slice squeezed to two points tall renders its borders on top of each other.
+            Image rule = UIKit.CreatePanel(cardRect, "Accent",
+                UIKit.WithAlpha(DesignTokens.Ink.Primary, 0.14f), null);
             rule.raycastTarget = false;
-            SetMinHeight(rule, 6f);
+            SetFixedHeight(rule, DesignTokens.Px(2f));
 
-            Text body = UIKit.CreateText(cardRect, "Body",
-                Loc.T("vocation.body"),
-                UIKit.FontSize.Body, UIKit.Palette.Parchment, TextAnchor.UpperLeft);
-            SetMinHeight(body, 96f);
+            UIKit.CreateText(cardRect, "Body", Loc.T("vocation.body"),
+                DesignTokens.Type.Body, DesignTokens.Ink.Secondary, TextAnchor.UpperLeft);
 
             BuildRecord(cardRect, builderName);
 
-            RectTransform spacer = UIKit.CreateRect("Spacer", cardRect);
-            LayoutElement spacerLayout = UIKit.Layout(spacer);
-            if (spacerLayout != null)
-            {
-                spacerLayout.minHeight = 12f;
-                spacerLayout.flexibleHeight = 1f;
-            }
-
-            Text caption = UIKit.CreateText(cardRect, "ReaderCaption", Loc.T("vocation.reader_caption", ChapterRef),
-                UIKit.FontSize.Meta, UIKit.Palette.Muted, TextAnchor.LowerLeft);
-            SetMinHeight(caption, 36f);
+            UIKit.CreateText(cardRect, "ReaderCaption", Loc.T("vocation.reader_caption", ChapterRef),
+                DesignTokens.Type.Mono, DesignTokens.Ink.Muted, TextAnchor.UpperLeft);
 
             BuildSecondaryRow(cardRect);
 
-            Button continueButton = UIKit.CreateButton(cardRect, "Continue", Loc.T("vocation.continue"),
-                UIKit.Palette.Clay, UIKit.Palette.Parchment, Close);
-            SetMinHeight(continueButton, 124f);
+            UIKit.CreateButton(cardRect, "Continue", Loc.T("vocation.continue"),
+                UIKit.ButtonVariant.Primary, Close);
         }
 
         /// <summary>
         /// The record itself. A name when the run has one; the player, plainly, when it does not —
         /// this build never asks for a name, so the second line is the one most players will read.
+        ///
+        /// The plate is a step down in elevation from the card it sits in, and one radius step
+        /// tighter, so the nesting reads as nesting rather than as two cards that happen to touch.
         /// </summary>
         void BuildRecord(RectTransform cardRect, string builderName)
         {
-            Image plate = UIKit.CreatePanel(cardRect, "Record", UIKit.Palette.PanelSoft);
+            Image plate = UIKit.CreatePanel(cardRect, "Record", DesignTokens.Surface.Panel,
+                UiSpriteKeys.FrameSm);
             plate.raycastTarget = false;
             var plateRect = (RectTransform)plate.transform;
-            UIKit.VerticalGroup(plate.gameObject, 10f, new RectOffset(28, 28, 24, 24));
-            SetMinHeight(plate, 150f);
+            UIKit.VerticalGroup(plate.gameObject, DesignTokens.Space.S8,
+                Pad(DesignTokens.Space.S20, DesignTokens.Space.S16));
 
             string record = string.IsNullOrEmpty(builderName)
                 ? Loc.T("vocation.record.anonymous")
                 : Loc.T("vocation.record.named", builderName);
 
-            Text line = UIKit.CreateText(plateRect, "Line", record,
-                UIKit.FontSize.Body, UIKit.Palette.Parchment, TextAnchor.UpperLeft);
-            SetMinHeight(line, 52f);
+            UIKit.CreateText(plateRect, "Line", record,
+                DesignTokens.Type.Body, DesignTokens.Ink.Primary, TextAnchor.UpperLeft);
 
-            Text reference = UIKit.CreateText(plateRect, "Reference", RecordRef,
-                UIKit.FontSize.Meta, UIKit.Palette.Muted, TextAnchor.UpperLeft);
-            SetMinHeight(reference, 32f);
+            // Mono, because the design system reserves it for quantities, counts and references,
+            // and this is a reference. Never the verse text: only the reference ever travels.
+            UIKit.CreateText(plateRect, "Reference", RecordRef,
+                DesignTokens.Type.Mono, DesignTokens.Ink.Muted, TextAnchor.UpperLeft,
+                DesignTokens.TypeRole.Mono);
         }
 
+        /// <summary>
+        /// The way into the chapter, kept deliberately quiet.
+        ///
+        /// The design system would make this <see cref="UIKit.ButtonVariant.Quest"/>: gold is "the
+        /// call to action that opens something new", and opening a chapter the player has not seen
+        /// is exactly that. <b>It stays Secondary anyway.</b> The product metric is the player who
+        /// opens the chapter without being pushed, and a gold button is a push — it would move the
+        /// number it exists to measure. Do not promote this button.
+        /// </summary>
         void BuildSecondaryRow(RectTransform cardRect)
         {
             RectTransform row = UIKit.CreateRect("SecondaryRow", cardRect);
-            UIKit.HorizontalGroup(row.gameObject, 16f, new RectOffset(0, 0, 0, 0), TextAnchor.MiddleLeft);
-            SetMinHeight(row, 100f);
+            UIKit.HorizontalGroup(row.gameObject, DesignTokens.Space.S16, new RectOffset(),
+                TextAnchor.MiddleLeft);
+            SetFixedHeight(row, DesignTokens.Space.TouchTarget);
 
             Button knowMore = UIKit.CreateButton(row, "KnowMore", Loc.T("vocation.know_more"),
-                UIKit.Palette.PanelSoft, UIKit.Palette.Parchment, OnKnowMoreClicked);
+                UIKit.ButtonVariant.Secondary, OnKnowMoreClicked);
 
             LayoutElement layout = UIKit.Layout(knowMore);
             if (layout != null)
             {
                 layout.minWidth = SecondaryButtonWidth;
                 layout.preferredWidth = SecondaryButtonWidth;
-                layout.minHeight = 96f;
-                layout.preferredHeight = 96f;
-            }
-
-            Text label = knowMore.GetComponentInChildren<Text>();
-            if (label != null)
-            {
-                label.fontSize = UIKit.FontSize.Meta;
-                label.color = UIKit.Palette.Parchment;
             }
         }
 
-        static void SetMinHeight(Component target, float height)
+        /// <summary>Pins a layout child to one height, both as its floor and as its preference.</summary>
+        static void SetFixedHeight(Component target, float height)
         {
             LayoutElement layout = UIKit.Layout(target);
             if (layout == null)
@@ -216,6 +247,15 @@ namespace SheepGate.UI
             }
 
             layout.minHeight = height;
+            layout.preferredHeight = height;
+        }
+
+        /// <summary>Layout padding from two spacing tokens. RectOffset is integral; tokens are not.</summary>
+        static RectOffset Pad(float horizontal, float vertical)
+        {
+            int h = Mathf.RoundToInt(horizontal);
+            int v = Mathf.RoundToInt(vertical);
+            return new RectOffset(h, h, v, v);
         }
 
         // ------------------------------------------------------------------ the reader
@@ -285,24 +325,45 @@ namespace SheepGate.UI
     /// It is built as a closing beat rather than a toast: the screen belongs to it, the name
     /// arrives first and the line a moment later, and the way out is worded as going back to the
     /// wall, because the day is not over for the player who wants to keep walking around it.
+    ///
+    /// DESIGN SYSTEM. This is the one screen in the game that spends <c>Type.Display</c> at full
+    /// size, and the one that gets the pergaminho — <see cref="UIKit.CardStyle.Scroll"/> — rather
+    /// than the dark modal card every other panel uses. Both are deliberate and both are singular:
+    /// the rule is one Display per screen, and the effect of a warm near-white card only survives
+    /// while it is the exception.
+    ///
+    /// Its reference is the design document's "Missão concluída" mock: eyebrow, then a very large
+    /// statement, then rows that cascade in at <c>Motion.RewardStagger</c>. <b>The reward rows are
+    /// deliberately empty.</b> The mock's rows are counts — stone gained, a step completed — and
+    /// there is nothing here that may be counted: naming what the run scored, or how near it came
+    /// to another vocation, is precisely what the no-progress rule forbids. The cascade is applied
+    /// to the blocks that do exist instead, so the choreography of the mock survives without a
+    /// number being invented to fill it.
+    ///
+    /// Gold on the pergaminho is <c>Brand.SecondaryDark</c>, not <c>Brand.Secondary</c>. The two
+    /// are the same accent; the bright one measures about 1.8:1 against <c>Surface.Scroll</c> and
+    /// is unreadable there, and the dark one measures about 5:1. Nothing else changes.
     /// </summary>
     public sealed class VocationRevealPanel : MonoBehaviour
     {
         /// <summary>Id this screen occupies in the modal stack.</summary>
         public const string ModalId = "vocation_reveal";
 
-        const float CardSideMargin = 40f;
-        const float CardTopMargin = 200f;
-        const float CardBottomMargin = 200f;
-
-        const float FadeSeconds = 0.55f;
-        const float LineDelaySeconds = 0.75f;
+        /// <summary>
+        /// The card is nearly the whole screen, which is the point: this is the last beat of the
+        /// POC and it is allowed to own the display. The margins are what is left of the scrim.
+        /// </summary>
+        static readonly float CardSideMargin = DesignTokens.Space.Gutter;
+        static readonly float CardTopMargin = DesignTokens.Px(56f);
+        static readonly float CardBottomMargin = DesignTokens.Px(40f);
 
         static VocationRevealPanel _current;
 
         Action _onClosed;
-        CanvasGroup _cardGroup;
-        CanvasGroup _lineGroup;
+
+        /// <summary>The blocks the entrance cascades, in the order they arrive.</summary>
+        readonly List<CanvasGroup> _cascade = new List<CanvasGroup>();
+
         bool _built;
         bool _closed;
 
@@ -379,44 +440,55 @@ namespace SheepGate.UI
 
             var container = (RectTransform)transform;
 
-            Image card = UIKit.CreatePanel(container, "Card", UIKit.Palette.Panel);
+            Image card = UIKit.CreateCard(container, "Card", UIKit.CardStyle.Scroll);
             var cardRect = (RectTransform)card.transform;
             UIKit.Stretch(cardRect, CardSideMargin, CardSideMargin, CardTopMargin, CardBottomMargin);
-            UIKit.VerticalGroup(card.gameObject, 30f, new RectOffset(56, 56, 64, 56));
 
-            _cardGroup = card.gameObject.AddComponent<CanvasGroup>();
+            // Generous vertical padding and a flexible spacer below the paragraph: the card is
+            // stretched rather than fitted, so the slack has to go somewhere that is not between
+            // the lines the player is reading.
+            UIKit.VerticalGroup(card.gameObject, DesignTokens.Space.S16,
+                Pad(DesignTokens.Space.S24, DesignTokens.Space.S32));
 
             Text kicker = UIKit.CreateText(cardRect, "Kicker", Loc.T("vocation.reveal.kicker"),
-                UIKit.FontSize.Meta, UIKit.Palette.Muted, TextAnchor.UpperLeft);
-            SetMinHeight(kicker, 40f);
+                DesignTokens.Type.Mono, DesignTokens.Brand.SecondaryDark, TextAnchor.UpperLeft,
+                DesignTokens.TypeRole.BodyStrong);
+            Cascade(kicker);
 
+            // The one Display in the game, at the size the design system draws it. Two lines are
+            // allowed for and the layout group measures the real one, so a long name in a long
+            // language wraps rather than being cut.
             Text title = UIKit.CreateText(cardRect, "Name", name,
-                UIKit.FontSize.Title, UIKit.Palette.Parchment, TextAnchor.UpperLeft);
-            SetMinHeight(title, 84f);
-
-            Image rule = UIKit.CreatePanel(cardRect, "Accent", UIKit.Palette.Clay);
-            rule.raycastTarget = false;
-            SetMinHeight(rule, 8f);
+                DesignTokens.Type.Display, DesignTokens.Ink.OnScroll, TextAnchor.UpperLeft,
+                DesignTokens.TypeRole.Display);
+            SetMinHeight(title, DesignTokens.Type.Display);
+            Cascade(title);
 
             Text body = UIKit.CreateText(cardRect, "Line", line,
-                UIKit.FontSize.Body, UIKit.Palette.Parchment, TextAnchor.UpperLeft);
-            body.lineSpacing = 1.15f;
-            SetMinHeight(body, 300f);
-            _lineGroup = body.gameObject.AddComponent<CanvasGroup>();
+                DesignTokens.Type.Body, DesignTokens.Ink.OnScroll, TextAnchor.UpperLeft);
+            Cascade(body);
 
             RectTransform spacer = UIKit.CreateRect("Spacer", cardRect);
             LayoutElement spacerLayout = UIKit.Layout(spacer);
             if (spacerLayout != null)
             {
-                spacerLayout.minHeight = 12f;
+                spacerLayout.minHeight = 0f;
+                spacerLayout.preferredHeight = 0f;
                 spacerLayout.flexibleHeight = 1f;
             }
 
-            Button close = UIKit.CreateButton(cardRect, "Close", Loc.T("vocation.reveal.close"),
-                UIKit.Palette.Clay, UIKit.Palette.Parchment, Close);
-            SetMinHeight(close, 124f);
+            // The button sits in a row of its own so the cascade has a CanvasGroup to fade that is
+            // not the one VariantButton owns for its disabled state. It stays interactable the
+            // whole time; only its opacity arrives late.
+            RectTransform closeRow = UIKit.CreateRect("CloseRow", cardRect);
+            UIKit.VerticalGroup(closeRow.gameObject, 0f, new RectOffset());
+            SetMinHeight(closeRow, DesignTokens.Space.TouchTarget);
 
-            PlayEntrance();
+            UIKit.CreateButton(closeRow, "Close", Loc.T("vocation.reveal.close"),
+                UIKit.ButtonVariant.Primary, Close);
+            Cascade(closeRow);
+
+            PlayEntrance(title);
         }
 
         /// <summary>
@@ -485,66 +557,96 @@ namespace SheepGate.UI
             layout.minHeight = height;
         }
 
+        /// <summary>Layout padding from two spacing tokens. RectOffset is integral; tokens are not.</summary>
+        static RectOffset Pad(float horizontal, float vertical)
+        {
+            int h = Mathf.RoundToInt(horizontal);
+            int v = Mathf.RoundToInt(vertical);
+            return new RectOffset(h, h, v, v);
+        }
+
         // ------------------------------------------------------------------ entrance
 
-        /// <summary>
-        /// The name lands, then the line. Purely a fade: the button is built, placed and usable
-        /// from the first frame, and a panel that could not animate is shown whole rather than
-        /// left invisible.
-        /// </summary>
-        void PlayEntrance()
+        /// <summary>Enrols a block in the entrance cascade, in call order.</summary>
+        void Cascade(Component block)
         {
-            if (!isActiveAndEnabled)
+            if (block == null)
             {
-                SetAlpha(_cardGroup, 1f);
-                SetAlpha(_lineGroup, 1f);
                 return;
             }
 
-            SetAlpha(_cardGroup, 0f);
-            SetAlpha(_lineGroup, 0f);
-            StartCoroutine(FadeIn());
-        }
-
-        IEnumerator FadeIn()
-        {
-            yield return Fade(_cardGroup, FadeSeconds);
-            yield return new WaitForSecondsRealtime(LineDelaySeconds);
-            yield return Fade(_lineGroup, FadeSeconds);
-        }
-
-        static IEnumerator Fade(CanvasGroup group, float seconds)
-        {
+            CanvasGroup group = block.GetComponent<CanvasGroup>();
             if (group == null)
             {
-                yield break;
+                group = block.gameObject.AddComponent<CanvasGroup>();
             }
 
-            float elapsed = 0f;
-            while (elapsed < seconds)
-            {
-                elapsed += Time.unscaledDeltaTime;
+            _cascade.Add(group);
+        }
 
+        /// <summary>
+        /// The blocks arrive one after another, a <c>Motion.RewardStagger</c> apart, each over
+        /// <c>Motion.Reward</c>. That is the design system's reward-card entrance, applied to the
+        /// only screen that has a reward to hand over.
+        ///
+        /// Every step is a fade, which the design system classes as information rather than as
+        /// decoration and therefore keeps running under reduced motion — the whole cascade is
+        /// under half a second, and a screen that arrived blank and stayed blank would be worse
+        /// than one that arrived at once. The single decorative flourish is the scale bump on the
+        /// name, which <see cref="UIMotion.Pulse"/> suppresses when motion is reduced.
+        ///
+        /// The close button is built, placed and hittable from the first frame regardless: a
+        /// CanvasGroup at zero alpha still takes a tap, and nothing about this screen is a gate.
+        /// </summary>
+        void PlayEntrance(Text title)
+        {
+            if (!isActiveAndEnabled)
+            {
+                ShowEverything();
+                return;
+            }
+
+            for (int i = 0; i < _cascade.Count; i++)
+            {
+                CanvasGroup group = _cascade[i];
                 if (group == null)
                 {
-                    yield break;
+                    continue;
                 }
 
-                group.alpha = Mathf.Clamp01(elapsed / seconds);
-                yield return null;
+                group.alpha = 0f;
+
+                // The first block starts this frame. UIMotion.After always costs a frame before it
+                // fires, and a screen that opens on nothing at all reads as a hitch.
+                if (i == 0)
+                {
+                    UIMotion.Fade(group, 1f, DesignTokens.Motion.Reward);
+                    continue;
+                }
+
+                CanvasGroup captured = group;
+                UIMotion.After(this, i * DesignTokens.Motion.RewardStagger,
+                    () => UIMotion.Fade(captured, 1f, DesignTokens.Motion.Reward));
             }
 
-            if (group != null)
+            if (title != null)
             {
-                group.alpha = 1f;
+                UIMotion.After(this, DesignTokens.Motion.RewardStagger,
+                    () => UIMotion.Pulse((RectTransform)title.transform, NamePeakScale, DesignTokens.Motion.Reward));
             }
         }
 
-        static void SetAlpha(CanvasGroup group, float alpha)
+        /// <summary>The design system's reward entrance: 1 to 1.04 to 1, and no confetti.</summary>
+        const float NamePeakScale = 1.04f;
+
+        void ShowEverything()
         {
-            if (group != null)
+            for (int i = 0; i < _cascade.Count; i++)
             {
-                group.alpha = alpha;
+                if (_cascade[i] != null)
+                {
+                    _cascade[i].alpha = 1f;
+                }
             }
         }
 

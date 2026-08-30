@@ -45,12 +45,78 @@ namespace SheepGate.Scripture
         const string ScribeVocationId = "escriba";
         const int ScribePoints = 2;
 
-        const float PanelInsetX = 20f;
-        const float PanelInsetTop = 48f;
-        const float PanelInsetBottom = 36f;
-        const float HeaderHeight = 132f;
-        const float FooterHeight = 96f;
-        const float VerseNumberColumnWidth = 76f;
+        // ------------------------------------------------------------------ geometry
+        //
+        // Every length below comes from DesignTokens. The screen is one column — page, rule,
+        // reading area, colophon — stacked by a VerticalLayoutGroup rather than by four sets of
+        // hand-tuned offsets. That is not tidiness: the translation notice this build ships runs
+        // to about 350 characters, and at the design system's minimum size it wraps to seven
+        // lines. The old fixed 96-unit footer could not hold two of them, and Text overflows
+        // upward from a LowerLeft anchor, so the notice was drawing over the last verses of the
+        // chapter. A layout group asks the notice how tall it is and gives the reading area
+        // whatever is left, in any language and at any notice length.
+
+        /// <summary>Gutter between the modal's edge and the page.</summary>
+        static readonly float SheetInsetX = DesignTokens.Space.S12;
+        static readonly float SheetInsetTop = DesignTokens.Space.S20;
+        static readonly float SheetInsetBottom = DesignTokens.Space.S16;
+
+        /// <summary>
+        /// Padding from the page's edge to anything printed on it.
+        ///
+        /// <c>UiArt.ScrollHalo</c> is added because the pergaminho frame keeps its soft elevated
+        /// edge inside its own rect: without it the text sits two design points nearer the visible
+        /// edge than the number says.
+        /// </summary>
+        static readonly float PagePadding = DesignTokens.Space.S16 + SheepGate.Art.UiArt.ScrollHalo;
+
+        /// <summary>The header is a touch-target row: the close button sets its height.</summary>
+        static readonly float HeaderHeight = DesignTokens.Space.TouchTarget;
+
+        /// <summary>Room for "Fechar" at body-strong weight plus the button's own padding.</summary>
+        static readonly float CloseButtonWidth = DesignTokens.Px(104f);
+
+        /// <summary>One design point. A hairline, not a divider.</summary>
+        static readonly float RuleThickness = DesignTokens.Px(1f);
+
+        /// <summary>
+        /// Width of the always-visible scrollbar, in the design system's units — the width it was
+        /// already drawn at, restated rather than changed.
+        ///
+        /// Its permanence is the part that must not move. A bar that appears and disappears
+        /// resizes the viewport, and the viewport height is the denominator of the scroll fraction
+        /// that decides whether deep_read fires. The measurement stays honest because the bar
+        /// never changes the geometry it is measured against.
+        /// </summary>
+        static readonly float ScrollbarWidth = DesignTokens.Px(4f);
+
+        /// <summary>
+        /// Floor under the reading area, so no colophon length can squeeze the chapter to nothing.
+        /// If a notice ever overruns this the page overflows and someone sees it, which is the
+        /// failure worth having: silently shrinking the one screen the product is measured on is
+        /// not.
+        /// </summary>
+        static readonly float ReadingMinHeight = DesignTokens.Px(240f);
+
+        /// <summary>Hanging indent for the verse numbers. Three mono digits, right aligned.</summary>
+        static readonly float VerseNumberColumnWidth = DesignTokens.Px(24f);
+
+        /// <summary>
+        /// Leading for the chapter itself, as a multiple of the font size.
+        ///
+        /// The design system's body leading is 22 over 15, which is interface leading — sized for
+        /// a sentence or two between other controls. This is the only screen in the game meant to
+        /// be read for minutes, and a column read for minutes wants the long-form step. Expressed
+        /// over the same 15 as the token so the two can be compared without arithmetic.
+        /// </summary>
+        const float ReadingLeading = 25f / 15f;
+
+        /// <summary>
+        /// Leading for the translation notice. Tighter than body, because a block of legal text
+        /// reads as one object rather than as prose, and every line it saves is a line of the
+        /// chapter the player gets back.
+        /// </summary>
+        const float ColophonLeading = 15f / 12f;
 
         // Chapters whose deep_read already fired in this process. Cheap protection against a
         // reader that is closed and reopened before the save is read again.
@@ -201,6 +267,13 @@ namespace SheepGate.Scripture
 
             // Measure from a settled layout: content height read on the frame it was built would
             // otherwise be zero and make the scroll fraction meaningless.
+            //
+            // The page is rebuilt first and the column second, and the order is load-bearing now
+            // that the page is a layout group. The viewport's height is whatever the column above
+            // it did not take, and the viewport height is the other half of the scroll fraction —
+            // measuring the content against a viewport that had not been sized yet would report a
+            // chapter as already read.
+            UIKit.RebuildNow((RectTransform)transform);
             UIKit.RebuildNow(_content);
 
             // Set again now that the content has a real height: a scroll position assigned before
@@ -213,74 +286,174 @@ namespace SheepGate.Scripture
             _maxScrollFraction = CurrentScrollFraction();
         }
 
+        /// <summary>
+        /// The page: header, hairline, chapter, colophon, stacked top to bottom.
+        ///
+        /// The surface is <see cref="UIKit.CardStyle.Scroll"/> — the pergaminho card section 06 of
+        /// the design document applies to anything read at length, and this screen is the only one
+        /// in the game read for minutes. Everything printed on it therefore takes
+        /// <c>Ink.OnScroll</c> and <c>Ink.OnScrollMuted</c>: the dark-surface inks are invisible
+        /// here, and asking <see cref="UIKit.InkFor"/> rather than assuming is the habit that keeps
+        /// a future edit from painting parchment on parchment.
+        /// </summary>
         void BuildLayout(ChapterEntry chapter)
         {
             var container = (RectTransform)transform;
 
-            Image sheet = UIKit.CreatePanel(container, "ReaderSheet", UIKit.Palette.Panel);
+            Image sheet = UIKit.CreateCard(container, "ReaderSheet", UIKit.CardStyle.Scroll);
             var sheetRect = (RectTransform)sheet.transform;
-            UIKit.Stretch(sheetRect, PanelInsetX, PanelInsetX, PanelInsetTop, PanelInsetBottom);
+            UIKit.Stretch(sheetRect, SheetInsetX, SheetInsetX, SheetInsetTop, SheetInsetBottom);
+
+            int pad = Mathf.RoundToInt(PagePadding);
+            UIKit.VerticalGroup(sheet.gameObject, DesignTokens.Space.S12,
+                                new RectOffset(pad, pad, pad, pad));
+
+            Color ink = UIKit.InkFor(UIKit.CardStyle.Scroll);
 
             // ---- header
             RectTransform header = UIKit.CreateRect("Header", sheetRect);
-            UIKit.AnchorTop(header, HeaderHeight, 24f, 24f, 16f);
+            LayoutElement headerLayout = UIKit.Layout(header);
+            headerLayout.minHeight = HeaderHeight;
+            headerLayout.preferredHeight = HeaderHeight;
 
             string title = chapter != null && !string.IsNullOrEmpty(chapter.ref_display)
                 ? chapter.ref_display
                 : _chapterKey;
 
-            Text titleText = UIKit.CreateText(header, "Title", title, UIKit.FontSize.Title, UIKit.Palette.Parchment, TextAnchor.MiddleLeft);
-            UIKit.Stretch((RectTransform)titleText.transform, 8f, 236f, 0f, 0f);
+            Text titleText = UIKit.CreateText(header, "Title", title, DesignTokens.Type.Title, ink,
+                                              TextAnchor.MiddleLeft, DesignTokens.TypeRole.Title);
+            UIKit.Stretch((RectTransform)titleText.transform,
+                          0f, CloseButtonWidth + DesignTokens.Space.S12, 0f, 0f);
 
-            Button close = UIKit.CreateButton(header, "Close", Loc.T("reader.close"), UIKit.Palette.PanelSoft, UIKit.Palette.Parchment, Close);
+            // Primary, and not the secondary or ghost the chrome of a reading screen would
+            // normally take. The six variants are specified against the dark surfaces; on the
+            // pergaminho only the two filled ones keep their contrast, because a translucent
+            // parchment fill and a parchment label both vanish into a near-white card. Quest is
+            // the other filled one and rule 9 reserves gold for what is new, so clay it is — and
+            // the way out of the most important screen in the product had better be the one
+            // control on it a thumb cannot miss.
+            Button close = UIKit.CreateButton(header, "Close", Loc.T("reader.close"),
+                                              UIKit.ButtonVariant.Primary, Close);
             var closeRect = (RectTransform)close.transform;
             closeRect.anchorMin = new Vector2(1f, 0.5f);
             closeRect.anchorMax = new Vector2(1f, 0.5f);
             closeRect.pivot = new Vector2(1f, 0.5f);
-            closeRect.sizeDelta = new Vector2(212f, 96f);
-            closeRect.anchoredPosition = new Vector2(-8f, 0f);
+            closeRect.sizeDelta = new Vector2(CloseButtonWidth, HeaderHeight);
+            closeRect.anchoredPosition = Vector2.zero;
 
-            Image rule = UIKit.CreatePanel(sheetRect, "HeaderRule", UIKit.Palette.Stone);
-            var ruleRect = (RectTransform)rule.transform;
-            UIKit.AnchorTop(ruleRect, 3f, 24f, 24f, 16f + HeaderHeight);
+            // No sprite: a hairline is one design point tall, and the nine-slice frames carry
+            // corner slices many times that. Sliced art squeezed into a rect thinner than its own
+            // border does not draw a thin line, it draws a smeared corner.
+            Image rule = UIKit.CreatePanel(sheetRect, "HeaderRule",
+                                           UIKit.WithAlpha(DesignTokens.Ink.OnScrollMuted, 0.35f), null);
             rule.raycastTarget = false;
-
-            // ---- footer
-            RectTransform footer = UIKit.CreateRect("Footer", sheetRect);
-            UIKit.AnchorBottom(footer, FooterHeight, 24f, 24f, 12f);
-
-            Text meta = UIKit.CreateText(footer, "Meta", BuildMetaLine(chapter), UIKit.FontSize.Meta, UIKit.Palette.Muted, TextAnchor.LowerLeft);
-            UIKit.Stretch((RectTransform)meta.transform, 8f, 8f, 4f, 4f);
+            LayoutElement ruleLayout = UIKit.Layout(rule);
+            ruleLayout.minHeight = RuleThickness;
+            ruleLayout.preferredHeight = RuleThickness;
 
             // ---- chapter body
+            //
+            // Built before the colophon so the sibling order is the reading order, and given the
+            // only flexible height on the page: header, rule and colophon each ask for exactly
+            // what they need, and every remaining unit goes to the chapter.
             RectTransform content;
             _scroll = UIKit.CreateScrollView(sheetRect, "Chapter", out content);
             _content = content;
             _viewport = _scroll.viewport;
 
-            var scrollRect = (RectTransform)_scroll.transform;
-            UIKit.Stretch(
-                scrollRect,
-                16f,
-                16f,
-                16f + HeaderHeight + 14f,
-                12f + FooterHeight + 10f);
+            LayoutElement scrollLayout = UIKit.Layout(_scroll);
+            scrollLayout.minHeight = ReadingMinHeight;
+            scrollLayout.flexibleHeight = 1f;
 
-            UIKit.AttachVerticalScrollbar(_scroll, 10f);
+            StyleContentColumn();
+
+            // Permanent, and permanent on purpose. See ScrollbarWidth.
+            UIKit.AttachVerticalScrollbar(_scroll, ScrollbarWidth);
 
             BuildVerses(chapter);
+
+            // ---- colophon
+            BuildColophon(sheetRect, chapter);
 
             // Start at the top of the chapter.
             _scroll.verticalNormalizedPosition = 1f;
         }
 
+        /// <summary>
+        /// Re-measures the column <see cref="UIKit.CreateScrollView"/> builds for a page of prose.
+        ///
+        /// The kit's defaults are sized for a list of controls inside a panel that has no padding
+        /// of its own. Here the page is already padded, so the left inset goes to zero and the
+        /// right inset becomes exactly the clearance the always-visible scrollbar needs — without
+        /// it the last word of every line runs under the bar, which is the kind of thing that
+        /// looks like a font problem and is a padding problem.
+        /// </summary>
+        void StyleContentColumn()
+        {
+            var column = _content.GetComponent<VerticalLayoutGroup>();
+            if (column == null)
+            {
+                return;
+            }
+
+            column.spacing = DesignTokens.Space.S16;
+            column.padding = new RectOffset(
+                0,
+                Mathf.RoundToInt(ScrollbarWidth + DesignTokens.Space.S8),
+                Mathf.RoundToInt(DesignTokens.Space.S4),
+                Mathf.RoundToInt(DesignTokens.Space.S32));
+        }
+
+        /// <summary>
+        /// The reference, the translation's abbreviation, and its copyright notice.
+        ///
+        /// A nested layout group rather than a fixed-height strip, so the notice is measured
+        /// rather than guessed at. It is also the reason there is no ContentSizeFitter here: a
+        /// group is itself a layout element, so the page above asks it how tall it is and gets a
+        /// real answer, while a fitter inside a group would fight the group for the same rect.
+        /// </summary>
+        void BuildColophon(RectTransform sheetRect, ChapterEntry chapter)
+        {
+            VersionInfo version = SafeVersion();
+
+            RectTransform footer = UIKit.CreateRect("Colophon", sheetRect);
+            UIKit.VerticalGroup(footer.gameObject, DesignTokens.Space.S4, new RectOffset());
+
+            // Mono, because a chapter-and-verse reference is a reference: the design system's own
+            // definition of what the mono face is for, and its digits are tabular so a two-digit
+            // chapter does not shuffle the abbreviation sideways.
+            UIKit.CreateText(footer, "Reference", BuildMetaLine(chapter, version),
+                             DesignTokens.Type.Mono, DesignTokens.Ink.OnScrollMuted,
+                             TextAnchor.LowerLeft, DesignTokens.TypeRole.Mono);
+
+            string notice = version != null ? version.copyright : null;
+            if (string.IsNullOrEmpty(notice))
+            {
+                return;
+            }
+
+            Text copyright = UIKit.CreateText(footer, "Copyright", notice,
+                                              DesignTokens.Type.Minimum, DesignTokens.Ink.OnScrollMuted,
+                                              TextAnchor.LowerLeft);
+            copyright.lineSpacing = UIKit.LineSpacingFor(copyright.font, ColophonLeading);
+        }
+
+        /// <summary>
+        /// One row per verse: a mono number in a hanging indent, then the verse.
+        ///
+        /// The verse itself is the only text in the game that gets <see cref="ReadingLeading"/>.
+        /// The line this replaced set <c>lineSpacing = 1.15f</c> directly, which is not leading at
+        /// all — <see cref="Text.lineSpacing"/> multiplies the font's own line height rather than
+        /// the font size, so a raw 1.15 was setting the chapter about 20% tighter than the design
+        /// system's interface copy on the one screen that wanted it looser.
+        /// </summary>
         void BuildVerses(ChapterEntry chapter)
         {
             ChapterVerse[] verses = chapter != null ? chapter.verses : null;
             if (verses == null || verses.Length == 0)
             {
                 Text empty = UIKit.CreateText(_content, "Empty", Loc.T("reader.empty"),
-                    UIKit.FontSize.Body, UIKit.Palette.Muted, TextAnchor.UpperLeft);
+                    DesignTokens.Type.Body, DesignTokens.Ink.OnScrollMuted, TextAnchor.UpperLeft);
                 UIKit.Layout(empty).flexibleWidth = 1f;
                 return;
             }
@@ -294,50 +467,51 @@ namespace SheepGate.Scripture
                 }
 
                 RectTransform row = UIKit.CreateRect("Verse_" + verse.n, _content);
-                UIKit.HorizontalGroup(row.gameObject, 16f, new RectOffset(0, 0, 0, 0), TextAnchor.UpperLeft);
+                UIKit.HorizontalGroup(row.gameObject, DesignTokens.Space.S8, new RectOffset(),
+                                      TextAnchor.UpperLeft);
 
-                Text number = UIKit.CreateText(row, "Number", verse.n.ToString(), UIKit.FontSize.Meta, UIKit.Palette.Muted, TextAnchor.UpperRight);
+                Text number = UIKit.CreateText(row, "Number", verse.n.ToString(),
+                    DesignTokens.Type.Mono, DesignTokens.Ink.OnScrollMuted, TextAnchor.UpperRight,
+                    DesignTokens.TypeRole.Mono);
                 LayoutElement numberLayout = UIKit.Layout(number);
                 numberLayout.preferredWidth = VerseNumberColumnWidth;
                 numberLayout.minWidth = VerseNumberColumnWidth;
                 numberLayout.flexibleWidth = 0f;
 
-                Text body = UIKit.CreateText(row, "Body", verse.text ?? string.Empty, UIKit.FontSize.Body, UIKit.Palette.Parchment, TextAnchor.UpperLeft);
-                body.lineSpacing = 1.15f;
+                Text body = UIKit.CreateText(row, "Body", verse.text ?? string.Empty,
+                    DesignTokens.Type.Body, DesignTokens.Ink.OnScroll, TextAnchor.UpperLeft);
+                body.lineSpacing = UIKit.LineSpacingFor(body.font, ReadingLeading);
                 LayoutElement bodyLayout = UIKit.Layout(body);
                 bodyLayout.flexibleWidth = 1f;
             }
         }
 
-        string BuildMetaLine(ChapterEntry chapter)
+        /// <summary>The reference and the translation's abbreviation, on one line.</summary>
+        string BuildMetaLine(ChapterEntry chapter, VersionInfo version)
         {
             string reference = chapter != null && !string.IsNullOrEmpty(chapter.ref_display)
                 ? chapter.ref_display
                 : _chapterKey;
 
-            VersionInfo version = null;
+            if (version != null && !string.IsNullOrEmpty(version.abbrev))
+            {
+                reference += "  ·  " + version.abbrev;
+            }
+
+            return reference;
+        }
+
+        static VersionInfo SafeVersion()
+        {
             try
             {
-                version = ScriptureService.Version;
+                return ScriptureService.Version;
             }
             catch (Exception exception)
             {
                 Debug.LogWarning("[ChapterReaderUI] Could not read the translation metadata: " + exception.Message);
+                return null;
             }
-
-            string line = reference;
-
-            if (version != null && !string.IsNullOrEmpty(version.abbrev))
-            {
-                line += "  ·  " + version.abbrev;
-            }
-
-            if (version != null && !string.IsNullOrEmpty(version.copyright))
-            {
-                line += "\n" + version.copyright;
-            }
-
-            return line;
         }
 
         // ------------------------------------------------------------------ measurement

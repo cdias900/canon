@@ -857,8 +857,22 @@ namespace SheepGate.World
         void BuildFade()
         {
             Canvas canvas = UIKit.CreateCanvas("IntroFadeCanvas", 400);
+
             // The fade covers everything, camera housing included, so it stays outside the safe area.
-            _fade = UIKit.Bleed(UIKit.CreatePanel((RectTransform)canvas.transform, "Fade", UIKit.Palette.Ink));
+            //
+            // Surface.Background, which is the colour the whole game sits on, so a beat between two
+            // shots reads as the world going away rather than as a black card being laid over it.
+            // And no sprite at all: a fade is the one full-screen graphic that has to be flat,
+            // because the kit's panel is a nine-slice with a rim on it and stretching that rim
+            // across the screen draws a faint frame around every beat. CreateScrim passes null for
+            // the same reason.
+            //
+            // Exactly one Image lives under this canvas, and that is load bearing: the e2e run
+            // reads the fade's alpha through GetComponentInChildren<Image> to decide whether the
+            // HUD is really on screen, and a second graphic here would answer for the first.
+            _fade = UIKit.Bleed(UIKit.CreatePanel((RectTransform)canvas.transform, "Fade",
+                DesignTokens.Surface.Background, null));
+
             UIKit.Stretch((RectTransform)_fade.transform);
             _fade.raycastTarget = false;
             SetFadeAlpha(1f);

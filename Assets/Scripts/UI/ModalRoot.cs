@@ -16,11 +16,24 @@ namespace SheepGate.UI
     ///
     /// Layering: each push gets a full-screen container with its own scrim, added as the last
     /// sibling, so a later push draws over an earlier one and blocks it.
+    ///
+    /// This is elevation 2 of the design system's three steps, and it is the only one made of two
+    /// pieces: <c>Surface.Card</c> laid over <c>Surface.Scrim</c>. <see cref="Push(string)"/> lays
+    /// the scrim, and <see cref="PushCard"/> lays both — a panel that builds its own surface on top
+    /// of a bare container is a panel deciding for itself what a modal looks like, which is the
+    /// thing a design system exists to stop.
     /// </summary>
     public sealed class ModalRoot : MonoBehaviour
     {
         /// <summary>Above the HUD, below nothing else in the POC.</summary>
         public const int CanvasSortingOrder = 300;
+
+        /// <summary>
+        /// Name of the card <see cref="PushCard"/> builds. It matches what the panels already call
+        /// the surface they build by hand, so migrating one onto the shell does not move the handle
+        /// the e2e run and every screenshot review reach for.
+        /// </summary>
+        const string CardName = "Card";
 
         static ModalRoot _instance;
         static bool _quitting;
@@ -185,7 +198,10 @@ namespace SheepGate.UI
             UIKit.Stretch(container);
             container.SetAsLastSibling();
 
-            // The scrim is the first child, so panel content added later draws over it.
+            // The scrim is the first child, so panel content added later draws over it. Its colour
+            // is Surface.Scrim, resolved inside the kit; it bleeds past the safe area because a dim
+            // that stopped at the inset would leave a lit strip along the top and bottom of a
+            // darkened screen, which reads as a rendering fault rather than as a modal.
             UIKit.Bleed(UIKit.CreateScrim(container, "Scrim"));
 
             bool wasClosed = _stack.Count == 0;
@@ -197,6 +213,62 @@ namespace SheepGate.UI
             }
 
             return container;
+        }
+
+        /// <summary>
+        /// Opens a modal and returns the card its content belongs in, rather than the bare
+        /// container. This is the shape the design system specifies for elevation 2: a
+        /// <see cref="UIKit.CardStyle.Card"/> surface over the scrim, inset by the screen gutter,
+        /// centred, and exactly as tall as what is put inside it.
+        ///
+        /// The card measures itself. A <see cref="ContentSizeFitter"/> over a vertical group means
+        /// a panel adds rows and the card grows, which is what the move onto the design system's
+        /// type scale made necessary: every hardcoded panel height in this project was measured
+        /// against a smaller font than the one the game now draws.
+        ///
+        /// <see cref="Push(string)"/> is untouched and still returns the bare container, because
+        /// every panel in the game currently builds its own surface inside one. This is the surface
+        /// they should be built on instead, and the two can coexist while they migrate: pushing the
+        /// same id twice returns the card that is already there rather than stacking a second one.
+        /// </summary>
+        /// <param name="id">The modal's id, as <see cref="Push(string)"/> takes it.</param>
+        /// <param name="container">The full-screen container the card sits in, scrim included.</param>
+        /// <returns>The card to parent content to, or null when the push failed.</returns>
+        public RectTransform PushCard(string id, out RectTransform container)
+        {
+            container = Push(id);
+            if (container == null)
+            {
+                return null;
+            }
+
+            Transform existing = container.Find(CardName);
+            if (existing != null)
+            {
+                return (RectTransform)existing;
+            }
+
+            Image card = UIKit.CreateCard(container, CardName, UIKit.CardStyle.Card);
+            var rect = (RectTransform)card.transform;
+
+            // Full width inside the gutter, vertically centred, height driven by the fitter below.
+            rect.anchorMin = new Vector2(0f, 0.5f);
+            rect.anchorMax = new Vector2(1f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.sizeDelta = new Vector2(-2f * DesignTokens.Space.Gutter, 0f);
+            rect.anchoredPosition = Vector2.zero;
+
+            UIKit.VerticalGroup(card.gameObject, DesignTokens.Space.S16, new RectOffset(
+                Mathf.RoundToInt(DesignTokens.Space.S20),
+                Mathf.RoundToInt(DesignTokens.Space.S20),
+                Mathf.RoundToInt(DesignTokens.Space.S24),
+                Mathf.RoundToInt(DesignTokens.Space.S24)));
+
+            var fitter = card.gameObject.AddComponent<ContentSizeFitter>();
+            fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            return rect;
         }
 
         /// <summary>Pushes an id and reparents an already-built panel into the new container.</summary>

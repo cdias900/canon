@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using SheepGate.Core;
 using SheepGate.Player;
@@ -13,8 +12,13 @@ namespace SheepGate.Contest
 {
     /// <summary>
     /// The page. This is the moment the POC exists to test, so it is built as a scene and not as
-    /// a toast: the fight stops, the screen goes quiet, and one passage comes up on its own card
-    /// with its reference in the footer, in the same type size as any other metadata.
+    /// a toast: the fight stops, the screen goes quiet, and one passage comes up on its own card.
+    ///
+    /// It is the one screen in the game built on <see cref="UIKit.CardStyle.Scroll"/> — the
+    /// pergaminho of section 06, warm and near-white — while everything around it is the dark
+    /// stack the rest of day three lives on. That contrast is the whole treatment. The text does
+    /// not need a bigger font to carry weight here; it needs to be the only lit thing on screen,
+    /// and it is. Ink on it is <c>Ink.OnScroll</c>, never a dark-surface ink, which would vanish.
     ///
     /// Two things happen at the same instant, and the order matters. The player finds out what
     /// this text is, and the text becomes the strongest move on the menu. Nothing announces
@@ -24,8 +28,9 @@ namespace SheepGate.Contest
     /// Scripture is never written in this file. Only the reference travels, and
     /// <see cref="ScriptureService"/> resolves it against the generated verses.json.
     ///
-    /// Leaving is free. "Pular" is on screen from the first frame and costs the player nothing:
-    /// closing the page for real is what scores, skipping it just does not.
+    /// Leaving is free. "Pular" is on screen from the first frame, outside the card and outside
+    /// the card's canvas group, so it is tappable while the card is still arriving: closing the
+    /// page for real is what scores, skipping it just does not.
     /// </summary>
     public sealed class ThePagePanel : MonoBehaviour
     {
@@ -40,11 +45,38 @@ namespace SheepGate.Contest
         const int ProphetPoints = 3;
         const string ProphetCounter = "prophet_page_awarded";
 
-        const float SlideSeconds = 0.45f;
-        const float SlideDistance = 260f;
+        // ------------------------------------------------------------------ layout
 
-        const float SideMargin = 56f;
-        const float CardPadding = 44f;
+        /// <summary>Left and right margin of the card, matching every other screen's gutter.</summary>
+        static readonly float SideMargin = DesignTokens.Space.Gutter;
+
+        /// <summary>
+        /// Padding inside the card.
+        ///
+        /// The pergaminho frame is drawn with a soft elevated edge rather than a border, and its
+        /// visible body is inset by <c>UiArt.ScrollHalo</c> on every side. Spending the halo here
+        /// is what keeps the first word of the passage a full S20 from the paper's edge instead of
+        /// that much less. Fully qualified rather than imported: the art module publishes a
+        /// <c>UiSpriteKeys</c> of its own, and a using directive for it would make every
+        /// unqualified mention of that name in this file ambiguous.
+        /// </summary>
+        static readonly float CardPadding = DesignTokens.Space.S20 + SheepGate.Art.UiArt.ScrollHalo;
+
+        /// <summary>Gap between the eyebrow, the passage, the footer and the way out.</summary>
+        static readonly float CardSpacing = DesignTokens.Space.S20;
+
+        /// <summary>How far the card travels on its way in. Decoration, so reduced motion drops it.</summary>
+        static readonly float EntranceRise = DesignTokens.Space.S32;
+
+        /// <summary>
+        /// Room held for "Saber mais". Wide enough for the label at <c>Type.Body</c> plus the
+        /// button's own padding in both languages, so the one control that leads to the chapter
+        /// never wraps its own words.
+        /// </summary>
+        static readonly float ReadButtonWidth = DesignTokens.Px(132f);
+
+        /// <summary>"Pular" plus its padding, on a full touch target. Never below 48 either way.</summary>
+        static readonly Vector2 SkipSize = new Vector2(DesignTokens.Px(96f), DesignTokens.Space.TouchTarget);
 
         static ThePagePanel _current;
 
@@ -119,7 +151,7 @@ namespace SheepGate.Contest
 
             VerseEntry verse = ScriptureService.GetVerse(VerseRef);
 
-            Image card = UIKit.CreatePanel(container, "PageCard", UIKit.Palette.Parchment, UiSpriteKeys.Panel);
+            Image card = UIKit.CreateCard(container, "PageCard", UIKit.CardStyle.Scroll);
             _card = (RectTransform)card.transform;
             _card.anchorMin = new Vector2(0f, 0.5f);
             _card.anchorMax = new Vector2(1f, 0.5f);
@@ -127,11 +159,11 @@ namespace SheepGate.Contest
             _card.offsetMin = new Vector2(SideMargin, _card.offsetMin.y);
             _card.offsetMax = new Vector2(-SideMargin, _card.offsetMax.y);
 
-            UIKit.VerticalGroup(
-                card.gameObject,
-                28f,
-                new RectOffset((int)CardPadding, (int)CardPadding, (int)CardPadding, (int)CardPadding));
+            UIKit.VerticalGroup(card.gameObject, CardSpacing, Pad(CardPadding));
 
+            // The card is exactly as tall as what is on it. The passage runs from two lines to
+            // six depending on the translation the build shipped with, and a fixed height would
+            // either clip the long one or leave a slab of empty paper under the short one.
             var fitter = card.gameObject.AddComponent<ContentSizeFitter>();
             fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
             fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
@@ -144,19 +176,23 @@ namespace SheepGate.Contest
                 _card,
                 "Eyebrow",
                 Loc.T("page.eyebrow"),
-                UIKit.FontSize.Meta,
-                UIKit.Palette.Stone,
-                TextAnchor.UpperLeft);
+                DesignTokens.Type.Minimum,
+                DesignTokens.Ink.OnScrollMuted,
+                TextAnchor.UpperLeft,
+                DesignTokens.TypeRole.BodyStrong);
 
             Text body = UIKit.CreateText(
                 _card,
                 "Verse",
                 verse != null ? verse.text : string.Empty,
-                UIKit.FontSize.Body,
-                UIKit.Palette.Ink,
+                DesignTokens.Type.Body,
+                DesignTokens.Ink.OnScroll,
                 TextAnchor.UpperLeft);
+
+            // Italic marks it as quoted rather than spoken. The leading is left where CreateText
+            // put it: the design system's body leading is the same on this card as anywhere else,
+            // and a page that set its own would be the one paragraph in the game out of pitch.
             body.fontStyle = FontStyle.Italic;
-            body.lineSpacing = 1.15f;
 
             BuildFooter(verse);
 
@@ -164,81 +200,75 @@ namespace SheepGate.Contest
                 _card,
                 "CloseButton",
                 Loc.T("page.close"),
-                UIKit.Palette.Clay,
-                UIKit.Palette.Parchment,
+                UIKit.ButtonVariant.Primary,
                 Close);
-            LayoutElement closeLayout = UIKit.Layout(_closeButton);
-            if (closeLayout != null)
-            {
-                closeLayout.preferredHeight = 116f;
-                closeLayout.minHeight = 116f;
-            }
 
+            // Outside the card, so the card's canvas group cannot make it wait for the entrance,
+            // and Ghost because it is the option that costs the player nothing to ignore — which
+            // is the whole promise this panel makes about skipping.
             _skipButton = UIKit.CreateButton(
                 container,
                 "SkipButton",
                 Loc.T("page.skip"),
-                new Color(0f, 0f, 0f, 0f),
-                UIKit.Palette.Muted,
+                UIKit.ButtonVariant.Ghost,
                 Skip);
             UIKit.AnchorCorner(
                 (RectTransform)_skipButton.transform,
                 new Vector2(1f, 1f),
-                new Vector2(200f, 80f),
-                new Vector2(40f, 40f));
+                SkipSize,
+                new Vector2(DesignTokens.Space.Gutter, DesignTokens.Space.S16));
 
             Report(turn, verse);
-            StartCoroutine(SlideIn());
+            PlayEntrance();
         }
 
         void BuildFooter(VerseEntry verse)
         {
             RectTransform footer = UIKit.CreateRect("Footer", _card);
-            UIKit.HorizontalGroup(footer.gameObject, 18f, new RectOffset(0, 0, 6, 0), TextAnchor.MiddleLeft);
+            UIKit.HorizontalGroup(footer.gameObject, DesignTokens.Space.S12, new RectOffset(), TextAnchor.MiddleLeft);
 
-            LayoutElement footerLayout = UIKit.Layout(footer);
-            if (footerLayout != null)
-            {
-                footerLayout.minHeight = 72f;
-                footerLayout.preferredHeight = 72f;
-            }
+            // No height on the row: the button carries the touch target and the reference is
+            // allowed to take a second line when a translation's abbreviation is long, which the
+            // English build's is. A fixed height would have cropped the second line silently.
 
             Text reference = UIKit.CreateText(
                 footer,
                 "Reference",
                 BuildReferenceLabel(verse),
-                UIKit.FontSize.Meta,
-                UIKit.Palette.Stone,
-                TextAnchor.MiddleLeft);
+                DesignTokens.Type.Mono,
+                DesignTokens.Ink.OnScrollMuted,
+                TextAnchor.MiddleLeft,
+                DesignTokens.TypeRole.Mono);
             LayoutElement referenceLayout = UIKit.Layout(reference);
             if (referenceLayout != null)
             {
                 referenceLayout.flexibleWidth = 1f;
-                referenceLayout.minHeight = 60f;
             }
 
+            // Gold, and the only gold on this screen. The design system spends that accent on the
+            // call to action that opens something new, and the only thing this page opens is the
+            // whole chapter — which is the number the entire product is measured by. It is also
+            // never on screen at the same time as the contest's own gold card: the move behind
+            // this page does not become available until the page has closed.
             _readButton = UIKit.CreateButton(
                 footer,
                 "ReadButton",
                 Loc.T("page.read_more"),
-                UIKit.Palette.PanelSoft,
-                UIKit.Palette.Parchment,
+                UIKit.ButtonVariant.Quest,
                 OpenChapter);
             LayoutElement readLayout = UIKit.Layout(_readButton);
             if (readLayout != null)
             {
-                readLayout.preferredWidth = 240f;
-                readLayout.minWidth = 240f;
-                readLayout.preferredHeight = 68f;
-                readLayout.minHeight = 68f;
+                readLayout.minWidth = ReadButtonWidth;
+                readLayout.preferredWidth = ReadButtonWidth;
                 readLayout.flexibleWidth = 0f;
             }
+        }
 
-            Text readLabel = _readButton.GetComponentInChildren<Text>();
-            if (readLabel != null)
-            {
-                readLabel.fontSize = UIKit.FontSize.Meta;
-            }
+        static RectOffset Pad(float uniform)
+        {
+            int p = Mathf.RoundToInt(uniform);
+            return new RectOffset(p, p, p, p);
         }
 
         /// <summary>The reference, plus the translation abbreviation when the build has one.</summary>
@@ -264,47 +294,43 @@ namespace SheepGate.Contest
             return label;
         }
 
-        IEnumerator SlideIn()
+        /// <summary>
+        /// The card arrives: a fade, and a short rise under it.
+        ///
+        /// The two halves are deliberately different kinds of motion. The fade carries the news
+        /// that the page is here, so it runs whatever the accessibility setting says — a panel
+        /// that appeared with no transition at all would read as a glitch rather than as calm. The
+        /// rise is decoration, so reduced motion drops it, and dropping it is safe because a
+        /// suppressed decorative tween applies its own end state instead of leaving the card
+        /// stranded off-centre.
+        /// </summary>
+        void PlayEntrance()
         {
             if (_card == null)
             {
-                yield break;
+                return;
             }
 
             Vector2 target = _card.anchoredPosition;
-            Vector2 start = target + new Vector2(0f, -SlideDistance);
+            Vector2 start = target - new Vector2(0f, EntranceRise);
             _card.anchoredPosition = start;
 
-            float elapsed = 0f;
-            while (elapsed < SlideSeconds)
+            UIMotion.Fade(_group, 1f, DesignTokens.Motion.Reward, () =>
             {
-                elapsed += Time.unscaledDeltaTime;
-                float t = Mathf.Clamp01(elapsed / SlideSeconds);
-                float eased = 1f - (1f - t) * (1f - t);
-
-                if (_card != null)
-                {
-                    _card.anchoredPosition = Vector2.Lerp(start, target, eased);
-                }
-
                 if (_group != null)
                 {
-                    _group.alpha = eased;
+                    _group.alpha = 1f;
+                    _group.interactable = true;
                 }
+            });
 
-                yield return null;
-            }
-
-            if (_card != null)
+            UIMotion.Decorative(_card, DesignTokens.Motion.Reward, progress =>
             {
-                _card.anchoredPosition = target;
-            }
-
-            if (_group != null)
-            {
-                _group.alpha = 1f;
-                _group.interactable = true;
-            }
+                if (_card != null)
+                {
+                    _card.anchoredPosition = Vector2.Lerp(start, target, progress);
+                }
+            });
         }
 
         // ------------------------------------------------------------------ reporting
@@ -317,10 +343,8 @@ namespace SheepGate.Contest
                 state.SetFlag(GameFlags.PageShown);
             }
 
-            // The page is where the game stops being coy: from here every quotation carries
-
-            // its reference.
-
+            // The page is where the game stops being coy: from here every quotation carries its
+            // reference.
             ScriptureVisibility.Reveal(WorldStateForReveal());
 
             Telemetry.Track(TelemetryEvents.RevealShown, new Dictionary<string, object>
@@ -474,12 +498,12 @@ namespace SheepGate.Contest
 
             return null;
         }
+
         /// <summary>The run's state, for turning citations on when the page appears.</summary>
         static GameState WorldStateForReveal()
         {
             GameState state;
             return ServiceLocator.TryGet(out state) ? state : null;
         }
-
     }
 }

@@ -577,6 +577,9 @@ namespace SheepGate.UI
         /// <summary>Which tab is up. -1 until <see cref="Build"/> selects the first one.</summary>
         int _selected = -1;
 
+        /// <summary>The column the study cards live in, so an answer can replace them in place.</summary>
+        RectTransform _studies;
+
         /// <summary>The section cells along the top. No Scroll or Content: they open other tabs.</summary>
         TabView[] _sections;
 
@@ -1820,13 +1823,78 @@ namespace SheepGate.UI
             BuildProfileSection(content, "StudiesHeading", Loc.T("profile.studies"),
                 Loc.T("profile.studies.hint"));
 
-            IReadOnlyList<Study> studies = StudyDesk.SuggestFor(state);
+            // The authored suggestions go up straight away, and the endpoint — when one is
+            // configured — replaces them if it answers. Drawing the offline list first is what
+            // keeps this from ever being a spinner: the screen is complete before the request
+            // leaves, and a player whose server is down never learns that one exists.
+            _studies = UIKit.CreateRect("Studies", content);
+            UIKit.VerticalGroup(_studies.gameObject, DesignTokens.Space.S12, new RectOffset());
+
+            FillStudies(StudyDesk.SuggestFor(state));
+            RequestStudies(state);
+        }
+
+        /// <summary>Draws a list of studies into the studies column, replacing whatever was there.</summary>
+        void FillStudies(IReadOnlyList<Study> studies)
+        {
+            if (_studies == null)
+            {
+                return;
+            }
+
+            for (int i = _studies.childCount - 1; i >= 0; i--)
+            {
+                Destroy(_studies.GetChild(i).gameObject);
+            }
+
             for (int i = 0; i < studies.Count; i++)
             {
                 Study study = studies[i];
-                BuildProfileCard(content, "Study_" + study.Id,
-                    Loc.T(study.TitleKey), Loc.T(study.LineKey), study.Reference);
+
+                // A written suggestion is already the sentence; only the authored table holds keys.
+                // Passing written words to Loc.T would look up a key nothing has and render the
+                // sentence as itself wrapped in the missing-key marker.
+                string title = study.IsLiteral ? study.TitleKey : Loc.T(study.TitleKey);
+                string line = study.IsLiteral ? study.LineKey : Loc.T(study.LineKey);
+
+                BuildProfileCard(_studies, "Study_" + study.Id, title, line, study.Reference);
             }
+        }
+
+        /// <summary>
+        /// Asks the endpoint for suggestions and swaps them in if they arrive.
+        ///
+        /// The words come back written rather than as keys, which is the one place on this screen
+        /// where a string the player reads was not authored into a locale file. That is inherent to
+        /// asking a model for a sentence, and it is why the server does the checking: a suggestion
+        /// that quoted the corpus, or pointed at a passage this build does not ship, never gets
+        /// this far. What arrives here is text and a reference, and the reference still resolves
+        /// through the same reader as every other citation.
+        /// </summary>
+        void RequestStudies(GameState state)
+        {
+            if (!StudyService.IsConfigured)
+            {
+                return;
+            }
+
+            StudyService.Request(state, remote =>
+            {
+                // The sheet may well be gone by the time an answer lands.
+                if (_closed || _studies == null)
+                {
+                    return;
+                }
+
+                var studies = new List<Study>(remote.Count);
+                for (int i = 0; i < remote.Count; i++)
+                {
+                    StudyService.RemoteStudy study = remote[i];
+                    studies.Add(Study.Written("remote_" + i, study.Title, study.Line, study.Reference));
+                }
+
+                FillStudies(studies);
+            });
         }
 
         /// <summary>The bar, its label and its fraction, plus one line saying what moves it.</summary>

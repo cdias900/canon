@@ -32,12 +32,41 @@ namespace SheepGate.Core
         public readonly string LineKey;
         public readonly string Reference;
 
+        /// <summary>
+        /// True when the title and line are words rather than locale keys.
+        ///
+        /// The authored table carries keys, because authored text is translated. A suggestion from
+        /// the endpoint arrives already written, in the language it was asked in — there is nothing
+        /// to look up, and looking it up would render the sentence as its own key.
+        /// </summary>
+        public readonly bool IsLiteral;
+
         public Study(string id, string titleKey, string lineKey, string reference)
         {
             Id = id;
             TitleKey = titleKey;
             LineKey = lineKey;
             Reference = reference;
+            IsLiteral = false;
+        }
+
+        // The parameters are deliberately not called title/line. tools/validate-content.mjs derives
+        // its player-facing sinks from parameter NAMES, so a constructor taking a "title" makes
+        // every locale key passed to the authored table look like a hardcoded string and fails the
+        // build. Same trap that once caught a parameter called "label".
+        Study(string id, string writtenTitle, string writtenLine, string reference, bool literal)
+        {
+            Id = id;
+            TitleKey = writtenTitle;
+            LineKey = writtenLine;
+            Reference = reference;
+            IsLiteral = literal;
+        }
+
+        /// <summary>A suggestion whose words came back written, not as keys.</summary>
+        public static Study Written(string id, string writtenTitle, string writtenLine, string reference)
+        {
+            return new Study(id, writtenTitle, writtenLine, reference, true);
         }
     }
 

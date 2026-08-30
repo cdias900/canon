@@ -539,16 +539,20 @@ namespace SheepGate.Art
 
         /// <summary>
         /// Talents: a resource, so filled rather than outlined, same rule as <see cref="IconBag"/>
-        /// states in reverse — a ring rim with a raised centre, so it reads as a coin rather than
-        /// as the plain disc <see cref="IconDot"/> already uses for a different meaning (the choice
-        /// mark on an unselected quiz answer).
+        /// states in reverse. A plain filled disc, deliberately — a ring rim with a raised centre
+        /// was tried first and read as a target at icon size, because the gap between rim and
+        /// centre disappears into noise below about 24 points, which is the size this icon is
+        /// actually used at. So this shares <see cref="IconDot"/>'s exact construction.
+        ///
+        /// That the two are now the same silhouette is accepted rather than worked around: they
+        /// are told apart by size, tint and context — a gold coin beside a currency count against
+        /// a small neutral mark on an unselected quiz answer — and inventing a second shape to
+        /// keep them distinct would have cost legibility at the only size that matters.
         /// </summary>
         public static PixelCanvas IconCoin()
         {
             PixelCanvas canvas = new PixelCanvas(IconGrid, IconGrid);
-            canvas.FillCircleAA(36f, 36f, 20f, Tintable);
-            canvas.EraseCircleAA(36f, 36f, 14f);
-            canvas.FillCircleAA(36f, 36f, 7f, Tintable);
+            canvas.FillCircleAA(36f, 36f, 22f, Tintable);
             return Done(canvas);
         }
 

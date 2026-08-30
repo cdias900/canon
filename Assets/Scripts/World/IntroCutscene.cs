@@ -564,7 +564,8 @@ namespace SheepGate.World
         void BuildFade()
         {
             Canvas canvas = UIKit.CreateCanvas("IntroFadeCanvas", 400);
-            _fade = UIKit.CreatePanel((RectTransform)canvas.transform, "Fade", UIKit.Palette.Ink);
+            // The fade covers everything, camera housing included, so it stays outside the safe area.
+            _fade = UIKit.Bleed(UIKit.CreatePanel((RectTransform)canvas.transform, "Fade", UIKit.Palette.Ink));
             UIKit.Stretch((RectTransform)_fade.transform);
             _fade.raycastTarget = false;
             SetFadeAlpha(1f);

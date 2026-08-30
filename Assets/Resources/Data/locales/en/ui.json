@@ -5,6 +5,7 @@
   "hud.patrol": "Patrol",
   "hud.patrol_return": "Back",
   "hud.end_day": "End the day",
+  "hud.map": "Map",
 
   "creation.title": "Before the first stone goes up",
   "creation.subtitle": "Choose how you look on the job.",
@@ -113,6 +114,13 @@
 
   "world.map.heading": "The cities of the exile",
   "world.map.note": "You came back to one of them.",
+  "world.map.close": "Back to the city",
+  "world.map.north": "N",
+  "world.map.here": "Here",
+  "world.map.closed": "Closed",
+  "world.map.legend.home": "your city",
+  "world.map.legend.closed": "closed city",
+  "world.map.legend.road": "road",
   "world.wall_segment": "Stretch of wall",
   "world.well": "Well",
   "world.rubble": "Rubble",

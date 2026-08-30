@@ -152,7 +152,8 @@ namespace SheepGate.UI
 
             _canvas = UIKit.CreateCanvas("ModalCanvas", CanvasSortingOrder);
             _canvas.transform.SetParent(transform, false);
-            _layer = (RectTransform)_canvas.transform;
+            // Panels build inside the safe area; the scrim below bleeds back out to the edges.
+            _layer = UIKit.SafeArea(_canvas);
         }
 
         // ------------------------------------------------------------------ stack
@@ -185,7 +186,7 @@ namespace SheepGate.UI
             container.SetAsLastSibling();
 
             // The scrim is the first child, so panel content added later draws over it.
-            UIKit.CreateScrim(container, "Scrim");
+            UIKit.Bleed(UIKit.CreateScrim(container, "Scrim"));
 
             bool wasClosed = _stack.Count == 0;
             _stack.Add(new Entry { Id = id, Container = container });

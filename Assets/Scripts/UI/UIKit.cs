@@ -197,6 +197,8 @@ namespace SheepGate.UI
         /// Portrait-safe overlay canvas: 1080x1920 reference, match 0.5 so a wider or taller phone
         /// scales the whole layout instead of cropping it.
         /// </summary>
+        const string SafeAreaName = "SafeArea";
+
         public static Canvas CreateCanvas(string name, int sortingOrder)
         {
             var go = new GameObject(name, typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
@@ -213,6 +215,45 @@ namespace SheepGate.UI
 
             EnsureEventSystem();
             return canvas;
+        }
+
+        /// <summary>
+        /// The rect every screen should build inside: a child of the canvas held to the device's
+        /// safe area, created once per canvas and returned on every later call.
+        ///
+        /// Callers used to anchor straight to the canvas, which on this project's target hardware
+        /// put the top strip under the camera housing and the bottom row under the home indicator.
+        /// Anything that genuinely must cover the whole screen — a fade, a scrim — parents outside
+        /// this and carries a <see cref="SafeAreaBleed"/> instead.
+        /// </summary>
+        public static RectTransform SafeArea(Canvas canvas)
+        {
+            if (canvas == null)
+            {
+                return null;
+            }
+
+            Transform existing = canvas.transform.Find(SafeAreaName);
+            if (existing != null)
+            {
+                return (RectTransform)existing;
+            }
+
+            RectTransform rect = CreateRect(SafeAreaName, canvas.transform);
+            Stretch(rect);
+            rect.gameObject.AddComponent<SafeAreaFitter>();
+            return rect;
+        }
+
+        /// <summary>Makes a graphic cover the whole screen even inside a safe-area rect.</summary>
+        public static T Bleed<T>(T graphic) where T : Component
+        {
+            if (graphic != null && graphic.GetComponent<SafeAreaBleed>() == null)
+            {
+                graphic.gameObject.AddComponent<SafeAreaBleed>();
+            }
+
+            return graphic;
         }
 
         /// <summary>

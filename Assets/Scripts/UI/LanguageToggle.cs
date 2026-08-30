@@ -58,17 +58,32 @@ namespace SheepGate.UI
                 string locale = Locales.Supported[i];
                 bool isActive = locale == active;
 
+                // Both labels are parchment. The dim label the inactive chip used to carry was
+                // Muted on PanelSoft, which is about 4:1 against its own background — under the
+                // readable threshold for text this small, and unreadable is the one thing a
+                // language control cannot afford. The lit chip is told apart by its clay fill.
                 Button chip = UIKit.CreateButton(
                     row,
                     "Locale_" + locale,
                     Locales.ShortLabel(locale),
                     isActive ? UIKit.Palette.Clay : UIKit.Palette.PanelSoft,
-                    isActive ? UIKit.Palette.Parchment : UIKit.Palette.Muted,
+                    UIKit.Palette.Parchment,
                     () => OnChipClicked(locale));
 
                 // The active chip is not a no-op waiting to happen: it is not clickable at all,
                 // so a player cannot ask for a scene reload that would change nothing.
                 chip.interactable = !isActive;
+
+                if (isActive)
+                {
+                    // Non-interactable is how the chip refuses the tap, not a statement that it is
+                    // unavailable, so it must not inherit the 35% wash Button paints on a disabled
+                    // graphic — that wash is what made the current language the faintest thing in
+                    // the row, which is precisely backwards.
+                    ColorBlock colours = chip.colors;
+                    colours.disabledColor = Color.white;
+                    chip.colors = colours;
+                }
 
                 var chipRect = (RectTransform)chip.transform;
                 chipRect.anchorMin = new Vector2(0f, 0f);

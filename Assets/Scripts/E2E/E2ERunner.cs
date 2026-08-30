@@ -5,6 +5,7 @@ using System.IO;
 using System.Text;
 using SheepGate.Core;
 using SheepGate.Dialogue;
+using SheepGate.Player;
 using SheepGate.Scripture;
 using SheepGate.UI;
 using SheepGate.World;
@@ -34,6 +35,13 @@ namespace SheepGate.E2E
     /// </summary>
     public sealed class E2ERunner : MonoBehaviour
     {
+        /// <summary>Moves the trial gets before the run calls it stuck. The contest's own limit
+        /// is eight; anything past that means the limit is not being enforced.</summary>
+        const int ContestTurnCap = 14;
+
+        /// <summary>Panels one morning may stack before the run calls it stuck.</summary>
+        const int MorningPanelCap = 6;
+
         const string EnableFlag = "-e2e";
         const string OutputFlag = "-e2e-out";
 
@@ -48,7 +56,10 @@ namespace SheepGate.E2E
         /// one and the process sits there forever, which is worse than a failure: a failure gets
         /// read, a hang gets killed by whoever notices first.
         /// </summary>
-        const float RunTimeoutSeconds = 240f;
+        /// Raised from 240 when the run grew from one day to three: days two and three add two
+        /// mornings, a whole trial and the reader, and a ceiling that a passing run cannot clear
+        /// reports every slow run as a hang.
+        const float RunTimeoutSeconds = 600f;
 
         readonly List<string> _failures = new List<string>();
         readonly List<string> _steps = new List<string>();
@@ -165,6 +176,252 @@ namespace SheepGate.E2E
 
             // 7. A whole day, ended by nobody.
             yield return PlayADayToItsEnd();
+
+            // 8. Day two, and the night that follows it.
+            yield return SpendTheDay("day two", "09");
+
+            // 9. Day three: the trial, A Página, the reader and the reveal.
+            yield return PlayDayThree();
+        }
+
+        // ------------------------------------------------------------------ the rest of the run
+
+        /// <summary>
+        /// Clears the morning report, spends the day, and confirms the split the spent day opens.
+        ///
+        /// <see cref="PlayADayToItsEnd"/> asserts the shape of the new loop on day one and stops at
+        /// the morning after it. This is the same loop with nothing to prove about it, run for the
+        /// only reason that day three cannot be reached without it.
+        /// </summary>
+        IEnumerator SpendTheDay(string dayName, string prefix)
+        {
+            yield return ClearTheMorning(dayName, prefix);
+
+            DayCycle cycle = UnityEngine.Object.FindFirstObjectByType<DayCycle>();
+            ResourceSystem resources = ResourceSystem.Find();
+            GameState state = TryGetState();
+
+            if (cycle == null || resources == null || state == null)
+            {
+                Record(dayName + " can be played", false,
+                    "cycle=" + (cycle != null) + " resources=" + (resources != null) + " state=" + (state != null));
+                yield break;
+            }
+
+            int startingDay = state.day;
+            yield return Capture(prefix + "-" + dayName.Replace(" ", "-"));
+
+            resources.Spend(state.workCapacity);
+            yield return WaitForTheSplit(cycle, dayName);
+            yield return Tap("Confirm", "the split on " + dayName);
+            yield return WaitUntil(() => state.day > startingDay && !cycle.IsResolving, "the morning after " + dayName);
+
+            Record(dayName + " rolled over", state.day == startingDay + 1,
+                "day " + startingDay + " -> " + state.day);
+        }
+
+        /// <summary>
+        /// Waits for the split, clearing anything that turns up while waiting, and naming what is
+        /// holding the night if it never comes.
+        ///
+        /// A morning does not stack all of its panels at once: the report arrives with the morning,
+        /// but the day's check-in waits for a quiet world, so it can land well after
+        /// <see cref="ClearTheMorning"/> has already declared the screen clear. Because dusk waits
+        /// on <c>ModalRoot.IsOpen</c>, a panel that shows up late does not merely sit there — it
+        /// stops the day ending at all, and the only symptom is a timeout thirty seconds and one
+        /// step away from the cause. Hence both halves of this: keep clearing, and if the split
+        /// still never opens, say which of the three conditions in <see cref="DayCycle.DuskWaits"/>
+        /// is the one holding it.
+        /// </summary>
+        IEnumerator WaitForTheSplit(DayCycle cycle, string dayName)
+        {
+            float deadline = Time.realtimeSinceStartup + StepTimeoutSeconds;
+
+            while (!EndDayPanel.IsOpen && Time.realtimeSinceStartup < deadline)
+            {
+                if (ModalRoot.IsOpen)
+                {
+                    GameObject action = Find("Continue") ?? Find("Option_0") ?? Find("Confirm");
+                    if (action != null)
+                    {
+                        yield return TapObject(action, "clear " + action.name + " holding the night of " + dayName);
+                        yield return new WaitForSeconds(0.35f);
+                        continue;
+                    }
+                }
+
+                yield return null;
+            }
+
+            if (!EndDayPanel.IsOpen)
+            {
+                Record("waited for the split on " + dayName, false, "it never happened within "
+                    + StepTimeoutSeconds + "s — dusk pending=" + (cycle != null && cycle.IsDuskPending)
+                    + " held=" + (cycle != null && cycle.IsDuskHeld)
+                    + " input locked=" + InputLock.IsLocked
+                    + " modal=" + (ModalRoot.IsOpen ? (ModalRoot.TopId ?? "unnamed") : "none"));
+            }
+        }
+
+        /// <summary>
+        /// Clears whatever the morning put on the screen before the day can be spent.
+        ///
+        /// A morning stacks more than one panel — the report of the night, and the day's check-in —
+        /// and the order is not something a script should assume. It matters more than it looks:
+        /// dusk waits on <c>ModalRoot.IsOpen</c>, so a panel left up does not merely sit there, it
+        /// stops the day ending at all. That is what this found the first time it ran, and the
+        /// symptom was a thirty-second timeout half an hour away from the cause.
+        /// </summary>
+        IEnumerator ClearTheMorning(string dayName, string prefix)
+        {
+            bool captured = false;
+
+            for (int panel = 0; panel < MorningPanelCap && ModalRoot.IsOpen; panel++)
+            {
+                if (!captured)
+                {
+                    yield return Capture(prefix + "-morning-" + dayName.Replace(" ", "-"));
+                    CheckNoMissingStrings();
+                    captured = true;
+                }
+
+                // Dismissing comes before answering, and the order is the whole trick. A quiz
+                // that has been answered keeps its options on screen — they are only tinted and
+                // made non-interactable — so a run that preferred Option_0 would answer once and
+                // then tap a dead option for as long as the loop allowed, never reaching the
+                // Continue that closes the panel. Continue only exists once the day is checked in
+                // (DailyQuiz builds it inactive and shows it in OnOptionChosen) and Find ignores
+                // inactive objects, so preferring it can never skip the answer.
+                GameObject action = Find("Continue") ?? Find("Option_0") ?? Find("Confirm");
+                if (action == null)
+                {
+                    Record("the morning of " + dayName + " could be cleared", false,
+                        "a modal is open with no button this run knows: " + (ModalRoot.TopId ?? "unnamed"));
+                    yield break;
+                }
+
+                yield return TapObject(action, "clear " + action.name + " on the morning of " + dayName);
+                yield return new WaitForSeconds(0.35f);
+            }
+
+            Record("the morning of " + dayName + " is clear", !ModalRoot.IsOpen,
+                ModalRoot.IsOpen ? "still on " + (ModalRoot.TopId ?? "unnamed") : "nothing is holding the day");
+        }
+
+        /// <summary>
+        /// Day three, which is the half of the game that nothing automated has ever reached.
+        ///
+        /// Two verification rounds found the trial unreachable in a built player while every
+        /// unit-level rule about it passed: <c>MoraleContest.Begin()</c> had no runtime caller at
+        /// all. The acceptance harness cannot catch that, because it constructs systems directly
+        /// and never composes a scene. This can, and that is the only reason it is worth the
+        /// minutes it costs.
+        /// </summary>
+        IEnumerator PlayDayThree()
+        {
+            yield return ClearTheMorning("day three", "10a");
+
+            // Day three opens itself, but only into a quiet world: Day3Director wants six seconds
+            // with no panel up and no line half spoken before it starts the trial. The residents
+            // have something to say on that morning, and a line waits for a tap — so waiting here
+            // rather than advancing would wait for a menu that is being held back by the very
+            // dialogue nobody is dismissing.
+            yield return AdvanceDialogueUntil(() => Find("Move_hold_line") != null, "the trial", true);
+            yield return Capture("10-trial");
+            CheckNoMissingStrings();
+
+            Record("half and half is locked before the Page", Find("Move_half_and_half") == null,
+                Find("Move_half_and_half") == null
+                    ? "the move is not in the menu"
+                    : "the move is offered before the Page has been shown");
+
+            // One move, and then the beat the whole POC exists to test.
+            yield return Tap("Move_hold_line", "holding the line");
+            yield return WaitForObject("CloseButton", "A Página");
+            yield return Capture("11-the-page");
+            CheckNoMissingStrings();
+
+            // Saber mais is the only way into the chapter reader, and that tap is where deep_read
+            // begins. The event itself is deliberately not asserted: it needs twenty seconds of
+            // visible time and sixty percent of the chapter scrolled, which measures a person
+            // rather than a script, and faking it would corrupt the one number this product
+            // exists to collect. What this proves is that the door opens.
+            yield return Tap("ReadButton", "saber mais");
+            yield return WaitForObject("Close", "the chapter reader");
+            yield return Capture("12-reader");
+            yield return Tap("Close", "closing the reader");
+
+            yield return Tap("CloseButton", "closing A Página");
+            yield return WaitForObject("Move_half_and_half", "half and half");
+            Record("the Page unlocked half and half", Find("Move_half_and_half") != null,
+                "the move is in the menu once the Page has been read");
+            yield return Capture("13-unlocked");
+
+            yield return PlayOutTheTrial();
+            yield return Capture("14-outcome");
+            yield return Tap("Continue", "the trial outcome");
+
+            // The gate closes with the player's name on it before the vocation is named, and it is
+            // a panel of its own (gate_closed) with its own way on. Waiting for the reveal's Close
+            // straight after the trial waits for the screen after the one that is up.
+            yield return WaitForObject("KnowMore", "the gate closed with the player's name");
+            yield return Capture("15-gate");
+            CheckNoMissingStrings();
+
+            yield return Tap("Continue", "past the gate");
+
+            yield return WaitForObject("Close", "the vocation reveal");
+            yield return Capture("16-reveal");
+            CheckNoMissingStrings();
+        }
+
+        /// <summary>
+        /// Takes turns until the trial resolves. Bounded rather than open ended: the contest has a
+        /// turn limit of eight, so a loop that never finished would mean the limit is not being
+        /// enforced — worth failing on rather than hanging on.
+        /// </summary>
+        IEnumerator PlayOutTheTrial()
+        {
+            string[] preferred = { "Move_half_and_half", "Move_show_watch", "Move_call_others", "Move_hold_line" };
+
+            for (int turn = 0; turn < ContestTurnCap; turn++)
+            {
+                if (Find("Continue") != null)
+                {
+                    Record("the trial resolved", true, "an outcome was reached in " + turn + " move(s)");
+                    yield break;
+                }
+
+                GameObject move = null;
+                for (int i = 0; i < preferred.Length && move == null; i++)
+                {
+                    move = Find(preferred[i]);
+                }
+
+                if (move == null)
+                {
+                    yield return new WaitForSeconds(0.25f);
+                    continue;
+                }
+
+                yield return TapObject(move, "tap " + move.name);
+                yield return new WaitForSeconds(0.4f);
+            }
+
+            Record("the trial resolved", Find("Continue") != null,
+                "no outcome after " + ContestTurnCap + " moves");
+        }
+
+        static GameState TryGetState()
+        {
+            try
+            {
+                return ServiceLocator.Get<GameState>();
+            }
+            catch (Exception)
+            {
+                return null;
+            }
         }
 
         /// <summary>
@@ -257,6 +514,7 @@ namespace SheepGate.E2E
 
             // The rest of it. Nothing is tapped from here on: the day has to end by itself.
             resources.Spend(state.workCapacity);
+
             yield return WaitUntil(() => EndDayPanel.IsOpen, "the split to open itself");
 
             Record("the day ends without being asked to", EndDayPanel.IsOpen,
@@ -466,19 +724,19 @@ namespace SheepGate.E2E
         /// What the retry must not do is soften the verdict: a control genuinely under an opaque
         /// panel still fails, having spent the timeout proving it.
         /// </summary>
-        IEnumerator TapObject(GameObject target, string label)
+        IEnumerator TapObject(GameObject target, string step)
         {
             EventSystem events = EventSystem.current;
             if (events == null)
             {
-                Record(label, false, "there is no EventSystem in the scene");
+                Record(step, false, "there is no EventSystem in the scene");
                 yield break;
             }
 
             var rect = target.transform as RectTransform;
             if (rect == null)
             {
-                Record(label, false, PathOf(target) + " is not a RectTransform");
+                Record(step, false, PathOf(target) + " is not a RectTransform");
                 yield break;
             }
 
@@ -509,8 +767,23 @@ namespace SheepGate.E2E
                 }
                 else
                 {
-                    reached = hits[0].gameObject;
-                    break;
+                    // A ray reaching the control is not the same as the control accepting a click.
+                    // A panel that slides in holds its CanvasGroup non-interactable until the
+                    // animation ends, and uGUI drops the click in silence: Button.Press returns
+                    // early on IsInteractable, no exception, no log, nothing on screen. Judging on
+                    // the ray alone therefore reported "clicked" for a tap that did nothing at all,
+                    // and every assertion after it failed somewhere else — which is how A Página's
+                    // Saber mais looked like a broken button for a whole evening.
+                    var selectable = target.GetComponent<Selectable>();
+                    if (selectable != null && !selectable.IsInteractable())
+                    {
+                        reason = PathOf(target) + " is not accepting clicks yet at " + screenPoint;
+                    }
+                    else
+                    {
+                        reached = hits[0].gameObject;
+                        break;
+                    }
                 }
 
                 if (Time.realtimeSinceStartup >= deadline)
@@ -523,13 +796,13 @@ namespace SheepGate.E2E
 
             if (reached == null)
             {
-                Record(label, false, reason);
+                Record(step, false, reason);
                 yield break;
             }
 
             var pointer = new PointerEventData(events) { position = screenPoint };
             ExecuteEvents.Execute(reached, pointer, ExecuteEvents.pointerClickHandler);
-            Record(label, true, "clicked " + PathOf(reached));
+            Record(step, true, "clicked " + PathOf(reached));
             yield return null;
         }
 
@@ -565,7 +838,15 @@ namespace SheepGate.E2E
             return true;
         }
 
-        IEnumerator AdvanceDialogueUntil(Func<bool> condition, string description)
+        /// <param name="clearPanels">
+        /// Also dismisses any panel that turns up on the way. Off by default, because most waits
+        /// here are for something that lives *inside* a panel and closing it would step over the
+        /// thing being waited for. It is on for the trial, where the opposite is true: Day3Director
+        /// only starts once the world is quiet, and the day's check-in arrives after the morning
+        /// has already been cleared — so a run that only taps dialogue waits forever for a beat
+        /// that is being held open by the panel it is ignoring.
+        /// </param>
+        IEnumerator AdvanceDialogueUntil(Func<bool> condition, string description, bool clearPanels = false)
         {
             for (int advance = 0; advance < MaxDialogueAdvances; advance++)
             {
@@ -573,6 +854,18 @@ namespace SheepGate.E2E
                 {
                     Record("reached " + description, true, "after " + advance + " advance(s)");
                     yield break;
+                }
+
+                if (clearPanels && ModalRoot.IsOpen)
+                {
+                    GameObject panelAction = Find("Continue") ?? Find("Option_0") ?? Find("Confirm");
+                    if (panelAction != null)
+                    {
+                        yield return TapObject(panelAction,
+                            "clear " + panelAction.name + " on the way to " + description);
+                        yield return new WaitForSeconds(0.35f);
+                        continue;
+                    }
                 }
 
                 DialogueTapCatcher catcher = FindActive<DialogueTapCatcher>();
@@ -606,7 +899,11 @@ namespace SheepGate.E2E
                 yield return null;
             }
 
-            Record("reached " + description, false, objectName + " never appeared");
+            // Naming what IS on screen turns "it never appeared" into a diagnosis. A panel that
+            // failed to open and a panel that opened under something else read identically
+            // otherwise, and they are not the same bug.
+            Record("reached " + description, false, objectName + " never appeared — modal depth "
+                + ModalRoot.OpenCount + ", top " + (ModalRoot.IsOpen ? (ModalRoot.TopId ?? "unnamed") : "none"));
         }
 
         IEnumerator Capture(string name)

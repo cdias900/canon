@@ -133,6 +133,7 @@ namespace SheepGate.UI
         Text _dayText;
         Text _workText;
         Text _rubbleText;
+        Text _talentsText;
         ProgressBar _wallProgress;
         Button _patrolButton;
         Image _patrolPlate;
@@ -154,6 +155,7 @@ namespace SheepGate.UI
         int _cachedWork = int.MinValue;
         int _cachedWorkMax = int.MinValue;
         int _cachedRubble = int.MinValue;
+        int _cachedTalents = int.MinValue;
         int _cachedWallStages = int.MinValue;
         int _cachedWallTotal = int.MinValue;
 
@@ -514,6 +516,7 @@ namespace SheepGate.UI
             _dayText = BuildReadout(readouts, "Day", TextAnchor.MiddleLeft, DesignTokens.Ink.Secondary);
             _workText = BuildReadout(readouts, "Work", TextAnchor.MiddleCenter, UIKit.InkFor(UIKit.CardStyle.Glass));
             _rubbleText = BuildReadout(readouts, "Rubble", TextAnchor.MiddleRight, UIKit.InkFor(UIKit.CardStyle.Glass));
+            _talentsText = BuildTalentsReadout(readouts);
 
             // Label, bar and fraction, which is the only shape the design system allows progress to
             // take. The wall is the one number in this game that means anything on its own, and it
@@ -545,6 +548,34 @@ namespace SheepGate.UI
             // than its own text; the flexible share only decides who gets the slack left over.
             LayoutElement layout = UIKit.Layout(text);
             layout.flexibleWidth = 1f;
+            return text;
+        }
+
+        /// <summary>
+        /// The talents balance: a coin and a bare number, at the right end of the row — the corner
+        /// of the screen closest to top-right this card's layout allows. Unlike the other three
+        /// readouts, it carries no word: the coin is the label here, on purpose, the same way a
+        /// coin counter in any game needs no caption to be legible.
+        /// </summary>
+        static Text BuildTalentsReadout(RectTransform parent)
+        {
+            RectTransform cell = UIKit.CreateRect("Talents", parent);
+            UIKit.HorizontalGroup(cell.gameObject, DesignTokens.Space.S4, new RectOffset(),
+                                  TextAnchor.MiddleRight);
+
+            LayoutElement cellLayout = UIKit.Layout(cell);
+            cellLayout.flexibleWidth = 1f;
+
+            UIKit.CreateIcon(cell, "Icon", UiSpriteKeys.IconCoin, UIKit.InkFor(UIKit.CardStyle.Glass),
+                             DesignTokens.Space.S16);
+
+            Text text = UIKit.CreateText(cell, "Count", string.Empty, DesignTokens.Type.Mono,
+                                         UIKit.InkFor(UIKit.CardStyle.Glass), TextAnchor.MiddleRight,
+                                         DesignTokens.TypeRole.Mono);
+            text.horizontalOverflow = HorizontalWrapMode.Overflow;
+
+            LayoutElement textLayout = UIKit.Layout(text);
+            textLayout.flexibleWidth = 0f;
             return text;
         }
 
@@ -730,6 +761,7 @@ namespace SheepGate.UI
                 state.workCapacity == _cachedWork &&
                 state.workCapacityMax == _cachedWorkMax &&
                 state.rubble == _cachedRubble &&
+                state.talents == _cachedTalents &&
                 wallStages == _cachedWallStages &&
                 wallTotal == _cachedWallTotal)
             {
@@ -794,6 +826,13 @@ namespace SheepGate.UI
             if (_rubbleText != null)
             {
                 _rubbleText.text = Loc.T("hud.rubble", Mathf.Max(0, state.rubble));
+            }
+
+            _cachedTalents = state.talents;
+
+            if (_talentsText != null)
+            {
+                _talentsText.text = Loc.T("hud.talents", Mathf.Max(0, state.talents));
             }
 
             int wallStages;

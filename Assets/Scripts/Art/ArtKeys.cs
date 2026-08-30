@@ -77,6 +77,7 @@ namespace SheepGate.Art
         public const string IconLock = "ui_icon_lock";
         public const string IconBag = "ui_icon_bag";
         public const string IconHelp = "ui_icon_help";
+        public const string IconCoin = "ui_icon_coin";
 
         public const string WallPrefix = "wall_";
         public const string BodyPrefix = "body";

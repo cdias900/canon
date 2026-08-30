@@ -538,6 +538,21 @@ namespace SheepGate.Art
         }
 
         /// <summary>
+        /// Talents: a resource, so filled rather than outlined, same rule as <see cref="IconBag"/>
+        /// states in reverse — a ring rim with a raised centre, so it reads as a coin rather than
+        /// as the plain disc <see cref="IconDot"/> already uses for a different meaning (the choice
+        /// mark on an unselected quiz answer).
+        /// </summary>
+        public static PixelCanvas IconCoin()
+        {
+            PixelCanvas canvas = new PixelCanvas(IconGrid, IconGrid);
+            canvas.FillCircleAA(36f, 36f, 20f, Tintable);
+            canvas.EraseCircleAA(36f, 36f, 14f);
+            canvas.FillCircleAA(36f, 36f, 7f, Tintable);
+            return Done(canvas);
+        }
+
+        /// <summary>
         /// Last pass on every Sistema Vale sprite: gives the empty texels the body's colour so a
         /// bilinear sample taken between a lit texel and an empty one does not drag a dark fringe
         /// in with it. It changes nothing that is drawn, only what is hiding under the zeroes.

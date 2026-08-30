@@ -187,9 +187,9 @@ namespace SheepGate.Core
         }
 
         /// <summary>
-        /// Pays today's check-in, if one is due, and stashes the outcome for CheckInToast to show once
-        /// the Game scene has settled. Saved immediately so a force-quit mid-toast cannot replay the
-        /// reward — the same reasoning DailyQuiz already applies to its own seen-counter.
+        /// Pays today's check-in, if one is due. The HUD reads <see cref="GameState.talents"/>
+        /// live, so there is nothing further to hand off here. Saved immediately, before the scene
+        /// carrying that HUD even loads, so a force-quit right after boot cannot replay the reward.
         /// </summary>
         static void ApplyDailyCheckIn(GameState state)
         {
@@ -207,8 +207,6 @@ namespace SheepGate.Core
                 { "talents_awarded", result.TalentsAwarded }
             });
             Telemetry.Flush();
-
-            DailyCheckIn.PendingResult = result;
 
             Debug.Log("[Boot] Check-in -> streak " + result.Streak + ", +" + result.TalentsAwarded + " talents.");
         }

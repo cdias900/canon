@@ -29,13 +29,6 @@ namespace SheepGate.Economy
         }
 
         /// <summary>
-        /// Set by <see cref="SheepGate.Core.BootSequence"/> right after a boot that paid a reward,
-        /// and cleared by whatever shows the toast for it. In-memory only — never serialized, so a
-        /// reward can never replay itself from a save written mid-toast.
-        /// </summary>
-        public static Result? PendingResult;
-
-        /// <summary>
         /// Applies today's check-in to <paramref name="state"/>, mutating it when a reward is due.
         /// Safe to call more than once for the same day: every call after the first for that date
         /// is a no-op that returns <c>Awarded = false</c>.

@@ -292,7 +292,12 @@ namespace SheepGate.UI
             IReadOnlyList<CharacterSlot> badged = Wardrobe.BadgedSlots;
             var slots = new CharacterSlot[TabCount];
 
-            int wardrobeTabs = TabCount - 1;
+            // Count the wardrobe tabs from the indices themselves, never from TabCount. TabCount
+            // covers Perfil and Itens too, and deriving from it is what broke this method when the
+            // sheet went from four tabs to five: the count stayed right by accident at four tabs
+            // and silently became four here, so the fill below wrote every wardrobe slot one cell
+            // early and the Hair tab drew outfits.
+            int wardrobeTabs = TabIndexAccessory - TabIndexHair + 1;
             if (badged.Count != wardrobeTabs)
             {
                 Debug.LogError("[BackpackPanel] Wardrobe.BadgedSlots has " + badged.Count +
@@ -303,9 +308,10 @@ namespace SheepGate.UI
 
             for (int i = 0; i < wardrobeTabs; i++)
             {
-                slots[i] = i < badged.Count ? badged[i] : CharacterSlot.Base;
+                slots[TabIndexHair + i] = i < badged.Count ? badged[i] : CharacterSlot.Base;
             }
 
+            slots[TabIndexProfile] = CharacterSlot.Base;
             slots[TabIndexMaterials] = CharacterSlot.Base;
             return slots;
         }

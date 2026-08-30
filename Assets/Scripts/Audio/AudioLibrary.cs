@@ -15,6 +15,7 @@ namespace SheepGate.Audio
     /// ---------------------------------------------------------------------------------
     ///     amb_day       looping daytime bed, wind over open stone
     ///     amb_night     looping night bed, lower and emptier
+    ///     mus_village   the looping theme: a plucked line over a drone, 24 s
     ///     sfx_step      one footstep on grit
     ///     sfx_stone     a block set down on the wall
     ///     sfx_confirm   a choice taken
@@ -23,8 +24,10 @@ namespace SheepGate.Audio
     /// ---------------------------------------------------------------------------------
     /// CONVENTIONS
     /// ---------------------------------------------------------------------------------
-    /// Mono, 22050 Hz. Nothing here is music and nothing needs stereo width; half the sample
-    /// rate is inaudible on these sounds and halves the memory.
+    /// Mono, 22050 Hz. Half the sample rate is inaudible on sounds shaped like these and halves
+    /// the memory. Mono includes the theme: a plucked string and a drone have no stereo image to
+    /// lose, and a bed that is wide on headphones and centred on a phone speaker is two mixes to
+    /// balance instead of one.
     ///
     /// Deterministic: every generator draws from a hash of its own key, never from
     /// UnityEngine.Random. Two runs produce byte-identical audio, which is what makes a
@@ -83,6 +86,7 @@ namespace SheepGate.Audio
             {
                 case AudioKeys.AmbienceDay: return Ambience(key, 8f, 220f, 0.5f, 0.30f);
                 case AudioKeys.AmbienceNight: return Ambience(key, 8f, 120f, 0.8f, 0.22f);
+                case AudioKeys.MusicVillage: return Music(key);
                 case AudioKeys.Step: return Step(key);
                 case AudioKeys.Stone: return Stone(key);
                 case AudioKeys.Confirm: return Confirm(key);
@@ -225,6 +229,127 @@ namespace SheepGate.Audio
             return Finish(key, samples, 0.6f);
         }
 
+        /// <summary>
+        /// The theme. A plucked line over a held fifth, in D dorian.
+        ///
+        /// Three decisions, and all three are about what this game is not allowed to sound like.
+        /// <b>Dorian, not minor and not major</b>: the raised sixth keeps the mode from settling
+        /// into either the sad one or the happy one, which is the whole job — a wall being built
+        /// under threat is neither. <b>A plucked string over a drone, not a pad</b>: a swelling pad
+        /// is the sound of a devotional app, and rule 13 is a checklist about that instinct.
+        /// <b>No percussion</b>: a pulse puts a clock on a screen the player may want to sit still
+        /// on, and the reader is the one screen this game is trying to keep people on.
+        ///
+        /// The line is a written table rather than a random walk. Sixteen notes are short enough to
+        /// read and to fix, and a melody a generator improvises differently on every machine is a
+        /// melody nobody can have an opinion about.
+        ///
+        /// <b>The loop is seamless by construction, not by fade.</b> Two things would otherwise
+        /// click once every twenty-four seconds, and a bed that clicks is worse than no bed:
+        /// <list type="bullet">
+        ///   <item>The drone's frequencies are rounded to a whole number of cycles across the clip
+        ///   (<see cref="WholeCycles"/>), so its phase meets itself at the seam. The rounding is a
+        ///   few thousandths of a hertz on a held note — inaudible, and the alternative is a fade
+        ///   that ducks the loudest part of the mix twice a minute.</item>
+        ///   <item>A note writes past the end of its own bar and <b>wraps around to the head of the
+        ///   clip</b>, which is what actually happens in a loop: the last note of the phrase is
+        ///   still ringing when the phrase begins again. Cutting each note at its bar line was the
+        ///   first version of this, and every bar line was a click.</item>
+        /// </list>
+        /// </summary>
+        static AudioClip Music(string key)
+        {
+            const float NoteSeconds = 1.5f;
+
+            // D dorian over two octaves, as semitone offsets from the root. The line is written in
+            // scale degrees so it cannot land outside the mode by a typo.
+            int[] scale = { 0, 2, 3, 5, 7, 9, 10, 12, 14, 15, 17, 19 };
+            int[] line = { 0, 2, 4, 2, 3, 5, 4, 2, 0, 4, 7, 5, 4, 2, 1, 0 };
+
+            const float Root = 146.83f;   // D3
+            const float Fifth = 220.00f;  // A3, the drone's upper voice
+
+            int noteSamples = Mathf.RoundToInt(NoteSeconds * SampleRate);
+            int count = noteSamples * line.Length;
+            float span = count / (float)SampleRate;
+            float[] samples = new float[count];
+
+            var noise = new Rng(key);
+
+            // Two fifths a hair apart rather than one tone: the beating between them is what stops
+            // a held note sounding like a test signal.
+            float droneLow = WholeCycles(Root * 0.5f, span);
+            float droneFifth = WholeCycles(Fifth * 0.5f, span);
+            float droneBeat = WholeCycles(Fifth * 0.5f * 1.003f, span);
+
+            for (int i = 0; i < count; i++)
+            {
+                float seconds = i / (float)SampleRate;
+                float breath = 0.82f + 0.18f * Mathf.Sin(i / (float)count * Mathf.PI * 2f);
+
+                float drone =
+                    Mathf.Sin(seconds * droneLow * Mathf.PI * 2f) * 0.55f +
+                    Mathf.Sin(seconds * droneFifth * Mathf.PI * 2f) * 0.34f +
+                    Mathf.Sin(seconds * droneBeat * Mathf.PI * 2f) * 0.22f;
+
+                samples[i] = drone * breath * 0.42f;
+            }
+
+            // Two bars of ring-out, the last quarter of it faded, so a note is inaudible by the
+            // time it stops being written rather than being cut off mid-swing.
+            int ring = noteSamples * 2;
+            int release = ring / 4;
+
+            for (int note = 0; note < line.Length; note++)
+            {
+                // Every fourth note is left silent. A line that plays on every beat is an exercise;
+                // the gaps are what make it a phrase.
+                if (note % 4 == 3)
+                {
+                    continue;
+                }
+
+                float frequency = Root * 2f * Mathf.Pow(2f, scale[line[note]] / 12f);
+                int start = note * noteSamples;
+
+                for (int i = 0; i < ring; i++)
+                {
+                    float t = i / (float)noteSamples;
+                    float seconds = i / (float)SampleRate;
+
+                    // A struck string: the harmonics above the fundamental die first, which is the
+                    // difference between a pluck and an organ.
+                    float body =
+                        Mathf.Sin(seconds * frequency * Mathf.PI * 2f) * Mathf.Exp(-2.2f * t) +
+                        Mathf.Sin(seconds * frequency * 2f * Mathf.PI * 2f) * 0.42f * Mathf.Exp(-5.5f * t) +
+                        Mathf.Sin(seconds * frequency * 3f * Mathf.PI * 2f) * 0.18f * Mathf.Exp(-9f * t);
+
+                    // The scrape of the nail, a few milliseconds long.
+                    float attack = noise.NextSigned() * Mathf.Exp(-160f * t) * 0.20f;
+
+                    float fade = i > ring - release ? (ring - i) / (float)release : 1f;
+                    samples[(start + i) % count] += (body + attack) * 0.62f * fade;
+                }
+            }
+
+            return Finish(key, samples, 0.34f);
+        }
+
+        /// <summary>
+        /// The nearest frequency to <paramref name="hertz"/> that completes a whole number of
+        /// cycles in <paramref name="span"/> seconds, so a tone built from it ends where it began.
+        /// </summary>
+        static float WholeCycles(float hertz, float span)
+        {
+            if (span <= 0f)
+            {
+                return hertz;
+            }
+
+            float cycles = Mathf.Max(1f, Mathf.Round(hertz * span));
+            return cycles / span;
+        }
+
         // ------------------------------------------------------------------ shaping
 
         /// <summary>
@@ -312,6 +437,7 @@ namespace SheepGate.Audio
     {
         public const string AmbienceDay = "amb_day";
         public const string AmbienceNight = "amb_night";
+        public const string MusicVillage = "mus_village";
         public const string Step = "sfx_step";
         public const string Stone = "sfx_stone";
         public const string Confirm = "sfx_confirm";

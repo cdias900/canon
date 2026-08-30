@@ -264,6 +264,10 @@ namespace SheepGate.Player
                     budget -= distance;
                     _pathIndex++;
 
+                    // One step per cell entered, which ties the rate to the walk rather than to
+                    // the frame rate and costs nothing to keep in sync with the animation.
+                    SheepGate.Audio.AudioDirector.Play(SheepGate.Audio.AudioKeys.Step);
+
                     if (_pathIndex < _path.Count)
                     {
                         Vector2 next = GridPathfinder.GridToWorld(_path[_pathIndex]);

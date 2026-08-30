@@ -57,8 +57,14 @@ namespace SheepGate.Core
             });
             Telemetry.Flush();
 
+            // Brought up here rather than on the first sound, so the ambient bed is already
+            // running when the opening fades in instead of arriving a beat late.
+            SheepGate.Audio.AudioDirector.Ensure();
+
             Debug.Log("[Boot] Ready. Day " + state.day + ", " + (freshStart ? "new run." : "resumed run.") +
-                      " Locale " + Locales.Active + ".");
+                      " Locale " + Locales.Active + "." +
+                      " Audio " + (SheepGate.Audio.AudioDirector.Suppressed ? "suppressed" :
+                                   SheepGate.Audio.AudioDirector.Muted ? "muted" : "on") + ".");
 
             // Always the village. Character creation is no longer a screen in front of the game:
             // it is a beat inside the opening, played in the house the neighbour walks you into, so

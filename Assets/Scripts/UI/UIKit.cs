@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using SheepGate.Art;
 using SheepGate.Player;
+using SheepGate.Audio;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -956,7 +957,14 @@ namespace SheepGate.UI
 
             if (onClick != null)
             {
-                button.onClick.AddListener(() => onClick());
+                // Every button, in one place. The control this must NOT be attached to — the
+                // dialogue tap catcher — is not a Button at all, so advancing a line stays silent
+                // and reading keeps its quiet.
+                button.onClick.AddListener(() =>
+                {
+                    AudioDirector.Play(AudioKeys.Confirm);
+                    onClick();
+                });
             }
 
             return button;
@@ -1114,7 +1122,14 @@ namespace SheepGate.UI
 
             if (onClick != null)
             {
-                button.onClick.AddListener(() => onClick());
+                // Every button, in one place. The control this must NOT be attached to — the
+                // dialogue tap catcher — is not a Button at all, so advancing a line stays silent
+                // and reading keeps its quiet.
+                button.onClick.AddListener(() =>
+                {
+                    AudioDirector.Play(AudioKeys.Confirm);
+                    onClick();
+                });
             }
 
             return button;

@@ -245,6 +245,11 @@ namespace SheepGate.Contest
             HasFinished = false;
             _running = true;
 
+            // NEH.4.20 — the trumpet that calls everyone to the breach. It is the only sound in
+            // the game a passage asks for by name, so it plays where the passage puts it: the
+            // moment the assault arrives, not at a victory.
+            SheepGate.Audio.AudioDirector.Play(SheepGate.Audio.AudioKeys.Trumpet);
+
             ContestUI ui = ContestUI.EnsureInstance();
             if (ui != null)
             {

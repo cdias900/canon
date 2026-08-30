@@ -341,6 +341,7 @@ namespace SheepGate.World
             }
 
             state.damaged = false;
+            SheepGate.Audio.AudioDirector.Play(SheepGate.Audio.AudioKeys.Stone);
 
             int remaining = units;
             bool completedNow = false;

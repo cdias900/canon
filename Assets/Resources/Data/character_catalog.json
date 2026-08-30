@@ -4,6 +4,7 @@
       "id": "adar",
       "accent": "#4E86A8",
       "silhouette_anchor": "shoulder_r",
+      "signature_item": "acc_rope_coil",
       "art": {
         "body": 0,
         "hair": 0,
@@ -18,6 +19,7 @@
       "id": "neriah",
       "accent": "#4E9A6A",
       "silhouette_anchor": "back_center",
+      "signature_item": "acc_map_tube",
       "art": {
         "body": 1,
         "hair": 6,
@@ -96,7 +98,10 @@
       "id": "hair_side_braid",
       "slot": "hair",
       "anchor": "",
-      "unlock_condition": null,
+      "unlock_condition": {
+        "type": "day_reached",
+        "value": 2
+      },
       "incompatible_with": [],
       "tint_channels": [
         "hair"
@@ -230,7 +235,10 @@
       "id": "outfit_clay_tunic",
       "slot": "outfit",
       "anchor": "",
-      "unlock_condition": null,
+      "unlock_condition": {
+        "type": "wall_stage",
+        "value": 1
+      },
       "incompatible_with": [],
       "tint_channels": [
         "fabric"
@@ -246,7 +254,10 @@
       "id": "outfit_terracotta_tunic",
       "slot": "outfit",
       "anchor": "",
-      "unlock_condition": null,
+      "unlock_condition": {
+        "type": "segments_complete",
+        "value": 1
+      },
       "incompatible_with": [],
       "tint_channels": [
         "fabric"
@@ -343,7 +354,7 @@
     {
       "id": "acc_rope_coil",
       "slot": "accessory",
-      "anchor": "",
+      "anchor": "shoulder_r",
       "unlock_condition": null,
       "incompatible_with": [],
       "tint_channels": [
@@ -358,7 +369,7 @@
     {
       "id": "acc_map_tube",
       "slot": "accessory",
-      "anchor": "",
+      "anchor": "back_center",
       "unlock_condition": null,
       "incompatible_with": [],
       "tint_channels": [

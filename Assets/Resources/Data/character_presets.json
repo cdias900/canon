@@ -9,7 +9,9 @@
         "base": "base_adar",
         "hair": "hair_short_crop",
         "outfit": "outfit_carrier_tunic",
-        "accessories": []
+        "accessories": [
+          "acc_rope_coil"
+        ]
       },
       "palette": {
         "skin": "#8A5F3F",
@@ -36,7 +38,9 @@
         "base": "base_neriah",
         "hair": "hair_tied_back",
         "outfit": "outfit_surveyor_wrap",
-        "accessories": []
+        "accessories": [
+          "acc_map_tube"
+        ]
       },
       "palette": {
         "skin": "#A0714C",

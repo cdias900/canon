@@ -66,12 +66,29 @@ namespace SheepGate.E2E
         /// </summary>
         /// Raised from 240 when the run grew from one day to three: days two and three add two
         /// mornings, a whole trial and the reader, and a ceiling that a passing run cannot clear
-        /// reports every slow run as a hang.
-        const float RunTimeoutSeconds = 600f;
+        /// reports every slow run as a hang. Raised again from 600 when character creation stopped
+        /// being one tap on QuickStart and became the twenty-odd taps a player actually makes in
+        /// there: two cards, a tone, a name, three tabs, a refusal, an equip and a round trip back
+        /// to the first step.
+        const float RunTimeoutSeconds = 720f;
 
         readonly List<string> _failures = new List<string>();
         readonly List<string> _steps = new List<string>();
         readonly List<string> _shots = new List<string>();
+
+        /// <summary>
+        /// What character creation settled on, held so the backpack can be asked whether it agrees.
+        ///
+        /// The two screens spoke different vocabularies until this run — creation wrote art
+        /// indices, the backpack read catalogue ids — so "they now agree" is the claim worth
+        /// carrying across a whole day of script rather than re-deriving at the backpack, where a
+        /// re-derivation would only ever agree with itself.
+        /// </summary>
+        string _creationCharacterId;
+
+        readonly List<string> _creationEquipped = new List<string>();
+        int _creationSkin = -1;
+        string _creationPlayerName;
 
         string _outputDirectory;
         string _runLocale = Locales.Source;
@@ -156,11 +173,10 @@ namespace SheepGate.E2E
 
             // 2. Through the opening to the one screen that asks the player for something.
             yield return AdvanceDialogueUntil("CharacterCreationCanvas", "character creation");
-            yield return Capture("02-creation");
-            CheckLanguageToggle();
 
-            // 3. Take the quick route out of creation, the way a player in a hurry would.
-            yield return Tap("QuickStart", "the quick-start button");
+            // 3. Who you are, and what you wear. Driven in full rather than skipped past with
+            // QuickStart, because creation is where the wardrobe the whole game reads is written.
+            yield return CreateACharacter();
 
             // 4. Through the rest of the opening to the game proper. The condition is that the HUD
             // is actually on screen, not that its object exists: HUD.SetVisible toggles
@@ -685,6 +701,863 @@ namespace SheepGate.E2E
             return count;
         }
 
+        // ------------------------------------------------------------------ character creation
+
+        /// <summary>
+        /// The name this run types into the field. It is what a finger would enter rather than
+        /// words the game authored, and every assertion about it compares against this constant
+        /// instead of reading it off a table. Long enough to clear
+        /// <see cref="CharacterPresets.MinNameLength"/>, short enough never to reach
+        /// <see cref="CharacterPresets.MaxNameLength"/>, and the same in every locale so the two
+        /// runs assert the identical thing.
+        /// </summary>
+        const string TypedName = "Kai";
+
+        /// <summary>The four facings the preview strip draws, in the order it draws them.</summary>
+        static readonly string[] CreationFacings = { "down", "left", "right", "up" };
+
+        /// <summary>
+        /// A copy of the figure, taken so two choices can be compared after the second one has
+        /// already overwritten the live state. <see cref="AppearanceState"/> is a live object on
+        /// the run, so holding a reference to it and comparing later compares a thing with itself.
+        /// </summary>
+        struct LookSnapshot
+        {
+            public int Body;
+            public int Skin;
+            public int Hair;
+            public int Top;
+            public int Legs;
+            public int Accessory;
+
+            public static LookSnapshot Of(AppearanceState look)
+            {
+                var copy = new LookSnapshot();
+                if (look == null)
+                {
+                    return copy;
+                }
+
+                copy.Body = look.body;
+                copy.Skin = look.skin;
+                copy.Hair = look.hair;
+                copy.Top = look.top;
+                copy.Legs = look.legs;
+                copy.Accessory = look.accessory;
+                return copy;
+            }
+
+            public override string ToString()
+            {
+                return "body=" + Body + " skin=" + Skin + " hair=" + Hair
+                       + " top=" + Top + " legs=" + Legs + " accessory=" + Accessory;
+            }
+        }
+
+        /// <summary>
+        /// The one screen in the opening that asks the player for something, played the way a
+        /// person plays it: try to go on before choosing, look at both characters, pick a tone,
+        /// type a name, walk the three slots, be turned down by a piece that has not opened yet,
+        /// put on one that has, go back and find nothing taken away, and start.
+        ///
+        /// It replaces one tap on QuickStart, and it is worth the minutes because this screen is
+        /// where the wardrobe the rest of the game reads gets written. Until now creation wrote six
+        /// art indices and the backpack read catalogue ids, and nothing anywhere proved the two
+        /// halves agreed — the acceptance harness constructs the wardrobe directly and never
+        /// composes the screen that fills it, so a creation screen that dressed nobody would have
+        /// passed every rule about the wardrobe it left empty.
+        ///
+        /// Every assertion here reads state or hierarchy. Nothing reads a pixel: what the figure
+        /// looks like is the art library's business, and what this asserts is that the ints
+        /// underneath it changed and that the row the player tapped is the row wearing the ring.
+        /// </summary>
+        IEnumerator CreateACharacter()
+        {
+            GameState state = TryGetState();
+            if (state == null || state.appearance == null)
+            {
+                Record("creation has a run to write into", false,
+                    state == null ? "there is no game state" : "the run carries no appearance");
+                yield return SkipCreation("there is nothing to write a character into");
+                yield break;
+            }
+
+            yield return WaitForObject("Step1", "the character choice");
+
+            string[] ids = CharacterPresets.Ids();
+            Record("creation offers a character to be", ids.Length >= 2,
+                ids.Length + " preset(s) authored: " + Listed(ids));
+
+            var missingCards = new List<string>();
+            for (int i = 0; i < ids.Length; i++)
+            {
+                if (Find("CharacterCard_" + ids[i]) == null)
+                {
+                    missingCards.Add(ids[i]);
+                }
+            }
+
+            Record("every authored character has a card on screen", ids.Length >= 2 && missingCards.Count == 0,
+                missingCards.Count == 0
+                    ? "cards for " + Listed(ids)
+                    : "no card for " + Listed(missingCards));
+
+            RecordEscapeHatch("the character choice");
+            Record("the character choice is never a dead end", IsInteractable("ToCustomise"),
+                "ToCustomise interactable=" + IsInteractable("ToCustomise")
+                + " — a control at 0.40 opacity is the void rule 7 forbids");
+
+            CheckNoMissingStrings();
+            yield return Capture("02-creation");
+            CheckLanguageToggle();
+
+            if (ids.Length < 2 || missingCards.Count > 0)
+            {
+                // Everything below chooses between two cards. Without them each step would spend a
+                // tap timeout proving the same one thing, and thirty seconds apiece is enough to
+                // push the whole run past its watchdog.
+                yield return SkipCreation("there are not two cards on screen to choose between");
+                yield break;
+            }
+
+            yield return AskBeforeChoosing();
+            yield return ChooseBetweenTheTwo(state, ids);
+            yield return ChooseATone(state);
+            yield return TypeAName(state);
+
+            yield return Tap("ToCustomise", "going on to the look");
+            yield return WaitForObject("Step2", "the look");
+            Record("the character choice steps aside for the look", Find("Step1") == null,
+                Find("Step1") == null ? "step one is away" : "both steps are on screen at once");
+
+            yield return DriveTheLook(state);
+            yield return ConfirmTheCharacter(state);
+        }
+
+        /// <summary>
+        /// Tries to go on with nothing chosen, which is the first thing a hurried player does.
+        ///
+        /// Rule 7 decides what has to happen: the button stays live and answers with a sentence,
+        /// rather than being greyed out and answering with nothing. So both halves are asserted —
+        /// the sentence arrived, and the screen did not advance behind it.
+        ///
+        /// The sentence arrives on a fade, so the frame after the tap is too early to read it.
+        /// </summary>
+        IEnumerator AskBeforeChoosing()
+        {
+            yield return Tap("ToCustomise", "going on before choosing");
+            yield return WaitUntil(() => !string.IsNullOrEmpty(TextOf("ChoiceMessage")),
+                "the ask to choose one first");
+
+            string ask = TextOf("ChoiceMessage");
+            Record("going on before choosing asks rather than refuses",
+                !string.IsNullOrEmpty(ask) && ask.IndexOf(MissingMarkerOpen) < 0,
+                "ChoiceMessage = \"" + (ask ?? "nothing") + "\"");
+            Record("going on before choosing goes nowhere",
+                Find("Step1") != null && Find("Step2") == null,
+                "step one up=" + (Find("Step1") != null) + " step two up=" + (Find("Step2") != null));
+        }
+
+        /// <summary>
+        /// Taps one card and then the other, and proves the choice reaches the figure.
+        ///
+        /// The assertion that matters is on <see cref="AppearanceState"/> and not on the button:
+        /// a card that lights its ring while the character underneath stays put looks entirely
+        /// correct until the player walks out of the house as somebody else. It is recorded in
+        /// three parts on purpose. The build follows the character, the worn set follows the
+        /// character, and the tone follows neither — that last one is decision 1b, and a single
+        /// combined signature would report all three as one indistinguishable failure.
+        /// </summary>
+        IEnumerator ChooseBetweenTheTwo(GameState state, string[] ids)
+        {
+            yield return TapInList("CharacterCard_" + ids[0], "choosing " + ids[0]);
+            yield return null;
+
+            LookSnapshot first = LookSnapshot.Of(state.appearance);
+            string firstId = state.characterId;
+            string firstWorn = Listed(state.equippedItems);
+
+            yield return TapInList("CharacterCard_" + ids[1], "choosing " + ids[1]);
+            yield return null;
+
+            LookSnapshot second = LookSnapshot.Of(state.appearance);
+            string secondWorn = Listed(state.equippedItems);
+
+            Record("the character carries its own build", first.Body != second.Body,
+                ids[0] + " -> " + first + " | " + ids[1] + " -> " + second);
+            Record("the character carries its own clothes", firstWorn != secondWorn,
+                ids[0] + " wears " + firstWorn + "; " + ids[1] + " wears " + secondWorn);
+            Record("choosing a character writes which one it is",
+                firstId == ids[0] && state.characterId == ids[1],
+                "characterId " + (firstId ?? "empty") + " -> " + (state.characterId ?? "empty"));
+
+            // Decision 1b, asserted where it can actually break: the character supplies a build and
+            // never a tone, so a floor laid over the figure must leave the tone exactly as it found
+            // it. A catalogue block that named skin would show up here as the tone moving on its own.
+            Record("choosing a character never touches the tone", first.Skin == second.Skin,
+                "skin " + first.Skin + " -> " + second.Skin);
+
+            GameObject chosen = Find("CharacterCard_" + ids[1]);
+            GameObject other = Find("CharacterCard_" + ids[0]);
+            Record("the card that was chosen is the one wearing the ring",
+                IsChildShowing(chosen, "Selected") && !IsChildShowing(other, "Selected"),
+                ids[1] + " ring=" + IsChildShowing(chosen, "Selected")
+                + ", " + ids[0] + " ring=" + IsChildShowing(other, "Selected"));
+
+            // Rule 2: never colour alone. The ring is clay and the mark is a check, and a player
+            // who cannot tell clay from the card behind it still has the check.
+            Record("the chosen card carries a mark and not only a colour",
+                IsChildShowing(chosen, "SelectedMark"),
+                "SelectedMark under CharacterCard_" + ids[1] + " showing="
+                + IsChildShowing(chosen, "SelectedMark"));
+        }
+
+        /// <summary>
+        /// Picks a skin tone, which is the one thing on this screen that belongs to the person
+        /// playing rather than to the character they chose.
+        ///
+        /// Every tone has to be offered — this screen is the only surface in the whole game that
+        /// can set one — and the tap has to land on <c>skin</c> without disturbing <c>body</c>:
+        /// the two share one sprite index, and a screen that wrote the packed value would clamp
+        /// the build to 1 and lose both halves at once.
+        /// </summary>
+        IEnumerator ChooseATone(GameState state)
+        {
+            var missingTones = new List<string>();
+            for (int offered = 0; offered < AppearanceState.SkinTones; offered++)
+            {
+                if (Find("ToneOption_" + offered) == null)
+                {
+                    missingTones.Add("ToneOption_" + offered);
+                }
+            }
+
+            Record("every skin tone is offered", missingTones.Count == 0,
+                missingTones.Count == 0
+                    ? AppearanceState.SkinTones + " swatches on screen"
+                    : "no swatch named " + Listed(missingTones));
+
+            if (missingTones.Count > 0)
+            {
+                yield break;
+            }
+
+            int buildBefore = state.appearance.body;
+            int toneBefore = state.appearance.skin;
+
+            // Two along rather than one, so the assertion cannot pass on an off-by-one that lands
+            // on the neighbouring swatch.
+            int tone = (toneBefore + 2) % AppearanceState.SkinTones;
+
+            yield return TapInList("ToneOption_" + tone, "the skin tone " + tone);
+            yield return null;
+
+            Record("the tone is the player's own to set", state.appearance.skin == tone,
+                "skin " + toneBefore + " -> " + state.appearance.skin + ", asked for " + tone);
+            Record("setting the tone leaves the build alone", state.appearance.body == buildBefore,
+                "body " + buildBefore + " -> " + state.appearance.body);
+            Record("the chosen tone is the one wearing the ring",
+                IsChildShowing(Find("ToneOption_" + tone), "Selected")
+                && IsChildShowing(Find("ToneOption_" + tone), "SelectedMark"),
+                "ring=" + IsChildShowing(Find("ToneOption_" + tone), "Selected")
+                + " mark=" + IsChildShowing(Find("ToneOption_" + tone), "SelectedMark"));
+        }
+
+        /// <summary>
+        /// Types a name and proves it reaches the run immediately rather than at confirm.
+        ///
+        /// The field is written through the component rather than through a raycast, because there
+        /// is no finger API for a keyboard and the thing being proved is what the screen does with
+        /// a keystroke, not what uGUI does with a caret. <see cref="InputField.text"/>'s setter
+        /// raises <c>onValueChanged</c>, which is the keystroke the screen listens for.
+        ///
+        /// Immediately is the whole assertion. A language switch reloads the scene, and a name
+        /// held in a local field until confirm would be gone the moment a player changed language
+        /// halfway through creation.
+        /// </summary>
+        IEnumerator TypeAName(GameState state)
+        {
+            GameObject field = Find("NameInput");
+            InputField input = field != null ? field.GetComponent<InputField>() : null;
+            if (input == null)
+            {
+                Record("creation takes a name", false,
+                    field == null ? "no active object named NameInput" : "NameInput has no InputField");
+                yield break;
+            }
+
+            input.text = TypedName;
+            yield return null;
+
+            Record("creation takes a name", input.text == TypedName,
+                "NameInput = \"" + input.text + "\"");
+            Record("the name reaches the run the moment it is typed", state.playerName == TypedName,
+                "playerName = \"" + (state.playerName ?? "nothing") + "\", typed \"" + TypedName + "\"");
+
+            string hint = TextOf("NameHint");
+            Record("the name field says its piece without blocking anyone",
+                hint == null || hint.IndexOf(MissingMarkerOpen) < 0,
+                "NameHint = \"" + (hint ?? "nothing to say") + "\"");
+        }
+
+        /// <summary>
+        /// The second step: the preview, the three slots, and the two taps that prove a locked row
+        /// is an invitation rather than a wall.
+        /// </summary>
+        IEnumerator DriveTheLook(GameState state)
+        {
+            PresetDef chosen = CharacterPresets.Get(state.characterId);
+            string chosenName = TextOf("ChosenName");
+            Record("the look says who you chose",
+                chosen != null && !string.IsNullOrEmpty(chosenName)
+                && chosenName.IndexOf(MissingMarkerOpen) < 0 && chosenName == chosen.suggested_name,
+                "ChosenName = \"" + (chosenName ?? "nothing") + "\", preset "
+                + (state.characterId ?? "empty") + " suggests \""
+                + (chosen != null ? chosen.suggested_name : "nothing") + "\"");
+
+            var missingCells = new List<string>();
+            for (int i = 0; i < CreationFacings.Length; i++)
+            {
+                if (Find("Cell_" + CreationFacings[i]) == null)
+                {
+                    missingCells.Add("Cell_" + CreationFacings[i]);
+                }
+            }
+
+            // Four facings and not one, because the accessories hang off named body parts now — the
+            // coil of rope on the right shoulder, the map tube across the back — and the back and
+            // side facings are the only place a player ever sees them.
+            Record("the look is shown from all four sides",
+                Find("Preview") != null && missingCells.Count == 0,
+                missingCells.Count == 0
+                    ? "Preview draws " + Listed(CreationFacings)
+                    : "missing " + Listed(missingCells));
+
+            yield return WaitForObject("SlotSegments", "the slot bar");
+
+            // The bar is read off Wardrobe.BadgedSlots rather than off a list spelled out here,
+            // because that is the list the screen builds it from. A run holding its own copy would
+            // agree with the screen right up until somebody added a slot to one of them.
+            IReadOnlyList<CharacterSlot> slots = Wardrobe.BadgedSlots;
+            var missingCellsOnBar = new List<string>();
+            for (int i = 0; i < slots.Count; i++)
+            {
+                if (Find("Segment" + slots[i]) == null)
+                {
+                    missingCellsOnBar.Add("Segment" + slots[i]);
+                }
+            }
+
+            Record("the slot bar has one cell for every wardrobe slot",
+                slots.Count > 0 && missingCellsOnBar.Count == 0,
+                missingCellsOnBar.Count == 0
+                    ? slots.Count + " cell(s) on the bar"
+                    : "no cell named " + Listed(missingCellsOnBar));
+
+            if (slots.Count > 0)
+            {
+                RecordOnlyCreationTab(slots[0], "the look opens on the first slot");
+            }
+
+            CheckNoMissingStrings();
+            yield return Capture("02b-creation-look");
+
+            for (int i = 0; i < slots.Count; i++)
+            {
+                yield return SelectCreationTab(slots[i]);
+                RecordSlotOptions(state, slots[i]);
+            }
+
+            // Back to the slot the two taps below live on, which also proves the bar goes both ways.
+            yield return SelectCreationTab(CharacterSlot.Hair);
+
+            yield return TapACreationPieceNotFoundYet(state);
+            yield return WearAPieceInCreation(state);
+            yield return GoBackAndKeepEverything(state);
+        }
+
+        /// <summary>
+        /// Taps one slot and proves the whole bar moved with it: its list is the only one on
+        /// screen, and the cell that was tapped is the one wearing the fill.
+        ///
+        /// The suffix comes from the slot rather than from a list spelled out here, and the order
+        /// comes from <see cref="Wardrobe.BadgedSlots"/> — the same list the screen builds its bar
+        /// from. A run that kept its own copy would agree right up until somebody added a slot.
+        /// </summary>
+        IEnumerator SelectCreationTab(CharacterSlot slot)
+        {
+            string tab = slot.ToString();
+            GameObject segment = Find("Segment" + tab);
+            if (segment == null)
+            {
+                Record("select Segment" + tab, false, "no active object named Segment" + tab);
+                yield break;
+            }
+
+            yield return TapObject(segment, "select Segment" + tab);
+            yield return null;
+
+            RecordOnlyCreationTab(slot, "selecting Segment" + tab + " shows Tab" + tab + " and nothing else");
+            Record("selecting Segment" + tab + " repaints the slot bar", IsShowing("SegmentFill" + tab),
+                "SegmentFill" + tab + " showing=" + IsShowing("SegmentFill" + tab));
+        }
+
+        /// <summary>
+        /// Asserts that exactly one of creation's slot panels is on screen — the same assertion the
+        /// backpack makes about its own four, and for the same reason: two lists drawn over one
+        /// another logs nothing and throws nothing.
+        /// </summary>
+        void RecordOnlyCreationTab(CharacterSlot slot, string step)
+        {
+            IReadOnlyList<CharacterSlot> slots = Wardrobe.BadgedSlots;
+            var showing = new List<string>();
+            for (int i = 0; i < slots.Count; i++)
+            {
+                string name = "Tab" + slots[i];
+                if (Find(name) != null)
+                {
+                    showing.Add(name);
+                }
+            }
+
+            Record(step, showing.Count == 1 && showing[0] == "Tab" + slot,
+                showing.Count == 0 ? "no slot panel is on screen at all" : "showing " + Listed(showing));
+        }
+
+        /// <summary>
+        /// What one slot offers on the first day of a run: two pieces free, every other piece drawn
+        /// in full beside them with the condition that opens it written out.
+        ///
+        /// The count is decision 2 and the drawing is rule 7, and neither can be read off a
+        /// screenshot: a wardrobe that quietly offered four would look like a generous wardrobe,
+        /// and a wardrobe that hid what it could not yet offer would look like a small one. Both
+        /// are read off the catalogue and the hierarchy instead.
+        ///
+        /// The sentence is checked three ways because each way covers the others' blind spot.
+        /// Emptiness catches a row that drew no condition at all; the resolution marker catches a
+        /// key missing from ui.json; and the raw key catches the catalogue's own miss, which
+        /// renders as <c>[key]</c> and would sail straight past a sweep looking for angle quotes.
+        /// </summary>
+        void RecordSlotOptions(GameState state, CharacterSlot slot)
+        {
+            string tab = slot.ToString();
+            CatalogItemDef[] items = Wardrobe.ItemsForSlot(slot);
+
+            var free = new List<string>();
+            var locked = new List<CatalogItemDef>();
+            for (int i = 0; i < items.Length; i++)
+            {
+                CatalogItemDef item = items[i];
+                if (item == null || string.IsNullOrEmpty(item.id))
+                {
+                    continue;
+                }
+
+                if (Wardrobe.IsUnlocked(state, item.id))
+                {
+                    free.Add(item.id);
+                }
+                else
+                {
+                    locked.Add(item);
+                }
+            }
+
+            Record("the " + tab + " slot opens with two options", free.Count == 2,
+                free.Count + " free (" + Listed(free) + ") and " + locked.Count + " not found yet");
+
+            var undrawn = new List<string>();
+            var mute = new List<string>();
+            var colourOnly = new List<string>();
+
+            for (int i = 0; i < items.Length; i++)
+            {
+                CatalogItemDef item = items[i];
+                if (item == null || string.IsNullOrEmpty(item.id))
+                {
+                    continue;
+                }
+
+                if (Find("Chip_" + item.id) == null)
+                {
+                    undrawn.Add(item.id);
+                }
+            }
+
+            Record("every " + tab + " piece is drawn, the ones not found yet included", undrawn.Count == 0,
+                undrawn.Count == 0
+                    ? items.Length + " row(s) on screen"
+                    : "no row for " + Listed(undrawn) + " — a piece not found yet is drawn in full, never blanked");
+
+            for (int i = 0; i < locked.Count; i++)
+            {
+                CatalogItemDef item = locked[i];
+                GameObject chip = Find("Chip_" + item.id);
+                if (chip == null)
+                {
+                    continue;
+                }
+
+                string sentence = ChildTextOf(chip, "Text/Unlock");
+                string key = UnlockEvaluator.LocaleKey(item.unlock_condition);
+                string expected = UnlockEvaluator.Sentence(item.unlock_condition);
+
+                bool spelledOut = !string.IsNullOrEmpty(sentence)
+                    && sentence.IndexOf(MissingMarkerOpen) < 0
+                    && (string.IsNullOrEmpty(key) || sentence.IndexOf(key, StringComparison.Ordinal) < 0)
+                    && sentence == expected;
+
+                if (!spelledOut)
+                {
+                    mute.Add(item.id + " = \"" + (sentence ?? "nothing") + "\" (wardrobe says \""
+                             + (expected ?? "nothing") + "\")");
+                }
+
+                if (!IsChildShowing(chip, "Text/Name/Status"))
+                {
+                    colourOnly.Add(item.id);
+                }
+            }
+
+            Record("every " + tab + " piece not found yet says how to open it", mute.Count == 0,
+                mute.Count == 0
+                    ? locked.Count + " condition(s) written out in full"
+                    : Listed(mute));
+
+            // Rule 2. A padlock is the word beside the colour, and a row that leans on the colour
+            // alone says nothing at all to a player who cannot see the difference.
+            Record("a " + tab + " piece not found yet carries an icon and not only a colour",
+                colourOnly.Count == 0,
+                colourOnly.Count == 0
+                    ? "every locked row shows its status icon"
+                    : "no status icon on " + Listed(colourOnly));
+        }
+
+        /// <summary>
+        /// Taps a piece the player has not found yet, in creation this time.
+        ///
+        /// The same rule-7 claim the backpack makes, on the screen where it is made first: the row
+        /// stays a live control, the tap goes somewhere, the answer is one calm sentence, and
+        /// nothing about the character moves. The interactability is recorded outright rather than
+        /// left implied by the tap succeeding, because "no disabled control" is the half of rule 7
+        /// that a passing tap does not say out loud.
+        /// </summary>
+        IEnumerator TapACreationPieceNotFoundYet(GameState state)
+        {
+            CatalogItemDef target = null;
+            CatalogItemDef[] items = Wardrobe.ItemsForSlot(CharacterSlot.Hair);
+            for (int i = 0; i < items.Length && target == null; i++)
+            {
+                CatalogItemDef item = items[i];
+                if (item != null && !string.IsNullOrEmpty(item.id) && !Wardrobe.IsUnlocked(state, item.id))
+                {
+                    target = item;
+                }
+            }
+
+            if (target == null)
+            {
+                Record("creation still has a piece to find", false,
+                    "every hair item is already unlocked on day " + state.day);
+                yield break;
+            }
+
+            GameObject chip = Find("Chip_" + target.id);
+            if (chip == null)
+            {
+                Record("creation draws a row for " + target.id, false,
+                    "no active object named Chip_" + target.id);
+                yield break;
+            }
+
+            Button button = chip.GetComponent<Button>();
+            Record("a piece not found yet is still a live control", button != null && button.interactable,
+                button == null
+                    ? "Chip_" + target.id + " has no Button"
+                    : "interactable=" + button.interactable
+                      + " — a control at 0.40 opacity is the void rule 7 forbids");
+
+            int before = state.appearance.hair;
+            string wornBefore = Listed(state.equippedItems);
+
+            yield return ScrollIntoView(chip);
+            yield return TapObject(chip, "tap " + target.id + ", which has not been found yet");
+            yield return WaitUntil(() => !string.IsNullOrEmpty(TextOf("RefusalMessage")),
+                "the refusal to be spelled out");
+
+            string sentence = TextOf("RefusalMessage");
+            string expected = Loc.T(Wardrobe.KeyRefusalLocked);
+
+            Record("creation answers a locked piece with a sentence",
+                !string.IsNullOrEmpty(sentence) && sentence.IndexOf(MissingMarkerOpen) < 0,
+                "RefusalMessage = \"" + (sentence ?? "missing") + "\"");
+            Record("the refusal in creation is the one the wardrobe handed back", sentence == expected,
+                "expected \"" + expected + "\", found \"" + (sentence ?? "missing") + "\"");
+            Record("being turned down in creation costs nothing",
+                state.appearance.hair == before && !Wardrobe.IsEquipped(state, target.id)
+                && Listed(state.equippedItems) == wornBefore,
+                "hair " + before + " -> " + state.appearance.hair + ", worn " + wornBefore
+                + " -> " + Listed(state.equippedItems));
+        }
+
+        /// <summary>
+        /// Puts on a piece the player does have, and proves the figure moved with it.
+        ///
+        /// The piece is found at runtime rather than named here: several locked pieces write the
+        /// same art indices as free ones, so "a different row" is not the same thing as "a
+        /// different look", and an id spelled into a test breaks the day a designer renames a
+        /// hairstyle. What is asserted is the pair — the int on the character AND the ring on the
+        /// row — because either one alone passes on a screen that is lying about the other.
+        /// </summary>
+        IEnumerator WearAPieceInCreation(GameState state)
+        {
+            int before = state.appearance.hair;
+
+            CatalogItemDef target = null;
+            CatalogItemDef[] items = Wardrobe.ItemsForSlot(CharacterSlot.Hair);
+            for (int i = 0; i < items.Length && target == null; i++)
+            {
+                CatalogItemDef item = items[i];
+                if (item == null || item.art == null || !item.art.hair.HasValue) continue;
+                if (item.art.hair.Value == before) continue;
+                if (!Wardrobe.IsUnlocked(state, item.id)) continue;
+                if (Wardrobe.IsEquipped(state, item.id)) continue;
+                target = item;
+            }
+
+            if (target == null)
+            {
+                Record("creation offers a piece to put on", false,
+                    "no unlocked hair item writes a layer different from " + before);
+                yield break;
+            }
+
+            GameObject chip = Find("Chip_" + target.id);
+            if (chip == null)
+            {
+                Record("creation draws a row for " + target.id, false,
+                    "no active object named Chip_" + target.id);
+                yield break;
+            }
+
+            yield return ScrollIntoView(chip);
+            yield return TapObject(chip, "put on " + target.id);
+            yield return null;
+
+            Record("putting a piece on in creation changes the character",
+                state.appearance.hair == target.art.hair.Value && state.appearance.hair != before,
+                "hair layer " + before + " -> " + state.appearance.hair + ", " + target.id
+                + " writes " + target.art.hair.Value);
+            Record("the piece creation put on is the one wearing the ring",
+                IsChildShowing(chip, "Selected"),
+                "Selected under Chip_" + target.id + " showing=" + IsChildShowing(chip, "Selected"));
+            Record("creation agrees the piece is on", Wardrobe.IsEquipped(state, target.id),
+                "Wardrobe.IsEquipped(" + target.id + ")=" + Wardrobe.IsEquipped(state, target.id));
+
+            // The sentence from the refusal a moment ago belonged to that tap and not to this one.
+            Record("a piece going on clears the last refusal",
+                string.IsNullOrEmpty(TextOf("RefusalMessage")),
+                "RefusalMessage = \"" + (TextOf("RefusalMessage") ?? "nothing") + "\"");
+        }
+
+        /// <summary>
+        /// Goes back to the character choice, taps the same card again, and finds nothing taken
+        /// away.
+        ///
+        /// This is rule 7 in its most literal form. Choosing a character seeds the worn set from
+        /// the preset, so re-picking the one already chosen would discard every swap the player
+        /// made — a player who went back to look at the other card and changed their mind would be
+        /// punished for looking. The tone and the typed name ride along in the same assertion:
+        /// both are the player's, and neither belongs to the character.
+        /// </summary>
+        IEnumerator GoBackAndKeepEverything(GameState state)
+        {
+            string chosenId = state.characterId;
+            string wornHair = Wardrobe.EquippedInSlot(state, CharacterSlot.Hair);
+            int tone = state.appearance.skin;
+            string typed = state.playerName;
+
+            yield return Tap("BackToCharacter", "going back to the character choice");
+            yield return WaitForObject("Step1", "the character choice again");
+            Record("going back leaves the look behind rather than losing it",
+                Find("Step2") == null && state.characterId == chosenId,
+                "step two up=" + (Find("Step2") != null) + ", characterId=" + (state.characterId ?? "empty"));
+
+            yield return TapInList("CharacterCard_" + chosenId, "choosing " + chosenId + " a second time");
+            yield return null;
+
+            Record("choosing the same character again takes nothing back",
+                Wardrobe.EquippedInSlot(state, CharacterSlot.Hair) == wornHair
+                && state.appearance.skin == tone && state.playerName == typed,
+                "hair " + (wornHair ?? "nothing") + " -> "
+                + (Wardrobe.EquippedInSlot(state, CharacterSlot.Hair) ?? "nothing")
+                + ", tone " + tone + " -> " + state.appearance.skin
+                + ", name \"" + (typed ?? "nothing") + "\" -> \"" + (state.playerName ?? "nothing") + "\"");
+
+            yield return Tap("ToCustomise", "back to the look");
+            yield return WaitForObject("Step2", "the look again");
+            RecordEscapeHatch("the look");
+        }
+
+        /// <summary>
+        /// Starts the run, and reads back what creation wrote.
+        ///
+        /// The reload is the point of the whole feature. It is done by asking
+        /// <see cref="SaveSystem.Load"/> for the file — the exact call the boot sequence makes —
+        /// rather than by restarting the process, which one run cannot do; what it proves is that
+        /// the choice is on disk in a shape the next boot will read, and not merely in an object
+        /// that happens to still be in memory.
+        ///
+        /// The badge assertion is here rather than at the backpack because this is the moment it
+        /// could have been spent. On a fresh save every free item is unlocked and never seen, so a
+        /// creation screen that marked its rows seen would leave the first backpack open with
+        /// nothing at all to announce — spending the one moment a badge exists for.
+        /// </summary>
+        IEnumerator ConfirmTheCharacter(GameState state)
+        {
+            _creationCharacterId = state.characterId;
+            _creationEquipped.Clear();
+            _creationEquipped.AddRange(state.equippedItems ?? new List<string>());
+            _creationSkin = state.appearance.skin;
+            _creationPlayerName = state.playerName;
+
+            int build = state.appearance.body;
+            int badgeBefore = Wardrobe.NewCount(state);
+
+            yield return Tap("Start", "starting the run");
+            yield return WaitUntil(() => Find("CharacterCreationCanvas") == null,
+                "creation to hand the game back");
+            yield return SkipCreation("Start left the screen up");
+
+            Record("creation stored which character it made",
+                !string.IsNullOrEmpty(state.characterId)
+                && state.characterId == _creationCharacterId
+                && CharacterPresets.Get(state.characterId) != null,
+                "characterId = " + (state.characterId ?? "empty"));
+            Record("creation dressed the character it made",
+                state.equippedItems != null && state.equippedItems.Count > 0,
+                "wearing " + Listed(_creationEquipped));
+
+            GameState reloaded = SaveSystem.Load();
+            bool survived = reloaded != null
+                && reloaded.characterId == _creationCharacterId
+                && Listed(reloaded.equippedItems) == Listed(_creationEquipped)
+                && reloaded.appearance != null
+                && reloaded.appearance.skin == _creationSkin
+                && reloaded.appearance.body == build
+                && reloaded.playerName == _creationPlayerName;
+
+            Record("the character survives the next boot", survived,
+                reloaded == null
+                    ? "there is no save on disk to boot from"
+                    : "on disk: character=" + (reloaded.characterId ?? "empty")
+                      + " wearing " + Listed(reloaded.equippedItems)
+                      + " tone=" + (reloaded.appearance != null ? reloaded.appearance.skin : -1)
+                      + " build=" + (reloaded.appearance != null ? reloaded.appearance.body : -1)
+                      + " name=\"" + (reloaded.playerName ?? "nothing") + "\""
+                      + " | in the run: character=" + (_creationCharacterId ?? "empty")
+                      + " wearing " + Listed(_creationEquipped)
+                      + " tone=" + _creationSkin + " build=" + build
+                      + " name=\"" + (_creationPlayerName ?? "nothing") + "\"");
+
+            Record("creation leaves the backpack something to announce", badgeBefore > 0,
+                "Wardrobe.NewCount=" + badgeBefore
+                + " on leaving creation — creation never marks a piece seen");
+        }
+
+        /// <summary>
+        /// Leaves creation by the escape hatch when the drive above could not run, or when Start
+        /// did not take.
+        ///
+        /// Not politeness, and not a softening of any verdict — the failure that sent the run here
+        /// is already recorded. It is that nothing downstream of this screen can happen while it is
+        /// up: the opening waits on creation to finish, so a run that gave up in here without
+        /// leaving would spend its 120 dialogue advances reaching for a HUD that cannot arrive and
+        /// then fail every remaining step — the backpack, all three days, the trial — for one
+        /// reason a whole run away. One failure is worth reading; thirty with the same cause bury it.
+        ///
+        /// QuickStart is the way out because it is the one control on this screen that has kept its
+        /// name through every version of it, which makes this fallback diagnostic against a screen
+        /// that has been rebuilt as well as against one that has broken.
+        /// </summary>
+        IEnumerator SkipCreation(string reason)
+        {
+            if (Find("CharacterCreationCanvas") == null)
+            {
+                yield break;
+            }
+
+            Record("creation could be played through", false, reason);
+
+            yield return Tap("QuickStart", "the way straight past creation");
+            yield return WaitUntil(() => Find("CharacterCreationCanvas") == null,
+                "creation to hand the game back");
+        }
+
+        /// <summary>
+        /// The way past creation for a player in a hurry: present, and accepting a tap.
+        ///
+        /// Asserted rather than taken, because a run has exactly one character creation in it and
+        /// spending it on the skip would leave everything the screen actually does undriven. What
+        /// this catches is the failure that matters most about a skip button — that it quietly
+        /// stopped existing, or stopped being tappable, on one of the two steps.
+        /// </summary>
+        void RecordEscapeHatch(string step)
+        {
+            Record("there is a way straight past " + step, IsInteractable("QuickStart"),
+                Find("QuickStart") == null
+                    ? "no active object named QuickStart"
+                    : "QuickStart interactable=" + IsInteractable("QuickStart"));
+        }
+
+        /// <summary>
+        /// Finds a control, brings it into its list's viewport, and taps it.
+        ///
+        /// Creation puts its cards, its tones and its name field in one scroll view, so on a short
+        /// screen the tone row can start below the fold — and <see cref="TapObject"/> correctly
+        /// refuses to click through a viewport mask, which would read as a missing control.
+        /// </summary>
+        IEnumerator TapInList(string objectName, string description)
+        {
+            GameObject target = null;
+            float deadline = Time.realtimeSinceStartup + StepTimeoutSeconds;
+            while (Time.realtimeSinceStartup < deadline)
+            {
+                target = Find(objectName);
+                if (target != null) break;
+                yield return null;
+            }
+
+            if (target == null)
+            {
+                Record("tap " + description, false, "no active object named " + objectName);
+                yield break;
+            }
+
+            yield return ScrollIntoView(target);
+            yield return TapObject(target, "tap " + description);
+        }
+
+        /// <summary>Whether a named control exists and would accept a click right now.</summary>
+        static bool IsInteractable(string objectName)
+        {
+            GameObject go = Find(objectName);
+            Selectable selectable = go != null ? go.GetComponent<Selectable>() : null;
+            return selectable != null && selectable.IsInteractable();
+        }
+
+        /// <summary>One readable line out of a list of ids, for the detail on a PASS or a FAIL.</summary>
+        static string Listed(IEnumerable<string> values)
+        {
+            if (values == null)
+            {
+                return "nothing";
+            }
+
+            var joined = string.Join(", ", new List<string>(values).ToArray());
+            return string.IsNullOrEmpty(joined) ? "nothing" : joined;
+        }
+
         // ------------------------------------------------------------------ the backpack
 
         /// <summary>
@@ -800,12 +1673,21 @@ namespace SheepGate.E2E
                 !IsShowing("SegmentBadgeHair"),
                 "SegmentBadgeHair showing=" + IsShowing("SegmentBadgeHair"));
 
+            // Before anything is put on or taken off, because this is the one frame where the
+            // sheet is showing what character creation left behind and nothing else. The two
+            // screens spoke different vocabularies until this run; this is the assertion that
+            // says they now agree.
+            RecordCreationChoiceIsWorn(state);
+            RecordWornRowIsRinged(state, CharacterSlot.Hair);
+
             yield return WearSomething(state);
             yield return TapSomethingNotFoundYet(state);
             yield return Capture("04a-backpack-hair");
 
             yield return SelectBackpackTab("Outfit", "04b-backpack-outfit");
+            RecordWornRowIsRinged(state, CharacterSlot.Outfit);
             yield return SelectBackpackTab("Accessory", "04c-backpack-accessory");
+            RecordWornRowIsRinged(state, CharacterSlot.Accessory);
             yield return SelectBackpackTab("Materials", "04d-backpack-materials");
 
             RecordMaterialsTab();
@@ -817,6 +1699,73 @@ namespace SheepGate.E2E
             yield return SelectBackpackTab("Hair", null);
             Record("leaving the materials tab brings the character back", Find("CharacterStage") != null,
                 Find("CharacterStage") != null ? "CharacterStage is up again" : "the stage never came back");
+        }
+
+        /// <summary>
+        /// Whether the backpack opened wearing what character creation put on.
+        ///
+        /// This is the end-to-end claim of the whole wardrobe, and it can only be made here.
+        /// Creation and the backpack are two screens a whole day of script apart, and until now
+        /// nothing joined them: creation wrote art indices, the backpack read catalogue ids, and
+        /// each of them was self-consistent about a different thing. So the ids are the ones
+        /// creation reported on its way out, held since, rather than re-read from the wardrobe —
+        /// a re-read would only ever agree with itself.
+        ///
+        /// The character id is asserted beside the clothes on purpose. Both signature accessories
+        /// are free and either character can wear either one, so inference from the worn set alone
+        /// reports the wrong character the moment one of them puts on the other's piece.
+        /// </summary>
+        void RecordCreationChoiceIsWorn(GameState state)
+        {
+            if (string.IsNullOrEmpty(_creationCharacterId))
+            {
+                Record("the backpack agrees with what creation chose", false,
+                    "creation never reported a character for this run");
+                return;
+            }
+
+            Record("the backpack knows which character creation made",
+                Wardrobe.CharacterId(state) == _creationCharacterId,
+                "Wardrobe.CharacterId=" + (Wardrobe.CharacterId(state) ?? "nothing")
+                + ", creation chose " + _creationCharacterId);
+
+            var lost = new List<string>();
+            for (int i = 0; i < _creationEquipped.Count; i++)
+            {
+                if (!Wardrobe.IsEquipped(state, _creationEquipped[i]))
+                {
+                    lost.Add(_creationEquipped[i]);
+                }
+            }
+
+            Record("the backpack opens wearing what creation put on", lost.Count == 0,
+                "creation left " + Listed(_creationEquipped)
+                + (lost.Count == 0 ? ", all of it still on" : ", missing " + Listed(lost)));
+
+            Record("the tone creation set is still the tone",
+                state.appearance != null && state.appearance.skin == _creationSkin,
+                "skin=" + (state.appearance != null ? state.appearance.skin : -1)
+                + ", creation set " + _creationSkin);
+        }
+
+        /// <summary>
+        /// The piece worn in one slot is the row wearing the ring on that slot's tab.
+        ///
+        /// Read off the wardrobe rather than off the id creation reported, because by the time the
+        /// later tabs are reached the run has already swapped a piece of hair — what is being
+        /// proved is that the sheet draws what the player is wearing now, whoever put it there.
+        /// </summary>
+        void RecordWornRowIsRinged(GameState state, CharacterSlot slot)
+        {
+            string worn = Wardrobe.EquippedInSlot(state, slot);
+            GameObject chip = string.IsNullOrEmpty(worn) ? null : Find("Chip_" + worn);
+
+            Record("the " + slot + " tab rings the piece that is on",
+                chip != null && IsChildShowing(chip, "Selected"),
+                string.IsNullOrEmpty(worn)
+                    ? "nothing is worn in the " + slot + " slot"
+                    : "Chip_" + worn + " present=" + (chip != null)
+                      + " ring=" + IsChildShowing(chip, "Selected"));
         }
 
         /// <summary>

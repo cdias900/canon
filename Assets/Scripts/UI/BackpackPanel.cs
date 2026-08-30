@@ -178,9 +178,9 @@ namespace SheepGate.UI
         /// <summary>The four tab labels, in the order the bar draws them.</summary>
         static readonly string[] TabLabelKeys =
         {
-            "backpack.tab.hair",
-            "backpack.tab.outfit",
-            "backpack.tab.accessory",
+            "slot.hair",
+            "slot.outfit",
+            "slot.accessory",
             "backpack.tab.materials"
         };
 

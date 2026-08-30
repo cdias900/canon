@@ -34,33 +34,50 @@ namespace SheepGate.Player
     ///   that makes it available is something the player did in the world.
     ///
     /// ==================================================================================
-    /// WHY <see cref="ApplyToAppearance"/> APPLIES NO CHARACTER FLOOR
+    /// WHY <see cref="ApplyToAppearance"/> NOW APPLIES THE CHARACTER'S FLOOR
     /// ==================================================================================
     /// <see cref="CharacterCatalog.Compose"/> can lay a character's own art down as a floor before
-    /// the worn items go on top, and <see cref="CharacterPresets.ApplyTo"/> is the call that does
-    /// exactly that — it is the character-creation path, and it runs once, when a character is
-    /// chosen.
+    /// the worn items go on top. This method used to pass <c>null</c> and refuse that floor, and
+    /// the reasoning was sound at the time: creation wrote the build and the skin tone as raw art
+    /// indices, so a floor on every equip would have overwritten both of them every time the player
+    /// put on a hat, silently, in a way no log would show.
     ///
-    /// Recomposing the look after an equip is a different job and must not do it. No catalogue item
-    /// writes the <c>body</c> or <c>skin</c> layer — nothing in character_catalog.json names either
-    /// one — so a floor pass on every equip would overwrite the build and skin tone the player set
-    /// in creation, every time they put on a hat. Silently changing something the player chose is
-    /// the punishment rule 7 forbids, and it would be invisible in the log.
+    /// Two things changed and the argument no longer holds.
     ///
-    /// So the floor here is <b>the look the character already has</b>. Layers no worn item claims
-    /// keep their current value, which is both what the task asks for and the only shape in which
-    /// the character can never come out blank: with an empty worn set, an unauthored catalogue or
-    /// an item id that does not resolve, the worst case is that the look does not change.
+    /// * <b>The build belongs to the character now.</b> Creation is "choose Adar or Neriah, then
+    ///   customise": the build, the face and the silhouette come with the character, so the floor
+    ///   writing the build is the floor writing the right answer rather than clobbering a choice.
+    /// * <b>The tone is protected explicitly.</b> <see cref="AppearanceState.skin"/> is read before
+    ///   the compose and written back after, exactly as <see cref="CharacterPresets.ApplyTo"/> does
+    ///   it. The tone stays the player's — it is the one thing about a character that is theirs and
+    ///   not the character's — and no catalogue block may name the <c>skin</c> layer.
+    ///
+    /// What the floor buys is the thing its absence broke: <b>taking an accessory off changes the
+    /// figure.</b> With no floor, a layer no worn item claims keeps whatever it last drew, so
+    /// unequipping the tool bag left the tool bag on the body for the rest of the run. With the
+    /// floor, that layer falls back to the character's own art.
+    ///
+    /// What an older save gets is worth being exact about, because "nothing changes for it" would
+    /// be an overstatement. A run whose character cannot be named — nothing stored, no signature
+    /// piece on — resolves to no preset and therefore to a null floor, which is the old behaviour
+    /// exactly. A save written before <see cref="GameState.characterId"/> existed but wearing a
+    /// signature piece IS named, by the inference in <see cref="CharacterId"/>, and so does get the
+    /// floor: layers no worn item claims move from whatever they last drew to that character's own
+    /// art on the next equip. That is the intent — it is the same correction the floor exists to
+    /// make — but it is a change to a look already on disk, so it is written down rather than
+    /// implied.
     ///
     /// ==================================================================================
     /// CONTENT GAPS THIS CLASS DEGRADES AROUND RATHER THAN CRASHING ON
     /// ==================================================================================
-    /// * Five ids in character_presets.json (<c>base_adar</c>, <c>base_neriah</c>,
-    ///   <c>hair_tied_back</c>, <c>outfit_carrier_tunic</c>, <c>outfit_surveyor_wrap</c>) are not in
-    ///   the catalogue, and the <c>base</c> slot has no items at all — <see cref="AppearanceState"/>
-    ///   has five render layers and no base layer. An unresolvable id is warned about once per
-    ///   session and then skipped everywhere, and <see cref="ItemsForSlot"/> answering
-    ///   <see cref="CharacterSlot.Base"/> with an empty array is correct, not a failure.
+    /// * An id in the worn set that the catalogue cannot resolve is warned about once per session
+    ///   and then skipped everywhere. The two files are authored by different hands and a preset may
+    ///   legitimately name an item on a build where the catalogue has not caught up.
+    /// * <see cref="AppearanceState"/> has five render layers and no base layer, so a
+    ///   <see cref="CharacterSlot.Base"/> item draws through the layers it names rather than through
+    ///   one of its own. The slot does hold items now (<c>base_adar</c>, <c>base_neriah</c>) and
+    ///   <see cref="ItemsForSlot"/> answers with them; what stays true is that no wardrobe screen
+    ///   builds a tab for it, because <see cref="BadgedSlots"/> is where tab order comes from.
     /// * <see cref="AppearanceState"/> has one accessory layer, so only one accessory can draw even
     ///   though the accessory slot may legitimately hold several on distinct anchors. The most
     ///   recently equipped one wins, because a tap that changes nothing on screen reads as broken.
@@ -141,6 +158,12 @@ namespace SheepGate.Player
         // under the same line and hide the next problem.
         static readonly HashSet<string> WarnedUnresolved = new HashSet<string>(StringComparer.Ordinal);
 
+        // The same courtesy for a stored character id the presets file does not know. Kept separate
+        // from the set above rather than sharing it: an item id and a character id are different
+        // namespaces, and one set would let a character called after an item silence the other's
+        // warning. See CharacterId.
+        static readonly HashSet<string> WarnedUnknownCharacter = new HashSet<string>(StringComparer.Ordinal);
+
         static bool _presetsRequested;
 
         // ------------------------------------------------------------------ reading the catalogue
@@ -153,8 +176,11 @@ namespace SheepGate.Player
         /// the player nothing to want. Filtering by <see cref="IsUnlocked"/> is the caller's job,
         /// and the only correct use of it is deciding whether to draw a padlock.
         ///
-        /// <see cref="CharacterSlot.Base"/> answers empty and always will: the catalogue has no
-        /// base items and <see cref="AppearanceState"/> has no base layer to draw one into.
+        /// <see cref="CharacterSlot.Base"/> is <b>not</b> empty any more — <c>base_adar</c> and
+        /// <c>base_neriah</c> are catalogue items, because a character's floor had to be authored
+        /// somewhere. They are nobody's row: a base is who you are, never something you put on, and
+        /// no screen may build a tab for this slot. <see cref="BadgedSlots"/> leaves it out, and
+        /// that is the list every tab bar in the game derives its order from.
         /// </summary>
         public static CatalogItemDef[] ItemsForSlot(CharacterSlot slot)
         {
@@ -520,10 +546,9 @@ namespace SheepGate.Player
         /// <c>art_hooded</c> variant a covered piece should draw instead. Repeating any of that here
         /// would be a second copy of a rule that has to stay singular.
         ///
-        /// The character id passed to it is deliberately null: see the note in this class's summary.
-        /// The current look is the floor, so a layer no worn item claims keeps its value, and an
-        /// empty or unresolvable worn set leaves the character exactly as they were rather than
-        /// blanking them.
+        /// The character id is passed in, so the character's own art goes down as a floor before the
+        /// worn items do — see the section in this class's summary for why that reversed, and for
+        /// the one line that keeps the player's skin tone out of it.
         ///
         /// Cheap on purpose — a dictionary lookup and a handful of int writes, no scene work and no
         /// reload — so a caller can repaint the world character straight out of
@@ -544,19 +569,44 @@ namespace SheepGate.Player
             List<string> equipped = Equipped(state);
             WarnAboutUnresolved(equipped);
 
-            CharacterCatalog.Compose(state.appearance, null, equipped);
+            // The player's, from before the floor goes down and after it. The floor is allowed to
+            // decide the build — that belongs to the character — and is never allowed to decide the
+            // tone. Same read-and-restore as CharacterPresets.ApplyTo, deliberately spelled out
+            // twice rather than shared: these are the two doors into Compose, and a guard that only
+            // one of them holds is the guard that fails.
+            int chosenTone = state.appearance.skin;
+
+            CharacterCatalog.Compose(state.appearance, CharacterId(state), equipped);
+
+            state.appearance.skin = chosenTone;
         }
 
         /// <summary>
-        /// Which character this run is, inferred from the signature piece being worn — the coil of
-        /// rope is Adar, the map tube is Neriah. Null when neither is on.
+        /// Which character this run is: the one character creation wrote into the save, and — for a
+        /// save written before that field existed — the one inferred from the signature piece being
+        /// worn. Null when neither answer is available.
         ///
-        /// Inferred rather than read because the save carries no character id: character creation
-        /// writes the six appearance ints and nothing else. The one thing this answer is used for is
-        /// protecting the silhouette anomaly, and a null answer degrades exactly the way
-        /// <see cref="CharacterCatalog.CanEquip"/> already handles — no anchor is protected, which
-        /// is the right reading of a character who is not wearing their signature piece to begin
-        /// with.
+        /// <b>The stored id wins, and it has to.</b> Both signature pieces are free from minute one
+        /// and either character may wear either of them, so inference alone reports the wrong
+        /// character the moment Adar puts on the map tube — and the wrong character is the wrong
+        /// silhouette anchor, which is the wrong answer to every question
+        /// <see cref="CharacterCatalog.CanEquip"/> asks after that.
+        ///
+        /// <b>The inference stays, as the old-save path.</b> <see cref="GameState.characterId"/> is
+        /// additive: a save written before it existed loads with an empty string, and that run has a
+        /// character all the same — it is wearing one. Dropping the inference would take the
+        /// silhouette protection away from every run in progress, which is rule 7 in the plainest
+        /// form there is. It also covers the run that never went through creation at all, which the
+        /// editor path and <c>ResolveState</c> can both produce.
+        ///
+        /// A stored id the presets file no longer knows is warned about once, by name, and then
+        /// falls through to the inference rather than being trusted: a character can be re-authored
+        /// or renamed between builds, and a save naming a character that no longer exists must
+        /// degrade to "unknown", never to "wrong".
+        ///
+        /// Null degrades exactly the way <see cref="CharacterCatalog.CanEquip"/> already handles —
+        /// no anchor is protected — which is the right reading of a run whose character nobody can
+        /// name.
         /// </summary>
         public static string CharacterId(GameState state)
         {
@@ -565,13 +615,31 @@ namespace SheepGate.Player
                 return null;
             }
 
+            EnsurePresetsLoaded();
+
+            // ---- what the save says, when the save says anything and the presets file agrees.
+            string stored = state.characterId;
+            if (!string.IsNullOrEmpty(stored))
+            {
+                if (CharacterPresets.Get(stored) != null)
+                {
+                    return stored;
+                }
+
+                if (WarnedUnknownCharacter.Add(stored))
+                {
+                    Debug.LogWarning("[Wardrobe] The save names character '" + stored +
+                                     "', which is not in character_presets.json. Falling back to the " +
+                                     "signature piece being worn; nothing in the save is changed.");
+                }
+            }
+
+            // ---- the old-save path: which signature piece is on. See the remark above.
             List<string> equipped = Equipped(state);
             if (equipped.Count == 0)
             {
                 return null;
             }
-
-            EnsurePresetsLoaded();
 
             PresetDef[] presets = CharacterPresets.All;
             for (int i = 0; presets != null && i < presets.Length; i++)
@@ -769,8 +837,9 @@ namespace SheepGate.Player
         }
 
         // Nothing in the project loads the presets: BootSequence loads the catalogue and stops
-        // there. They are read here for one field — signature_item — so the read is lazy, attempted
-        // once, and loud on failure the same way every other content load in this project is.
+        // there. They are read here for two fields — signature_item, and now the id the save carries
+        // — so the read is lazy, attempted once, and loud on failure the same way every other
+        // content load in this project is.
         static void EnsurePresetsLoaded()
         {
             if (_presetsRequested || (CharacterPresets.All != null && CharacterPresets.All.Length > 0))
@@ -780,6 +849,24 @@ namespace SheepGate.Player
 
             _presetsRequested = true;
             CharacterPresets.LoadAll();
+
+            // The cross-file audit, run here because nothing else was running it anywhere: it was
+            // written to be called and then never called, which in this project is the failure that
+            // actually ships — correct code no path reaches reports nothing and is
+            // indistinguishable from a check that passes.
+            //
+            // Its own doc says "call it once, after both loaders, not from either loader", and this
+            // honours that rather than breaking it: it is outside both loaders, BootSequence has
+            // read the catalogue long before any wardrobe question is asked, and if it somehow has
+            // not, the audit answers 0 and says nothing — which is what it is designed to do while
+            // content is still landing.
+            //
+            // It is not a guarantee, and must not be read as one. This method early-returns
+            // when the presets are already loaded, so if some other screen calls
+            // CharacterPresets.LoadAll first, this line never runs and the audit is silent by
+            // absence. The durable home for it is the boot sequence, after both LoadAll calls; this
+            // is the best available call site from inside the wardrobe, not the right one.
+            CharacterPresets.VerifyAgainstCatalog();
         }
 
         static void RaiseChanged()

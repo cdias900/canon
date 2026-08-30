@@ -89,6 +89,15 @@ namespace SheepGate.Core
             Loc.Reload();
             GameData.LoadAll(Locales.Active);
             CharacterCatalog.LoadAll(Locales.Active);
+
+            // After the catalogue, never before it: the presets resolve their default items against
+            // it, and CharacterPresets.VerifyAgainstCatalog is silent when the catalogue is empty.
+            // Loaded here rather than left to the first screen that asks, because the presets carry
+            // player-facing strings — a character's name and personality line — and a lazy load at
+            // the first Wardrobe call would leave them on whichever locale happened to be active
+            // when that call ran, not this one.
+            CharacterPresets.LoadAll(Locales.Active);
+
             LoadScripture();
         }
 

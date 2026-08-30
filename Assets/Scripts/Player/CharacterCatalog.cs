@@ -303,6 +303,21 @@ namespace SheepGate.Player
         /// </summary>
         [JsonProperty("silhouette_anchor")] public string silhouette_anchor;
 
+        /// <summary>
+        /// The one item allowed to occupy <see cref="silhouette_anchor"/>: the piece that draws the
+        /// anomaly the anchor exists to protect. Adar's coil of rope, Neriah's map tube.
+        ///
+        /// It is named here, in the catalogue, and not read across from character_presets.json —
+        /// which carries the same field — because the presets module already depends on this one,
+        /// and asking back would close a real cycle. <c>CharacterPresets.VerifyAgainstCatalog</c> is
+        /// what stops the two copies drifting, and it says which file disagrees.
+        ///
+        /// Empty is legal and means "this character has no exemption": every item is turned away
+        /// from the protected anchor, including whatever draws the anomaly. That is a content state
+        /// worth fixing, not a crash — see <see cref="CharacterCatalog.ValidateSignatures"/>.
+        /// </summary>
+        [JsonProperty("signature_item")] public string signature_item;
+
         /// <summary>The look a run starts with before the player touches anything.</summary>
         [JsonProperty("art")] public ItemArtDef art;
 
@@ -323,6 +338,22 @@ namespace SheepGate.Player
 
         [JsonIgnore] public CharacterAnchor SilhouetteAnchor;
         [JsonIgnore] public Color Accent = Color.white;
+
+        /// <summary>
+        /// Whether this id is the piece that draws this character's own silhouette anomaly, and is
+        /// therefore the one item exempt from the anchor that anomaly reserves.
+        ///
+        /// Asked in exactly two places — <see cref="CharacterCatalog.CanEquip"/> and
+        /// <see cref="CharacterCatalog.FindConflicts"/> — and written here once so those two cannot
+        /// come to different answers. See the note above CanEquip's exemption for why both of them
+        /// have to ask.
+        /// </summary>
+        public bool IsOwnSignature(string itemId)
+        {
+            return !string.IsNullOrEmpty(itemId)
+                   && !string.IsNullOrEmpty(signature_item)
+                   && string.Equals(signature_item, itemId, StringComparison.Ordinal);
+        }
     }
 
     /// <summary>The recolouring swatches, shared by every language.</summary>
@@ -455,6 +486,7 @@ namespace SheepGate.Player
 
             ResolveTokens();
             Reindex();
+            ValidateSignatures();
 
             // ---- strings: one file per language, merged onto the objects above
             MergeStrings(Locales.ResourceFolder(canonical) + LocaleFileName);
@@ -767,8 +799,9 @@ namespace SheepGate.Player
                 }
             }
 
-            CharacterAnchor protectedAnchor = Character(characterId) != null
-                ? Character(characterId).SilhouetteAnchor
+            CharacterPresetDef character = Character(characterId);
+            CharacterAnchor protectedAnchor = character != null
+                ? character.SilhouetteAnchor
                 : CharacterAnchor.None;
 
             for (int i = 0; i < items.Count; i++)
@@ -779,7 +812,13 @@ namespace SheepGate.Player
                 // so it is checked once per item rather than in the pairwise pass. Adar plus any
                 // cloak lands here without a special case: a cloak takes both shoulders, and one of
                 // Adar's shoulders is where his coil of rope lives.
-                if (protectedAnchor != CharacterAnchor.None)
+                //
+                // The exemption below is the same one CanEquip carries, and it has to be in both:
+                // this method is the audit path — it is what CharacterPresets.VerifyAgainstCatalog
+                // runs over each character's own default set — so a character exempted only in
+                // CanEquip would equip its signature piece cleanly and then be reported as unwearable
+                // on every boot. Read the note above CanEquip's copy for the whole history.
+                if (protectedAnchor != CharacterAnchor.None && !character.IsOwnSignature(item.id))
                 {
                     var covered = new List<CharacterAnchor>(2);
                     item.CollectAnchors(covered);
@@ -826,7 +865,39 @@ namespace SheepGate.Player
             CharacterPresetDef preset = Character(characterId);
             CharacterAnchor protectedAnchor = preset != null ? preset.SilhouetteAnchor : CharacterAnchor.None;
 
-            if (protectedAnchor != CharacterAnchor.None)
+            // ------------------------------------------------------------------------------
+            // THE SILHOUETTE ANCHOR, AND THE ONE ITEM IT DOES NOT APPLY TO
+            // ------------------------------------------------------------------------------
+            // A character's silhouette anomaly — Adar's coil of rope on shoulder_r, Neriah's map
+            // tube across back_center — is how each of them is read at a glance. The rule below
+            // reserves that anchor so no bag, pouch or cloak can be hung over it.
+            //
+            // The rule is about COVERING the anomaly. The piece that DRAWS the anomaly is the one
+            // thing that legitimately occupies that spot, and it must be let through, or the game
+            // refuses a character their own defining piece with the words "this piece would hide
+            // what makes you recognisable" — the game telling you that you hide you.
+            //
+            // This has been got wrong three times, so the history is written down rather than
+            // rediscovered:
+            //
+            //  1. The signature items were first authored with a real anchor, and CanEquip refused
+            //     them. The fix taken was to blank the anchors in character_catalog.json (f6ae568),
+            //     which made the refusal go away because an item with no anchor covers nothing.
+            //  2. That blank was then canonised as an authoring rule ("the signature piece is
+            //     authored with an empty anchor"), so the workaround acquired a doc comment
+            //     defending it. What it actually cost: the anchor system stopped knowing where the
+            //     coil of rope hangs, so a SECOND shoulder piece could be worn straight through it,
+            //     which is the collision the anchors exist to catch.
+            //  3. The anchors are authored again, correctly, and the exemption lives here instead —
+            //     where the question "may this item cover that anchor?" is actually asked.
+            //
+            // The two halves must land together. Anchors without this exemption: a player who takes
+            // their signature piece off can never put it back on. This exemption without anchors:
+            // nothing changes, because there is no anchor to be exempt from. Neither half is
+            // harmful alone; the anchors-only ordering is the one that breaks the game.
+            //
+            // The same test is in FindConflicts, and both are needed — see the note there.
+            if (protectedAnchor != CharacterAnchor.None && !preset.IsOwnSignature(candidate.id))
             {
                 var covered = new List<CharacterAnchor>(2);
                 candidate.CollectAnchors(covered);
@@ -1076,6 +1147,62 @@ namespace SheepGate.Player
                     preset.Accent = Color.white;
                     Debug.LogError("[Catalog] Character '" + preset.id + "' has an accent that is not #RRGGBB: '" +
                                    preset.accent + "'.");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Checks that each character's <c>signature_item</c> is authored where the character's
+        /// <c>silhouette_anchor</c> says the anomaly hangs.
+        ///
+        /// It runs after <c>Reindex</c> rather than inside <c>ResolveTokens</c> — which is where the
+        /// rest of the load-time checking lives — for one mechanical reason: it needs
+        /// <see cref="Item"/>, and the id index that answers it is not built until Reindex has run.
+        ///
+        /// The check exists because the exemption in <see cref="CanEquip"/> is keyed on the item's
+        /// ID while the protection is keyed on the character's ANCHOR. Author a signature piece onto
+        /// some other anchor and both halves are individually valid and jointly wrong: the anomaly's
+        /// spot stays reserved against everything, and the piece meant to occupy it hangs somewhere
+        /// else while still being waved through. That is invisible in play until someone notices the
+        /// rope has moved.
+        ///
+        /// An empty <c>signature_item</c>, an empty anchor on the item, and an unauthored catalogue
+        /// are all silent: content arrives file by file, and this file has to be loadable while the
+        /// rest catches up. <c>CharacterPresets.VerifyAgainstCatalog</c> is the loud path for a
+        /// signature that is missing altogether.
+        /// </summary>
+        static void ValidateSignatures()
+        {
+            for (int i = 0; i < Characters.Length; i++)
+            {
+                CharacterPresetDef preset = Characters[i];
+                if (preset == null || string.IsNullOrEmpty(preset.signature_item))
+                {
+                    continue;
+                }
+
+                CatalogItemDef item = Item(preset.signature_item);
+                if (item == null)
+                {
+                    Debug.LogError("[Catalog] Character '" + preset.id + "' names '" + preset.signature_item +
+                                   "' as its signature_item, and there is no such item. Nothing will be " +
+                                   "allowed on its silhouette anchor, including whatever draws the anomaly.");
+                    continue;
+                }
+
+                if (item.Anchor == CharacterAnchor.None)
+                {
+                    // Legal, and the state the data was in while the anchors were blanked. The
+                    // exemption simply has nothing to do: an item with no anchor covers nothing.
+                    continue;
+                }
+
+                if (item.Anchor != preset.SilhouetteAnchor)
+                {
+                    Debug.LogError("[Catalog] Character '" + preset.id + "' reserves " + preset.SilhouetteAnchor +
+                                   " for its silhouette, but its signature item '" + item.id + "' is anchored to " +
+                                   item.Anchor + ". Author the two to agree: the piece that draws the anomaly has " +
+                                   "to hang where the anomaly is.");
                 }
             }
         }

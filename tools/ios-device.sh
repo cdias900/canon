@@ -52,8 +52,12 @@ done
 # repo before, so neither is spelled here. A hardcoded product name once turned a successful build
 # into "the player did not reach Ready", because the script was looking for a bundle Xcode had
 # stopped producing.
+# `|| true` because `find | head -1` exits non-zero when head closes the pipe early, and under
+# `set -e` that aborted the script mid-function — which is how the first device build reported
+# success while having produced nothing at all. A lookup that finds nothing is an ordinary answer
+# here, not an error, and the callers all check for the empty string.
 resolve_product() {
-  find "${DERIVED}/Build/Products" -maxdepth 2 -name "*.app" -type d 2>/dev/null | head -1
+  { find "${DERIVED}/Build/Products" -maxdepth 2 -name "*.app" -type d 2>/dev/null || true; } | head -1
 }
 
 resolve_bundle_id() {
@@ -133,6 +137,19 @@ do_build() {
     DEVELOPMENT_TEAM="${team}" \
     CODE_SIGN_STYLE=Automatic \
     build > "${ROOT}/Logs/ios-device-xcodebuild.log" 2>&1 || true
+
+  # Checked explicitly rather than trusted: xcodebuild's exit status is swallowed above so the
+  # log can be summarised, so the product on disk is the only honest evidence the build worked.
+  if grep -q "No Account for Team" "${ROOT}/Logs/ios-device-xcodebuild.log"; then
+    echo "SIGNING FAILED — xcodebuild cannot see your Xcode account." >&2
+    echo "  Command-line signing needs credentials the Xcode GUI holds. Two ways out:" >&2
+    echo "   1. Open ${EXPORT_DIR}/Unity-iPhone.xcodeproj and press Run. Xcode has the account" >&2
+    echo "      and will mint the profile itself. This is the quick path." >&2
+    echo "   2. Give xcodebuild an App Store Connect API key and pass -authenticationKeyPath." >&2
+    echo "  Check the team too: ProjectSettings' appleDeveloperTeamID must be a team this Mac" >&2
+    echo "  holds a certificate for — see: security find-identity -v -p codesigning" >&2
+    exit 1
+  fi
 
   local product; product="$(resolve_product)"
   if [[ -z "${product}" ]]; then

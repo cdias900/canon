@@ -1,0 +1,18 @@
+{
+  "presets": {
+    "adar": {
+      "suggested_name": "Adar",
+      "personality": "Carregador de pedras. Fala pouco."
+    },
+    "neriah": {
+      "suggested_name": "Neriá",
+      "personality": "Lê mapas. Não desiste fácil."
+    }
+  },
+  "name": {
+    "unset": "Sem nome digitado, o vale te chama de {0}.",
+    "too_short": "Use ao menos {0} caracteres.",
+    "too_long": "Cabem {0} caracteres no campo."
+  },
+  "player_name_fallback": "viajante"
+}

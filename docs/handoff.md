@@ -20,7 +20,7 @@ through `Loc.T`. Structure and numbers are shared, so balance cannot diverge bet
 | | |
 |---|---|
 | Desktop | `Builds/mac/SheepGate.app` — runnable |
-| iOS simulator | `tools/ios-sim.sh` — builds, installs and boots clean on iPhone 17 Pro / Pro Max |
+| iOS simulator | `tools/ios-sim.sh` — builds, installs, boots and plays, on iPhone 17 Pro / Pro Max |
 | iOS device | `Builds/ios/Unity-iPhone.xcodeproj` — valid project, **never run on a device** |
 | Android | Out of scope by decision. Toolchain is installed if it comes back. |
 
@@ -257,6 +257,9 @@ path by disabling the component. The live Page beat is still only verified by pl
    `Builds/e2e/`. **Read the screenshots.** A green exit code means nothing was covered and no
    string was missing; it does not mean the screen looks right.
 5. `node tools/list-curation.mjs` — authored canonical speech awaiting a human read, every language.
-5. `tools/ios-sim.sh` — build and boot the player on an iPhone simulator, then look at it.
+5. `tools/ios-sim.sh` — build, boot and *play* the player on an iPhone simulator. `setup` once per
+   machine, then `tap X Y` in device points and `shot` to look. It drives through idb, so it never
+   takes the pointer or the focus and the window can stay hidden — which is the reason it is the
+   standard here and hand-rolled clicking is not. See `docs/development-guidelines.md` §3.
 
 The API key lives in `.env.local`, which is git-ignored and has never been committed.

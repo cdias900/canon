@@ -128,7 +128,25 @@ do_setup() {
     "${IDB_VENV}/bin/pip" -q install fb-idb || exit 1
   fi
 
-  echo "Input tooling ready: ${IDB}"
+  # Prove the channel rather than announcing it. describe-all is read-only, and on this app it
+  # is also the demonstration that there is no accessibility tree to search: one node, the
+  # application itself. If that is what comes back, input works and find-by-label never will.
+  local udid
+  udid="$(booted_udid)"
+  if [[ -n "${udid}" ]]; then
+    export PATH="/opt/homebrew/bin:${PATH}"
+    "${IDB}" connect "${udid}" >/dev/null 2>&1 || true
+    if "${IDB}" ui describe-all --udid "${udid}" >/dev/null 2>&1; then
+      echo "Input tooling ready and talking to ${udid}."
+    else
+      echo "Installed, but idb could not reach ${udid}. Try: tools/ios-sim.sh run" >&2
+      exit 1
+    fi
+  else
+    echo "Input tooling installed. Boot a device to use it: tools/ios-sim.sh run"
+  fi
+
+  echo "Taps go in device points. See the INPUT block at the top of this file."
 }
 
 # Resolves idb and the booted device, and connects. Connecting is idempotent and the
@@ -229,6 +247,11 @@ do_run() {
   }
   echo
   echo "Running on ${DEVICE}. Console: ${log}"
+
+  # Said here rather than at the first tap, because the first tap is usually mid-playthrough.
+  if [[ ! -x "${IDB}" ]]; then
+    echo "To drive it without taking over the mouse: tools/ios-sim.sh setup"
+  fi
 }
 
 do_shot() {

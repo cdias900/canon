@@ -153,7 +153,8 @@ or fails.
 tools/unity-check.sh              # compiles; 0 errors AND 0 warnings is the bar
 node tools/validate-content.mjs   # scripture integrity, locale parity, hardcoded strings
 tools/acceptance.sh               # the product rules, asserted per locale
-tools/e2e.sh                      # builds a player and plays the opening in every language
+tools/e2e.sh                      # builds a player and plays the opening and a day, every language
+tools/ios-sim.sh                  # the same build on a phone, driven by hand
 ```
 
 The first three are necessary and not sufficient. This project has learned twice that they are not
@@ -180,6 +181,37 @@ was missing; it does not mean the screen looks right.
 **An e2e run drives the real `SaveSystem`**, so it always passes `-data-path` at a disposable
 directory. Never run the player with `-e2e` and no `-data-path`: it will write over a real playtest.
 That has happened here before.
+
+### On a phone
+
+**iOS testing is `tools/ios-sim.sh` and nothing else.** `setup` once per machine, then `tap`,
+`press`, `swipe`, `text` and `key` in **device points** (iPhone 17 Pro is 402x874, origin
+top-left), with `shot` to see what happened.
+
+Underneath it is **idb**, which injects through IndigoHID — the path a real device uses. That is
+the whole reason it is the standard rather than one option among several: the pointer does not
+move, focus stays where the user left it, and the Simulator window can be hidden behind the editor
+for the entire session. A play-through costs the person at the keyboard nothing.
+
+Two approaches are **not** to be used here, both of which have already cost this project a session:
+
+- **`osascript -e 'tell application "System Events" to click at {x, y}'` reports success and does
+  nothing.** The Simulator's Metal view ignores synthetic accessibility clicks. A run driven this
+  way looks exactly like a game that has stopped responding, and the temptation is to go debugging
+  the build.
+- **Anything that moves the physical cursor** — a `CGEvent` posted to the HID tap, `cliclick` — does
+  work, and takes the machine hostage while it runs. It also fails outright on a locked Mac: if a
+  click answers with `window Login of application process loginwindow`, that is what has happened,
+  and no synthetic input of any kind will land until someone unlocks it.
+
+Read the screen with `xcrun simctl io booted screenshot`, which grabs the framebuffer and cannot be
+fooled by window stacking. `screencapture -R` photographs whatever window is on top and has already
+returned a picture of the terminal where the game should have been.
+
+**There is no tapping a control by its name.** Unity draws into a single Metal view and publishes no
+accessibility tree, so `idb ui describe-all` reports one node for the whole application. Tap a
+point, screenshot, look. Anything that needs to assert on the UI hierarchy belongs in `tools/e2e.sh`
+instead, which drives the real EventSystem from inside the build and can see it.
 
 ## 4. Conventions worth stating
 

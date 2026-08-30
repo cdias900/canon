@@ -92,6 +92,7 @@ namespace SheepGate.World
             EnsureDialogueSystem(systemsObject);
             EnsureContestSystem(systemsObject);
             EnsureQuizSystem(systemsObject);
+            EnsureCheckInToast(systemsObject);
 
             // 9. The director of the last day. Nothing else starts the trial or ends the run.
             EnsureDay3Director(systemsObject);
@@ -603,6 +604,23 @@ namespace SheepGate.World
             }
 
             TypeBridge.AddComponent(host, quizType);
+        }
+
+        private static void EnsureCheckInToast(GameObject host)
+        {
+            Type toastType = TypeBridge.Find("SheepGate.UI.CheckInToast");
+            if (toastType == null || !typeof(Component).IsAssignableFrom(toastType))
+            {
+                return;
+            }
+
+            UnityEngine.Object existing = UnityEngine.Object.FindFirstObjectByType(toastType);
+            if (existing != null)
+            {
+                return;
+            }
+
+            TypeBridge.AddComponent(host, toastType);
         }
 
         private static readonly string[] UiComposeMethods = { "Compose", "Mount", "Create", "Build", "Install", "Show" };

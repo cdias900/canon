@@ -115,9 +115,14 @@ namespace SheepGate.UI
         /// <summary>
         /// One pip per day already claimed (capped at <see cref="TimelineCap"/>, most recent first,
         /// so a long streak still reads instead of running off the card), then one more pip for
-        /// tomorrow — dim, since it has not happened, captioned with the number continuing the
-        /// streak would pay. This is the whole "sense of the days logged in" the reward asks for:
-        /// derived from the streak count alone, nothing new persisted for it.
+        /// tomorrow — dim, since it has not happened. This is the whole "sense of the days logged
+        /// in" the reward asks for: derived from the streak count alone, nothing new persisted.
+        ///
+        /// What tomorrow pays is said in words on its own line rather than as a caption under that
+        /// last pip. As a caption it was <see cref="DesignTokens.Type.Minimum"/> muted text in a
+        /// cell one pip wide, which is where the one number a player might come back for was
+        /// hardest to read on the whole card. The number itself was already correct and already
+        /// dynamic; only its presentation is changed here.
         /// </summary>
         void BuildTimeline(Transform parent, int streak, int tomorrowTalents)
         {
@@ -131,14 +136,13 @@ namespace SheepGate.UI
                 UIKit.CreateIcon(row, "Past_" + i, UiSpriteKeys.IconDot, DesignTokens.Brand.Secondary, PipSize);
             }
 
-            RectTransform tomorrowCell = UIKit.CreateRect("Tomorrow", row);
-            UIKit.VerticalGroup(tomorrowCell.gameObject, DesignTokens.Space.S4, new RectOffset(),
-                                TextAnchor.MiddleCenter);
+            UIKit.CreateIcon(row, "TomorrowPip", UiSpriteKeys.IconDot, DesignTokens.Ink.Muted, PipSize);
 
-            UIKit.CreateIcon(tomorrowCell, "Icon", UiSpriteKeys.IconDot, DesignTokens.Ink.Muted, PipSize);
-
-            UIKit.CreateText(tomorrowCell, "Label", Loc.T("checkin.tomorrow", tomorrowTalents),
-                DesignTokens.Type.Minimum, DesignTokens.Ink.Muted, TextAnchor.MiddleCenter);
+            // Plural rather than a formatted "+{0}": the tier moves from one talent to three at the
+            // escalation streak, and a locale that inflects the noun cannot do that from a number
+            // substituted into a single string.
+            UIKit.CreateText(parent, "TomorrowLabel", Loc.Plural("checkin.tomorrow", tomorrowTalents, tomorrowTalents),
+                DesignTokens.Type.Body, DesignTokens.Ink.Secondary, TextAnchor.MiddleCenter);
         }
 
         /// <summary>

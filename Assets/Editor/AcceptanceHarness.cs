@@ -564,6 +564,18 @@ namespace SheepGate.EditorTools
                 afterGap.Awarded && afterGap.Streak == 1 && afterGap.TalentsAwarded == 1
                     && state.talents == talentsBeforeGap + 1,
                 "streak=" + afterGap.Streak + " talents=" + state.talents + " (had " + talentsBeforeGap + ")");
+
+            // The reward modal previews tomorrow as TalentsForStreak(streak + 1) - the same
+            // expression HUD.OnCheckInClicked hands it. That preview is the one number a player
+            // might come back for, and nothing else asserts the step where it changes, so both
+            // sides of the boundary are pinned here rather than left to the modal's caller.
+            int previewAfterStreak2 = DailyCheckIn.TalentsForStreak(2 + 1);
+            Check("check-in previews 1 talent for tomorrow while the streak is short",
+                previewAfterStreak2 == 1, "claiming at streak 2 previews " + previewAfterStreak2);
+
+            int previewAfterStreak3 = DailyCheckIn.TalentsForStreak(3 + 1);
+            Check("check-in previews 3 talents for tomorrow once the fourth day is next",
+                previewAfterStreak3 == 3, "claiming at streak 3 previews " + previewAfterStreak3);
         }
     }
 }

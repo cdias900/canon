@@ -149,6 +149,7 @@ namespace SheepGate.UI
         Text _backpackBadgeCount;
         Button _checkInButton;
         Image _checkInBadge;
+        RectTransform _checkInPlate;
         CameraRig _cameraRig;
         PlayerController _player;
 
@@ -160,7 +161,16 @@ namespace SheepGate.UI
         int _cachedWorkMax = int.MinValue;
         int _cachedRubble = int.MinValue;
         int _cachedTalents = int.MinValue;
-        bool _cachedCheckInAvailable;
+        /// <summary>
+        /// Last availability the check-in control was painted for, or null before the first paint.
+        ///
+        /// Nullable rather than a plain bool on purpose. The plate and its badge are built active,
+        /// so a plain bool defaulting to false matches "already claimed" on the very first poll and
+        /// takes the early return — leaving a claimed day's button on screen, doing nothing, for
+        /// anyone who reopens the game the same day. Null cannot equal either state, so the first
+        /// call always paints.
+        /// </summary>
+        bool? _cachedCheckInAvailable;
         int _cachedWallStages = int.MinValue;
         int _cachedWallTotal = int.MinValue;
 
@@ -433,15 +443,24 @@ namespace SheepGate.UI
         /// stacked directly above it in the same corner, so the two read as one toolset rather than
         /// two unrelated controls.
         ///
-        /// The coin is filled and tinted <see cref="DesignTokens.Brand.Secondary"/> — gold, the
-        /// system's one accent colour, spent here on purpose: this button is a call to action (rule
-        /// 9 in the design system allows exactly one per screen, and <see cref="BuildFrameControls"/>
-        /// already documents that this HUD spends it on nothing else).
+        /// A calendar with a day ticked, not the coin it pays. The coin is the talent — it belongs
+        /// beside a number, and it still is one, in <see cref="BuildTalentsReadout"/>. Putting it on
+        /// the button too made the control look like a currency readout you could somehow press.
+        /// The calendar is outlined for the reason <see cref="SheepGate.Art.UiArt.IconBag"/> gives:
+        /// an outline is an action, a filled silhouette is a quantity.
+        ///
+        /// It keeps the gold <see cref="DesignTokens.Brand.Secondary"/> tint — the system's one
+        /// accent colour, spent here on purpose, since this button is a call to action (rule 9
+        /// allows exactly one per screen, and <see cref="BuildFrameControls"/> already documents
+        /// that this HUD spends it on nothing else).
+        ///
+        /// The whole plate is hidden once the day is claimed rather than merely losing its badge —
+        /// see <see cref="ApplyCheckInAvailability"/>.
         /// </summary>
         void BuildCheckInButton(RectTransform root)
         {
             Image plate;
-            _checkInButton = BuildPlatedIconButton(root, "CheckInButton", UiSpriteKeys.IconCoin,
+            _checkInButton = BuildPlatedIconButton(root, "CheckInButton", UiSpriteKeys.IconCalendarCheck,
                                                    Loc.T("hud.checkin"), OnCheckInClicked, out plate);
 
             Transform icon = _checkInButton.transform.Find("Icon");
@@ -460,6 +479,7 @@ namespace SheepGate.UI
                                new Vector2(DesignTokens.Space.Gutter,
                                           DesignTokens.Space.SafeAreaBottom + PlateHeight + ColumnSpacing));
 
+            _checkInPlate = plateRect;
             BuildCheckInBadge(plateRect);
         }
 
@@ -820,7 +840,7 @@ namespace SheepGate.UI
             // Unthrottled, unlike the backpack badge above: this only compares a stored date
             // string against today, cheap enough to check every frame, and there is no separate
             // timer field to fight the shared _nextBadgePoll for (see PollBackpackBadge).
-            ApplyCheckInBadge(state);
+            ApplyCheckInAvailability(state);
 
             int wallStages;
             int wallTotal;
@@ -872,7 +892,7 @@ namespace SheepGate.UI
             {
                 Apply(state);
                 ApplyBackpackBadge(state);
-                ApplyCheckInBadge(state);
+                ApplyCheckInAvailability(state);
             }
         }
 
@@ -1205,6 +1225,11 @@ namespace SheepGate.UI
 
             SaveSystem.Save(state);
 
+            // Immediately, not at the next poll: the button has just done the only thing it does,
+            // so it goes before the reward modal opens over it rather than reappearing to be
+            // discovered inert once the modal is dismissed.
+            ApplyCheckInAvailability(state);
+
             Telemetry.Track(TelemetryEvents.CheckIn, new Dictionary<string, object>
             {
                 { "streak", result.Streak },
@@ -1216,15 +1241,31 @@ namespace SheepGate.UI
             CheckInRewardModal.Show(result, state.talents, tomorrowTalents);
         }
 
-        void ApplyCheckInBadge(GameState state)
+        /// <summary>
+        /// Shows or hides the whole check-in control for the day.
+        ///
+        /// The entire plate goes, not just its badge. A button that stays on screen after it has
+        /// been claimed is a control that does nothing when pressed, and this HUD was cut down to
+        /// four controls precisely so that everything on it is worth pressing. Nothing reflows when
+        /// it leaves: the backpack under it anchors to the safe area on its own.
+        ///
+        /// The badge is a child of the plate, so it goes along and needs no separate handling —
+        /// it is still toggled for the day the button comes back.
+        /// </summary>
+        void ApplyCheckInAvailability(GameState state)
         {
             bool available = DailyCheckIn.IsAvailable(state, DateTime.Now);
-            if (available == _cachedCheckInAvailable)
+            if (_cachedCheckInAvailable.HasValue && available == _cachedCheckInAvailable.Value)
             {
                 return;
             }
 
             _cachedCheckInAvailable = available;
+
+            if (_checkInPlate != null)
+            {
+                _checkInPlate.gameObject.SetActive(available);
+            }
 
             if (_checkInBadge != null)
             {

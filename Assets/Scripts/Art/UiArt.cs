@@ -516,6 +516,36 @@ namespace SheepGate.Art
         }
 
         /// <summary>
+        /// The daily check-in: a calendar page with a day already ticked.
+        ///
+        /// Outlined, not filled, by the same rule <see cref="IconBag"/> states: a filled silhouette
+        /// is a resource you hold a quantity of, an outline is something you do or somewhere you
+        /// go. Claiming a day is an action, so it is hollow — and that is exactly what separates it
+        /// from <see cref="IconCoin"/>, which is the talent it pays out. The two sit within a few
+        /// points of each other in the HUD, so the distinction has to carry at a glance.
+        ///
+        /// Shares <see cref="IconBag"/>'s body geometry — a rounded rect on the same grid — and
+        /// <see cref="IconCheck"/>'s two capsules for the tick, scaled to sit inside the page
+        /// rather than redrawn at a different angle. A check invented separately here would read as
+        /// a slightly wrong version of the one the rest of the interface already uses.
+        ///
+        /// The tick is drawn at a lighter stroke than the frame around it. At full
+        /// <see cref="IconStroke"/> the two capsules crowd the body's inner corners and the whole
+        /// glyph fills in at display size.
+        /// </summary>
+        public static PixelCanvas IconCalendarCheck()
+        {
+            PixelCanvas canvas = new PixelCanvas(IconGrid, IconGrid);
+            canvas.StrokeRoundedRectAA(12f, 22f, 48f, 40f, 6f, IconStroke, Tintable);
+            canvas.CapsuleAA(12f, 34f, 60f, 34f, IconStroke, Tintable);
+            canvas.CapsuleAA(25f, 14f, 25f, 26f, IconStroke, Tintable);
+            canvas.CapsuleAA(47f, 14f, 47f, 26f, IconStroke, Tintable);
+            canvas.CapsuleAA(24f, 47f, 32f, 55f, 5f, Tintable);
+            canvas.CapsuleAA(32f, 55f, 50f, 41f, 5f, Tintable);
+            return Done(canvas);
+        }
+
+        /// <summary>
         /// Help: what to do next.
         ///
         /// A question mark rather than an "i", because the two say different things and this button

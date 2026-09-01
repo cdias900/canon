@@ -48,6 +48,7 @@ namespace SheepGate.Core
             else
             {
                 ReconcileSegments(state);
+                AdoptSeason(state);
             }
 
             ServiceLocator.Clear();
@@ -56,6 +57,16 @@ namespace SheepGate.Core
             Telemetry.Track(TelemetryEvents.SessionStart, new Dictionary<string, object>
             {
                 { "day", state.day },
+
+                // The stage's id, not its number — the number is already here as "day", because a
+                // stage IS a day. What a funnel needs is the name: "which stage converts" is a
+                // question about enemies_rise and the_dedication, and answering it from an integer
+                // means every query has to carry a copy of the stage table and stay in step with it.
+                //
+                // Split by stage for the same reason the line below splits by locale. A nine-stage
+                // season measured as one number cannot say where people stop, and where they stop
+                // is the only thing that tells us which invitation is working.
+                { "stage", GameData.Stage(state.day).id },
 
                 // Carried so deep_read can be read per language. A conversion rate that is not
                 // split by locale cannot say whether a translation is working.
@@ -118,6 +129,9 @@ namespace SheepGate.Core
             CharacterPresets.VerifyAgainstCatalog();
 
             LoadScripture();
+
+            // Last, because it is the one cross-file check that needs both of the loads above.
+            VerifyStageRewards();
         }
 
         /// <summary>
@@ -202,6 +216,79 @@ namespace SheepGate.Core
             catch (Exception exception)
             {
                 Debug.LogError("[Boot] Could not load the scripture index: " + exception.Message);
+            }
+        }
+
+        /// <summary>
+        /// Decides what to do with the season a resumed save says it belongs to. There are exactly
+        /// three answers and none of them is "throw the save away".
+        ///
+        /// A save with no season named is stamped with this one. That is the ordinary case for
+        /// every save written before the field existed, and it is safe because there has only ever
+        /// been one season for it to have belonged to.
+        ///
+        /// A save naming this season proceeds, silently, which is the path every run takes.
+        ///
+        /// A save naming a season this build does not have is <b>kept and resumed as it is</b>, and
+        /// the mismatch is logged loudly for whoever is holding the build. It is deliberately not
+        /// re-stamped: overwriting the name would be this build claiming a run it cannot read, and
+        /// the next save would make that claim permanent. It is deliberately not deleted either —
+        /// no game over and no lost progress means the file survives even when the build cannot
+        /// make full sense of it. The stage clamp in SaveSystem already keeps the day inside
+        /// something playable, so the worst case is a run that resumes at a stage this season does
+        /// have, with everything the player earned still in the file.
+        /// </summary>
+        static void AdoptSeason(GameState state)
+        {
+            if (string.IsNullOrEmpty(state.seasonId))
+            {
+                state.seasonId = GameState.DefaultSeasonId;
+                Debug.Log("[Boot] The save named no season; stamping it \"" + GameState.DefaultSeasonId + "\".");
+                return;
+            }
+
+            if (state.seasonId == GameState.DefaultSeasonId)
+            {
+                return;
+            }
+
+            Debug.LogWarning(
+                "[Boot] This save belongs to season \"" + state.seasonId + "\", which this build does not have. " +
+                "Keeping it and resuming anyway — a save is never discarded — but its content will be read " +
+                "against season \"" + GameState.DefaultSeasonId + "\".");
+        }
+
+        /// <summary>
+        /// The one stage-table invariant that cannot live in GameData: it needs the catalogue, and
+        /// the catalogue is loaded a line after GameData is. Checking it here keeps it a load-time
+        /// assertion — which is what the plan asks for — instead of a check nobody ever calls.
+        ///
+        /// A stage's reward_item is the item the progression map FEATURES, so pointing at an entry
+        /// that does not exist is not a crash; it is a blank space on the map where a reason to
+        /// come back tomorrow was supposed to be. That is exactly the class of miss that ships.
+        /// </summary>
+        static void VerifyStageRewards()
+        {
+            StageDef[] stages = GameData.Stages;
+            if (stages == null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < stages.Length; i++)
+            {
+                StageDef stage = stages[i];
+                if (stage == null || string.IsNullOrEmpty(stage.reward_item))
+                {
+                    continue;
+                }
+
+                if (CharacterCatalog.Item(stage.reward_item) == null)
+                {
+                    Debug.LogError(
+                        "[Boot] Stage \"" + stage.id + "\" features reward item \"" + stage.reward_item +
+                        "\", which character_catalog.json does not define.");
+                }
             }
         }
 

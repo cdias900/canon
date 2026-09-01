@@ -93,8 +93,9 @@ namespace SheepGate.World
             EnsureContestSystem(systemsObject);
             EnsureQuizSystem(systemsObject);
 
-            // 9. The director of the last day. Nothing else starts the trial or ends the run.
-            EnsureDay3Director(systemsObject);
+            // 9. The director of the season's scripted stages. Nothing else starts a contest, plays
+            // a gathering, closes the gate or ends the run.
+            EnsureStageDirector(systemsObject);
 
             // 10. HUD and the rest of the UI layer. The HUD finds the camera rig through the
             // service locator — registered in step 7 — and drives the patrol view itself, so the
@@ -109,7 +110,9 @@ namespace SheepGate.World
             // ...and when it has been seen, the people it left standing are put back. They are
             // built by the cutscene, so every rebuild of this scene - a language switch, a
             // relaunch - used to drop them and empty the square the opening had just filled.
-            IntroCutscene.RestoreGathering(Root, builder);
+            // Addressed to the stage the run is standing in, so the square answers with today's
+            // lines rather than with the opening's for the rest of the season.
+            IntroCutscene.RestoreGathering(Root, builder, state.day);
 
             // 12. Silent map-edge observation (exile vocation, never displayed).
             MapEdgeWatcher watcher = rootObject.AddComponent<MapEdgeWatcher>();
@@ -557,7 +560,8 @@ namespace SheepGate.World
 
             try
             {
-                // Created on every day; Day3Director is what calls Begin(), and only on the last one.
+                // Created on every stage. StageDirector is what calls Begin(), and only on a stage
+                // whose row in the table names a contest — today the raid and the letters.
                 host.AddComponent<MoraleContest>();
             }
             catch (Exception exception)
@@ -567,12 +571,13 @@ namespace SheepGate.World
         }
 
         /// <summary>
-        /// Attaches the director of the last day. Without it the trial never begins, the page never
-        /// appears and no vocation is ever named, so a failure here is logged loudly.
+        /// Attaches the director of the season's scripted stages. Without it no contest ever begins,
+        /// the page never appears and no vocation is ever named, so a failure here is logged loudly.
+        /// It is attached on every stage and asks the stage table what, if anything, it owes today.
         /// </summary>
-        private static void EnsureDay3Director(GameObject host)
+        private static void EnsureStageDirector(GameObject host)
         {
-            Day3Director existing = UnityEngine.Object.FindFirstObjectByType<Day3Director>();
+            StageDirector existing = UnityEngine.Object.FindFirstObjectByType<StageDirector>();
             if (existing != null)
             {
                 return;
@@ -580,11 +585,12 @@ namespace SheepGate.World
 
             try
             {
-                host.AddComponent<Day3Director>();
+                host.AddComponent<StageDirector>();
             }
             catch (Exception exception)
             {
-                Debug.LogError("[World] Could not create the Day3Director; day three has no ending: " + exception.Message);
+                Debug.LogError("[World] Could not create the StageDirector; no stage gets its beat and the season has no ending: "
+                               + exception.Message);
             }
         }
 
@@ -714,10 +720,23 @@ namespace SheepGate.World
     {
         // Flags are declared locally as literals so the world layer never depends on the exact
         // constant member names of SheepGate.Core.GameFlags. The values are the contract values.
-        public const string FlagWatchPostedD1 = "watch_posted_d1";
-        public const string FlagWatchPostedD2 = "watch_posted_d2";
         public const string FlagFishCaught = "fish_caught";
         public const string FlagReachedMapEdge = "reached_map_edge";
+
+        /// <summary>
+        /// The flag recording that a watch was posted on the night of this stage.
+        ///
+        /// One computed name where there used to be two literals, for the same reason the two
+        /// literals existed at all: the world layer declares the contract VALUE locally rather than
+        /// borrowing Core's member name. What it must not also do is declare the value twice, once
+        /// per day, because a season with nine nights would have needed nine of them and the write
+        /// side would have gone on recording only the days somebody remembered to add.
+        /// Byte for byte the same strings as before for days one and two, so no persisted key moved.
+        /// </summary>
+        public static string FlagWatchPostedForDay(int day)
+        {
+            return "watch_posted_d" + day;
+        }
 
         // Vocation ids as authored in vocations.json.
         public const string VocationZealot = "zelote";

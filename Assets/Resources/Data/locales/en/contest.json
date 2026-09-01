@@ -14,5 +14,9 @@
   "half_and_half": {
     "display": "Half and half",
     "description": "Nobody puts down the trowel to pick up the spear. Everyone does both at once, and that is the part they weren't expecting."
+  },
+  "keep_working": {
+    "display": "Keep working",
+    "description": "You said no once already and you are not going down now. There is no answer to give: the work carries on, and they go on waiting."
   }
 }

@@ -21,8 +21,13 @@ namespace SheepGate.Vocation
     }
 
     /// <summary>
-    /// Accumulates vocation points in silence and names the winner exactly once, at the end of
-    /// day three.
+    /// Accumulates vocation points in silence and names the winner exactly once, at the end of the
+    /// stage that declares <c>reveals_vocation</c> in stages.json — the last one in the season.
+    ///
+    /// The stage is named that way rather than by number on purpose. These sentences were the only
+    /// written statement anywhere of when the beat fires, they said "day three", and they were
+    /// wrong the moment the season grew past three stages; nothing in this class reads a day, so a
+    /// number here can go stale without a single line of code disagreeing with it.
     ///
     /// THE RULE THIS CLASS EXISTS TO ENFORCE: no score may reach any UI before the reveal. There
     /// is deliberately no public getter for a score, no "points remaining", no count of anything.
@@ -145,7 +150,7 @@ namespace SheepGate.Vocation
         /// <summary>
         /// Walks the authored order and keeps the first id holding the top score. Falls back to
         /// the recorded scores when no definitions loaded, so a content failure still names
-        /// something instead of leaving day three without an ending.
+        /// something instead of leaving the closing stage without an ending.
         /// </summary>
         static string Pick(IDictionary<string, int> scores)
         {

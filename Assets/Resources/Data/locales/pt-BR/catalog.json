@@ -81,6 +81,10 @@
       "display": "Manto do vale",
       "description": "Cai só das costas: o ombro fica à mostra, e de longe já sabem quem é."
     },
+    "outfit_watch_wool": {
+      "display": "Lã de guarda",
+      "description": "Lã pesada e sem corte nenhum, para uma noite inteira em pé sem se mexer."
+    },
 
     "acc_rope_coil": {
       "display": "Rolo de corda",
@@ -105,6 +109,18 @@
     "acc_old_seal": {
       "display": "Selo antigo",
       "description": "Achado no alicerce, com um nome gravado que ninguém aqui sabe ler."
+    },
+    "acc_watch_horn": {
+      "display": "Trompa de aviso",
+      "description": "Pendurada no ombro esquerdo. Onde ela tocar, é para lá que todo mundo corre."
+    },
+    "acc_plumb_line": {
+      "display": "Fio de prumo",
+      "description": "Chumbo na ponta de um cordão, preso na cintura. Diz se a fiada está torta antes de a fiada de cima provar que estava."
+    },
+    "acc_gate_key": {
+      "display": "Chave do portão",
+      "description": "Ferro torto num cordão de couro, no pescoço. Serve numa porta só, e a porta agora existe."
     }
   },
 

@@ -22,9 +22,16 @@ fix it.**
    `verses.json`. Test fixtures use obviously synthetic strings such as
    `"PLACEHOLDER_VERSE_TEXT"`.
 3. **No vocation progress may reach any UI.** `VocationTracker` exposes no public score
-   getter. Only `Resolve()` at the end of day 3.
-4. **No game over, no death counter, no health bar.** Morale only. Completed wall stages
-   never regress.
+   getter. Only `Resolve()` at the end of the stage that declares `reveals_vocation`. The rule
+   is not weakened by the season getting longer — there is still exactly one call, and it is
+   still the only reader; only its location is now declared in data rather than in code.
+4. **No game over, no death counter, no health bar.** Morale only. Completed masonry courses
+   never regress, and absence delays rather than reverting. **"Stage" means two things one
+   directory apart, and this is the only warning you get:** `WallSegmentState.stage` is a
+   **masonry course**, 0..4 on one segment; "stage" unqualified everywhere else means one of the
+   nine **season stages** in `stages.json`. The names were left alone deliberately — renaming
+   `WallSegmentState.stage` would touch a persisted field and force a second save migration for
+   pure hygiene, which is a worse trade than this sentence.
 5. **No network calls at runtime.** `verses.json` is baked at build time.
 
 ## Root namespace
@@ -71,7 +78,7 @@ public enum Assignment { Work, Watch }
 [Serializable]
 public class WallSegmentState {
     public string id;
-    public int stage;              // 0..4, 4 == complete
+    public int stage;              // MASONRY COURSE, 0..4, 4 == complete. Not a season stage.
     public int workInStage;        // work units accumulated toward next stage
     public bool damaged;
 }
@@ -90,7 +97,11 @@ public class AppearanceState {
 
 [Serializable]
 public class GameState {
-    public int day = 1;                                   // 1..3
+    public int schemaVersion;                             // shape of the file on disk
+    public const int CurrentSchemaVersion = 3;            // 1 rubble-only, 2 materials, 3 nine stages
+
+    public int day = 1;                                   // 1..9, and it IS the stage number
+    public string seasonId = "nehemiah";                  // stamped by NewGame; never branched on in game
     public int rubble;                                    // collected rubble units
     public int workCapacity;                              // resets each morning
     public int workCapacityMax = 12;
@@ -117,6 +128,24 @@ Flag names (string constants on `GameFlags`, all lowercase snake_case):
 `page_shown`, `page_skipped`, `fish_caught`, `chapter_opened`, `deep_read`,
 `contest_resolved`, `vocation_revealed`, `reached_map_edge`.
 
+One more lives elsewhere and this line is the pointer, so the list above can be read as complete:
+`references_revealed` is `ScriptureVisibility.RevealedFlag`, kept on that class because the rule
+about when references appear is that class's whole subject.
+
+Three families are **computed**, because their count follows the stage table rather than being
+fixed. Their values are unchanged where they overlap the constants above, which is what let a
+nine-stage season ship without renaming a single persisted key:
+
+```csharp
+public static string WatchPostedForDay(int day);        // "watch_posted_d" + day   — d1/d2 byte-for-byte
+public static string ContestResolvedFor(string id);     // "contest_resolved_" + id — e.g. contest_resolved_raid
+public static string StageDoneCounter(string stageId);  // "stage_done_" + stageId  — a counter, not a flag
+```
+
+`contest_resolved` (flat) is legacy: it means "the raid was fought" and is what a schema-2 save
+carries. `SaveSystem`'s 2 → 3 migration additionally raises `contest_resolved_raid` for such a
+save, and never clears the old one.
+
 ```csharp
 public static class SaveSystem {
     public static string SavePath { get; }               // persistentDataPath/save.json
@@ -126,6 +155,13 @@ public static class SaveSystem {
     public static void Delete();
 }
 ```
+
+`Load` repairs, then migrates, then clamps the day — **in that order**, and the order is
+load-bearing. A schema-2 save carries `day: 3` meaning "the last day, and the trial is tonight";
+under the season's numbering that day is the trial's stage, 6 — or 7 when `contest_resolved` says
+the trial was already fought. A floor applied before the migration reads the pre-migration number,
+and a ceiling applied before it measures a day against a season the save was not written for. A
+save from a **newer** schema is never stepped back and never clamped, in either direction.
 
 ```csharp
 public interface ITelemetrySink { void Track(string eventName, IDictionary<string, object> props); void Flush(); }
@@ -155,7 +191,10 @@ public static class GameData {   // structure from Resources/Data, words merged 
     public static NpcDef[] Npcs { get; }
     public static IReadOnlyDictionary<string, DialogueNode> Dialogue { get; }
     public static WallSegmentDef[] WallSegments { get; }
-    public static ContestConfig Contest { get; }
+    public static StageDef[] Stages { get; }                                  // the season, in order
+    public static StageDef Stage(int day);                                    // never null; clamps and logs once
+    public static IReadOnlyDictionary<string, ContestConfig> Contests { get; }
+    public static ContestConfig Contest { get; }                              // == Contests["raid"]
     public static VocationDef[] Vocations { get; }
     public static QuizQuestion[] Quiz { get; }
     public static MapDef Map { get; }
@@ -163,21 +202,73 @@ public static class GameData {   // structure from Resources/Data, words merged 
 }
 ```
 
+`Contest` is **joined by**, not replaced by, `Contests`: it keeps its exact signature and returns
+the raid, so no existing caller changed on the day `contest.json` grew a second entry. New code
+names the contest it means.
+
+`LoadAll` asserts the stage table once it has read everything, and every failure is a
+`Debug.LogError` that then carries on — this class's standing policy, and not leniency: the E2E
+runner promotes a logged error to a run failure, so a broken table fails the gate loudly while
+still leaving a build a person can open to see *which* stage is wrong. The invariants:
+
+- days contiguous `1..N` in file order, no gaps and no repeats;
+- `type` is one of `intro | work | rest | battle | boss | gate`;
+- exactly one `terminal`, and it is the last;
+- exactly one `closes_gate`, it is the last, and its `gate_segment` exists in `wall_segments.json`;
+- exactly one `reveals_page`; exactly one `reveals_vocation`;
+- `finishes_wall`'s day is strictly before `closes_gate`'s;
+- every non-null `contest` resolves in `Contests`; every `cutscene_node` resolves in `Dialogue`;
+- `map_anchor` and `map_focus` are exactly two entries each.
+
+One more needs the catalogue, which loads a line after this one, so it runs at the end of
+`BootSequence.ApplyLocale` instead: every `reward_item` resolves in `character_catalog.json`.
+
 ## Data transfer objects — `SheepGate.Core` (Newtonsoft attributes)
 
 ```csharp
 public class NpcDef      { string id; string display; string source_ref; GridPos spawn; string palette; }
 public class GridPos     { int x; int y; }
 public class DialogueLine{ string text; string verse; string frame; }   // text XOR verse
-public class DialogueNode{ string npc; int day; DialogueLine[] lines; Grants grants; bool reliable; }
+public class DialogueNode{ string npc; int day; DialogueLine[] lines; Grants grants;
+                           DialogueChoice[] choices; bool reliable;
+                           bool canonical_speaker; bool needs_curation; }
+public class DialogueChoice { string id; string text; string next; Grants grants;
+                              int requires_rubble; string hidden_if_flag; }
 public class Grants      { Dictionary<string,int> vocation; Dictionary<string,int> flags; string set_flag; }
 public class WallSegmentDef { string id; int grid_x; int[] stage_cost; bool exposed; }
 public class VocationDef { string id; string display; string reveal_line; }   // reveal_line is pt-BR, authored, never scripture
 public class QuizQuestion{ int day; string prompt; string[] options; int answer; string note; }
-public class MapDef      { int width; int height; string[] rows; GridPos player_spawn; GridPos[] rubble; GridPos well; }
-public class ContestConfig { int player_morale; int enemy_resolve_base; int turn_limit; ContestMoveDef[] moves; }
-public class ContestMoveDef { string id; string display; string description; int resolve_delta; int morale_delta; bool unlocked_by_page; }
+public class MapDef      { int width; int height; string[] rows; GridPos player_spawn;
+                           GridPos[] rubble; GridPos[] timber; GridPos well; GridPos plaza;
+                           GridPos player_house_door; }
+public class StageDef    { int day; string id; string type; bool terminal; bool night_threat;
+                           string contest; string cutscene_node; bool finishes_wall;
+                           bool closes_gate; string gate_segment; bool reveals_page;
+                           bool reveals_vocation; string reward_item;
+                           float[] map_anchor; float[] map_focus; }
+public class ContestConfig { string id; int player_morale; int enemy_resolve_base; int turn_limit;
+                             int base_pressure; int page_turn; string page_verse;
+                             string enemy_line_prefix; ContestMoveDef[] moves; }
+public class ContestMoveDef { string id; string display; string description; int resolve_delta; int morale_delta;
+                              bool unlocked_by_page; string unlocked_by_flag; }
 ```
+
+`DialogueNode.day` **0 is a sentinel, not a missing value**: it means "available at any stage", and
+eight shipped nodes rely on that reading. `canonical_speaker` and `needs_curation` were keys in the
+JSON and in the tooling long before they were members here, so Newtonsoft dropped them on load and
+the runtime could not see rule 4's marking at all; they bind now.
+
+`QuizQuestion.day` runs over every stage the season declares — nine today, three when this file was
+written. The file shape and `GameData.MergeQuizStrings`' day-keyed join are unchanged, deliberately:
+the join's own comment gives the reason and it still holds.
+
+`ContestMoveDef.unlocked_by_flag` **generalises** `unlocked_by_page` without replacing it — the
+boolean stays and is still honoured. Rule 19 is protected by *what* a move names there: the flag the
+boss gates on is `refused_invite`, a choice in the fiction, never a reading.
+
+`stages.json` is the single authority for how long the season is, what kind each stage is, and which
+systems it turns on. Structure and numbers only — **there is not one word in it a player can read**;
+stage titles live in each locale's `ui.json` like every other string.
 
 ## Scripture — `SheepGate.Scripture`
 
@@ -222,6 +313,7 @@ public class ResourceSystem : MonoBehaviour {
 }
 
 public class DayCycle : MonoBehaviour {
+    public static int FinalDay { get; }                      // the last stage's day, from stages.json
     public event Action<int> MorningStarted;                 // day number
     public event Action<int> DuskBegan;                      // the day is turning to evening
     public void RequestEndDay();                             // opens the split panel
@@ -235,6 +327,15 @@ public class DayCycle : MonoBehaviour {
     public static bool DuskWaits(bool held, bool inputLocked, bool modalOpen);
 }
 ```
+
+`FinalDay` was `public const int FinalDay = 3`. It is a property now because the season's length is
+declared in `stages.json`, and a const would have been baked into every call site that read it. The
+season is nine stages; nothing in code should say so.
+
+The final-day hold, `HoldFinalDay`, is taken by **the stage that declares `terminal`** and by no
+other. Taken unconditionally it stops the calendar dead wherever it is taken, whatever the stage
+table says comes next — which is why scoping it is the single change that makes a longer season
+reachable at all.
 
 ## Dialogue — `SheepGate.Dialogue`
 
@@ -257,11 +358,15 @@ public enum ContestOutcome { EnemyWithdrew, PlayerBroke, TurnLimit }
 public class MoraleContest : MonoBehaviour {
     public event Action<int> TurnStarted;
     public event Action<ContestOutcome> Finished;
-    public void Begin();
+    public void Begin();                    // the current stage's declared contest
+    public void Begin(string contestId);    // a named one
     public void UseMove(string moveId);
     public bool IsMoveAvailable(string moveId);
 }
 ```
+
+`Begin()` keeps its exact signature; the overload is additive. The season has two encounters and one
+`MoraleContest` instance, so "which contest" had to become sayable at the call site.
 
 ## Vocation — `SheepGate.Vocation`
 
@@ -311,7 +416,7 @@ node tools/validate-content.mjs                       # deterministic layer-1 va
 node tools/list-curation.mjs                          # authored canonical speech awaiting a read
 tools/unity-check.sh                                  # headless compile
 tools/acceptance.sh                                   # the product rules, per locale
-tools/e2e.sh                                          # build a player and play all three days
+tools/e2e.sh                                          # build a player and play every stage the table declares
 ```
 
 ## Scene entry points (the integration seam)

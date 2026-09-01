@@ -12,7 +12,12 @@ namespace SheepGate.UI
     /// </summary>
     public struct NightSummary
     {
-        /// <summary>The morning that is starting, 1..3.</summary>
+        /// <summary>
+        /// The morning that is starting, 1..9, and it IS the stage number — the season table in
+        /// stages.json is keyed by day, so there is no second numbering for this screen to drift
+        /// against. Written as a range rather than a constant because nothing here reads the table:
+        /// the value arrives from whoever opened the report.
+        /// </summary>
         public int day;
 
         /// <summary>Whether the night counted as having a watch on the wall. DayCycle decides this.</summary>
@@ -57,15 +62,24 @@ namespace SheepGate.UI
             summary.workRecorded = HasCounter(state, MorningReportUI.NightWorkCounter);
             summary.watchThreshold = DayCycle.WatchThreshold(summary.workers + summary.watchers);
 
+            // One reading of one flag family, and it is deliberately not a chain of per-day
+            // branches. It used to be `if (previousDay == 1) ... else if (previousDay == 2)` with
+            // no else, which was complete for a three-day build and became a silent lie the moment
+            // the season grew: from the fourth morning on, watchPosted stayed false whatever the
+            // night had actually done, so the accent flipped to Sky, the headline became
+            // morning.headline.unwatched and the chip said so — a screen reporting a failed watch
+            // to a player who posted one, with no exception thrown and nothing in the log.
+            //
+            // A nine-stage season has eight mornings — MorningStarted is only ever raised out of a
+            // resolved night, so stage 1 has none — and six of those eight would have said it.
+            //
+            // The shape is what fixed it: an expression over a computed flag name cannot be
+            // missing a case, so a tenth stage needs no edit here and cannot reintroduce the bug.
+            // Stage 1 would read watch_posted_d0, which nothing writes and which is false — the
+            // same answer the old fall-through gave, and the right one for a morning that has no
+            // night behind it.
             int previousDay = morningDay - 1;
-            if (previousDay == 1)
-            {
-                summary.watchPosted = state.HasFlag(GameFlags.WatchPostedD1);
-            }
-            else if (previousDay == 2)
-            {
-                summary.watchPosted = state.HasFlag(GameFlags.WatchPostedD2);
-            }
+            summary.watchPosted = state.HasFlag(GameFlags.WatchPostedForDay(previousDay));
 
             if (HasCounter(state, MorningReportUI.NightDamageCounter))
             {

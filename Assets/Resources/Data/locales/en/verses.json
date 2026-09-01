@@ -7,10 +7,6 @@
     "copyright": "PUBLIC DOMAIN (not copyrighted)"
   },
   "verses": {
-    "1CO.13.13": {
-      "ref_display": "1 Corinthians 13:13",
-      "text": "But now faith, hope, and love remain—these three. The greatest of these is love."
-    },
     "JHN.21.6": {
       "ref_display": "John 21:6",
       "text": "He said to them, “Cast the net on the right side of the boat, and you will find some.” They cast it therefore, and now they weren’t able to draw it in for the multitude of fish."
@@ -22,6 +18,18 @@
     "NEH.1.11": {
       "ref_display": "Nehemiah 1:11",
       "text": "Lord, I beg you, let your ear be attentive now to the prayer of your servant, and to the prayer of your servants who delight to fear your name; and please prosper your servant today, and grant him mercy in the sight of this man.” Now I was cup bearer to the king."
+    },
+    "NEH.2.8": {
+      "ref_display": "Nehemiah 2:8",
+      "text": "and a letter to Asaph the keeper of the king’s forest, that he may give me timber to make beams for the gates of the citadel by the temple, for the wall of the city, and for the house that I will occupy.” The king granted my requests, because of the good hand of my God on me."
+    },
+    "NEH.2.12": {
+      "ref_display": "Nehemiah 2:12",
+      "text": "I arose in the night, I and a few men with me. I didn’t tell anyone what my God put into my heart to do for Jerusalem. There wasn’t any animal with me except the animal that I rode on."
+    },
+    "NEH.2.13": {
+      "ref_display": "Nehemiah 2:13",
+      "text": "I went out by night by the valley gate toward the jackal’s well, then to the dung gate; and I inspected the walls of Jerusalem, which were broken down, and its gates were consumed with fire."
     },
     "NEH.2.17": {
       "ref_display": "Nehemiah 2:17",
@@ -39,25 +47,105 @@
       "ref_display": "Nehemiah 3:1",
       "text": "Then Eliashib the high priest rose up with his brothers the priests, and they built the sheep gate. They sanctified it, and set up its doors. They sanctified it even to the tower of Hammeah, to the tower of Hananel."
     },
+    "NEH.3.2": {
+      "ref_display": "Nehemiah 3:2",
+      "text": "Next to him the men of Jericho built. Next to them Zaccur the son of Imri built."
+    },
+    "NEH.3.5": {
+      "ref_display": "Nehemiah 3:5",
+      "text": "Next to them, the Tekoites made repairs; but their nobles didn’t put their necks to the Lord’s work."
+    },
+    "NEH.3.8": {
+      "ref_display": "Nehemiah 3:8",
+      "text": "Next to him, Uzziel the son of Harhaiah, goldsmiths, made repairs. Next to him, Hananiah, one of the perfumers, made repairs, and they fortified Jerusalem even to the wide wall."
+    },
+    "NEH.3.12": {
+      "ref_display": "Nehemiah 3:12",
+      "text": "Next to him, Shallum the son of Hallohesh, the ruler of half the district of Jerusalem, he and his daughters made repairs."
+    },
+    "NEH.4.1": {
+      "ref_display": "Nehemiah 4:1",
+      "text": "But when Sanballat heard that we were building the wall, he was angry, and was very indignant, and mocked the Jews."
+    },
     "NEH.4.2": {
       "ref_display": "Nehemiah 4:2",
       "text": "He spoke before his brothers and the army of Samaria, and said, “What are these feeble Jews doing? Will they fortify themselves? Will they sacrifice? Will they finish in a day? Will they revive the stones out of the heaps of rubbish, since they are burned?”"
+    },
+    "NEH.4.3": {
+      "ref_display": "Nehemiah 4:3",
+      "text": "Now Tobiah the Ammonite was by him, and he said, “What they are building, if a fox climbed up it, he would break down their stone wall.”"
     },
     "NEH.4.6": {
       "ref_display": "Nehemiah 4:6",
       "text": "So we built the wall; and all the wall was joined together to half its height, for the people had a mind to work."
     },
+    "NEH.4.7": {
+      "ref_display": "Nehemiah 4:7",
+      "text": "But when Sanballat, Tobiah, the Arabians, the Ammonites, and the Ashdodites heard that the repairing of the walls of Jerusalem went forward, and that the breaches began to be filled, they were very angry;"
+    },
+    "NEH.4.8": {
+      "ref_display": "Nehemiah 4:8",
+      "text": "and they all conspired together to come and fight against Jerusalem, and to cause confusion among us."
+    },
     "NEH.4.9": {
       "ref_display": "Nehemiah 4:9",
       "text": "But we made our prayer to our God, and set a watch against them day and night because of them."
+    },
+    "NEH.4.11": {
+      "ref_display": "Nehemiah 4:11",
+      "text": "Our adversaries said, “They will not know or see, until we come in among them and kill them, and cause the work to cease.”"
+    },
+    "NEH.4.14": {
+      "ref_display": "Nehemiah 4:14",
+      "text": "I looked, and rose up, and said to the nobles, to the rulers, and to the rest of the people, “Don’t be afraid of them! Remember the Lord, who is great and awesome, and fight for your brothers, your sons, your daughters, your wives, and your houses.”"
+    },
+    "NEH.4.16": {
+      "ref_display": "Nehemiah 4:16",
+      "text": "From that time forth, half of my servants did the work, and half of them held the spears, the shields, the bows, and the coats of mail; and the rulers were behind all the house of Judah."
     },
     "NEH.4.17": {
       "ref_display": "Nehemiah 4:17",
       "text": "Those who built the wall, and those who bore burdens loaded themselves; everyone with one of his hands did the work, and with the other held his weapon."
     },
+    "NEH.4.20": {
+      "ref_display": "Nehemiah 4:20",
+      "text": "Wherever you hear the sound of the trumpet, rally there to us. Our God will fight for us.”"
+    },
+    "NEH.6.1": {
+      "ref_display": "Nehemiah 6:1",
+      "text": "Now when it was reported to Sanballat, Tobiah, Geshem the Arabian, and to the rest of our enemies that I had built the wall, and that there was no breach left in it (though even to that time I had not set up the doors in the gates),"
+    },
+    "NEH.6.2": {
+      "ref_display": "Nehemiah 6:2",
+      "text": "Sanballat and Geshem sent to me, saying, “Come! Let’s meet together in the villages in the plain of Ono.” But they intended to harm me."
+    },
     "NEH.6.3": {
       "ref_display": "Nehemiah 6:3",
       "text": "I sent messengers to them, saying, “I am doing a great work, so that I can’t come down. Why should the work cease while I leave it and come down to you?”"
+    },
+    "NEH.6.9": {
+      "ref_display": "Nehemiah 6:9",
+      "text": "For they all would have made us afraid, saying, “Their hands will be weakened from the work, that it not be done.” But now, strengthen my hands."
+    },
+    "NEH.6.15": {
+      "ref_display": "Nehemiah 6:15",
+      "text": "So the wall was finished in the twenty-fifth day of Elul, in fifty-two days."
+    },
+    "NEH.6.16": {
+      "ref_display": "Nehemiah 6:16",
+      "text": "When all our enemies heard of it, all the nations that were around us were afraid, and they lost their confidence; for they perceived that this work was done by our God."
+    },
+    "NEH.12.27": {
+      "ref_display": "Nehemiah 12:27",
+      "text": "At the dedication of the wall of Jerusalem, they sought the Levites out of all their places, to bring them to Jerusalem to keep the dedication with gladness, both with giving thanks and with singing, with cymbals, stringed instruments, and with harps."
+    },
+    "NEH.12.31": {
+      "ref_display": "Nehemiah 12:31",
+      "text": "Then I brought the princes of Judah up on the wall, and appointed two great companies who gave thanks and went in procession. One went on the right hand on the wall toward the dung gate;"
+    },
+    "NEH.12.43": {
+      "ref_display": "Nehemiah 12:43",
+      "text": "They offered great sacrifices that day, and rejoiced, for God had made them rejoice with great joy; and the women and the children also rejoiced, so that the joy of Jerusalem was heard even far away."
     }
   },
   "chapters": {
@@ -192,6 +280,139 @@
         {
           "n": 20,
           "text": "Then I answered them, and said to them, “The God of heaven will prosper us. Therefore we, his servants, will arise and build; but you have no portion, nor right, nor memorial in Jerusalem.”"
+        }
+      ]
+    },
+    "NEH.3": {
+      "ref_display": "Nehemiah 3",
+      "verses": [
+        {
+          "n": 1,
+          "text": "Then Eliashib the high priest rose up with his brothers the priests, and they built the sheep gate. They sanctified it, and set up its doors. They sanctified it even to the tower of Hammeah, to the tower of Hananel."
+        },
+        {
+          "n": 2,
+          "text": "Next to him the men of Jericho built. Next to them Zaccur the son of Imri built."
+        },
+        {
+          "n": 3,
+          "text": "The sons of Hassenaah built the fish gate. They laid its beams, and set up its doors, its bolts, and its bars."
+        },
+        {
+          "n": 4,
+          "text": "Next to them, Meremoth the son of Uriah, the son of Hakkoz made repairs. Next to them, Meshullam the son of Berechiah, the son of Meshezabel made repairs. Next to them, Zadok the son of Baana made repairs."
+        },
+        {
+          "n": 5,
+          "text": "Next to them, the Tekoites made repairs; but their nobles didn’t put their necks to the Lord’s work."
+        },
+        {
+          "n": 6,
+          "text": "Joiada the son of Paseah and Meshullam the son of Besodeiah repaired the old gate. They laid its beams and set up its doors, its bolts, and its bars."
+        },
+        {
+          "n": 7,
+          "text": "Next to them, Melatiah the Gibeonite and Jadon the Meronothite, the men of Gibeon and of Mizpah, repaired the residence of the governor beyond the River."
+        },
+        {
+          "n": 8,
+          "text": "Next to him, Uzziel the son of Harhaiah, goldsmiths, made repairs. Next to him, Hananiah, one of the perfumers, made repairs, and they fortified Jerusalem even to the wide wall."
+        },
+        {
+          "n": 9,
+          "text": "Next to them, Rephaiah the son of Hur, the ruler of half the district of Jerusalem, made repairs."
+        },
+        {
+          "n": 10,
+          "text": "Next to them, Jedaiah the son of Harumaph made repairs across from his house. Next to him, Hattush the son of Hashabneiah made repairs."
+        },
+        {
+          "n": 11,
+          "text": "Malchijah the son of Harim and Hasshub the son of Pahathmoab repaired another portion and the tower of the furnaces."
+        },
+        {
+          "n": 12,
+          "text": "Next to him, Shallum the son of Hallohesh, the ruler of half the district of Jerusalem, he and his daughters made repairs."
+        },
+        {
+          "n": 13,
+          "text": "Hanun and the inhabitants of Zanoah repaired the valley gate. They built it, and set up its doors, its bolts, and its bars, and one thousand cubits of the wall to the dung gate."
+        },
+        {
+          "n": 14,
+          "text": "Malchijah the son of Rechab, the ruler of the district of Beth Haccherem, repaired the dung gate. He built it, and set up its doors, its bolts, and its bars."
+        },
+        {
+          "n": 15,
+          "text": "Shallun the son of Colhozeh, the ruler of the district of Mizpah, repaired the spring gate. He built it, covered it, and set up its doors, its bolts, and its bars; and he repaired the wall of the pool of Shelah by the king’s garden, even to the stairs that go down from David’s city."
+        },
+        {
+          "n": 16,
+          "text": "After him, Nehemiah the son of Azbuk, the ruler of half the district of Beth Zur, made repairs to the place opposite the tombs of David, and to the pool that was made, and to the house of the mighty men."
+        },
+        {
+          "n": 17,
+          "text": "After him, the Levites—Rehum the son of Bani made repairs. Next to him, Hashabiah, the ruler of half the district of Keilah, made repairs for his district."
+        },
+        {
+          "n": 18,
+          "text": "After him, their brothers, Bavvai the son of Henadad, the ruler of half the district of Keilah made repairs."
+        },
+        {
+          "n": 19,
+          "text": "Next to him, Ezer the son of Jeshua, the ruler of Mizpah, repaired another portion across from the ascent to the armory at the turning of the wall."
+        },
+        {
+          "n": 20,
+          "text": "After him, Baruch the son of Zabbai earnestly repaired another portion, from the turning of the wall to the door of the house of Eliashib the high priest."
+        },
+        {
+          "n": 21,
+          "text": "After him, Meremoth the son of Uriah the son of Hakkoz repaired another portion, from the door of the house of Eliashib even to the end of the house of Eliashib."
+        },
+        {
+          "n": 22,
+          "text": "After him, the priests, the men of the surrounding area made repairs."
+        },
+        {
+          "n": 23,
+          "text": "After them, Benjamin and Hasshub made repairs across from their house. After them, Azariah the son of Maaseiah the son of Ananiah made repairs beside his own house."
+        },
+        {
+          "n": 24,
+          "text": "After him, Binnui the son of Henadad repaired another portion, from the house of Azariah to the turning of the wall, and to the corner."
+        },
+        {
+          "n": 25,
+          "text": "Palal the son of Uzai made repairs opposite the turning of the wall, and the tower that stands out from the upper house of the king, which is by the court of the guard. After him Pedaiah the son of Parosh made repairs."
+        },
+        {
+          "n": 26,
+          "text": "(Now the temple servants lived in Ophel, to the place opposite the water gate toward the east, and the tower that stands out.)"
+        },
+        {
+          "n": 27,
+          "text": "After him the Tekoites repaired another portion, opposite the great tower that stands out, and to the wall of Ophel."
+        },
+        {
+          "n": 28,
+          "text": "Above the horse gate, the priests made repairs, everyone across from his own house."
+        },
+        {
+          "n": 29,
+          "text": "After them, Zadok the son of Immer made repairs across from his own house. After him, Shemaiah the son of Shecaniah, the keeper of the east gate, made repairs."
+        },
+        {
+          "n": 30,
+          "text": "After him, Hananiah the son of Shelemiah, and Hanun, the sixth son of Zalaph, repaired another portion. After him, Meshullam the son of Berechiah made repairs across from his room."
+        },
+        {
+          "n": 31,
+          "text": "After him, Malchijah, one of the goldsmiths to the house of the temple servants, and of the merchants, made repairs opposite the gate of Hammiphkad and to the ascent of the corner."
+        },
+        {
+          "n": 32,
+          "text": "Between the ascent of the corner and the sheep gate, the goldsmiths and the merchants made repairs."
         }
       ]
     },
@@ -370,6 +591,199 @@
         {
           "n": 19,
           "text": "Also they spoke of his good deeds before me, and reported my words to him. Tobiah sent letters to put me in fear."
+        }
+      ]
+    },
+    "NEH.12": {
+      "ref_display": "Nehemiah 12",
+      "verses": [
+        {
+          "n": 1,
+          "text": "Now these are the priests and the Levites who went up with Zerubbabel the son of Shealtiel, and Jeshua: Seraiah, Jeremiah, Ezra,"
+        },
+        {
+          "n": 2,
+          "text": "Amariah, Malluch, Hattush,"
+        },
+        {
+          "n": 3,
+          "text": "Shecaniah, Rehum, Meremoth,"
+        },
+        {
+          "n": 4,
+          "text": "Iddo, Ginnethoi, Abijah,"
+        },
+        {
+          "n": 5,
+          "text": "Mijamin, Maadiah, Bilgah,"
+        },
+        {
+          "n": 6,
+          "text": "Shemaiah, Joiarib, Jedaiah,"
+        },
+        {
+          "n": 7,
+          "text": "Sallu, Amok, Hilkiah, and Jedaiah. These were the chiefs of the priests and of their brothers in the days of Jeshua."
+        },
+        {
+          "n": 8,
+          "text": "Moreover the Levites were Jeshua, Binnui, Kadmiel, Sherebiah, Judah, and Mattaniah, who was over the thanksgiving songs, he and his brothers."
+        },
+        {
+          "n": 9,
+          "text": "Also Bakbukiah and Unno, their brothers, were close to them according to their offices."
+        },
+        {
+          "n": 10,
+          "text": "Jeshua became the father of Joiakim, and Joiakim became the father of Eliashib, and Eliashib became the father of Joiada,"
+        },
+        {
+          "n": 11,
+          "text": "and Joiada became the father of Jonathan, and Jonathan became the father of Jaddua."
+        },
+        {
+          "n": 12,
+          "text": "In the days of Joiakim were priests, heads of fathers’ households: of Seraiah, Meraiah; of Jeremiah, Hananiah;"
+        },
+        {
+          "n": 13,
+          "text": "of Ezra, Meshullam; of Amariah, Jehohanan;"
+        },
+        {
+          "n": 14,
+          "text": "of Malluchi, Jonathan; of Shebaniah, Joseph;"
+        },
+        {
+          "n": 15,
+          "text": "of Harim, Adna; of Meraioth, Helkai;"
+        },
+        {
+          "n": 16,
+          "text": "of Iddo, Zechariah; of Ginnethon, Meshullam;"
+        },
+        {
+          "n": 17,
+          "text": "of Abijah, Zichri; of Miniamin, of Moadiah, Piltai;"
+        },
+        {
+          "n": 18,
+          "text": "of Bilgah, Shammua; of Shemaiah, Jehonathan;"
+        },
+        {
+          "n": 19,
+          "text": "of Joiarib, Mattenai; of Jedaiah, Uzzi;"
+        },
+        {
+          "n": 20,
+          "text": "of Sallai, Kallai; of Amok, Eber;"
+        },
+        {
+          "n": 21,
+          "text": "of Hilkiah, Hashabiah; of Jedaiah, Nethanel."
+        },
+        {
+          "n": 22,
+          "text": "As for the Levites, in the days of Eliashib, Joiada, Johanan, and Jaddua, there were recorded the heads of fathers’ households; also the priests, in the reign of Darius the Persian."
+        },
+        {
+          "n": 23,
+          "text": "The sons of Levi, heads of fathers’ households, were written in the book of the chronicles, even until the days of Johanan the son of Eliashib."
+        },
+        {
+          "n": 24,
+          "text": "The chiefs of the Levites: Hashabiah, Sherebiah, and Jeshua the son of Kadmiel, with their brothers close to them, to praise and give thanks according to the commandment of David the man of God, section next to section."
+        },
+        {
+          "n": 25,
+          "text": "Mattaniah, Bakbukiah, Obadiah, Meshullam, Talmon, and Akkub were gatekeepers keeping the watch at the storehouses of the gates."
+        },
+        {
+          "n": 26,
+          "text": "These were in the days of Joiakim the son of Jeshua, the son of Jozadak, and in the days of Nehemiah the governor, and of Ezra the priest and scribe."
+        },
+        {
+          "n": 27,
+          "text": "At the dedication of the wall of Jerusalem, they sought the Levites out of all their places, to bring them to Jerusalem to keep the dedication with gladness, both with giving thanks and with singing, with cymbals, stringed instruments, and with harps."
+        },
+        {
+          "n": 28,
+          "text": "The sons of the singers gathered themselves together, both out of the plain around Jerusalem and from the villages of the Netophathites;"
+        },
+        {
+          "n": 29,
+          "text": "also from Beth Gilgal and out of the fields of Geba and Azmaveth, for the singers had built themselves villages around Jerusalem."
+        },
+        {
+          "n": 30,
+          "text": "The priests and the Levites purified themselves; and they purified the people, the gates, and the wall."
+        },
+        {
+          "n": 31,
+          "text": "Then I brought the princes of Judah up on the wall, and appointed two great companies who gave thanks and went in procession. One went on the right hand on the wall toward the dung gate;"
+        },
+        {
+          "n": 32,
+          "text": "and after them went Hoshaiah, with half of the princes of Judah,"
+        },
+        {
+          "n": 33,
+          "text": "and Azariah, Ezra, and Meshullam,"
+        },
+        {
+          "n": 34,
+          "text": "Judah, Benjamin, Shemaiah, Jeremiah,"
+        },
+        {
+          "n": 35,
+          "text": "and some of the priests’ sons with trumpets: Zechariah the son of Jonathan, the son of Shemaiah, the son of Mattaniah, the son of Micaiah, the son of Zaccur, the son of Asaph;"
+        },
+        {
+          "n": 36,
+          "text": "and his brothers, Shemaiah, Azarel, Milalai, Gilalai, Maai, Nethanel, Judah, and Hanani, with the musical instruments of David the man of God; and Ezra the scribe was before them."
+        },
+        {
+          "n": 37,
+          "text": "By the spring gate, and straight before them, they went up by the stairs of David’s city, at the ascent of the wall, above David’s house, even to the water gate eastward."
+        },
+        {
+          "n": 38,
+          "text": "The other company of those who gave thanks went to meet them, and I after them, with the half of the people on the wall above the tower of the furnaces, even to the wide wall,"
+        },
+        {
+          "n": 39,
+          "text": "and above the gate of Ephraim, and by the old gate, and by the fish gate, the tower of Hananel, and the tower of Hammeah, even to the sheep gate; and they stood still in the gate of the guard."
+        },
+        {
+          "n": 40,
+          "text": "So the two companies of those who gave thanks in God’s house stood, and I and the half of the rulers with me;"
+        },
+        {
+          "n": 41,
+          "text": "and the priests, Eliakim, Maaseiah, Miniamin, Micaiah, Elioenai, Zechariah, and Hananiah, with trumpets;"
+        },
+        {
+          "n": 42,
+          "text": "and Maaseiah, Shemaiah, Eleazar, Uzzi, Jehohanan, Malchijah, Elam, and Ezer. The singers sang loud, with Jezrahiah their overseer."
+        },
+        {
+          "n": 43,
+          "text": "They offered great sacrifices that day, and rejoiced, for God had made them rejoice with great joy; and the women and the children also rejoiced, so that the joy of Jerusalem was heard even far away."
+        },
+        {
+          "n": 44,
+          "text": "On that day, men were appointed over the rooms for the treasures, for the wave offerings, for the first fruits, and for the tithes, to gather into them according to the fields of the cities the portions appointed by the law for the priests and Levites; for Judah rejoiced for the priests and for the Levites who served."
+        },
+        {
+          "n": 45,
+          "text": "They performed the duty of their God and the duty of the purification, and so did the singers and the gatekeepers, according to the commandment of David and of Solomon his son."
+        },
+        {
+          "n": 46,
+          "text": "For in the days of David and Asaph of old there was a chief of the singers, and songs of praise and thanksgiving to God."
+        },
+        {
+          "n": 47,
+          "text": "All Israel in the days of Zerubbabel and in the days of Nehemiah gave the portions of the singers and the gatekeepers, as every day required; and they set apart that which was for the Levites; and the Levites set apart that which was for the sons of Aaron."
         }
       ]
     },

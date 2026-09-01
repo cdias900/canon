@@ -14,10 +14,32 @@ tools/list-curation.mjs      authored canonical speech awaiting a human read, ev
 
 tools/unity-check.sh         headless compile
 tools/acceptance.sh          the product rules, asserted once per locale
-tools/e2e.sh                 build a player and play all three days in every locale, with shots
+tools/e2e.sh                 build a player and play the declared season in every locale, with shots
 tools/ios-sim.sh             build, install, run and drive an iOS simulator - the only way we
                              touch a phone; `setup` once, then tap/press/swipe/text/key/shot
 ```
+
+`e2e.sh` deliberately does not say how many stages it plays, and neither does the runner. Coverage
+is read from `Assets/Resources/Data/stages.json` at runtime: the run starts on a cold save at the
+first stage and stops at the stage that declares itself `terminal`. This line said "the opening" for
+a season that was three days long and "all three days" for one that had grown to nine, which is the
+failure mode a written-down list has - people read it instead of the code. What is worth writing
+down is the part that is a choice: **the full battery of checks (missing-string sweeps, panel
+ordering, dense screenshots) runs on three stages the runner picks out of the table** - the first
+one, the one that declares `reveals_page`, and the one that declares `terminal` - and every other
+stage is traversed cheaply, asserting only that it was reached, that its panels were recognised and
+that the day rolled over. The two chapter-reader taps on the reveal and the ending are never in the
+cheap tier: those are the `deep_read` doors and they are the reason the harness exists.
+
+The locales run **concurrently**, so the wall clock is the slowest locale rather than their sum.
+Each one already had its own disposable data directory, log, locale-suffixed screenshots and result
+file, so they share nothing but the read-only app bundle. `Builds/e2e/` is emptied at the start of
+every run: screenshots from a shorter run sitting beside a longer one read as current evidence.
+
+`--from-stage N` seeds a save at stage N and starts there. It is an **authoring convenience and not
+the gate** - the cold run from a fresh save is the gate, because reachability from the first frame
+is the whole reason this harness exists, and a run that started at stage six would have passed
+happily on the season in which stages four through nine could not be reached at all.
 
 One set of references, one translation per language. The references are language independent by
 design — the model picks a reference, and each locale resolves it in its own version — so adding a
@@ -126,35 +148,46 @@ than one language, and when it could, it silently fetched Portuguese into the En
 
 ## What the validator checks
 
+Checks 1-6 run once per shipped locale; 7-11 run once over the repository. The authority is the
+header comment of `validate-content.mjs` itself, and this list is a copy of it - if the two ever
+disagree, the script wins.
+
 Exit 1 - build blocking:
 
-1. A manifest reference missing from `verses.json`, or present with empty text.
-2. `is_placeholder: true` without `--allow-placeholder`.
+1. A locale's `verses.json` is a placeholder build and `--allow-placeholder` was not passed.
+2. A manifest reference missing from a locale's `verses.json`, or present with empty text.
 3. Any file under `Assets/` or `tools/` containing a run of 8 or more consecutive words that
-   also appears in `verses.json` - an accidental paraphrase or a hand-copied verse. Case,
-   accents and punctuation are normalized away first, so a reformatted copy is still caught.
+   also appears in that locale's `verses.json` - an accidental paraphrase or a hand-copied verse.
+   Case, accents and punctuation are normalized away first, so a reformatted copy is still caught.
 4. A forbidden term from that language's checklist in one of its player-facing strings. The
    lists are **curated per language, never translated**: the checklist targets a register, and a
    literal translation of the pt-BR list puts bare "purpose" on the English one, which fires on
    "picked on purpose" and teaches everyone to ignore the validator.
-5. A locale missing a string the authoring locale has, a placeholder like `{0}` that survives in
+5. A cited verse, **or the chapter it lives in**, absent from that locale's `verses.json`. The
+   first shows the unavailable-text marker inline; the second gives *Saber mais* nothing to open,
+   which is the failure that once shipped with seven of nine citations carrying a dead door. This
+   covers a contest's `page_verse` as well as a dialogue line's `verse`.
+6. A player-facing string writing a scripture reference into its own prose. That puts
+   chapter-and-verse on screen behind `ScriptureVisibility`'s back and with no way into the reader.
+7. A locale missing a string the authoring locale has, a placeholder like `{0}` that survives in
    one language and not the other, or a dialogue file that disagrees with the authoring locale
    about anything that is not words — nodes, line counts, verse references, choices, grants,
    flags. Grants and flags live inside a per-language file, so this is what stops a translation
    changing what the game *does*.
-6. A C# file hardcoding a string a player can read. The sinks are **derived from the method
+8. A C# file hardcoding a string a player can read. The sinks are **derived from the method
    declarations** — any `string` parameter named `label`, `content`, `caption`, `title`… — rather
    than listed, so a literal forwarded through a helper is caught too. Fields whose *name* says
    they hold player words are checked as well: `static readonly string[] DirectionCaptions = {…}`
    is not a call argument, and it shipped untranslated once before this check existed.
+9. A dialogue speaker with no authored display name in some locale.
+10. C# asking `Loc.T` for a key that no `ui.json` carries.
+11. A dialogue node marked `canonical_speaker` without `needs_curation`, which would route authored
+    speech for a real figure past the human read rule 4 requires.
 
 Exit 0 - reported but not blocking:
 
 - The same 8-word overlap under `docs/`. Design documents quote on purpose; they are not
   build artifacts.
-- A `verse` reference used in `Assets/Resources/Data/*.json` that is absent from
-  `verses.json`. Add it to the manifest and re-run the fetch, or the player sees the
-  unavailable-text marker.
 
 Two deliberate exemptions:
 

@@ -1,31 +1,35 @@
 {
-  "player_morale": 100,
-  "enemy_resolve_base": 60,
-  "turn_limit": 8,
-  "moves": [
-    {
-      "id": "hold_line",
-      "resolve_delta": -8,
-      "morale_delta": 0,
-      "unlocked_by_page": false
-    },
-    {
-      "id": "call_others",
-      "resolve_delta": 0,
-      "morale_delta": 12,
-      "unlocked_by_page": false
-    },
-    {
-      "id": "show_watch",
-      "resolve_delta": -20,
-      "morale_delta": 0,
-      "unlocked_by_page": false
-    },
-    {
-      "id": "half_and_half",
-      "resolve_delta": -15,
-      "morale_delta": 8,
-      "unlocked_by_page": true
-    }
-  ]
+  "raid": {
+    "id": "raid",
+    "player_morale": 100,
+    "enemy_resolve_base": 60,
+    "turn_limit": 8,
+    "base_pressure": 12,
+    "page_turn": 2,
+    "page_verse": "NEH.4.17",
+    "enemy_line_prefix": "contest.log.enemy",
+    "moves": [
+      { "id": "hold_line",     "resolve_delta": -8,  "morale_delta": 0,  "unlocked_by_page": false, "unlocked_by_flag": null },
+      { "id": "call_others",   "resolve_delta": 0,   "morale_delta": 12, "unlocked_by_page": false, "unlocked_by_flag": null },
+      { "id": "show_watch",    "resolve_delta": -20, "morale_delta": 0,  "unlocked_by_page": false, "unlocked_by_flag": null },
+      { "id": "half_and_half", "resolve_delta": -15, "morale_delta": 8,  "unlocked_by_page": true,  "unlocked_by_flag": null }
+    ]
+  },
+  "letters": {
+    "id": "letters",
+    "player_morale": 100,
+    "enemy_resolve_base": 78,
+    "turn_limit": 8,
+    "base_pressure": 14,
+    "page_turn": 0,
+    "page_verse": null,
+    "enemy_line_prefix": "contest.log.letters",
+    "moves": [
+      { "id": "hold_line",     "resolve_delta": -8,  "morale_delta": 0,  "unlocked_by_page": false, "unlocked_by_flag": null },
+      { "id": "call_others",   "resolve_delta": 0,   "morale_delta": 12, "unlocked_by_page": false, "unlocked_by_flag": null },
+      { "id": "show_watch",    "resolve_delta": -14, "morale_delta": 0,  "unlocked_by_page": false, "unlocked_by_flag": null },
+      { "id": "half_and_half", "resolve_delta": -15, "morale_delta": 8,  "unlocked_by_page": true,  "unlocked_by_flag": null },
+      { "id": "keep_working",  "resolve_delta": -24, "morale_delta": 4,  "unlocked_by_page": false, "unlocked_by_flag": "refused_invite" }
+    ]
+  }
 }

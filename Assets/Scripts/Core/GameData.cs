@@ -26,6 +26,13 @@ namespace SheepGate.Core
     {
         const string ResourceFolder = "Data/";
 
+        /// <summary>
+        /// Id of the contest <see cref="Contest"/> resolves to. Named here rather than spelled at
+        /// the property, because it is the one place the legacy singleton accessor is tied to a
+        /// particular entry in a file that now holds several.
+        /// </summary>
+        const string FirstContestId = "raid";
+
         public static NpcDef[] Npcs { get; private set; } = Array.Empty<NpcDef>();
 
         public static IReadOnlyDictionary<string, DialogueNode> Dialogue { get; private set; } =
@@ -33,7 +40,36 @@ namespace SheepGate.Core
 
         public static WallSegmentDef[] WallSegments { get; private set; } = Array.Empty<WallSegmentDef>();
 
-        public static ContestConfig Contest { get; private set; } = EmptyContest();
+        /// <summary>
+        /// The season, in order, one entry per stage. Read <see cref="Stage"/> rather than indexing
+        /// this: the day is 1-based and the array is not, and getting that wrong is off by one
+        /// stage everywhere at once.
+        /// </summary>
+        public static StageDef[] Stages { get; private set; } = Array.Empty<StageDef>();
+
+        /// <summary>Every morale contest, keyed by the id a stage names in its <c>contest</c> field.</summary>
+        public static IReadOnlyDictionary<string, ContestConfig> Contests { get; private set; } =
+            new Dictionary<string, ContestConfig>();
+
+        /// <summary>
+        /// The first contest of the season, kept under the name it has always had. There is more
+        /// than one contest now, so new code should name the one it means through
+        /// <see cref="Contests"/>; this stays so no existing caller had to change on the day the
+        /// file grew a second entry.
+        /// </summary>
+        public static ContestConfig Contest
+        {
+            get
+            {
+                ContestConfig raid;
+                if (Contests != null && Contests.TryGetValue(FirstContestId, out raid) && raid != null)
+                {
+                    return raid;
+                }
+
+                return MissingContest;
+            }
+        }
 
         public static VocationDef[] Vocations { get; private set; } = Array.Empty<VocationDef>();
 
@@ -63,7 +99,8 @@ namespace SheepGate.Core
             // ---- structure and numbers: one copy, shared by every language
             Npcs = LoadArray<NpcDef>(ResourceFolder + "npcs");
             WallSegments = LoadArray<WallSegmentDef>(ResourceFolder + "wall_segments");
-            Contest = LoadObject(ResourceFolder + "contest", EmptyContest());
+            Stages = LoadArray<StageDef>(ResourceFolder + "stages");
+            Contests = LoadDictionary<ContestConfig>(ResourceFolder + "contest");
             Vocations = LoadArray<VocationDef>(ResourceFolder + "vocations");
             Quiz = LoadArray<QuizQuestion>(ResourceFolder + "quiz");
             Map = LoadObject(ResourceFolder + "map", EmptyMap());
@@ -74,7 +111,102 @@ namespace SheepGate.Core
             MergeContestStrings(localeFolder);
             MergeVocationStrings(localeFolder);
             MergeQuizStrings(localeFolder);
+
+            // Last, because two of the checks read Dialogue and Contests, which the lines above
+            // fill. Nothing between here and the end of this method may depend on the result:
+            // a broken stage table degrades the build, it does not stop it.
+            VerifyStages();
         }
+
+        /// <summary>
+        /// The stage for this day. Never null, and never throws — every caller here is inside a
+        /// frame or a UI build where an exception is a black screen.
+        ///
+        /// Out-of-range clamps to the nearest real stage and logs once. A day past the end is the
+        /// shape a save from a longer season takes, and rule 7 says the answer to that is "carry on
+        /// at the last stage we have", never a reset and never a game over.
+        /// </summary>
+        public static StageDef Stage(int day)
+        {
+            StageDef[] stages = Stages;
+            if (stages == null || stages.Length == 0)
+            {
+                if (!_loggedEmptyStages)
+                {
+                    _loggedEmptyStages = true;
+                    Debug.LogError(
+                        "[GameData] No stages are loaded; falling back to a single blank stage. " +
+                        "Check Resources/Data/stages.json.");
+                }
+
+                return FallbackStage;
+            }
+
+            StageDef first = null;
+            StageDef last = null;
+            for (int i = 0; i < stages.Length; i++)
+            {
+                StageDef stage = stages[i];
+                if (stage == null)
+                {
+                    // A null entry is already a logged error from VerifyStages. Skipping it here
+                    // rather than indexing past it is what keeps a malformed file from turning a
+                    // logged content error into a null reference three systems away.
+                    continue;
+                }
+
+                if (stage.day == day)
+                {
+                    return stage;
+                }
+
+                if (first == null)
+                {
+                    first = stage;
+                }
+
+                last = stage;
+            }
+
+            if (first == null)
+            {
+                return FallbackStage;
+            }
+
+            StageDef clamped = day < first.day ? first : last;
+            if (!_loggedStageClamp)
+            {
+                _loggedStageClamp = true;
+                Debug.LogWarning(
+                    "[GameData] No stage declares day " + day + "; using stage \"" + clamped.id +
+                    "\" (day " + clamped.day + "). Logged once per run.");
+            }
+
+            return clamped;
+        }
+
+        // Latches for the two Stage() diagnostics. Stage() is called from Update paths and from
+        // every UI rebuild, so an unlatched log would be thousands of identical lines a second and
+        // would bury the one that mattered. Deliberately not re-armed by a second LoadAll either:
+        // a locale switch rereads every file, and a stage table that is wrong is wrong in both
+        // languages, so re-arming would only reprint the same line on every switch. VerifyStages,
+        // which runs once per load and not per frame, is the one that is meant to speak up again.
+        static bool _loggedEmptyStages;
+        static bool _loggedStageClamp;
+
+        /// <summary>
+        /// The stage handed back when stages.json produced nothing at all. Blank on purpose rather
+        /// than plausible: it turns on no system, ends no season and reveals nothing, so a missing
+        /// stage table cannot look like a design decision.
+        /// </summary>
+        static readonly StageDef FallbackStage = new StageDef
+        {
+            day = 1,
+            id = "",
+            type = StageTypes.Work,
+            map_anchor = new float[] { 0.5f, 0.5f },
+            map_focus = new float[] { 0.5f, 0.5f }
+        };
 
         // ------------------------------------------------------------------ merges
         // A merge never invents a string. When the locale file has no entry for an id the field is
@@ -105,32 +237,46 @@ namespace SheepGate.Core
             }
         }
 
+        // The locale copy stays one flat move_id -> {display, description} map however many
+        // contests the structural file grows, because the move table is shared: two contests draw
+        // from the same moves and differ by tuning, not by vocabulary. So this walks every
+        // contest's moves against the one map, and a move that appears in both is simply filled in
+        // twice with the same words.
         static void MergeContestStrings(string localeFolder)
         {
             var strings = LoadDictionary<ContestMoveStrings>(localeFolder + "contest");
-            ContestMoveDef[] moves = Contest != null ? Contest.moves : null;
-            if (moves == null)
+            if (Contests == null)
             {
                 return;
             }
 
-            for (int i = 0; i < moves.Length; i++)
+            foreach (var pair in Contests)
             {
-                ContestMoveDef move = moves[i];
-                if (move == null || string.IsNullOrEmpty(move.id))
+                ContestConfig contest = pair.Value;
+                ContestMoveDef[] moves = contest != null ? contest.moves : null;
+                if (moves == null)
                 {
                     continue;
                 }
 
-                ContestMoveStrings entry;
-                if (strings.TryGetValue(move.id, out entry) && entry != null)
+                for (int i = 0; i < moves.Length; i++)
                 {
-                    move.display = entry.display;
-                    move.description = entry.description;
-                }
-                else
-                {
-                    LogMissingString("contest", move.id);
+                    ContestMoveDef move = moves[i];
+                    if (move == null || string.IsNullOrEmpty(move.id))
+                    {
+                        continue;
+                    }
+
+                    ContestMoveStrings entry;
+                    if (strings.TryGetValue(move.id, out entry) && entry != null)
+                    {
+                        move.display = entry.display;
+                        move.description = entry.description;
+                    }
+                    else
+                    {
+                        LogMissingString("contest", move.id);
+                    }
                 }
             }
         }
@@ -192,6 +338,214 @@ namespace SheepGate.Core
             Debug.LogError(
                 "[GameData] Locale " + LoadedLocale + " has no entry '" + key + "' in " + fileName +
                 ".json. Run: node tools/validate-content.mjs");
+        }
+
+        // ------------------------------------------------------------------ stage invariants
+        //
+        // Every check here is a Debug.LogError and then carries on, which is this class's standing
+        // policy for content: a bad file degrades the build instead of stopping it. That is not
+        // leniency. The E2E runner treats a logged error as a run failure, so a broken stage table
+        // fails the gate loudly while still leaving a build a person can open and look at, which is
+        // how you find out WHICH stage is wrong.
+        //
+        // The reason there are so many of them: a stage table that is merely miswired — two stages
+        // claiming the reveal, or none claiming the ending — produces no exception anywhere. It
+        // produces a season that plays through and quietly never does the thing the whole build
+        // exists to do, in a system nobody edits after this package lands.
+
+        static void VerifyStages()
+        {
+            StageDef[] stages = Stages;
+            if (stages == null || stages.Length == 0)
+            {
+                Debug.LogError("[GameData] Resources/Data/stages.json declares no stages; the season has no length.");
+                return;
+            }
+
+            int terminal = 0;
+            int revealsPage = 0;
+            int revealsVocation = 0;
+            int closesGate = 0;
+            int finishesWallDay = 0;
+            int closesGateDay = 0;
+
+            for (int i = 0; i < stages.Length; i++)
+            {
+                StageDef stage = stages[i];
+                if (stage == null)
+                {
+                    Debug.LogError("[GameData] stages.json entry " + i + " is null.");
+                    continue;
+                }
+
+                string where = "stage \"" + stage.id + "\" (entry " + i + ")";
+
+                if (string.IsNullOrEmpty(stage.id))
+                {
+                    Debug.LogError("[GameData] stages.json entry " + i + " has no id.");
+                }
+
+                // Contiguous 1..N, in file order. Days are ids as much as they are numbers: the
+                // dialogue selector, the quiz selector and every daily-reset token compare against
+                // this int, so a gap is a stage nothing can ever select and a repeat is two stages
+                // fighting over one day's content.
+                if (stage.day != i + 1)
+                {
+                    Debug.LogError(
+                        "[GameData] " + where + " declares day " + stage.day + " but sits at position " +
+                        (i + 1) + ". Days must run 1.." + stages.Length + " in file order, with no gaps and no repeats.");
+                }
+
+                if (!IsKnownStageType(stage.type))
+                {
+                    Debug.LogError(
+                        "[GameData] " + where + " has type \"" + stage.type + "\", which is not one of " +
+                        "intro, work, rest, battle, boss, gate.");
+                }
+
+                // WP-5 indexes [0] and [1] on both of these without looking, which is exactly the
+                // silent miswire this method exists to catch: a one-element anchor is an
+                // IndexOutOfRange inside a UI build, three stages later, with nothing naming the file.
+                VerifyAnchor(where, "map_anchor", stage.map_anchor);
+                VerifyAnchor(where, "map_focus", stage.map_focus);
+
+                if (!string.IsNullOrEmpty(stage.contest) &&
+                    (Contests == null || !Contests.ContainsKey(stage.contest)))
+                {
+                    Debug.LogError(
+                        "[GameData] " + where + " names contest \"" + stage.contest +
+                        "\", which contest.json does not define.");
+                }
+
+                if (!string.IsNullOrEmpty(stage.cutscene_node) &&
+                    (Dialogue == null || !Dialogue.ContainsKey(stage.cutscene_node)))
+                {
+                    Debug.LogError(
+                        "[GameData] " + where + " names cutscene node \"" + stage.cutscene_node +
+                        "\", which locale " + LoadedLocale + " does not define in dialogue.json.");
+                }
+
+                if (stage.terminal)
+                {
+                    terminal++;
+                    if (i != stages.Length - 1)
+                    {
+                        Debug.LogError(
+                            "[GameData] " + where + " is marked terminal but is not the last stage. " +
+                            "The terminal stage takes the final-day hold and never releases it, so every " +
+                            "stage after it is unreachable.");
+                    }
+                }
+
+                if (stage.reveals_page)
+                {
+                    revealsPage++;
+                }
+
+                if (stage.reveals_vocation)
+                {
+                    revealsVocation++;
+                }
+
+                if (stage.finishes_wall)
+                {
+                    finishesWallDay = stage.day;
+                }
+
+                if (stage.closes_gate)
+                {
+                    closesGate++;
+                    closesGateDay = stage.day;
+                    if (i != stages.Length - 1)
+                    {
+                        Debug.LogError("[GameData] " + where + " closes the gate but is not the last stage.");
+                    }
+
+                    if (string.IsNullOrEmpty(stage.gate_segment))
+                    {
+                        Debug.LogError("[GameData] " + where + " closes the gate but names no gate_segment.");
+                    }
+                    else if (!HasSegment(stage.gate_segment))
+                    {
+                        Debug.LogError(
+                            "[GameData] " + where + " names gate segment \"" + stage.gate_segment +
+                            "\", which wall_segments.json does not define.");
+                    }
+                }
+            }
+
+            RequireExactlyOne("terminal", terminal);
+            RequireExactlyOne("reveals_page", revealsPage);
+            RequireExactlyOne("reveals_vocation", revealsVocation);
+            RequireExactlyOne("closes_gate", closesGate);
+
+            // finishes_wall force-completes the wall except the gate, so the gate has to still be
+            // ahead when it runs. Behind it, the dedication would open on a wall the player watched
+            // finish itself a stage ago.
+            // Guarded on closesGateDay so a table with no gate stage at all reports that once,
+            // through RequireExactlyOne, rather than twice in two different vocabularies.
+            if (finishesWallDay != 0 && closesGateDay != 0 && finishesWallDay >= closesGateDay)
+            {
+                Debug.LogError(
+                    "[GameData] stages.json finishes the wall on day " + finishesWallDay +
+                    " but closes the gate on day " + closesGateDay +
+                    "; the wall must be finished before the gate is hung, never on or after it.");
+            }
+        }
+
+        static void RequireExactlyOne(string field, int count)
+        {
+            if (count == 1)
+            {
+                return;
+            }
+
+            Debug.LogError(
+                "[GameData] stages.json has " + count + " stages with " + field +
+                " set; exactly one is required. " +
+                (count == 0 ? "With none, that beat never happens." : "With more than one, it happens twice."));
+        }
+
+        static void VerifyAnchor(string where, string field, float[] anchor)
+        {
+            if (anchor != null && anchor.Length == 2)
+            {
+                return;
+            }
+
+            Debug.LogError(
+                "[GameData] " + where + " has " + field + " with " +
+                (anchor == null ? "no value" : anchor.Length + " entries") +
+                "; it must be exactly two, normalised 0..1 from the bottom left.");
+        }
+
+        static bool IsKnownStageType(string type)
+        {
+            return type == StageTypes.Intro
+                   || type == StageTypes.Work
+                   || type == StageTypes.Rest
+                   || type == StageTypes.Battle
+                   || type == StageTypes.Boss
+                   || type == StageTypes.Gate;
+        }
+
+        static bool HasSegment(string id)
+        {
+            WallSegmentDef[] definitions = WallSegments;
+            if (definitions == null)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < definitions.Length; i++)
+            {
+                if (definitions[i] != null && definitions[i].id == id)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         // ------------------------------------------------------------------ reading
@@ -310,6 +664,10 @@ namespace SheepGate.Core
 
         // Defaults are deliberately blank rather than plausible: a silent fallback that looks like
         // real tuning would hide a content bug behind a playable-looking build.
+        // Shared rather than built per call, because Contest is read from a frame path and its miss
+        // branch would otherwise allocate on every one of them.
+        static readonly ContestConfig MissingContest = EmptyContest();
+
         static ContestConfig EmptyContest()
         {
             return new ContestConfig { moves = Array.Empty<ContestMoveDef>() };

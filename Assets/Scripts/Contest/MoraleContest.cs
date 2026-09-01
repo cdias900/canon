@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using SheepGate.Core;
 using SheepGate.Dialogue;
 using SheepGate.Vocation;
@@ -8,7 +9,7 @@ using UnityEngine;
 
 namespace SheepGate.Contest
 {
-    /// <summary>How the day-three contest ended. None of the three is a defeat screen.</summary>
+    /// <summary>How a contest ended. None of the three is a defeat screen.</summary>
     public enum ContestOutcome
     {
         /// <summary>The other side lost heart and pulled back.</summary>
@@ -17,26 +18,47 @@ namespace SheepGate.Contest
         /// <summary>The player's people lost heart first. The other side still pulls back.</summary>
         PlayerBroke,
 
-        /// <summary>Eight turns went by and nobody gave in. A technical draw.</summary>
+        /// <summary>The turn limit ran out and nobody gave in. A technical draw.</summary>
         TurnLimit
     }
 
     /// <summary>
-    /// The day-three trial of morale: alternating turns, no health bar, no death counter, no game
-    /// over. Whoever makes the other side give up wins, and the outcome is decided by what the
-    /// player did on days one and two rather than by a roll:
+    /// A trial of morale: alternating turns, no health bar, no death counter, no game over. Whoever
+    /// makes the other side give up wins, and the outcome is decided by what the player did in the
+    /// stages before it rather than by a roll:
     ///
-    ///   enemy resolve  = base + 10 when no watch was posted on night two
+    ///   enemy resolve  = base + 10 when no watch was posted on the night before this stage
     ///                         + 10 when the invitation from outside was accepted
     ///   enemy pressure = base + 6 for the missing watch + 6 for the accepted invitation
-    ///                         + one for every stage of the contested segment still unbuilt
+    ///                         + one for every course of the contested segment still unbuilt
     ///
     /// Nothing here is random. Two players who prepared the same way see the same fight.
     ///
-    /// At the start of turn two the fight pauses for <see cref="ThePagePanel"/>: the reveal that
-    /// this is the Bible lands at the same moment the Bible becomes the strongest move on the
-    /// menu. That pause is the reason the whole POC exists, so it is the one thing this class
-    /// will not skip.
+    /// <b>There is more than one contest in a season, and this class is instanced once.</b> The
+    /// scene builds a single component and every encounter runs through it, so everything that used
+    /// to be "the trial" is now "this contest": which tuning was read, whether it has already been
+    /// fought, whose lines the other side speaks. Three run-wide booleans used to carry that, and
+    /// each of them was correct only because there had only ever been one fight to be true for:
+    ///
+    ///   * the resolved flag, which short-circuited a second contest with the first one's ending;
+    ///   * the page-dismissed field, per instance rather than per run, which would have replayed
+    ///     the reveal in the second contest — the one scene the whole build exists to produce;
+    ///   * the enemy's lines, a static array, which gave a later encounter the first one's voice.
+    ///
+    /// All three are now keyed: the flag by contest id, the page by the persisted state of the run,
+    /// the lines by the contest's own locale-key prefix. Each of those failures logged nothing and
+    /// looked like a design decision, which is why they are named here rather than left to a diff.
+    ///
+    /// A contest that declares a page pauses at that turn for <see cref="ThePagePanel"/>: the
+    /// reveal that this is the Bible lands at the same moment the Bible becomes the strongest move
+    /// on the menu. That pause is the reason the whole build exists, so it is the one thing this
+    /// class will not skip — and equally, it happens once in a season and never again.
+    ///
+    /// <b>Morale is reseeded to full at the start of every contest and never carries forward.</b>
+    /// That is rule 7 and not a convenience: a boss that opened already ground down by an earlier
+    /// fight would be losing yesterday, which is the one direction this game never moves. What the
+    /// earlier stages carry into a later fight is preparation — the watch, the invitation, the wall
+    /// — and never damage.
     /// </summary>
     public class MoraleContest : MonoBehaviour
     {
@@ -47,8 +69,23 @@ namespace SheepGate.Contest
         public const string MoveShowWatch = "show_watch";
         public const string MoveHalfAndHalf = "half_and_half";
 
-        /// <summary>The page interrupts the start of this turn.</summary>
+        /// <summary>
+        /// The turn the page interrupts when a contest carries a reveal but does not say when.
+        ///
+        /// A contest declares its own turn in contest.json, and zero there means it carries no
+        /// page at all — which is how the second encounter of the season says it is not the place
+        /// the reveal happens. This constant is what stops that zero from being ambiguous: a
+        /// contest that names a passage for the page and forgets the turn gets the page anyway,
+        /// here, with a warning. Without that, one missing number in a data file would delete the
+        /// single beat the product is measured by and nothing would say so.
+        /// </summary>
         public const int PageTurn = 2;
+
+        /// <summary>
+        /// How far past turn one this class will look for a numbered enemy line before it stops
+        /// asking. Only ever reached by a locale table that numbers its lines with a gap in it.
+        /// </summary>
+        const int MaxEnemyLines = 16;
 
         // ------------------------------------------------------------------ tuning
 
@@ -60,19 +97,27 @@ namespace SheepGate.Contest
         const int ResolveForMissingWatch = 10;
         const int ResolveForAcceptedInvite = 10;
 
-        /// <summary>Morale the other side takes every turn, before the player's preparation.</summary>
-        const int BasePressure = 12;
+        /// <summary>
+        /// Morale the other side takes every turn, before the player's preparation, when the
+        /// contest does not name a figure of its own. It is a default now rather than the number:
+        /// a boss has to be able to press harder than a first raid, and while this lived only here
+        /// it could not.
+        /// </summary>
+        const int DefaultBasePressure = 12;
         const int PressureForMissingWatch = 6;
         const int PressureForAcceptedInvite = 6;
-
-        /// <summary>Stages a segment has when finished; an unbuilt stage is one more way in.</summary>
-        const int StagesPerSegment = 4;
 
         /// <summary>The torch only surprises once. After that the walk is just a walk.</summary>
         const int SpentWatchResolveDelta = -4;
         const int UnpostedWatchResolveDelta = -4;
 
-        const int VillageSize = 6;
+        /// <summary>
+        /// Size of the village when npcs.json could not be read at all. Every other path derives
+        /// the number from the roster, so this is a last resort rather than a second opinion about
+        /// how many people live here — two copies of that number is how they come to disagree.
+        /// </summary>
+        const int FallbackVillageSize = 6;
+
         const string SpokenCounterKey = "npcs_talked";
 
         const float MoveBeatSeconds = 0.85f;
@@ -109,7 +154,10 @@ namespace SheepGate.Contest
         int _moraleMax = DefaultPlayerMorale;
         int _enemyResolve;
         int _enemyResolveMax = DefaultEnemyResolveBase;
-        int _pressure = BasePressure;
+        int _pressure = DefaultBasePressure;
+
+        /// <summary>The turn the page interrupts in THIS contest, or zero when it carries none.</summary>
+        int _pageTurn;
 
         bool _running;
         bool _awaitingMove;
@@ -118,16 +166,33 @@ namespace SheepGate.Contest
         bool _watchShown;
         bool _firstMovePlayed;
         int _enemyLineIndex;
+        string[] _enemyLineKeys = DefaultEnemyLineKeys;
+
+        /// <summary>
+        /// Whether a watch stood on the night immediately before this stage, read once when the
+        /// contest opens. Held rather than re-read at move time so the number the fight was tuned
+        /// against and the sentence the torch move prints can never be talking about two different
+        /// nights — which is exactly what a second read of a day-keyed flag would eventually do.
+        /// </summary>
+        bool _watchPostedLastNight;
 
         string _pendingMoveId;
 
         public bool IsRunning { get { return _running; } }
 
         /// <summary>
+        /// Which contest is being fought, as contest.json keys it. Empty before the first
+        /// <see cref="Begin(string)"/>. The screen reads it to look for words of this encounter's
+        /// own before falling back to the shared ones, so a boss can end in its own sentences
+        /// instead of repeating the raid's.
+        /// </summary>
+        public string ContestId { get; private set; }
+
+        /// <summary>
         /// The segment the fight is fought over: the one the wall reports as primarily exposed,
-        /// which is the same one an unwatched night damages. Resolved from the data when the trial
-        /// begins, never named in code, so the night and the trial can never drift apart. Null only
-        /// when neither the wall nor wall_segments.json could offer a segment.
+        /// which is the same one an unwatched night damages. Resolved from the data when the
+        /// contest begins, never named in code, so the night and the fight can never drift apart.
+        /// Null only when neither the wall nor wall_segments.json could offer a segment.
         /// </summary>
         public string ContestedSegmentId { get; private set; }
 
@@ -167,8 +232,10 @@ namespace SheepGate.Contest
 
         void Awake()
         {
-            // Deliberately inert: the world builds this component on every day of the run and only
-            // day three ever calls Begin.
+            // Deliberately inert: the world builds this component on every stage of the run, and
+            // only the stages that declare a contest ever call Begin. The same component runs both
+            // of them, one after the other, which is why nothing about a fight may live past its
+            // own Begin.
             VocationTracker.EnsureRegistered();
         }
 
@@ -184,60 +251,107 @@ namespace SheepGate.Contest
         // ------------------------------------------------------------------ entry point
 
         /// <summary>
-        /// Starts the fight, building the contest screen if nobody built one. Whoever triggers day
-        /// three gets the whole experience from this single call.
+        /// Starts the contest the current stage declares. Kept at this exact signature because it
+        /// is the shape every existing caller and the acceptance harness already use; it now
+        /// resolves which fight it means instead of assuming there is only one.
         /// </summary>
         public void Begin()
         {
+            Begin(ResolveStageContestId());
+        }
+
+        /// <summary>
+        /// Starts a named fight, building the contest screen if nobody built one. Whoever triggers
+        /// the stage gets the whole experience from this single call.
+        ///
+        /// The id is the key in contest.json, and it is also the key everything about this fight is
+        /// remembered under. That is the whole point of the overload: the resolved flag is per
+        /// contest, so the second encounter of a season is not short-circuited by the ending of the
+        /// first — a failure that would have replayed stage six's outcome on stage eight, in
+        /// silence, and read as a deliberate ending rather than as a bug.
+        /// </summary>
+        public void Begin(string contestId)
+        {
             if (_running)
             {
-                Debug.LogWarning("[Contest] Begin was called while the trial was already running.");
+                Debug.LogWarning("[Contest] Begin was called while a contest was already running.");
                 return;
             }
 
+            // Set before the early returns below, so the replay path and the screen bound to it
+            // still agree about which fight this component is standing in for.
+            ContestId = contestId ?? string.Empty;
+
             GameState state = State;
-            if (state != null && state.HasFlag(GameFlags.ContestResolved))
+            if (state != null && !string.IsNullOrEmpty(contestId) &&
+                state.HasFlag(GameFlags.ContestResolvedFor(contestId)))
             {
-                // Already fought in this run. Report the ending again so whatever waits on the
-                // event keeps day three moving instead of stalling on a fight that cannot repeat.
-                Debug.LogWarning("[Contest] The trial was already resolved in this run; replaying its ending only.");
+                // This contest was already fought in this run. Report its ending again so whatever
+                // waits on the event keeps the stage moving instead of stalling on a fight that
+                // cannot repeat. Keyed by id, so a later contest is never answered with an earlier
+                // one's outcome.
+                Debug.LogWarning("[Contest] Contest '" + contestId +
+                                 "' was already resolved in this run; replaying its ending only.");
                 StartCoroutine(FinishNextFrame(HasFinished ? Outcome : ContestOutcome.TurnLimit));
                 return;
             }
 
-            _config = ReadConfig();
+            _config = ReadConfig(contestId);
             if (_config == null || _config.moves == null || _config.moves.Length == 0)
             {
-                Debug.LogError("[Contest] contest.json has no moves; the trial cannot be played. Day three continues without it.");
+                Debug.LogError("[Contest] contest.json defines no moves for '" + contestId +
+                               "'; the fight cannot be played. The stage continues without it.");
                 StartCoroutine(FinishNextFrame(ContestOutcome.TurnLimit));
                 return;
             }
 
             _moraleMax = _config.player_morale > 0 ? _config.player_morale : DefaultPlayerMorale;
             _turnLimit = _config.turn_limit > 0 ? _config.turn_limit : DefaultTurnLimit;
+            _pageTurn = ResolvePageTurn(_config, _turnLimit);
+            _enemyLineKeys = ResolveEnemyLineKeys(_config);
 
             int resolveBase = _config.enemy_resolve_base > 0 ? _config.enemy_resolve_base : DefaultEnemyResolveBase;
-            bool watchPosted = state != null && state.HasFlag(GameFlags.WatchPostedD2);
+            int basePressure = _config.base_pressure > 0 ? _config.base_pressure : DefaultBasePressure;
+
+            // The night immediately before this stage, and not one named in code. For as long as
+            // this read the day-two flag by name, every contest past the second was being tuned
+            // against a night that had nothing to do with it — and because a flag for a night that
+            // was never played is simply absent, the answer came back "no watch stood" every time.
+            // That is the harshest possible reading of a player who may have posted a guard on
+            // every night of the season, arrived at silently, in the direction rule 7 forbids.
+            _watchPostedLastNight = state != null &&
+                                    state.HasFlag(GameFlags.WatchPostedForDay(state.day - 1));
             bool acceptedInvite = state != null && state.HasFlag(GameFlags.AcceptedInvite);
 
-            // Resolved before the pressure below, which counts the stages this segment still lacks.
+            // Resolved before the pressure below, which counts the courses this segment still lacks.
             ContestedSegmentId = ResolveContestedSegmentId();
 
             _enemyResolveMax = resolveBase
-                               + (watchPosted ? 0 : ResolveForMissingWatch)
+                               + (_watchPostedLastNight ? 0 : ResolveForMissingWatch)
                                + (acceptedInvite ? ResolveForAcceptedInvite : 0);
 
-            _pressure = BasePressure
-                        + (watchPosted ? 0 : PressureForMissingWatch)
+            _pressure = basePressure
+                        + (_watchPostedLastNight ? 0 : PressureForMissingWatch)
                         + (acceptedInvite ? PressureForAcceptedInvite : 0)
-                        + Mathf.Clamp(StagesPerSegment - CompletedStages(), 0, StagesPerSegment);
+                        + Mathf.Clamp(WallSystem.StagesPerSegment - CompletedStages(),
+                                      0, WallSystem.StagesPerSegment);
 
+            // Full, every time, and never carried over from an earlier fight. See the class doc:
+            // a boss that opened already worn down would be the player losing a yesterday they
+            // already survived, which rule 7 forbids outright.
             _morale = _moraleMax;
             _enemyResolve = _enemyResolveMax;
             _turn = 0;
             _awaitingMove = false;
             _pageBlocking = false;
-            _pageDismissed = false;
+
+            // Seeded from the run and NOT reset to false. The page happens once in a season: this
+            // field used to be per-instance state, so a second contest would have shown the reveal
+            // again — and it would also have re-locked the move the first reveal unlocked, taking
+            // back something the player had already earned. Reading the persisted flag fixes both
+            // at once, because "the page has been seen" is a fact about the run, not about a fight.
+            _pageDismissed = state != null && state.HasFlag(GameFlags.PageShown);
+
             _watchShown = false;
             _firstMovePlayed = false;
             _enemyLineIndex = 0;
@@ -259,6 +373,119 @@ namespace SheepGate.Contest
 
             RaiseChanged();
             _loop = StartCoroutine(RunLoop());
+        }
+
+        /// <summary>
+        /// Which contest the day the player is standing in declares.
+        ///
+        /// Falls back to the first contest in the file when the stage names none, which is what
+        /// keeps the no-argument overload behaving exactly as it always did for a caller that has
+        /// no stage to consult — the editor harness constructs a state at a bare day number and
+        /// expects a fight. The fallback reads its id out of the config rather than spelling one,
+        /// so there is no second place in the tree that believes it knows the first contest's name.
+        /// </summary>
+        static string ResolveStageContestId()
+        {
+            GameState state = State;
+
+            try
+            {
+                if (state != null)
+                {
+                    StageDef stage = GameData.Stage(state.day);
+                    if (stage != null && !string.IsNullOrEmpty(stage.contest))
+                    {
+                        return stage.contest;
+                    }
+                }
+
+                ContestConfig first = GameData.Contest;
+                return first != null ? first.id : null;
+            }
+            catch (Exception exception)
+            {
+                Debug.LogError("[Contest] Could not resolve which contest this stage declares: " +
+                               exception.Message);
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// The turn this contest's page interrupts, or zero for a contest that carries no reveal.
+        ///
+        /// Both corrections here exist because of how the miss fails. A contest that names a
+        /// passage for the page but leaves the turn at zero, or puts it past its own last turn,
+        /// plays through to its ending looking completely healthy and simply never shows the page
+        /// — which deletes the reveal, and with it the one number the product is measured by,
+        /// without a single line in the log. So each is repaired loudly instead of obeyed quietly.
+        /// </summary>
+        static int ResolvePageTurn(ContestConfig config, int turnLimit)
+        {
+            int turn = config.page_turn;
+            bool carriesPage = !string.IsNullOrEmpty(config.page_verse);
+
+            if (turn <= 0)
+            {
+                if (!carriesPage)
+                {
+                    return 0;
+                }
+
+                Debug.LogWarning("[Contest] Contest '" + config.id + "' names a passage for the page but no " +
+                                 "turn to show it on; falling back to turn " + PageTurn + ".");
+                turn = PageTurn;
+            }
+
+            if (turn > turnLimit)
+            {
+                Debug.LogWarning("[Contest] Contest '" + config.id + "' puts the page on turn " + turn +
+                                 ", past its own limit of " + turnLimit + "; moving it to the last turn.");
+                turn = turnLimit;
+            }
+
+            return turn;
+        }
+
+        /// <summary>
+        /// The other side's lines, in the order they are spoken, discovered from this contest's own
+        /// key prefix.
+        ///
+        /// A prefix and a probe rather than a count, so how many things an enemy has to say is a
+        /// decision made in the locale file where the sentences are written — a number held in
+        /// contest.json instead would have to agree with two translations of a list it cannot see.
+        ///
+        /// Falling back to the shared lines is deliberate and noisy. A boss with the first raid's
+        /// voice is a weaker scene, but a boss with an empty log is a broken one, and the warning
+        /// names the prefix that came up empty so the missing sentences can be written.
+        /// </summary>
+        static string[] ResolveEnemyLineKeys(ContestConfig config)
+        {
+            string prefix = config.enemy_line_prefix;
+            if (string.IsNullOrEmpty(prefix))
+            {
+                return DefaultEnemyLineKeys;
+            }
+
+            var keys = new List<string>();
+            for (int line = 1; line <= MaxEnemyLines; line++)
+            {
+                string key = prefix + "." + line;
+                if (!Loc.Has(key))
+                {
+                    break;
+                }
+
+                keys.Add(key);
+            }
+
+            if (keys.Count == 0)
+            {
+                Debug.LogWarning("[Contest] Locale " + Loc.LoadedLocale + " has no lines under '" + prefix +
+                                 "' for contest '" + config.id + "'; the other side borrows the shared ones.");
+                return DefaultEnemyLineKeys;
+            }
+
+            return keys.ToArray();
         }
 
         /// <summary>
@@ -284,8 +511,19 @@ namespace SheepGate.Contest
         }
 
         /// <summary>
-        /// Whether the move is on the menu at all. A move flagged unlocked_by_page does not exist
-        /// until the page has been closed; everything else is always offered.
+        /// Whether the move is on the menu at all.
+        ///
+        /// Two gates, and a move may carry either. A move flagged unlocked_by_page does not exist
+        /// until the page has been closed — which, since the page is a fact about the run, means it
+        /// stays unlocked in every later contest. A move naming a flag exists only for a player
+        /// whose run raised it.
+        ///
+        /// What the flag gate may name is the constraint that matters, and it is rule 19 rather
+        /// than a mechanism: the boss's extra move is gated on a choice made in the fiction, never
+        /// on anything the player read. A move that only appeared for someone who opened a chapter
+        /// would make reading pay in numbers, and the motivation would evaporate with the number.
+        /// Everything else is always offered, so a player who did neither still has a full menu of
+        /// valid moves — worse ones, which is the whole shape of this design.
         /// </summary>
         public bool IsMoveAvailable(string moveId)
         {
@@ -295,7 +533,21 @@ namespace SheepGate.Contest
                 return false;
             }
 
-            return !move.unlocked_by_page || _pageDismissed;
+            if (move.unlocked_by_page && !_pageDismissed)
+            {
+                return false;
+            }
+
+            if (!string.IsNullOrEmpty(move.unlocked_by_flag))
+            {
+                GameState state = State;
+                if (state == null || !state.HasFlag(move.unlocked_by_flag))
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         /// <summary>
@@ -329,7 +581,10 @@ namespace SheepGate.Contest
                 RaiseTurnStarted(turn);
                 RaiseChanged();
 
-                if (turn == PageTurn && !_pageDismissed)
+                // _pageTurn is zero for a contest that carries no reveal, and _pageDismissed is
+                // already true for a run that has seen the page — so the second contest of a
+                // season falls through here on both counts and never interrupts itself.
+                if (_pageTurn > 0 && turn == _pageTurn && !_pageDismissed)
                 {
                     yield return ShowPage(turn);
                 }
@@ -384,10 +639,16 @@ namespace SheepGate.Contest
             _pageBlocking = true;
             RaiseChanged();
 
-            ThePagePanel panel = ThePagePanel.Show(turn, OnPageDismissed);
+            // The passage and the stage travel with the call. The passage because a season may put
+            // its reveal anywhere and the panel must not hold an opinion about which one it is; the
+            // stage because reveal_shown and verse_shown are the funnel the north-star metric is
+            // read out of, and two reveal moments that reported the same properties would be
+            // indistinguishable in exactly the query that has to tell them apart.
+            ThePagePanel panel = ThePagePanel.Show(turn, _config.page_verse, StageId(), OnPageDismissed);
             if (panel == null)
             {
-                Debug.LogWarning("[Contest] The page could not be shown; the move it unlocks is granted anyway.");
+                Debug.LogWarning("[Contest] The page did not open (already seen this run, or no modal root); " +
+                                 "the move it unlocks is granted anyway.");
                 _pageBlocking = false;
                 _pageDismissed = true;
                 RaiseChanged();
@@ -454,8 +715,9 @@ namespace SheepGate.Contest
 
                 case MoveShowWatch:
                 {
-                    GameState state = State;
-                    bool watchPosted = state != null && state.HasFlag(GameFlags.WatchPostedD2);
+                    // The same reading the fight was tuned against, taken at Begin. Re-reading a
+                    // day-keyed flag here would be a second chance to name the wrong night.
+                    bool watchPosted = _watchPostedLastNight;
 
                     if (_watchShown)
                     {
@@ -497,9 +759,16 @@ namespace SheepGate.Contest
             Report(line);
         }
 
-        // Keys rather than sentences: the words live in the locale table like every other
-        // line the player reads. The order is the order they are shown in.
-        static readonly string[] EnemyLineKeys =
+        /// <summary>
+        /// The lines the first raid speaks, and the ones any contest borrows when its own prefix
+        /// resolves nothing. Keys rather than sentences: the words live in the locale table like
+        /// every other line the player reads. The order is the order they are shown in.
+        ///
+        /// Spelled out in full rather than built from a prefix on purpose. The content validator
+        /// reads key-shaped literals out of this tree and asserts every one of them exists in
+        /// ui.json, and a bare prefix looks exactly like a key that has gone missing.
+        /// </summary>
+        static readonly string[] DefaultEnemyLineKeys =
         {
             "contest.log.enemy.1",
             "contest.log.enemy.2",
@@ -511,7 +780,11 @@ namespace SheepGate.Contest
         {
             _morale = Mathf.Clamp(_morale - _pressure, 0, _moraleMax);
 
-            string line = Loc.T(EnemyLineKeys[_enemyLineIndex % EnemyLineKeys.Length]);
+            string[] keys = _enemyLineKeys != null && _enemyLineKeys.Length > 0
+                ? _enemyLineKeys
+                : DefaultEnemyLineKeys;
+
+            string line = Loc.T(keys[_enemyLineIndex % keys.Length]);
             _enemyLineIndex++;
             Report(line);
         }
@@ -546,6 +819,19 @@ namespace SheepGate.Contest
             if (state != null)
             {
                 state.morale = Mathf.Clamp(_morale, 0, _moraleMax);
+
+                // Keyed, and always through the helper rather than a hand-spelled string: the save
+                // migration raises exactly this key for a legacy run that had already fought, and
+                // one letter of drift between the two spellings would make a migrated player fight
+                // the raid a second time.
+                if (!string.IsNullOrEmpty(ContestId))
+                {
+                    state.SetFlag(GameFlags.ContestResolvedFor(ContestId));
+                }
+
+                // The flat flag stays written as well. It costs one byte, it is what any caller
+                // still asking the old question reads, and it is the value the migration keys off
+                // — so keeping it is what lets the keyed flag arrive without a second schema step.
                 state.SetFlag(GameFlags.ContestResolved);
 
                 try
@@ -554,7 +840,7 @@ namespace SheepGate.Contest
                 }
                 catch (Exception exception)
                 {
-                    Debug.LogWarning("[Contest] Could not save after the trial: " + exception.Message);
+                    Debug.LogWarning("[Contest] Could not save after the contest: " + exception.Message);
                 }
             }
 
@@ -569,7 +855,7 @@ namespace SheepGate.Contest
                 }
                 catch (Exception exception)
                 {
-                    Debug.LogError("[Contest] A listener threw while the trial ended: " + exception.Message);
+                    Debug.LogError("[Contest] A listener threw while the contest ended: " + exception.Message);
                 }
             }
         }
@@ -591,7 +877,7 @@ namespace SheepGate.Contest
         /// <summary>
         /// The only thing losing costs: the work in progress on the contested segment. Damage
         /// clears the unfinished work inside the current stage and nothing else, so a stage that is
-        /// already standing never comes down. There is no defeat screen, and day three carries on
+        /// already standing never comes down. There is no defeat screen, and the stage carries on
         /// to the reading either way.
         /// </summary>
         void LoseUnfinishedWork()
@@ -661,7 +947,7 @@ namespace SheepGate.Contest
         }
 
         /// <summary>
-        /// Finds the segment the trial is fought over, in the data and never in a constant: the
+        /// Finds the segment the contest is fought over, in the data and never in a constant: the
         /// wall's primary exposed segment first, because that is exactly what an unwatched night
         /// damages; then the first definition in wall_segments.json carrying the exposed flag; then
         /// the first definition of any kind, so a data file that forgot the flag still fights over
@@ -717,7 +1003,7 @@ namespace SheepGate.Contest
                 }
             }
 
-            Debug.LogWarning("[Contest] No wall segment could be resolved; the trial runs without one.");
+            Debug.LogWarning("[Contest] No wall segment could be resolved; the contest runs without one.");
             return null;
         }
 
@@ -742,11 +1028,29 @@ namespace SheepGate.Contest
             return null;
         }
 
-        static ContestConfig ReadConfig()
+        /// <summary>
+        /// This contest's tuning. A miss is an error and not a silent fall back to the other
+        /// contest's numbers: a stage that named a fight the file does not define would otherwise
+        /// play the wrong one, correctly, with nothing to notice.
+        /// </summary>
+        static ContestConfig ReadConfig(string contestId)
         {
             try
             {
-                return GameData.Contest;
+                if (string.IsNullOrEmpty(contestId))
+                {
+                    Debug.LogError("[Contest] No contest was named; this stage cannot pick a fight to run.");
+                    return null;
+                }
+
+                ContestConfig config;
+                if (GameData.Contests != null && GameData.Contests.TryGetValue(contestId, out config) && config != null)
+                {
+                    return config;
+                }
+
+                Debug.LogError("[Contest] contest.json defines no contest called '" + contestId + "'.");
+                return null;
             }
             catch (Exception exception)
             {
@@ -755,7 +1059,31 @@ namespace SheepGate.Contest
             }
         }
 
-        /// <summary>Stages of the contested segment already finished, zero to four.</summary>
+        /// <summary>
+        /// The id of the stage this contest is being fought on, for telemetry. Empty when there is
+        /// no run in progress, which is the editor harness's case and not a player's.
+        /// </summary>
+        static string StageId()
+        {
+            GameState state = State;
+            if (state == null)
+            {
+                return string.Empty;
+            }
+
+            try
+            {
+                StageDef stage = GameData.Stage(state.day);
+                return stage != null ? stage.id ?? string.Empty : string.Empty;
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning("[Contest] Could not name the stage for telemetry: " + exception.Message);
+                return string.Empty;
+            }
+        }
+
+        /// <summary>Courses of the contested segment already finished, zero to four.</summary>
         int CompletedStages()
         {
             string segmentId = ContestedSegmentId;
@@ -771,7 +1099,7 @@ namespace SheepGate.Contest
                 {
                     if (wall.Contains(segmentId))
                     {
-                        return Mathf.Clamp(wall.StageOf(segmentId), 0, StagesPerSegment);
+                        return Mathf.Clamp(wall.StageOf(segmentId), 0, WallSystem.StagesPerSegment);
                     }
                 }
                 catch (Exception exception)
@@ -787,7 +1115,7 @@ namespace SheepGate.Contest
                 return 0;
             }
 
-            return Mathf.Clamp(segment.stage, 0, StagesPerSegment);
+            return Mathf.Clamp(segment.stage, 0, WallSystem.StagesPerSegment);
         }
 
         /// <summary>
@@ -824,13 +1152,19 @@ namespace SheepGate.Contest
                 return spoken;
             }
 
-            total = VillageSize;
+            // Derived wherever the roster can be read at all — this branch is also reached with a
+            // perfectly good npcs.json and no run in progress, and answering that with a literal
+            // six would be a second opinion about the size of the village that nothing keeps in
+            // step with the file. The constant is only for a roster that could not be read.
+            int roster = npcs != null ? npcs.Length : 0;
+            total = roster > 0 ? roster : FallbackVillageSize;
+
             if (state == null)
             {
                 return 0;
             }
 
-            return Mathf.Clamp(state.Counter(SpokenCounterKey), 0, VillageSize);
+            return Mathf.Clamp(state.Counter(SpokenCounterKey), 0, total);
         }
 
         static void AwardOnce(string counterKey, string vocationId, int points)

@@ -81,6 +81,10 @@
       "display": "Valley mantle",
       "description": "Falls from the back alone: the shoulder stays clear, and you are known from a distance."
     },
+    "outfit_watch_wool": {
+      "display": "Watch wool",
+      "description": "Heavy wool with no shape to it, for a whole night standing still."
+    },
 
     "acc_rope_coil": {
       "display": "Rope coil",
@@ -105,6 +109,18 @@
     "acc_old_seal": {
       "display": "Old seal",
       "description": "Found in the foundation, a name cut into it that nobody here can read."
+    },
+    "acc_watch_horn": {
+      "display": "Signal horn",
+      "description": "Slung on the left shoulder. Wherever it sounds, that is where everyone runs."
+    },
+    "acc_plumb_line": {
+      "display": "Plumb line",
+      "description": "Lead on the end of a cord, tied at the belt. It tells you a course is out before the course above it proves so."
+    },
+    "acc_gate_key": {
+      "display": "Gate key",
+      "description": "Bent iron on a leather cord, at the neck. It fits one door, and the door exists now."
     }
   },
 

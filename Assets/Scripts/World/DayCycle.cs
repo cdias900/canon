@@ -29,13 +29,23 @@ namespace SheepGate.World
     /// too thin to count, in which case that segment loses the work in progress inside its current
     /// stage. Completed stages never regress.
     ///
+    /// <b>There is exactly one way a day ends, and every stage of the season uses it</b> — the
+    /// split panel, <see cref="ResolveNightOutcome"/>, <see cref="AdvanceToMorning"/>. A stage whose
+    /// night threatens nothing (stages.json, <c>night_threat: false</c>) still runs all of it and
+    /// still records its watch; it simply applies no damage. That graft is deliberate and the
+    /// alternative was considered and rejected: a second, quieter way to end a day fails by leaving
+    /// last night's counters in place and letting the next morning report them as this morning's
+    /// fact — with no exception and no log.
+    ///
+    /// How long the season is comes from the stage table and from nowhere here; see
+    /// <see cref="FinalDay"/>.
+    ///
     /// This class is the sole authority on what counts as a watch — see <see cref="WatchThreshold"/>.
     /// The end-of-day panel asks it rather than deciding for itself, so the copy on the panel and
     /// the resolution of the night can never disagree.
     /// </summary>
     public class DayCycle : MonoBehaviour
     {
-        public const int FinalDay = 3;
         public const float DuskSeconds = 1.1f;
         public const float NightHoldSeconds = 0.9f;
         public const float DawnSeconds = 1.1f;
@@ -65,19 +75,78 @@ namespace SheepGate.World
         /// </summary>
         public const float DuskSettleSeconds = 1.2f;
 
-        /// <summary>Hold taken by the last day, which ends on the trial and not on a night.</summary>
+        /// <summary>
+        /// Hold taken by the stage that declares itself terminal, which ends on its own beat and not
+        /// on a night. Taken once and never released — it is the only hold in the game that is meant
+        /// to outlive the thing that took it.
+        /// </summary>
         public const string HoldFinalDay = "final_day";
 
         /// <summary>Hold taken while a resident still has something to say before the day may end.</summary>
         public const string HoldPendingBeat = "pending_beat";
 
         /// <summary>
+        /// Hold taken by <see cref="StageDirector"/> while a stage's scripted beat is running.
+        ///
+        /// A separate name from <see cref="HoldPendingBeat"/> on purpose. Holds are a set of names,
+        /// not a count, so two systems sharing one name means whichever finishes first releases the
+        /// other's hold as well — and the resident who sends the player down the valley already owns
+        /// that name. Sharing it would let a contest ending on the same day hand the evening back
+        /// while a conversation was still owed.
+        /// </summary>
+        public const string HoldStageBeat = "stage_beat";
+
+        /// <summary>
+        /// The last stage's day, which is the last day the calendar advances to.
+        ///
+        /// Read from the stage table rather than declared here, because how long a season is, is a
+        /// content decision. It stopped being a <c>const</c> when the season stopped being three
+        /// days: neither call site ever used it in a constant expression, so the shape of the reads
+        /// did not change.
+        ///
+        /// The fallback exists for the window before content is loaded and for a stage table that
+        /// failed to parse. It is the length of the season this game shipped with first, which is a
+        /// playable answer rather than a plausible-looking one: a fallback of zero or one would end
+        /// the run on the first night, and GameData has already logged the real problem loudly.
+        /// </summary>
+        public static int FinalDay
+        {
+            get
+            {
+                StageDef[] stages = GameData.Stages;
+                if (stages == null || stages.Length == 0)
+                {
+                    return FallbackFinalDay;
+                }
+
+                // The highest declared day rather than the last entry: the loader asserts the table
+                // is contiguous and ordered, and reading the maximum means a table that is neither
+                // still yields a season long enough to contain every stage in it.
+                int last = 0;
+                for (int i = 0; i < stages.Length; i++)
+                {
+                    StageDef stage = stages[i];
+                    if (stage != null && stage.day > last)
+                    {
+                        last = stage.day;
+                    }
+                }
+
+                return last > 0 ? last : FallbackFinalDay;
+            }
+        }
+
+        /// <summary>Season length assumed when the stage table is unreadable. See <see cref="FinalDay"/>.</summary>
+        private const int FallbackFinalDay = 3;
+
+        /// <summary>
         /// A watch is half the crew, rounded up. Fewer than that is people awake, not a watch: the
         /// wall is long and a token pair cannot cover it.
         ///
         /// The number is half rather than any other fraction because half is the split the chapter
-        /// describes (NEH.4.16) and the split the trial later names as a move, so the rule the
-        /// player lives with for three nights is the rule the page turns out to state.
+        /// describes (NEH.4.16) and the split a contest later names as a move, so the rule the
+        /// player has been living with every night since the first one is the rule the page turns
+        /// out to state.
         /// </summary>
         public const int WatchCrewDivisor = 2;
 
@@ -105,6 +174,15 @@ namespace SheepGate.World
         /// </summary>
         public const string NightDamageCounter = "night_damaged_segments";
 
+        /// <summary>
+        /// The one stage whose watch scores the prophet, because it is the one stage where posting
+        /// a watch means believing a resident against another resident rather than following the
+        /// standing rule. Content, not calendar: if that conversation ever moves, this moves with
+        /// it, and it stays a literal here rather than a column in stages.json because exactly one
+        /// line in the game reads it.
+        /// </summary>
+        private const int ProphetWatchStage = 2;
+
         /// <summary>The wash over a working day as it runs out: low sun, and no gold in it.</summary>
         private static readonly Color EveningTint = new Color(0.42f, 0.22f, 0.10f);
 
@@ -126,9 +204,10 @@ namespace SheepGate.World
 
         /// <summary>
         /// Raised once, the moment a day starts turning to evening. It exists for the things a day
-        /// owes the player that a morning cannot deliver: day one begins in a cutscene and never
-        /// raises <see cref="MorningStarted"/>, so anything hung on the morning simply never
-        /// happens on the first day.
+        /// owes the player that a morning cannot deliver: the season's <c>intro</c> stage begins in
+        /// a cutscene and never raises <see cref="MorningStarted"/>, so anything hung on the morning
+        /// simply never happens there. Every other stage has both, and hanging a beat on the evening
+        /// is what lets one piece of code serve all of them.
         /// </summary>
         public event Action<int> DuskBegan;
 
@@ -268,8 +347,9 @@ namespace SheepGate.World
 
         /// <summary>
         /// Asks the day not to end yet, under a name, so two systems holding at once cannot cancel
-        /// each other. Day three holds for the whole day; the resident who sends the player down
-        /// the valley holds until they are back and have heard the rest of it.
+        /// each other. A stage's scripted beat holds until the beat is over; the resident who sends
+        /// the player down the valley holds until they are back and have heard the rest of it; the
+        /// terminal stage holds for good.
         /// </summary>
         public void HoldDusk(string reason)
         {
@@ -309,13 +389,17 @@ namespace SheepGate.World
         /// conversation, so without it a player who never went back to the resident would have had
         /// no way to reach tomorrow at all.
         ///
-        /// The last day refuses both: it ends on the trial and has no night to divide anyone over.
+        /// The terminal stage refuses both: it ends on its own beat and has no night to divide
+        /// anyone over. It is refused from the stage's own declaration rather than from the presence
+        /// of <see cref="HoldFinalDay"/>, which is what stops the mat going dead for the whole of
+        /// any stage a director happens to hold — the hold is a symptom of the last stage, not its
+        /// definition, and reading the symptom made every directed stage look like the last one.
         /// </summary>
         public bool CanRest
         {
             get
             {
-                if (IsResolving || _duskHolds.Contains(HoldFinalDay))
+                if (IsResolving || CurrentStageIsTerminal())
                 {
                     return false;
                 }
@@ -324,6 +408,25 @@ namespace SheepGate.World
                 // ask for twice.
                 return !_duskPending || IsDuskHeld;
             }
+        }
+
+        /// <summary>
+        /// True when the stage the run is standing in is the one with no tomorrow.
+        ///
+        /// A blank fallback stage answers false: a stage table that failed to load must not end the
+        /// season on whatever day the player happens to be on, and GameData has already said loudly
+        /// that the table is missing.
+        /// </summary>
+        private static bool CurrentStageIsTerminal()
+        {
+            GameState state = WorldRuntime.State;
+            if (state == null)
+            {
+                return false;
+            }
+
+            StageDef stage = GameData.Stage(state.day);
+            return stage != null && stage.terminal;
         }
 
         /// <summary>
@@ -340,8 +443,11 @@ namespace SheepGate.World
 
             // Turning in forgives a beat that was still owed. The player has decided the day is
             // over, and a line they chose to walk away from is theirs to walk away from — never a
-            // reason to refuse them the night. The last day's hold survives this, and CanRest has
-            // already refused there.
+            // reason to refuse them the night.
+            //
+            // Only that one hold. A stage's scripted beat and the terminal stage both survive this
+            // deliberately: a raid is not something to be walked away from by lying down, and
+            // CanRest has already refused on the last stage anyway.
             ReleaseDusk(HoldPendingBeat);
             BeginDusk("the player turned in");
         }
@@ -657,18 +763,19 @@ namespace SheepGate.World
 
             if (LastNightHadWatch)
             {
-                if (day <= 1)
+                // One line, computed, rather than a branch per day. The branch per day had no else,
+                // so every night after the second left no record at all and every morning after it
+                // reported "no watch" as fact — silently, and for most of a season.
+                state.SetFlag(WorldRuntime.FlagWatchPostedForDay(day));
+
+                if (day == ProphetWatchStage)
                 {
-                    state.SetFlag(WorldRuntime.FlagWatchPostedD1);
-                }
-                else if (day == 2)
-                {
-                    state.SetFlag(WorldRuntime.FlagWatchPostedD2);
-                    // Believing the resident who saw the riders on the road.
+                    // Believing the resident who saw the riders on the road. Still that one night,
+                    // because it is that one conversation it answers, not the habit of watching.
                     WorldRuntime.AwardOnce("prophet_watch_d2_awarded", WorldRuntime.VocationProphet, 3);
                 }
             }
-            else if (wall != null)
+            else if (wall != null && NightThreatensTheWall(day))
             {
                 string exposed = wall.PrimaryExposedSegmentId;
                 if (!string.IsNullOrEmpty(exposed))
@@ -686,6 +793,32 @@ namespace SheepGate.World
             SetCounter(state, NightDamageCounter, LastNightDamagedSegment != null ? 1 : 0);
 
             ScoreSteward(state, day);
+        }
+
+        /// <summary>
+        /// Whether an unwatched night on this stage costs the exposed segment its work in progress.
+        ///
+        /// The only thing <c>night_threat: false</c> switches off. Everything else about the night
+        /// runs exactly as it always does — the split is asked for, the crew is recorded, the watch
+        /// flag is written, the night crew builds, the counters are replaced and the morning report
+        /// opens on true numbers. Skipping the whole night instead would have left yesterday's
+        /// counters standing and let the next morning present them as last night's, which is a lie
+        /// the player has no way to see and the build has no way to log.
+        ///
+        /// A blank fallback stage answers true rather than false. A stage table that failed to load
+        /// must not quietly turn the season into one with nothing at stake: that is a content error
+        /// that would play as a design decision, which is the exact failure this project keeps
+        /// paying for.
+        /// </summary>
+        private static bool NightThreatensTheWall(int day)
+        {
+            StageDef stage = GameData.Stage(day);
+            if (stage == null || string.IsNullOrEmpty(stage.id))
+            {
+                return true;
+            }
+
+            return stage.night_threat;
         }
 
         /// <summary>
@@ -778,43 +911,109 @@ namespace SheepGate.World
             state.counters[key] = value;
         }
 
+        /// <summary>Counter written by every night that resolves, keyed by the day it ended.</summary>
+        private const string NightPlayedPrefix = "night_played_d";
+
+        /// <summary>Counter written by a night the player ended with their whole capacity spent.</summary>
+        private const string StewardCapacityPrefix = "steward_capacity_qualified_d";
+
+        /// <summary>Counter written by a night the player ended with no rubble left lying around.</summary>
+        private const string StewardRubblePrefix = "steward_rubble_qualified_d";
+
         /// <summary>
-        /// The steward scores for finishing both day one and day two with the work capacity fully
-        /// spent, and for finishing both of them with no rubble left lying around. Each is a single
-        /// action worth three points, checked once, when the second night resolves.
+        /// The steward scores for ending every night of the season with the work capacity fully
+        /// spent, and for ending every one of them with no rubble left lying around. Each is a
+        /// single action worth three points, checked once, when the last night resolves.
+        ///
+        /// It used to name day one and day two by hand, which was correct exactly as long as the
+        /// season had two nights in it; in a longer season that conjunction hands the vocation out
+        /// on the second night and asks nothing of the rest. Counting instead against the nights the
+        /// run actually played is what makes it a habit rather than a start.
+        ///
+        /// "Actually played" is not the same as "in the table", and the difference matters: a save
+        /// carried across a season's renumbering can arrive having never resolved some middle night.
+        /// Asking it about a night it never had would make the vocation unreachable through no fault
+        /// of the player, so each night records that it happened and the check only asks about those.
         /// </summary>
         private static void ScoreSteward(GameState state, int day)
         {
-            if (day > 2)
-            {
-                return;
-            }
+            SetCounter(state, NightPlayedPrefix + day, 1);
 
             ResourceSystem resources = ResourceSystem.Find();
             if (resources != null && resources.Capacity <= 0)
             {
-                SetCounter(state, "steward_capacity_qualified_d" + day, 1);
+                SetCounter(state, StewardCapacityPrefix + day, 1);
             }
 
             if (state.rubble <= 0)
             {
-                SetCounter(state, "steward_rubble_qualified_d" + day, 1);
+                SetCounter(state, StewardRubblePrefix + day, 1);
             }
 
-            if (day < 2)
+            // Only on the season's last night. Awarding earlier would hand the points to a player
+            // who has not yet had the chance to break the habit — and AwardOnce cannot take them
+            // back, because nothing in this game ever takes anything back.
+            if (day < LastNightOfTheSeason())
             {
                 return;
             }
 
-            if (state.Counter("steward_capacity_qualified_d1") > 0 && state.Counter("steward_capacity_qualified_d2") > 0)
+            if (QualifiedEveryNight(state, StewardCapacityPrefix, day))
             {
                 WorldRuntime.AwardOnce("steward_capacity_awarded", WorldRuntime.VocationSteward, 3);
             }
 
-            if (state.Counter("steward_rubble_qualified_d1") > 0 && state.Counter("steward_rubble_qualified_d2") > 0)
+            if (QualifiedEveryNight(state, StewardRubblePrefix, day))
             {
                 WorldRuntime.AwardOnce("steward_rubble_awarded", WorldRuntime.VocationSteward, 3);
             }
+        }
+
+        /// <summary>
+        /// The last day that ends on a night. The terminal stage ends on its own beat and never
+        /// resolves one, so the season's last night is the day before it.
+        /// </summary>
+        private static int LastNightOfTheSeason()
+        {
+            StageDef[] stages = GameData.Stages;
+            if (stages == null || stages.Length == 0)
+            {
+                return FallbackFinalDay;
+            }
+
+            int last = 0;
+            for (int i = 0; i < stages.Length; i++)
+            {
+                StageDef stage = stages[i];
+                if (stage != null && !stage.terminal && stage.day > last)
+                {
+                    last = stage.day;
+                }
+            }
+
+            return last > 0 ? last : FallbackFinalDay;
+        }
+
+        /// <summary>
+        /// True when every night this run has actually resolved, up to and including tonight, wrote
+        /// the qualifying counter this prefix names.
+        /// </summary>
+        private static bool QualifiedEveryNight(GameState state, string prefix, int throughDay)
+        {
+            for (int day = 1; day <= throughDay; day++)
+            {
+                if (state.Counter(NightPlayedPrefix + day) <= 0)
+                {
+                    continue;
+                }
+
+                if (state.Counter(prefix + day) <= 0)
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         private void AdvanceToMorning()
@@ -829,13 +1028,20 @@ namespace SheepGate.World
                 return;
             }
 
-            if (state.day < FinalDay)
+            int finalDay = FinalDay;
+            if (state.day < finalDay)
             {
                 state.day = state.day + 1;
             }
             else
             {
-                Debug.LogWarning("[World] EndDay resolved on the final day; the day counter stays at " + FinalDay + ".");
+                // Not a warning any more. The terminal stage holds the evening and never gets here
+                // in an ordinary run, so this line is now a diagnostic about a night resolved on a
+                // stage that has no tomorrow — worth reading in a log, not worth colouring red in a
+                // build that is otherwise fine. Whatever brought it here, the counter never moves
+                // past the season: the calendar can stall, it can never overrun the stage table.
+                Debug.Log("[World] A night resolved on the last stage of the season; the day counter stays at "
+                          + finalDay + ".");
             }
 
             ResourceSystem resources = ResourceSystem.Find();
@@ -966,10 +1172,9 @@ namespace SheepGate.World
         }
 
         /// <summary>
-        /// Sets the night level directly and takes the light away from the daylight clock, for
-        /// scripted moments such as the day three assault. <see cref="ReleaseLight"/> hands it
-        /// back, and so does the next morning, so a scripted beat can never strand the village
-        /// in the dark.
+        /// Sets the night level directly and takes the light away from the daylight clock, for a
+        /// scripted moment such as a raid arriving. <see cref="ReleaseLight"/> hands it back, and so
+        /// does the next morning, so a scripted beat can never strand the village in the dark.
         /// </summary>
         public void SetNightAmount(float amount)
         {

@@ -1,3 +1,4 @@
+using SheepGate.Core;
 using UnityEngine;
 
 namespace SheepGate.Art
@@ -18,11 +19,20 @@ namespace SheepGate.Art
     /// or scene GUIDs. The background is one image and every marker/reward is an isolated image with
     /// alpha; labels remain live localized UI so words are never baked into art.
     ///
-    /// The procedural parchment chart below remains as a deliberate fallback. A missing image is
-    /// loud in the log and still leaves a usable map rather than a blank modal.
+    /// The procedural parchment chart below remains as a deliberate fallback. A missing background
+    /// or marker image is loud in the log and still leaves a usable map rather than a blank modal.
+    /// A missing featured-item image is the one quiet miss, and deliberately so: item art arrives
+    /// stage by stage, so an absent file there is a schedule, not a fault, and it gets a drawn
+    /// stand-in instead of a log line repeated on every selection.
     ///
     /// Overlay positions are normalised against the source image. That keeps the road stops and
     /// their labels together on every phone, because the sheet itself preserves this aspect ratio.
+    ///
+    /// This class reads <see cref="GameData.Stages"/>, which is the one place the art layer looks
+    /// outward. It is deliberate: how many stops the road has is a property of the season, not of
+    /// the drawing, and the alternative — an anchor count kept in this file and a stage count kept
+    /// in stages.json — is precisely the pair of disagreeing sources that used to draw three nodes
+    /// and log nothing. Where each stop SITS stays a property of the drawing, and is answered here.
     /// </summary>
     public static class MapChartArt
     {
@@ -50,9 +60,15 @@ namespace SheepGate.Art
         const string CompleteNodeResource = "Art/Map/node_complete";
         const string CurrentNodeResource = "Art/Map/node_current";
         const string LockedNodeResource = "Art/Map/node_locked";
-        const string ToolBagResource = "Art/Map/item_tool_bag";
-        const string HeadscarfResource = "Art/Map/item_headscarf";
-        const string ValleyMantleResource = "Art/Map/item_valley_mantle";
+
+        /// <summary>Where a featured item's drawn image lives, before its catalogue name.</summary>
+        const string ItemResourcePrefix = "Art/Map/item_";
+
+        /// <summary>Slot prefixes a catalogue id may carry, longest first so hair_ cannot eat h.</summary>
+        static readonly string[] SlotPrefixes = { "outfit_", "hair_", "acc_" };
+
+        /// <summary>Side of the stand-in reward image. The drawn items are 160 square.</summary>
+        const int RewardIconPixels = 128;
 
         /// <summary>The generated map is a wide 3:2 valley explored through a portrait viewport.</summary>
         public const float BackgroundAspect = 3f / 2f;
@@ -61,19 +77,63 @@ namespace SheepGate.Art
         public static readonly Vector2 ContentSize = new Vector2(1536f, 1024f);
 
         /// <summary>
-        /// The three clearings painted into the road, from the first stop at the lower left to the
-        /// repaired gate in the north. UI coordinates use a bottom-left origin.
+        /// The road painted into map_background.png, traced, as a normalised polyline running from
+        /// the village clearing at the lower left to the repaired gate in the north. UI coordinates
+        /// use a bottom-left origin.
+        ///
+        /// This is a measurement of the shipped image, not a design: the pale track was isolated
+        /// from the artwork by colour, its centreline followed from clearing to clearing, and the
+        /// result resampled to twenty-five evenly spaced vertices. Every vertex but one lies on
+        /// painted sand; the exception is the wooden bridge over the inlet, which is road.
+        ///
+        /// It replaces the three fixed anchors this file used to carry, and it exists because a
+        /// season is no longer three stages long. Three points could name the three clearings the
+        /// artist painted; they could not answer where a fourth, fifth or ninth stop goes, and the
+        /// straight line between them leaves the track and crosses open scrub and water. A road the
+        /// nodes are spaced ALONG answers that for any stage count, and keeps every marker on
+        /// something the player can see is a road.
+        ///
+        /// The three painted clearings sit at 0.00, 0.50 and 1.00 of this road's length, which is
+        /// why a nine-stage season lands its first, fifth and last stops in them and the six others
+        /// on open track. That is a real cosmetic weakness and it is accepted knowingly: fewer
+        /// waypoint markings than stops reads as a longer journey, not as a broken one. The two
+        /// honest fixes — re-authoring the PNG with nine clearings, or returning to the procedural
+        /// chart below and drawing the stops — are art work with no artist on the team.
+        ///
+        /// IF THE BACKGROUND IMAGE IS EVER REPLACED, THIS ARRAY IS WRONG AND MUST BE RE-TRACED.
+        /// Nothing at runtime can tell: the nodes would simply sit on whatever the new picture
+        /// happens to have painted where the old road ran.
         /// </summary>
-        static readonly Vector2[] JourneyAnchors =
+        static readonly Vector2[] RoadPath =
         {
-            new Vector2(0.19f, 0.25f),
-            new Vector2(0.52f, 0.50f),
-            new Vector2(0.88f, 0.83f)
+            new Vector2(0.152f, 0.251f), new Vector2(0.187f, 0.263f), new Vector2(0.221f, 0.272f),
+            new Vector2(0.252f, 0.297f), new Vector2(0.279f, 0.332f), new Vector2(0.308f, 0.362f),
+            new Vector2(0.335f, 0.395f), new Vector2(0.364f, 0.427f), new Vector2(0.394f, 0.453f),
+            new Vector2(0.429f, 0.456f), new Vector2(0.463f, 0.466f), new Vector2(0.488f, 0.504f),
+            new Vector2(0.512f, 0.542f), new Vector2(0.546f, 0.545f), new Vector2(0.577f, 0.519f),
+            new Vector2(0.612f, 0.511f), new Vector2(0.645f, 0.524f), new Vector2(0.675f, 0.553f),
+            new Vector2(0.709f, 0.565f), new Vector2(0.742f, 0.584f), new Vector2(0.772f, 0.612f),
+            new Vector2(0.802f, 0.639f), new Vector2(0.830f, 0.671f), new Vector2(0.838f, 0.722f),
+            new Vector2(0.846f, 0.774f)
         };
 
         /// <summary>
-        /// Where the viewport centres for each day. A focus includes the node's card as well as its
-        /// marker, which is why day two looks to the right and day three back to the left.
+        /// How many stops the road shows when the stage table has not loaded. One per painted
+        /// clearing, which is what the map drew before there was a stage table to ask.
+        /// </summary>
+        const int FallbackJourneyCount = 3;
+
+        /// <summary>
+        /// How far a stage's declared map_anchor may sit from the road before it is reported, in
+        /// canvas units of <see cref="ContentSize"/>. Under a third of the gap between two stops on
+        /// a nine-stage road, so a declared anchor inside the tolerance still names the same stop.
+        /// </summary>
+        const float DeclaredAnchorTolerance = 48f;
+
+        /// <summary>
+        /// Where the viewport centres for each day when the stage table has not loaded. A focus
+        /// includes the node's card as well as its marker, which is why day two looks to the right
+        /// and day three back to the left.
         /// </summary>
         static readonly Vector2[] JourneyFocusAnchors =
         {
@@ -111,6 +171,10 @@ namespace SheepGate.Art
         static readonly System.Collections.Generic.Dictionary<string, Sprite> ImageSprites =
             new System.Collections.Generic.Dictionary<string, Sprite>(System.StringComparer.Ordinal);
 
+        /// <summary>Resource paths already looked for and not found, so each miss costs one lookup.</summary>
+        static readonly System.Collections.Generic.HashSet<string> MissingImages =
+            new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal);
+
         /// <summary>The chart. Drawn on the first call and kept.</summary>
         public static Sprite Get()
         {
@@ -140,23 +204,201 @@ namespace SheepGate.Art
             return _sprite;
         }
 
-        /// <summary>How many real POC days the journey map contains.</summary>
+        /// <summary>
+        /// How many stops the journey map contains: one per stage the season declares.
+        ///
+        /// Read from the stage table rather than from an array here, so the road and the calendar
+        /// cannot disagree about how long the season is. A stage table that failed to load falls
+        /// back to the three painted clearings — GameData has already logged that failure, and a
+        /// map with three stops on it is a better thing to hand a player than an empty sheet.
+        /// </summary>
         public static int JourneyCount
         {
-            get { return JourneyAnchors.Length; }
+            get
+            {
+                StageDef[] stages = GameData.Stages;
+                return stages != null && stages.Length > 0 ? stages.Length : FallbackJourneyCount;
+            }
         }
 
-        /// <summary>Where one day marker sits on the generated road.</summary>
+        /// <summary>
+        /// Where one stage's marker sits: spaced evenly along the painted road by arc length, so
+        /// nine stops read as one journey with equal strides rather than as nine points that happen
+        /// to be near a track.
+        ///
+        /// Deliberately NOT the stage's declared map_anchor. Those were authored against the
+        /// straight line between the three clearings, and measured against the shipped picture five
+        /// of the nine sit off the painted road while the last two land close enough together to
+        /// overlap each other's markers. The stage table still declares them, and
+        /// <see cref="WarnOnDeclaredAnchorDrift"/> reports the disagreement once per run rather
+        /// than letting the field quietly become data nothing reads.
+        /// </summary>
         public static Vector2 JourneyAnchor(int index)
         {
-            return JourneyAnchors[Mathf.Clamp(index, 0, JourneyAnchors.Length - 1)];
+            WarnOnDeclaredAnchorDrift();
+            return RoadPointForStop(index, JourneyCount);
         }
 
-        /// <summary>Where the clipped viewport should open for one day.</summary>
+        /// <summary>
+        /// Where the clipped viewport should open for one stage.
+        ///
+        /// This one DOES prefer the stage table's declared value, because a focus is a camera
+        /// target rather than a position on the road: it frames the stop together with the label
+        /// hanging off it, and a stage is entitled to say "open looking a little ahead of me".
+        /// A stage that declares no usable focus is framed on its own marker.
+        /// </summary>
         public static Vector2 JourneyFocusAnchor(int index)
         {
-            return JourneyFocusAnchors[Mathf.Clamp(index, 0, JourneyFocusAnchors.Length - 1)];
+            StageDef[] stages = GameData.Stages;
+            if (stages == null || stages.Length == 0)
+            {
+                return JourneyFocusAnchors[Mathf.Clamp(index, 0, JourneyFocusAnchors.Length - 1)];
+            }
+
+            StageDef stage = stages[Mathf.Clamp(index, 0, stages.Length - 1)];
+            if (stage != null && stage.map_focus != null && stage.map_focus.Length == 2)
+            {
+                return new Vector2(Mathf.Clamp01(stage.map_focus[0]), Mathf.Clamp01(stage.map_focus[1]));
+            }
+
+            // A malformed entry is already a logged error from GameData.VerifyStages. Repeating it
+            // here would only add noise to a run that is already failing for the right reason.
+            return JourneyAnchor(index);
         }
+
+        /// <summary>
+        /// The point at a fraction of the way along the road, measured by arc length.
+        ///
+        /// The arc is measured in <see cref="ContentSize"/> units rather than in the normalised
+        /// 0..1 space, because the sheet is half again as wide as it is tall: even spacing in
+        /// normalised coordinates would crowd the stops on the steep stretches and stretch them on
+        /// the flat ones, which is the opposite of what the eye reads as an even journey.
+        /// </summary>
+        static Vector2 RoadPoint(float fraction)
+        {
+            EnsureRoadMetrics();
+
+            float target = Mathf.Clamp01(fraction) * _roadLength;
+            for (int i = 1; i < _roadArc.Length; i++)
+            {
+                if (target > _roadArc[i] && i < _roadArc.Length - 1)
+                {
+                    continue;
+                }
+
+                float span = _roadArc[i] - _roadArc[i - 1];
+                float within = span > 0f ? (target - _roadArc[i - 1]) / span : 0f;
+                return Vector2.Lerp(RoadPath[i - 1], RoadPath[i], Mathf.Clamp01(within));
+            }
+
+            return RoadPath[RoadPath.Length - 1];
+        }
+
+        /// <summary>
+        /// One stop of <paramref name="count"/>, at its share of the road. A one-stage season sits
+        /// at the start rather than dividing by zero.
+        /// </summary>
+        static Vector2 RoadPointForStop(int index, int count)
+        {
+            if (count <= 1)
+            {
+                return RoadPath[0];
+            }
+
+            return RoadPoint(Mathf.Clamp(index, 0, count - 1) / (float)(count - 1));
+        }
+
+        static void EnsureRoadMetrics()
+        {
+            if (_roadArc != null)
+            {
+                return;
+            }
+
+            _roadArc = new float[RoadPath.Length];
+            for (int i = 1; i < RoadPath.Length; i++)
+            {
+                Vector2 step = RoadPath[i] - RoadPath[i - 1];
+                _roadArc[i] = _roadArc[i - 1] +
+                    new Vector2(step.x * ContentSize.x, step.y * ContentSize.y).magnitude;
+            }
+
+            _roadLength = _roadArc[_roadArc.Length - 1];
+        }
+
+        static float[] _roadArc;
+        static float _roadLength;
+
+        /// <summary>
+        /// Reports, once per run, every stage whose declared map_anchor is not where the road puts
+        /// its stop.
+        ///
+        /// A warning and not an error, on purpose. The stage table is authored data this file does
+        /// not own, the numbers in it today were written before the road was measured, and the
+        /// built-player run turns a logged error into a run failure — so erroring here would fail
+        /// the gate on a file the reader of the message has to go and fix. It is also not silence:
+        /// a field that nothing reads and nothing mentions is how a data file drifts into fiction.
+        /// </summary>
+        static void WarnOnDeclaredAnchorDrift()
+        {
+            if (_checkedDeclaredAnchors)
+            {
+                return;
+            }
+
+            // Latched only once there is something to compare. An anchor asked for before the
+            // stage table loads would otherwise burn the single check on an empty table and the
+            // real one would never run.
+            StageDef[] stages = GameData.Stages;
+            if (stages == null || stages.Length == 0)
+            {
+                return;
+            }
+
+            _checkedDeclaredAnchors = true;
+
+            int drifted = 0;
+            float worstDistance = 0f;
+            string worstStage = null;
+            for (int i = 0; i < stages.Length; i++)
+            {
+                StageDef stage = stages[i];
+                if (stage == null || stage.map_anchor == null || stage.map_anchor.Length != 2)
+                {
+                    continue;
+                }
+
+                Vector2 road = RoadPointForStop(i, stages.Length);
+                var offset = new Vector2(
+                    (stage.map_anchor[0] - road.x) * ContentSize.x,
+                    (stage.map_anchor[1] - road.y) * ContentSize.y);
+                float distance = offset.magnitude;
+                if (distance <= DeclaredAnchorTolerance)
+                {
+                    continue;
+                }
+
+                drifted++;
+                if (distance > worstDistance)
+                {
+                    worstDistance = distance;
+                    worstStage = stage.id;
+                }
+            }
+
+            if (drifted == 0)
+            {
+                return;
+            }
+
+            Debug.LogWarning("[MapArt] " + drifted + " of " + stages.Length +
+                " stages declare a map_anchor further than " + DeclaredAnchorTolerance +
+                " units from where the painted road puts their stop (worst: \"" + worstStage +
+                "\" at " + worstDistance.ToString("0") + "). The road is what the map draws; " +
+                "re-value map_anchor in stages.json against it to silence this. Logged once per run.");
+        }
+
+        static bool _checkedDeclaredAnchors;
 
         /// <summary>The image sprite for one progression state.</summary>
         public static Sprite NodeSprite(JourneyNodeState state)
@@ -173,26 +415,134 @@ namespace SheepGate.Art
         }
 
         /// <summary>
-        /// The featured item image beside each day. These ids are character_catalog.json ids, never
-        /// player-facing copy; the display name comes from the loaded locale catalogue.
+        /// The featured item image beside each stage. These ids are character_catalog.json ids,
+        /// never player-facing copy; the display name comes from the loaded locale catalogue.
+        ///
+        /// The three-case switch this replaces returned null for anything it had not been told
+        /// about, which was survivable while there were three stages and three drawn items and is
+        /// not survivable at nine: six of the nine featured items have no image yet, and six place
+        /// cards with an empty square where the reward goes reads as a broken panel rather than as
+        /// art still in flight. A drawn parcel says "a thing you have not seen yet" honestly, and
+        /// the moment Art/Map/item_&lt;name&gt;.png lands it is picked up with no code change.
         /// </summary>
         public static Sprite RewardSprite(string itemId)
         {
-            switch (itemId)
+            if (string.IsNullOrEmpty(itemId))
             {
-                case "acc_tool_bag":
-                    return LoadImageSprite(ToolBagResource, "map_reward_tool_bag");
-                case "hair_headscarf":
-                    return LoadImageSprite(HeadscarfResource, "map_reward_headscarf");
-                case "outfit_valley_mantle":
-                    return LoadImageSprite(ValleyMantleResource, "map_reward_valley_mantle");
-                default:
-                    Debug.LogWarning("[MapArt] No generated reward sprite is mapped for catalog item '" + itemId + "'.");
-                    return null;
+                return GenericRewardSprite();
+            }
+
+            string suffix = RewardResourceSuffix(itemId);
+            Sprite drawn = TryLoadImageSprite(ItemResourcePrefix + suffix, "map_reward_" + suffix);
+            return drawn != null ? drawn : GenericRewardSprite();
+        }
+
+        /// <summary>
+        /// The file name half of a catalogue id. Catalogue ids carry the slot they fill as a prefix
+        /// — acc_, hair_, outfit_ — and the map's item art is filed under the garment's own name,
+        /// which is the convention the three shipped images already follow.
+        /// </summary>
+        static string RewardResourceSuffix(string itemId)
+        {
+            for (int i = 0; i < SlotPrefixes.Length; i++)
+            {
+                string prefix = SlotPrefixes[i];
+                if (itemId.StartsWith(prefix, System.StringComparison.Ordinal))
+                {
+                    return itemId.Substring(prefix.Length);
+                }
+            }
+
+            return itemId;
+        }
+
+        /// <summary>
+        /// The stand-in shown where a featured item has no drawn image: a tied parcel, in the world
+        /// palette, at the same size as the drawn items so a place card does not change shape when
+        /// the real art arrives.
+        /// </summary>
+        static Sprite GenericRewardSprite()
+        {
+            if (_genericReward != null)
+            {
+                return _genericReward;
+            }
+
+            var canvas = new PixelCanvas(RewardIconPixels, RewardIconPixels);
+            DrawParcel(canvas);
+
+            Texture2D texture = canvas.ToTexture("map_reward_unknown");
+            _genericReward = Sprite.Create(
+                texture,
+                new Rect(0f, 0f, RewardIconPixels, RewardIconPixels),
+                new Vector2(0.5f, 0.5f),
+                100f,
+                0u,
+                SpriteMeshType.FullRect);
+
+            // The name matters as much as the pixels: the built-player run counts and palette-checks
+            // map sprites by this prefix, so a stand-in that skipped it would quietly shrink the
+            // count the run asserts on.
+            _genericReward.name = "map_reward_unknown";
+            return _genericReward;
+        }
+
+        /// <summary>
+        /// A bundle tied with a cord. Drawn with Set-family calls in palette colours only: the
+        /// built-player run rejects any map sprite carrying a pixel that is neither fully
+        /// transparent nor an exact palette entry, and every blending or antialiased helper on
+        /// <see cref="PixelCanvas"/> produces the in-between values that check exists to catch.
+        /// </summary>
+        static void DrawParcel(PixelCanvas canvas)
+        {
+            // Named for the parcel rather than for the sheet: this class already has a Width and a
+            // Height, and they are the procedural chart's, not this icon's.
+            const int BoxLeft = 22;
+            const int BoxBottom = 30;
+            const int BoxWidth = RewardIconPixels - BoxLeft * 2;
+            const int BoxHeight = 62;
+
+            canvas.FillRect(BoxLeft, BoxBottom, BoxWidth, BoxHeight, ArtPalette.StoneLight);
+            canvas.FillRect(BoxLeft, BoxBottom, BoxWidth, 14, ArtPalette.StoneMid);
+            canvas.Outline(BoxLeft, BoxBottom, BoxWidth, BoxHeight, ArtPalette.StoneDeep);
+
+            // The cord: one band across, one down, and the knot where they cross.
+            int bandY = BoxBottom + BoxHeight / 2 - 4;
+            canvas.FillRect(BoxLeft, bandY, BoxWidth, 8, ArtPalette.ClayDark);
+            int bandX = BoxLeft + BoxWidth / 2 - 4;
+            canvas.FillRect(bandX, BoxBottom, 8, BoxHeight, ArtPalette.ClayDark);
+            canvas.FillRect(bandX - 6, bandY - 5, 20, 18, ArtPalette.ClayMid);
+            canvas.Outline(bandX - 6, bandY - 5, 20, 18, ArtPalette.ClayDeep);
+
+            // The two loose ends above the knot, which is what makes it read as tied rather than as
+            // a cross painted on a box. Two pixels each: a single diagonal Bresenham run comes out
+            // dotted, and this is shown at about a third of its drawn size.
+            for (int offset = 0; offset < 2; offset++)
+            {
+                canvas.Line(bandX + 2, bandY + 13 + offset, bandX - 12, bandY + 26 + offset, ArtPalette.ClayDark);
+                canvas.Line(bandX + 6, bandY + 13 + offset, bandX + 20, bandY + 26 + offset, ArtPalette.ClayDark);
             }
         }
 
+        static Sprite _genericReward;
+
         static Sprite LoadImageSprite(string resourcePath, string spriteName)
+        {
+            Sprite sprite = TryLoadImageSprite(resourcePath, spriteName);
+            if (sprite == null)
+            {
+                Debug.LogError("[MapArt] Missing generated image at Resources/" + resourcePath + ".png.");
+            }
+
+            return sprite;
+        }
+
+        /// <summary>
+        /// The same load, without the complaint. Used where a missing file is an expected answer
+        /// rather than a broken build: a featured item whose art has not been drawn yet has a
+        /// stand-in waiting for it, and six log errors a frame would bury the ones that matter.
+        /// </summary>
+        static Sprite TryLoadImageSprite(string resourcePath, string spriteName)
         {
             Sprite cached;
             if (ImageSprites.TryGetValue(resourcePath, out cached) && cached != null)
@@ -200,10 +550,17 @@ namespace SheepGate.Art
                 return cached;
             }
 
+            if (MissingImages.Contains(resourcePath))
+            {
+                return null;
+            }
+
             Texture2D texture = Resources.Load<Texture2D>(resourcePath);
             if (texture == null)
             {
-                Debug.LogError("[MapArt] Missing generated image at Resources/" + resourcePath + ".png.");
+                // Remembered, because the map re-asks for the featured item on every selection and
+                // a Resources lookup that will never succeed should be paid for once.
+                MissingImages.Add(resourcePath);
                 return null;
             }
 

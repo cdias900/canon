@@ -612,11 +612,42 @@ namespace SheepGate.UI
             /// </summary>
             void Teardown()
             {
+                LanguageToggle.RebuildInPlace = null;
+
                 if (_canvas != null)
                 {
                     UnityEngine.Object.Destroy(_canvas.gameObject);
                     _canvas = null;
                 }
+            }
+
+            /// <summary>
+            /// Swaps this screen for the same screen in the language just chosen, leaving the scene
+            /// alone.
+            ///
+            /// <b>Why the in-scene path cannot reload.</b> This screen runs as a beat inside the
+            /// opening cutscene, and the cutscene cannot be skipped. A scene reload there restarts
+            /// the opening from the world map, so the player pays for a language switch by watching
+            /// the whole thing again — on the one screen where the toggle is guaranteed to be
+            /// reachable by someone who cannot read the interface.
+            ///
+            /// Rebuilding is safe here for the reason <see cref="Build"/> already documents: this
+            /// screen holds no draft. The name is written on every keystroke, the swaps mutate the
+            /// live <see cref="GameState"/>, and <c>Wardrobe.ApplyToAppearance</c> is idempotent —
+            /// so a screen composed from scratch comes back showing everything the player had
+            /// already done. The one thing rebuilding must not do is destroy the canvas the
+            /// cutscene is waiting behind before the new one exists, which is why the old canvas is
+            /// destroyed inside <see cref="Build"/>'s own frame rather than a frame earlier.
+            /// </summary>
+            void RebuildForLocale()
+            {
+                if (_canvas != null)
+                {
+                    UnityEngine.Object.Destroy(_canvas.gameObject);
+                    _canvas = null;
+                }
+
+                Build();
             }
 
             // ============================================================== building
@@ -648,6 +679,13 @@ namespace SheepGate.UI
                 // is what makes a mid-creation language switch come back showing the swaps the
                 // player had already made.
                 Wardrobe.ApplyToAppearance(_state);
+
+                // Only the in-scene path takes this over. The standalone screen owns the whole
+                // scene, so reloading it is both correct and cheaper than rebuilding by hand.
+                if (_onDone != null)
+                {
+                    LanguageToggle.RebuildInPlace = RebuildForLocale;
+                }
 
                 Canvas canvas = UIKit.CreateCanvas("CharacterCreationCanvas", _sortingOrder);
                 _canvas = canvas;

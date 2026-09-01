@@ -12,16 +12,22 @@ using UnityEngine.UI;
 namespace SheepGate.UI
 {
     /// <summary>
-    /// The permanent overlay, which is now one control: a menu button. Everything else — the
-    /// readouts, the wall's progress, and the four buttons that change the frame (the wide patrol
-    /// camera, the map, the backpack, settings) — lives in the drawer it opens.
+    /// The permanent overlay. On the screen: the menu button, help, the map, the backpack, the
+    /// check-in, one number, and the way back from the patrol frame while that frame is on. In the
+    /// drawer behind the menu: the day, the rubble, the talents, the wall's progress, settings and
+    /// the patrol control itself.
     ///
-    /// <b>What this costs, stated plainly.</b> Work capacity is the number that falls with every
-    /// action and decides the next one, and it is now a tap away instead of on screen. That is a
-    /// real loss and it was the point of the change: the screen this game most wants you looking at
-    /// is the ground, and Sistema Vale names "HUD tampando a cena" as the way this project fails.
-    /// If the drawer turns out to be opened constantly to check the same number, the answer is to
-    /// bring that one readout back out — not to undo the drawer.
+    /// <b>What the drawer cost, and the one thing that came back.</b> This file used to say that
+    /// work capacity — "the number that falls with every action and decides the next one" — being a
+    /// tap away was a real loss, and that if the drawer were opened constantly to check that same
+    /// number, the answer was to bring that one readout back out rather than undo the drawer. That
+    /// is what <see cref="BuildWorkReadout"/> is. It was not a matter of taste in the end:
+    /// <see cref="DayCycle"/> ends the day the frame capacity reaches zero and the split it opens
+    /// cannot be deferred, so the number is the countdown to the end of the day and it was behind a
+    /// tap.
+    ///
+    /// Everything else stayed put. The rule the two sides divide on is whether a thing is read
+    /// while the player acts or when the player wonders.
     ///
     /// The drawer is not a modal. It takes no input lock and pushes nothing onto
     /// <see cref="ModalRoot"/>, for a concrete reason: every control inside it refuses to run while
@@ -101,6 +107,19 @@ namespace SheepGate.UI
         static readonly float PlateHeight = UIKit.ButtonMinHeight + 2f * PlatePadding;
 
         /// <summary>
+        /// The work readout's plate. Shorter than a button plate on purpose: nothing is pressed
+        /// here, so it does not owe the 48 point touch target, and a shorter band leaves more of
+        /// the village visible — which is the whole argument the drawer was built on.
+        /// </summary>
+        static readonly float WorkPlateHeight = DesignTokens.Space.S32;
+
+        /// <summary>Wide enough for "Trabalho 12/12" at the mono size, in both locales.</summary>
+        static readonly float WorkPlateWidth = DesignTokens.Px(148f);
+
+        /// <summary>Breathing room either side of the reading inside its plate.</summary>
+        static readonly float WorkPlatePaddingX = DesignTokens.Space.S12;
+
+        /// <summary>
         /// Height of the badge that says how many wardrobe items the player has not looked at yet.
         /// Its width follows its content, so a two digit count is a wider pill rather than a
         /// smaller number — the design system's floor on type is a floor everywhere.
@@ -134,11 +153,14 @@ namespace SheepGate.UI
         Canvas _canvas;
         Text _dayText;
         Text _workText;
+        Text _screenWorkText;
         Text _rubbleText;
         Text _talentsText;
         ProgressBar _wallProgress;
         Button _patrolButton;
         Image _patrolPlate;
+        Button _patrolReturnButton;
+        RectTransform _patrolReturnPlate;
         Button _menuButton;
         Button _helpButton;
         RectTransform _drawer;
@@ -230,6 +252,13 @@ namespace SheepGate.UI
             _current = this;
             Build();
 
+            // Composed alongside the HUD rather than by the scene, because it is the same kind of
+            // thing — a permanent overlay over the village that nothing else owns — and because the
+            // scene composer finds its UI by reflection over one type name. One more entry point
+            // there is one more thing that can be silently absent, and a prompt nobody notices is
+            // missing is the failure this whole change exists to end.
+            InteractionPrompt.Compose();
+
             // The badge follows the wardrobe as well as polling it: a badge spent inside the
             // backpack has to be gone the moment the sheet closes, and a quarter of a second of a
             // stale count on a screen the player just came back to reads as a bug.
@@ -286,6 +315,8 @@ namespace SheepGate.UI
             BuildBackpack(root);
             BuildCheckInButton(root);
             BuildHelpButton(root);
+            BuildWorkReadout(root);
+            BuildPatrolReturn(root);
 
             // Built last so it draws over the drawer it opens: the button stays put and stays
             // pressable while the drawer is down, which is what makes it a toggle rather than a
@@ -343,6 +374,86 @@ namespace SheepGate.UI
         {
             CloseMenu();
             HelpPanel.Show();
+        }
+
+        /// <summary>
+        /// Work capacity, back out on the screen — and only it.
+        ///
+        /// <b>Why one readout came back.</b> This file already wrote down what the drawer cost:
+        /// "work capacity is the number that falls with every action and decides the next one, and
+        /// it is now a tap away instead of on screen. That is a real loss." It also wrote down the
+        /// remedy — bring that one readout back out, do not undo the drawer — and this is that,
+        /// taken up rather than reopened.
+        ///
+        /// What made it unarguable is what happens at zero: <see cref="DayCycle"/> begins dusk the
+        /// frame capacity runs out, and the split that opens cannot be deferred, because deferring
+        /// is offered exactly when there is capacity left. So the number is not merely useful, it
+        /// is the countdown to the end of the day — and it was behind a tap.
+        ///
+        /// <b>Everything else stays in the drawer.</b> The day, the rubble, the talents and the
+        /// wall are read when the player wonders; only this one is read while they act. Top centre,
+        /// between the two top-corner buttons: out of the thumb zone, because it is read and never
+        /// pressed, and out of the way of the ground, which is what the drawer was for.
+        /// </summary>
+        void BuildWorkReadout(RectTransform root)
+        {
+            Image plate = UIKit.CreateCard(root, "WorkPlate", UIKit.CardStyle.Glass);
+            plate.raycastTarget = false;
+
+            _screenWorkText = UIKit.CreateText((RectTransform)plate.transform, "WorkOnScreen", string.Empty,
+                DesignTokens.Type.Mono, UIKit.InkFor(UIKit.CardStyle.Glass),
+                TextAnchor.MiddleCenter, DesignTokens.TypeRole.Mono);
+            _screenWorkText.horizontalOverflow = HorizontalWrapMode.Overflow;
+            UIKit.Stretch((RectTransform)_screenWorkText.transform,
+                          WorkPlatePaddingX, WorkPlatePaddingX, 0f, 0f);
+
+            // Centred on the top edge rather than anchored to a corner, so it stays out of both
+            // top-corner controls however wide the phone is. AnchorCorner cannot express this, so
+            // the anchors are set here.
+            var plateRect = (RectTransform)plate.transform;
+            plateRect.anchorMin = new Vector2(0.5f, 1f);
+            plateRect.anchorMax = new Vector2(0.5f, 1f);
+            plateRect.pivot = new Vector2(0.5f, 1f);
+            plateRect.sizeDelta = new Vector2(WorkPlateWidth, WorkPlateHeight);
+            plateRect.anchoredPosition = new Vector2(0f, -TopMargin);
+        }
+
+        /// <summary>
+        /// The way out of the patrol view, on the screen, and only while the patrol view is on.
+        ///
+        /// <b>The trap this closes.</b> The patrol control lives in the drawer, and the drawer
+        /// closes itself before any control inside it acts — so entering the wide view took two
+        /// taps and leaving it took two more, with the second one behind a button that gives no
+        /// sign of what it is hiding. On the wide view nothing on screen said the frame had changed
+        /// or how to change it back.
+        ///
+        /// It is a duplicate of the drawer's control rather than a move: the drawer's row is where
+        /// the frame controls are found from a standing start, and this is where the way back is
+        /// found when the player is already out there. Both call the same toggle, so the two can
+        /// never disagree about the state.
+        /// </summary>
+        void BuildPatrolReturn(RectTransform root)
+        {
+            Image plate;
+            _patrolReturnButton = BuildPlatedButton(root, "PatrolReturnButton",
+                                                    Loc.T("hud.patrol_return"), OnPatrolReturnClicked,
+                                                    out plate);
+
+            _patrolReturnPlate = (RectTransform)plate.transform;
+
+            // Top left, under the help button. The two bottom corners are the thumb zone and both
+            // are taken; this is the first place above them that is not the menu.
+            UIKit.AnchorCorner(_patrolReturnPlate, new Vector2(0f, 1f),
+                               new Vector2(PlateWidth, PlateHeight),
+                               new Vector2(DesignTokens.Space.Gutter,
+                                           TopMargin + PlateHeight + ColumnSpacing));
+
+            _patrolReturnPlate.gameObject.SetActive(false);
+        }
+
+        void OnPatrolReturnClicked()
+        {
+            SetPatrolView(false);
         }
 
         /// <summary>
@@ -908,9 +1019,19 @@ namespace SheepGate.UI
                 _dayText.text = Loc.T("hud.day", Mathf.Max(1, state.day));
             }
 
+            // Both copies, from one string: the drawer's row and the one on the screen say the same
+            // thing because they are formatted in the same place, not because two call sites happen
+            // to agree today.
+            string work = Loc.T("hud.work", Mathf.Max(0, state.workCapacity), Mathf.Max(0, state.workCapacityMax));
+
             if (_workText != null)
             {
-                _workText.text = Loc.T("hud.work", Mathf.Max(0, state.workCapacity), Mathf.Max(0, state.workCapacityMax));
+                _workText.text = work;
+            }
+
+            if (_screenWorkText != null)
+            {
+                _screenWorkText.text = work;
             }
 
             if (_rubbleText != null)
@@ -1062,6 +1183,14 @@ namespace SheepGate.UI
             if (_patrolButton != null)
             {
                 UIKit.SetButtonLabel(_patrolButton, active ? Loc.T("hud.patrol_return") : Loc.T("hud.patrol"));
+            }
+
+            // The on-screen way back exists only while there is somewhere to come back from. It is
+            // not dimmed when the close view is on: a permanently visible control that does nothing
+            // for most of the game is worse than one that appears when it means something.
+            if (_patrolReturnPlate != null)
+            {
+                _patrolReturnPlate.gameObject.SetActive(active);
             }
 
             if (_patrolPlate != null)

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using SheepGate.Core;
+using SheepGate.UI;
 
 namespace SheepGate.World
 {
@@ -496,6 +497,14 @@ namespace SheepGate.World
     {
         private const string ExposedWorkDayKey = "zealot_exposed_work_last_day";
 
+        // The three reasons a tap on the wall does nothing, as locale keys. Named "...Key" because
+        // the content validator reads a const string named like player text as a hardcoded
+        // sentence, and that suffix is the escape hatch it offers.
+        private const string NoStoneKey = "toast.wall.no_stone";
+        private const string NoBlocksKey = "toast.wall.no_blocks";
+        private const string NoCapacityKey = "toast.wall.no_capacity";
+        private const string LastUnitKey = "toast.wall.last_unit";
+
         /// <summary>
         /// Latched the first time the wall is asked for blocks. From then on the wall is raised out
         /// of blocks and the dry stone course underneath is over, whatever the player is carrying.
@@ -555,14 +564,21 @@ namespace SheepGate.World
 
             if (units <= 0)
             {
+                // Said on screen, not only in the log. This is the central verb of the game and it
+                // used to refuse in silence, which is indistinguishable from a tap that missed.
+                // The order matters: material first, because a player with no stone and no capacity
+                // is short of both and the one they can do something about tonight is the pile.
                 if (material <= 0)
                 {
+                    Toast.Show(Loc.T(blocksRequired ? NoBlocksKey : NoStoneKey));
+
                     Debug.Log(blocksRequired
                         ? "[World] No blocks, and not enough stone and timber to make one, for \"" + SegmentId + "\"."
                         : "[World] No stone left to lay on \"" + SegmentId + "\".");
                 }
                 else if (resources.Capacity <= 0)
                 {
+                    Toast.Show(Loc.T(NoCapacityKey));
                     Debug.Log("[World] Daily work capacity is spent; the segment waits for tomorrow.");
                 }
 
@@ -582,6 +598,15 @@ namespace SheepGate.World
             }
 
             _wall.ApplyWork(SegmentId, units);
+
+            // The day ends by itself the moment capacity reaches zero, with no confirmation and no
+            // way back, so the last warning a player can act on is the one before it. Announced at
+            // one remaining rather than at zero: at zero the split is already opening over the top
+            // of the message, and there is nothing left to decide.
+            if (resources.Capacity == 1)
+            {
+                Toast.Show(Loc.T(LastUnitKey));
+            }
 
             if (_wall.IsExposed(SegmentId))
             {

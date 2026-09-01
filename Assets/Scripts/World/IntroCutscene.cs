@@ -19,9 +19,17 @@ namespace SheepGate.World
     ///   2. Show that this city's wall is down, which is the whole reason there is a game.
     ///   3. Put the player inside the crowd rather than in front of a menu.
     ///
-    /// The player clicks through it and cannot skip it, but they are never asked to read anything:
-    /// every verse here is spoken by a figure who actually said it, and the reading proper stays
-    /// optional (AGENTS.md rules 19 and 20).
+    /// The player clicks through it, and they are never asked to read anything: every verse here is
+    /// spoken by a figure who actually said it, and the reading proper stays optional (AGENTS.md
+    /// rules 19 and 20).
+    ///
+    /// <b>It can be skipped, but only by someone who has seen it.</b> The first run through has no
+    /// skip control at all — the opening is the beat that puts the player in the crowd, and offering
+    /// an exit from it before they know what it is would be offering to skip the game. Once it has
+    /// played to the hand-over on this device, <see cref="SeenOncePrefKey"/> is set and every later
+    /// opening carries a skip. That is a device preference and not a save flag on purpose: the
+    /// player it exists for is the one who restarted, or who is showing the game to someone, and
+    /// both of those have a brand new save.
     ///
     /// The man on the stone is NOT named. Deferring a name is legitimate and removing one is not;
     /// he is "o homem da capital" until the day the page falls. Because he is a canonical figure
@@ -56,6 +64,25 @@ namespace SheepGate.World
         /// <summary>How far out the camera sits while the world map is on screen.</summary>
         const float WorldSize = 34f;
 
+        /// <summary>
+        /// Above the fade, which is drawn full screen and goes to black between beats. A skip the
+        /// player can see but not read is worse than none.
+        /// </summary>
+        const int SkipSortingOrder = 600;
+
+        /// <summary>
+        /// Room for one word at body-strong weight, plus the button's own insets.
+        ///
+        /// One word, and narrow, because of what shares this screen: the opening's first beat draws
+        /// the region card across the top and the compass rose in the top right corner, and a wider
+        /// control lands on top of both. The first version of this said "Pular abertura", wrapped to
+        /// two lines, and covered the title of the map it was offering to skip past.
+        /// </summary>
+        static readonly float SkipWidth = DesignTokens.Px(88f);
+
+        /// <summary>How far the glass plate extends past the control standing on it, as the HUD does it.</summary>
+        static readonly float SkipPlatePadding = DesignTokens.Space.S4;
+
         public static bool IsPlaying { get; private set; }
 
         TilemapBuilder _map;
@@ -72,6 +99,14 @@ namespace SheepGate.World
         CutsceneActor _neighbour;
         CutsceneActor _governor;
         Image _fade;
+        Canvas _skipCanvas;
+        bool _skipping;
+
+        /// <summary>
+        /// Set once the opening has run to the hand-over on this device. Lives in PlayerPrefs
+        /// rather than in the save, because the run that needs the skip is always a new one.
+        /// </summary>
+        public const string SeenOncePrefKey = "sheepgate.intro.seen_once";
 
         /// <summary>
         /// Attaches the cutscene when it still has something to do. Returns null once the opening
@@ -118,13 +153,14 @@ namespace SheepGate.World
             Vector2Int playerCell = _player.GridPosition;
 
             BuildFade();
+            BuildSkip();
 
             // --- 1. The region ---------------------------------------------------------------
             // Framed before the fade lifts, so the first thing on screen is already the wide shot.
             _worldMap = WorldMapOverlay.Show(_map, transform);
             _rig.FrameCutscene(_map.CenterWorld(), WorldMapOverlay.FramingSize, 0f);
             yield return Fade(1f, 0f, FadeSeconds);
-            yield return new WaitForSeconds(WorldMapHold);
+            yield return Beat(WorldMapHold);
             yield return PlayNode(NodeWorldMap);
 
             // --- 2. Down into this one -------------------------------------------------------
@@ -134,9 +170,14 @@ namespace SheepGate.World
                 yield return _worldMap.FadeOut(ZoomSeconds * 0.5f);
             }
 
-            yield return new WaitForSeconds(ZoomSeconds * 0.5f);
+            yield return Beat(ZoomSeconds * 0.5f);
             _rig.SetTarget(_player.transform);
-            yield return new WaitForSeconds(BeatPause);
+
+            // The region card is gone with the map, so the top of the screen is free and the skip
+            // can appear. See BuildSkip for why it waits rather than sitting on top of that card.
+            SetSkipVisible(true);
+
+            yield return Beat(BeatPause);
 
             // --- 3. Someone crosses the square -----------------------------------------------
             // He is spawned away from the player and walks over. Nobody speaks from off screen.
@@ -145,10 +186,10 @@ namespace SheepGate.World
                 new Color(0.62f, 0.53f, 0.44f, 1f));
 
             Vector2Int besidePlayer = FindOpenCellNear(playerCell, 1);
-            yield return _neighbour.WalkToCell(besidePlayer);
+            yield return ActorWalkTo(_neighbour, besidePlayer);
             _neighbour.FaceTowards(_player.transform.position);
             FacePlayerTowards(_neighbour.transform.position);
-            yield return new WaitForSeconds(BeatPause);
+            yield return Beat(BeatPause);
 
             yield return PlayNode(NodeArrival);
             yield return PlayNode(NodeSummons);
@@ -165,7 +206,7 @@ namespace SheepGate.World
             {
                 // Both of you walk the identical route, found once from where the player stands.
                 StartCoroutine(LeadToDoor(door, PathForPlayer(door), () => neighbourInside = true));
-                yield return new WaitForSeconds(FollowDelay);
+                yield return Beat(FollowDelay);
             }
 
             yield return WalkTo(door);
@@ -178,8 +219,14 @@ namespace SheepGate.World
                 yield return null;
             }
 
-            yield return new WaitForSeconds(BeatPause);
+            yield return Beat(BeatPause);
             yield return Fade(0f, 1f, FadeSeconds);
+
+            // The skip is hidden for the whole of creation, and not because of z-order alone —
+            // though it does draw above it. Creation is not a beat of the opening; it is the one
+            // screen the run cannot continue without, and a control offering to skip past it would
+            // be offering something it cannot deliver.
+            SetSkipVisible(false);
 
             bool dressed = false;
             CharacterCreationScreen.Compose(() => dressed = true, CharacterCreationScreen.CutsceneSortingOrder);
@@ -187,6 +234,8 @@ namespace SheepGate.World
             {
                 yield return null;
             }
+
+            SetSkipVisible(true);
 
             ReapplyAppearance();
 
@@ -224,12 +273,20 @@ namespace SheepGate.World
             {
                 _neighbour.SortingOrderBase = _frontMostSortingOrder;
 
-                List<Vector2Int> route = PathForNeighbour(neighbourSpot);
-                float speed = _player != null ? _player.MoveSpeed : CutsceneActor.WalkSpeed;
-                StartCoroutine(route != null && route.Count > 0
-                    ? _neighbour.WalkPath(route, speed)
-                    : _neighbour.WalkToCell(neighbourSpot, speed));
-                yield return new WaitForSeconds(FollowDelay);
+                if (_skipping)
+                {
+                    _neighbour.WarpToCell(neighbourSpot);
+                }
+                else
+                {
+                    List<Vector2Int> route = PathForNeighbour(neighbourSpot);
+                    float speed = _player != null ? _player.MoveSpeed : CutsceneActor.WalkSpeed;
+                    StartCoroutine(route != null && route.Count > 0
+                        ? _neighbour.WalkPath(route, speed)
+                        : _neighbour.WalkToCell(neighbourSpot, speed));
+                }
+
+                yield return Beat(FollowDelay);
             }
 
             yield return WalkTo(playerSpot);
@@ -246,7 +303,7 @@ namespace SheepGate.World
             }
 
             FacePlayerTowards(_governor.transform.position);
-            yield return new WaitForSeconds(BeatPause);
+            yield return Beat(BeatPause);
 
             // The rest of the village turns to him too. The crowd in the square was placed facing
             // the stone already; this reaches the residents going about their day elsewhere, who
@@ -266,6 +323,13 @@ namespace SheepGate.World
                 state.SetFlag(SeenFlag);
                 WorldRuntime.SaveNow();
             }
+
+            // The device now knows this opening has been reached the whole way through, so the next
+            // new run gets a skip. Written here rather than at the start for a reason: a player who
+            // quit halfway through has not seen the opening, and should not be offered a way past
+            // the part they never watched.
+            PlayerPrefs.SetInt(SeenOncePrefKey, 1);
+            PlayerPrefs.Save();
 
             // Nobody vanishes. The gathering was the whole village turning up; a square that
             // empties the instant the speech ends would undo it. They stay, and they answer.
@@ -352,7 +416,11 @@ namespace SheepGate.World
         {
             float speed = _player != null ? _player.MoveSpeed : CutsceneActor.WalkSpeed;
 
-            if (path != null && path.Count > 0)
+            if (_skipping)
+            {
+                _neighbour.WarpToCell(door);
+            }
+            else if (path != null && path.Count > 0)
             {
                 yield return _neighbour.WalkPath(path, speed);
             }
@@ -818,16 +886,57 @@ namespace SheepGate.World
             float waited = 0f;
             while (!done && waited < 300f)
             {
+                // Skipping presses the same button the player would: the node still plays, still
+                // raises NodeFinished, and still applies whatever it grants. Nothing about a
+                // skipped opening leaves the run in a state a watched one would not.
+                //
+                // A node awaiting a choice is left alone. The opening authors none today, and if
+                // one ever appears, answering it on the player's behalf is not skipping — it is
+                // deciding for them.
+                if (_skipping && !_dialogue.IsAwaitingChoice)
+                {
+                    _dialogue.Advance();
+                }
+
                 waited += Time.deltaTime;
                 yield return null;
             }
 
             _dialogue.NodeFinished -= handler;
-            yield return new WaitForSeconds(BeatPause);
+            yield return Beat(BeatPause);
+        }
+
+        /// <summary>
+        /// A cutscene actor's walk, with the skip's version of it. Same contract as
+        /// <see cref="WalkTo"/>: skipping lands them where the walk would have ended, because the
+        /// beats after it are placed relative to where everyone is standing.
+        /// </summary>
+        IEnumerator ActorWalkTo(CutsceneActor actor, Vector2Int cell)
+        {
+            if (actor == null)
+            {
+                yield break;
+            }
+
+            if (_skipping)
+            {
+                actor.WarpToCell(cell);
+                yield break;
+            }
+
+            yield return actor.WalkToCell(cell);
         }
 
         IEnumerator WalkTo(Vector2Int cell)
         {
+            // A skipped walk still has to end where the walk would have ended: every beat after
+            // this one is placed relative to where the player is standing.
+            if (_skipping)
+            {
+                _player.TeleportToCell(cell);
+                yield break;
+            }
+
             bool arrived = false;
             if (!_player.MoveToCell(cell, () => arrived = true))
             {
@@ -888,6 +997,98 @@ namespace SheepGate.World
             SetFadeAlpha(1f);
         }
 
+        /// <summary>
+        /// The skip, for a player who has already watched this.
+        ///
+        /// Nothing is built at all on a first opening, which is deliberate: an invisible or disabled
+        /// control still teaches that skipping is a thing on offer, and on the first run it is not.
+        ///
+        /// <b>Its own canvas, above the fade.</b> The opening fades to black between beats and the
+        /// fade is drawn full screen, so a control on the same canvas would go dark with it and
+        /// would be a button the player can see but not read. It sits in the top right, inside the
+        /// safe area, in the corner the HUD's menu button will occupy once the village is handed
+        /// over — the same place means the same kind of control.
+        /// </summary>
+        void BuildSkip()
+        {
+            if (!PlayerPrefs.HasKey(SeenOncePrefKey))
+            {
+                return;
+            }
+
+            _skipCanvas = UIKit.CreateCanvas("IntroSkipCanvas", SkipSortingOrder);
+            _skipCanvas.transform.SetParent(transform, false);
+
+            RectTransform root = UIKit.SafeArea(_skipCanvas);
+
+            Image plate = UIKit.CreateCard(root, "SkipPlate", UIKit.CardStyle.Glass);
+            plate.raycastTarget = false;
+
+            Button skip = UIKit.CreateButton(plate.transform, "Skip", Loc.T("intro.skip"),
+                                             UIKit.ButtonVariant.Secondary, RequestSkip);
+
+            var buttonRect = (RectTransform)skip.transform;
+            UIKit.Stretch(buttonRect, SkipPlatePadding, SkipPlatePadding, SkipPlatePadding, SkipPlatePadding);
+
+            // Top LEFT, and that is the whole of the placement reasoning. The top right is where the
+            // opening draws its compass rose, and the HUD's own top-left control is hidden for the
+            // whole cutscene, so nothing else claims this corner.
+            UIKit.AnchorCorner((RectTransform)plate.transform, new Vector2(0f, 1f),
+                               new Vector2(SkipWidth + 2f * SkipPlatePadding,
+                                           UIKit.ButtonMinHeight + 2f * SkipPlatePadding),
+                               new Vector2(DesignTokens.Space.Gutter, DesignTokens.Space.S12));
+
+            // Hidden until the region map is off the screen. That first beat draws its title card
+            // across the whole top band — there is no corner up there that the card does not reach
+            // on a phone — and a control laid over the name of the place is worse than a control
+            // that arrives one beat late. The map holds for a little over a second and then fades;
+            // from the zoom onwards the top of the screen is the cutscene's own and nothing is on
+            // it, which is where the skip belongs.
+            _skipCanvas.gameObject.SetActive(false);
+        }
+
+        /// <summary>
+        /// Collapses every remaining beat.
+        ///
+        /// It does not jump to the end and it does not tear the cutscene down. The coroutine keeps
+        /// running, in order, with each wait and each walk taking its instant form — so every flag
+        /// the opening sets, every node it plays and every position it leaves the village in are
+        /// exactly what a watched opening would have left behind. Character creation is not skipped
+        /// by this, because it is not a beat: it is a screen the coroutine waits on.
+        /// </summary>
+        /// <summary>
+        /// Shows or hides the skip without destroying it, so the beats after creation still have
+        /// one. A no-op on a first opening, where there is nothing to show.
+        /// </summary>
+        void SetSkipVisible(bool visible)
+        {
+            // Never bring it back once it has been used: the run is already collapsing, and a
+            // control that reappears mid-skip reads as the skip having failed.
+            if (_skipCanvas == null || (visible && _skipping))
+            {
+                return;
+            }
+
+            _skipCanvas.gameObject.SetActive(visible);
+        }
+
+        void RequestSkip()
+        {
+            if (_skipping)
+            {
+                return;
+            }
+
+            _skipping = true;
+            Debug.Log("[World] The opening was skipped.");
+
+            if (_skipCanvas != null)
+            {
+                Destroy(_skipCanvas.gameObject);
+                _skipCanvas = null;
+            }
+        }
+
         void SetFadeAlpha(float alpha)
         {
             if (_fade == null)
@@ -900,8 +1101,29 @@ namespace SheepGate.World
             _fade.color = colour;
         }
 
+        /// <summary>
+        /// A pause the skip can collapse. Every wait in the opening goes through here rather than
+        /// through <c>WaitForSeconds</c> directly, so there is one place that knows what skipping
+        /// means for time, and no beat can be added later that quietly ignores it.
+        /// </summary>
+        IEnumerator Beat(float seconds)
+        {
+            if (_skipping)
+            {
+                yield break;
+            }
+
+            yield return new WaitForSeconds(seconds);
+        }
+
         IEnumerator Fade(float from, float to, float seconds)
         {
+            if (_skipping)
+            {
+                SetFadeAlpha(to);
+                yield break;
+            }
+
             float elapsed = 0f;
             SetFadeAlpha(from);
             while (elapsed < seconds)
@@ -929,6 +1151,12 @@ namespace SheepGate.World
             if (_fade != null)
             {
                 Destroy(_fade.canvas != null ? _fade.canvas.gameObject : _fade.gameObject);
+            }
+
+            if (_skipCanvas != null)
+            {
+                Destroy(_skipCanvas.gameObject);
+                _skipCanvas = null;
             }
 
             if (_worldMap != null)

@@ -29,6 +29,11 @@ namespace SheepGate.Core
             Debug.Log("[Boot] Telemetry -> " + telemetryPath);
             Debug.Log("[Boot] Save -> " + SaveSystem.SavePath);
 
+            // Before anything is built, because the first thing on screen is an animation: the
+            // opening fades and the camera zooms, and a player who asked their phone to reduce
+            // motion should not have to sit through the one screen that ignored them.
+            AccessibilityPreferences.Apply();
+
             // The locale is resolved before any content is read, because every content path
             // depends on it. Nothing loaded before this point can hold a player-facing string.
             ApplyLocale(Locales.Active);
@@ -149,6 +154,41 @@ namespace SheepGate.Core
 
             Debug.Log("[Boot] Locale -> " + canonical + "; reloading the scene.");
             SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+        }
+
+        /// <summary>
+        /// The same switch, without the scene reload. Returns true when the language actually
+        /// changed, so the caller knows whether it has anything to rebuild.
+        ///
+        /// <b>Why this exists.</b> Reloading is the right default — every label is built at runtime
+        /// and nothing remembers the key that produced it — but there is one screen where the scene
+        /// is not the player's context: character creation, which runs as a beat inside the opening
+        /// cutscene. Reloading there restarts the cutscene from its first frame, and the opening
+        /// cannot be skipped, so a player who switched language in the one place the toggle is
+        /// guaranteed to be found paid for it by watching the whole opening again.
+        ///
+        /// The caller takes on the obligation the reload used to discharge: everything showing the
+        /// old words has to be rebuilt. Only use it where that is a screen you own outright.
+        /// </summary>
+        public static bool SwitchLocaleInPlace(string locale)
+        {
+            string canonical = Locales.Canonical(locale);
+            if (canonical == null || canonical == Locales.Active)
+            {
+                return false;
+            }
+
+            Locales.SetActive(canonical);
+            Telemetry.Track(TelemetryEvents.LocaleChanged, new Dictionary<string, object>
+            {
+                { "locale", canonical }
+            });
+            Telemetry.Flush();
+
+            ApplyLocale(canonical);
+
+            Debug.Log("[Boot] Locale -> " + canonical + "; rebuilding in place.");
+            return true;
         }
 
         static void LoadScripture()

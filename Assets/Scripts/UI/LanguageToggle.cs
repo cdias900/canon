@@ -1,3 +1,4 @@
+using System;
 using SheepGate.Core;
 using UnityEngine;
 using UnityEngine.UI;
@@ -130,9 +131,34 @@ namespace SheepGate.UI
             }
         }
 
+        /// <summary>
+        /// Set by a screen that rebuilds itself instead of being rebuilt by a scene reload.
+        ///
+        /// Exactly one screen does: character creation, when it is running as a beat inside the
+        /// opening. The opening cannot be skipped, so reloading the scene there charges the player
+        /// the whole cutscene for a language switch made on the one screen where the toggle is
+        /// guaranteed to be reachable.
+        ///
+        /// Whoever sets it owns clearing it. A stale handler here would leave the rest of the game
+        /// switching language without a rebuild, which shows up as a screen that keeps its old
+        /// words while the chips report the new language — the exact failure
+        /// <see cref="BootSequence.SwitchLocale"/> reloads to avoid.
+        /// </summary>
+        public static Action RebuildInPlace { get; set; }
+
         static void OnChipClicked(string locale)
         {
-            BootSequence.SwitchLocale(locale);
+            Action rebuild = RebuildInPlace;
+            if (rebuild == null)
+            {
+                BootSequence.SwitchLocale(locale);
+                return;
+            }
+
+            if (BootSequence.SwitchLocaleInPlace(locale))
+            {
+                rebuild();
+            }
         }
     }
 }

@@ -7,8 +7,18 @@ using UnityEngine;
 namespace SheepGate.EditorTools
 {
     /// <summary>
-    /// TEMPORARY verification harness. Renders every accessory variant through the same key path
-    /// the UI uses and compares the resulting pixels facing by facing. Delete after reading.
+    /// The runnable form of the check in docs/development-guidelines.md §3: render each sprite
+    /// facing Left and facing Right and compare the two images; pixel-identical means that sprite
+    /// is still resolving to one drawing.
+    ///
+    /// It goes through <see cref="ArtLibrary"/> by KEY, the same path the UI takes, which is the
+    /// whole point. The bug it was written for was not in the drawing code at all — every variant
+    /// had four correct branches — but in the key, which carried no facing, so the parser fell
+    /// back to Down and the four-facing preview strip drew one sprite four times. Reading the
+    /// drawing code proved nothing; reading the OUTPUT proved it in one run.
+    ///
+    /// Kept rather than deleted because a rule nothing can execute is a rule that decays. Run it
+    /// after any change to accessory art or to the key path.
     /// </summary>
     public static class AccessoryFacingProbe
     {

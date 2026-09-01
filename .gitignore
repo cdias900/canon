@@ -79,3 +79,6 @@ Assets/Resources/PerformanceTestRunInfo.json.meta
 
 # Tooling dependencies. The player ships none of this.
 tools/node_modules/
+
+# Unity/Rider solution files, one per worktree and never shared.
+*.slnx

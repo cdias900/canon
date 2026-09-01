@@ -131,8 +131,12 @@ namespace SheepGate.UI
                 UIKit.GetSprite(UiSpriteKeys.Top(look.top)),
                 Shade(DesignTokens.Brand.Primary, look.top), 0.44f, 0.76f);
 
+            // The accessory takes the facing for the same reason the body and the hair do, and it
+            // is the layer where forgetting shows least and matters most: it is anchored to a named
+            // body part rather than mirrored, so a facing-free key does not draw a slightly wrong
+            // accessory, it draws the front one on a back view.
             ApplyLayer(At(layers, LayerAccessory),
-                UIKit.GetSprite(UiSpriteKeys.Accessory(look.accessory)),
+                UIKit.GetSprite(UiSpriteKeys.Accessory(look.accessory, facing)),
                 Shade(DesignTokens.Ambient.Growth, look.accessory), 0.78f, 0.97f);
 
             // Hair across the full figure, not just the head band: the sprite is head-height

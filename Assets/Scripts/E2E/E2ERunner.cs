@@ -1104,7 +1104,7 @@ namespace SheepGate.E2E
 
         /// <summary>
         /// Asserts that exactly one of creation's slot panels is on screen — the same assertion the
-        /// backpack makes about its own four, and for the same reason: two lists drawn over one
+        /// backpack makes about its own five, and for the same reason: two lists drawn over one
         /// another logs nothing and throws nothing.
         /// </summary>
         void RecordOnlyCreationTab(CharacterSlot slot, string step)
@@ -1561,16 +1561,27 @@ namespace SheepGate.E2E
         // ------------------------------------------------------------------ the backpack
 
         /// <summary>
-        /// The four tabs, in the order the segmented control draws them.
+        /// Every content panel the sheet can put in its content band, in the order BackpackPanel
+        /// builds them.
         ///
         /// Every handle on the sheet is one of these names with a prefix — "TabHair" is the panel,
         /// "SegmentHair" the cell that selects it, "SegmentFillHair" the paint that says it is the
         /// one you are on, "SegmentBadgeHair" the dot that says it holds something unseen. They are
-        /// composed rather than spelled out four times each, because the prefix is what names the
-        /// part and the suffix is what names the tab, and a run that got one of the four wrong by
-        /// hand would report a missing tab rather than a typo.
+        /// composed rather than spelled out five times each, because the prefix is what names the
+        /// part and the suffix is what names the tab, and a run that got one of the five wrong by
+        /// hand would report a missing tab rather than a typo. Two cells sit in the section bar
+        /// along the top rather than the slot bar along the bottom, and neither Profile nor
+        /// Materials owns a "SegmentBadge" handle at all — the prefix composes to a name nothing
+        /// creates, which reads as an unlit dot and is the right answer for a section that has no
+        /// seen-state to spend.
+        ///
+        /// <b>Profile is in this list because leaving it out is the bug.</b> The scan below asks
+        /// whether exactly one panel is up, and it can only see the panels named here: while this
+        /// array held four of the five, a TabProfile left drawn on top of a wardrobe list passed
+        /// that assertion in silence — which is the entire failure mode this file exists to catch,
+        /// and it is how a wardrobe-tab off-by-one shipped in PR #7 and had to be found by hand.
         /// </summary>
-        static readonly string[] BackpackTabs = { "Hair", "Outfit", "Accessory", "Materials" };
+        static readonly string[] BackpackTabs = { "Profile", "Hair", "Outfit", "Accessory", "Materials" };
 
         /// <summary>
         /// Opens the backpack, walks every tab, puts a piece on, is turned down by a piece the
@@ -1660,8 +1671,8 @@ namespace SheepGate.E2E
         {
             yield return WaitForObject("SlotSegments", "the backpack tab bar");
 
-            // One sweep covers all four tabs at once. The sweep reads every Text in the live scene
-            // rather than every visible one, and the three tabs that are not showing are built and
+            // One sweep covers all five tabs at once. The sweep reads every Text in the live scene
+            // rather than every visible one, and the four tabs that are not showing are built and
             // merely inactive — so this is the cheapest moment in the run to catch a missing key on
             // a screen nobody is looking at.
             CheckNoMissingStrings();
@@ -1697,13 +1708,27 @@ namespace SheepGate.E2E
             Record("a section with no slots takes the slot bar with it", Find("SegmentHair") == null,
                 "SegmentHair active=" + (Find("SegmentHair") != null));
 
+            // Perfil is PR #7's headline screen and nothing in this file had ever selected it, so
+            // the whole of it — the meter, the missions, the studies — was carried by the review
+            // that wrote it. Unlike Aparência it is a panel of its own, so SelectBackpackTab's
+            // exemption does not apply to it and TabProfile is asserted like any other panel.
+            //
+            // It is driven here rather than in the section bar's own order — it is the leftmost
+            // cell, not this one — because the run wants a stage-less section immediately before
+            // going back to Aparência, and going Itens to Perfil exercises the one transition the
+            // sheet had nothing else to make it do: stage-less straight to stage-less.
+            yield return SelectBackpackTab("Profile", "04e-backpack-profile");
+            RecordProfileTab();
+
             // Back through Aparência, which is the only way to a wardrobe now. This is the one
-            // selection that has to move the layout in both directions — Itens has no character
-            // above its list and no bar under it — so a sheet that can leave the wardrobe and not
-            // come back fails here rather than in a screenshot somebody looks at next week.
+            // selection that has to move the layout in both directions — neither Perfil nor Itens
+            // has a character above its list or a bar under it — so a sheet that can leave the
+            // wardrobe and not come back fails here rather than in a screenshot somebody looks at
+            // next week.
             yield return SelectBackpackTab("Appearance", null);
             yield return SelectBackpackTab("Hair", null);
-            Record("leaving the materials tab brings the character back", Find("CharacterStage") != null,
+            Record("leaving a section with no character brings the character back",
+                Find("CharacterStage") != null,
                 Find("CharacterStage") != null ? "CharacterStage is up again" : "the stage never came back");
         }
 
@@ -1816,7 +1841,7 @@ namespace SheepGate.E2E
         }
 
         /// <summary>
-        /// Asserts that exactly one of the four tab panels is on screen.
+        /// Asserts that exactly one of the sheet's five tab panels is on screen.
         ///
         /// Both halves are load-bearing. A tab that fails to show its own list is a dead control,
         /// and two lists drawn over one another is the invisible-rather-than-broken bug this whole
@@ -1974,6 +1999,39 @@ namespace SheepGate.E2E
                 "hair layer " + before + " -> " + after + ", equipped=" + Wardrobe.IsEquipped(state, target.id));
 
             CheckNoMissingStrings();
+        }
+
+        /// <summary>
+        /// The Perfil section: a meter, the missions heading, the studies heading, and neither of
+        /// the two wardrobe furnishings.
+        ///
+        /// The three handles asserted are the three the panel draws unconditionally.
+        /// <c>StudyDesk.MissionsFor</c> and <c>StudyDesk.SuggestFor</c> may both legitimately hand
+        /// back nothing on a given save, so <c>Mission_*</c> and the cards inside <c>Studies</c> are
+        /// deliberately not asserted here — a check that fails on an empty list would be asserting
+        /// the content rather than the screen, and would be turned off the first time it fired.
+        ///
+        /// The two absences are the half a screenshot cannot be trusted for. A stage left standing
+        /// over the missions, or a slot bar left offering Cabelo under a list with no character to
+        /// put it on, is a control that changes nothing on screen — and it looks like furniture in
+        /// a thumbnail rather than like the bug it is.
+        /// </summary>
+        void RecordProfileTab()
+        {
+            bool drawn = Find("EngagementMeter") != null && Find("MissionsHeading") != null
+                && Find("StudiesHeading") != null;
+            Record("the profile section draws its meter and both headings", drawn,
+                "meter=" + (Find("EngagementMeter") != null)
+                + " missions=" + (Find("MissionsHeading") != null)
+                + " studies=" + (Find("StudiesHeading") != null));
+
+            Record("the profile section gives its column the whole sheet", Find("CharacterStage") == null,
+                Find("CharacterStage") == null
+                    ? "the character stage is away"
+                    : "the stage is still standing over the profile");
+
+            Record("the profile section takes the slot bar with it too", Find("SegmentHair") == null,
+                "SegmentHair active=" + (Find("SegmentHair") != null));
         }
 
         /// <summary>

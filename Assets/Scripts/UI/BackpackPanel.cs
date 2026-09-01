@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using SheepGate.Core;
-using SheepGate.Economy;
 using SheepGate.Player;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -34,6 +33,18 @@ namespace SheepGate.UI
     /// under the character stage at 224; Materiais takes the stage's band as well and starts at
     /// 84. Everything else — header, divider, tab bar — is anchored once and never rebuilt, which
     /// is what makes a tab change a swap rather than a rebuild of the sheet.
+    ///
+    /// ==================================================================================
+    /// THE ROW IS NOT IN THIS FILE
+    /// ==================================================================================
+    /// A wardrobe row — art, name, description, unlock sentence, padlock, NOVO badge, worn ring and
+    /// talent price — is built by <see cref="WardrobeRow"/>, which character creation lists the same
+    /// pieces with. This file used to carry a second copy of all of it. Every rule below that talks
+    /// about how a row looks is therefore a rule <i>that class</i> keeps; what this file keeps is
+    /// the two flags it passes (<c>showNewBadge</c> and <c>showTalentPrice</c>, both true here and
+    /// both false in creation), the order the badges are read in, and where a refused tap is
+    /// answered. Change how a row is drawn in <see cref="WardrobeRow"/> and both screens move
+    /// together, which is the whole point of it being there.
     ///
     /// ==================================================================================
     /// THE RULES THIS SCREEN CAN BREAK, AND HOW IT DOES NOT
@@ -151,11 +162,19 @@ namespace SheepGate.UI
         public const string ModalId = "backpack";
 
         // ------------------------------------------------------------------ locale keys
-        // Every word on this screen is a key. Two tables feed it and they are not interchangeable:
-        // the keys below are ui.json, read with Loc.T; an item's name and description come from
-        // catalog.json and arrive already merged onto CatalogItemDef by CharacterCatalog; and an
-        // unlock sentence comes from catalog.json's "unlock" table through
-        // UnlockEvaluator.Sentence, which returns the finished sentence and not a key.
+        // Every word on this screen is a key, and after the row extraction this file owns the
+        // chrome and the two tabs that are not a wardrobe: the title, the way out, the bar labels,
+        // the material words and the Perfil strings. All of them are ui.json, read with Loc.T.
+        //
+        // Everything a ROW says is WardrobeRow's — backpack.new, backpack.item.unnamed,
+        // backpack.unavailable and the three backpack.state.* forms, plus the two tables this file
+        // no longer touches: an item's name and description, which come from catalog.json already
+        // merged onto CatalogItemDef by CharacterCatalog, and an unlock sentence, which comes from
+        // catalog.json's "unlock" table through UnlockEvaluator.Sentence as a finished sentence
+        // rather than a key. Those keys keep their "backpack." namespace over there, deliberately:
+        // each of them now has exactly one reader, so there is nowhere for two spellings to
+        // diverge, and renaming a key nothing can disagree about is churn in two locale files for
+        // no player-visible gain.
         //
         // The constants are named "...Key" on purpose. The content validator treats a const string
         // whose name ends in a player-text noun as a hardcoded sentence, and "TitleKey" ends in
@@ -163,23 +182,12 @@ namespace SheepGate.UI
 
         const string TitleKey = "backpack.title";
         const string CloseKey = "backpack.close";
-        const string NewBadgeKey = "backpack.new";
-        const string UnnamedItemKey = "backpack.item.unnamed";
-        const string UnavailableKey = "backpack.unavailable";
 
-        // The accessible name of a row carries its state, and the punctuation that joins the two is
-        // authored inside the locale string rather than concatenated here. "{0}, em uso" is one
-        // translatable sentence; name + ", " + state is three fragments and a comma nobody can
-        // translate. It also keeps the separator out of this file, which is the rule.
         /// <summary>Width of a study card's own button. Wide enough for one word in both locales.</summary>
         static readonly float StudyButtonWidth = DesignTokens.Px(120f);
 
         /// <summary>How a reader opened from a study card is recorded. Telemetry, so English.</summary>
         const string StudyTrigger = "profile_study";
-
-        const string StateEquippedKey = "backpack.state.equipped";
-        const string StateLockedKey = "backpack.state.locked";
-        const string StateNewKey = "backpack.state.new";
 
         /// <summary>Label per content tab. Only the three wardrobe ones reach the lower bar.</summary>
         static readonly string[] TabLabelKeys =
@@ -373,8 +381,23 @@ namespace SheepGate.UI
             UIKit.IconSize + DesignTokens.Space.S4 + DesignTokens.Px(52f);
         static readonly float StageHeight = DesignTokens.Px(124f);
         static readonly float FigureBoxHeight = DesignTokens.Px(100f);
-        static readonly float ThumbSize = DesignTokens.Px(56f);
-        static readonly float ScrollbarWidth = DesignTokens.Space.S8;
+
+        /// <summary>
+        /// The lane the permanent scrollbar occupies beside a scrolling list, and it is aliased off
+        /// <see cref="WardrobeRow.ScrollbarWidth"/> rather than written again.
+        ///
+        /// <see cref="WardrobeRow.MetricsFor"/> subtracts this lane from the row's width, and this
+        /// sheet has to reserve the same number as right-hand padding on the column the rows are
+        /// parented into. Two numbers that must agree, in two files, is how a row comes to be built
+        /// narrower than the space it is given and sits with a gap on its right — so there is one
+        /// number, and it lives beside the arithmetic that spends it. Character creation aliases
+        /// the same static for the same reason.
+        ///
+        /// The thumbnail's side left with it: it is <see cref="WardrobeRow.ThumbSize"/>, reaches
+        /// this file only inside <see cref="RowMetrics"/>, and is never spelled out here.
+        /// </summary>
+        static readonly float ScrollbarWidth = WardrobeRow.ScrollbarWidth;
+
         static readonly float SegmentBarHeight = DesignTokens.Space.TouchTarget;
         static readonly float DividerHeight = DesignTokens.Px(2f);
         static readonly float DotSize = DesignTokens.Px(8f);
@@ -461,11 +484,26 @@ namespace SheepGate.UI
         /// <summary>Cell width. Both bars carry three cells, so one number serves both.</summary>
         static float SegmentWidth = SegmentBarWidth / SectionCount;
 
-        /// <summary>Row width: the content column less the scrollbar's lane and its gap.</summary>
-        static float RowWidth = ContentWidth - (ScrollbarWidth + DesignTokens.Space.S8);
-
-        /// <summary>The text column of a row: everything the thumbnail and three gaps leave.</summary>
-        static float TextColumnWidth = RowWidth - (3f * DesignTokens.Space.S12 + ThumbSize);
+        /// <summary>
+        /// The three widths a wardrobe row is built from — its own width, its text column and its
+        /// thumbnail — derived by <see cref="WardrobeRow.MetricsFor"/> from
+        /// <see cref="ContentWidth"/> and passed to every row this sheet builds.
+        ///
+        /// The arithmetic used to be spelled out here as two more mutable statics. It is not any
+        /// more, and that is the point of the extraction: creation and the backpack list the same
+        /// rows, and a row laid out against a width one of the two screens invented is the failure
+        /// this whole horizontal chain exists to make impossible. <c>MetricsFor</c> also carries the
+        /// floor check — a text column under 80 design points is a loud error rather than a
+        /// silently broken word — which this sheet had no equivalent of before.
+        ///
+        /// <see cref="WardrobeRow.Metrics.RowWidth"/> is also the width the Perfil cards take, because Perfil
+        /// scrolls in the same column and reserves the same scrollbar lane. One derivation, so the
+        /// two lists cannot come to sit at different widths on the same sheet.
+        ///
+        /// Re-derived in <see cref="RecomputeMetrics"/>, from the width this device actually
+        /// reports, before anything is laid out.
+        /// </summary>
+        static WardrobeRow.Metrics RowMetrics = WardrobeRow.MetricsFor(ContentWidth);
 
         /// <summary>
         /// A material card: half the content column, less the gutter between the two of them.
@@ -495,17 +533,21 @@ namespace SheepGate.UI
             ContentWidth = CardWidth - 2f * SheetPadding;
             SegmentBarWidth = CardWidth - 2f * SegmentBarInset;
             SegmentWidth = SegmentBarWidth / SectionCount;
-            RowWidth = ContentWidth - (ScrollbarWidth + DesignTokens.Space.S8);
-            TextColumnWidth = RowWidth - (3f * DesignTokens.Space.S12 + ThumbSize);
+            RowMetrics = WardrobeRow.MetricsFor(ContentWidth);
             MaterialCardWidth = (ContentWidth - DesignTokens.Space.S12) / 2f;
             StageTextWidth = ContentWidth -
                 (DesignTokens.Space.S12 + FigureBoxWidth + DesignTokens.Space.S16 + DesignTokens.Space.S12);
         }
 
         /// <summary>
-        /// The character sprites are 32x48, and both the big figure and every thumbnail are fitted
-        /// to that ratio rather than given a size. Fitting is what keeps the figure as large as its
-        /// box allows on a 1080-unit reference and on the ~977 units a phone actually reports.
+        /// The character sprites are 32x48, and the stage figure is fitted to that ratio rather
+        /// than given a size. Fitting is what keeps it as large as its box allows on a 1080-unit
+        /// reference and on the ~977 units a phone actually reports.
+        ///
+        /// It used to say "and every thumbnail" as well. The thumbnails left with the row: a
+        /// wardrobe thumbnail is fitted by <see cref="CharacterFigure.CreateFigureRect"/> inside
+        /// <see cref="WardrobeRow"/>, against the same two art constants, so the two figures are
+        /// still one ratio read twice rather than two numbers.
         /// </summary>
         static readonly float FigureAspect =
             SheepGate.Art.CharacterArt.Width / (float)SheepGate.Art.CharacterArt.Height;
@@ -525,35 +567,14 @@ namespace SheepGate.UI
         // is 15.17 design points of type in a 22.24-point line box, and the only honest way to say
         // that in code is size times leading.
 
-        static readonly float BodyLineHeight = DesignTokens.Type.Body * DesignTokens.Type.BodyLeading;
-        static readonly float MinimumLineHeight = DesignTokens.Type.Minimum * DesignTokens.Type.BodyLeading;
-        static readonly float TitleLineHeight = DesignTokens.Type.Title * DesignTokens.Type.TitleLeading;
-
-        /// <summary>The NOVO badge's outside height: one minimum line and its padding.</summary>
-        static readonly float BadgeHeight = MinimumLineHeight + 2f * DesignTokens.Space.S4;
-
         /// <summary>
-        /// The gap between the three things in a row's name line — the name, the NOVO badge and the
-        /// status slot — and the badge's own side padding. Both are Space.S4 where the layout
-        /// contract asks for Space.S8, and both were narrowed for the same measured reason.
-        ///
-        /// The contract sized the name box off a 200-point text column. A real phone gives that
-        /// column 162.6 points, and after the permanent status slot and a NOVO badge at S8 gaps the
-        /// name has 72.7 points left — less than the widest single word an item name contains.
-        /// Legacy Text breaks a word that cannot fit, so "Túnica de carregador" rendered as
-        /// "Túnica de / carregad / or" on an iPhone 17 Pro. Nothing clipped and no height was
-        /// wrong; it was simply unreadable.
-        ///
-        /// Sixteen points come back at S4 — two gaps and two paddings — which puts the name box at
-        /// 88.7 and clears the two longest words in the catalogue, "carregador" (77) and
-        /// "ferramentas" (84). The badge is still a pill and still reads as one; what it loses is
-        /// air it was spending on a column that does not have any. Both were left at S8 in the
-        /// contract because the contract was measured against a card 38 points wider than any
-        /// phone has.
+        /// A body line's box, aliased off <see cref="WardrobeRow.BodyLineHeight"/> rather than
+        /// recomputed, so the sheet and the rows in it cannot come to disagree about what one line
+        /// of type occupies. Character creation aliases the same static.
         /// </summary>
-        static readonly float NameRowSpacing = DesignTokens.Space.S4;
+        static readonly float BodyLineHeight = WardrobeRow.BodyLineHeight;
 
-        static readonly float BadgeSidePadding = DesignTokens.Space.S4;
+        static readonly float TitleLineHeight = DesignTokens.Type.Title * DesignTokens.Type.TitleLeading;
 
         /// <summary>
         /// Height reserved for the refusal line, whether or not it has anything in it.
@@ -564,7 +585,13 @@ namespace SheepGate.UI
         /// </summary>
         static readonly float RefusalHeight = 3f * BodyLineHeight;
 
-        /// <summary>The five art layers, in draw order. The last one drawn sits on top.</summary>
+        /// <summary>
+        /// The five art layers of the STAGE figure, in draw order. The last one drawn sits on top.
+        ///
+        /// The stage only: the wardrobe thumbnails that used to be stacked by these same constants
+        /// are <see cref="WardrobeRow"/>'s now, and it stacks them through
+        /// <see cref="CharacterFigure"/>.
+        /// </summary>
         const int LayerBody = 0;
         const int LayerLegs = 1;
         const int LayerTop = 2;
@@ -600,7 +627,7 @@ namespace SheepGate.UI
         int _lastWardrobe = TabIndexHair;
 
         readonly Image[] _layers = new Image[LayerCount];
-        readonly List<RowView> _rows = new List<RowView>();
+        readonly List<WardrobeRow.View> _rows = new List<WardrobeRow.View>();
 
         TabView[] _tabs;
         RectTransform _tabContent;
@@ -651,45 +678,6 @@ namespace SheepGate.UI
             /// run at build time on three hidden panels.
             /// </summary>
             public bool Settled;
-        }
-
-        /// <summary>One row of a wardrobe tab, and the parts of it a repaint touches.</summary>
-        sealed class RowView
-        {
-            /// <summary>Catalogue id. Also the suffix of the GameObject name.</summary>
-            public string ItemId;
-
-            /// <summary>Which slot it belongs to, so a repaint can ask what that slot is showing.</summary>
-            public CharacterSlot Slot;
-
-            /// <summary>The control itself, so the accessible name can be re-applied on a repaint.</summary>
-            public GameObject Root;
-
-            /// <summary>The clay ring that says this is the piece being worn.</summary>
-            public Image Ring;
-
-            /// <summary>
-            /// Lock or check. A sprite, never a character — no bundled font carries either.
-            ///
-            /// <b>Toggled with <see cref="Behaviour.enabled"/> and never with SetActive.</b> The
-            /// slot it occupies is width-permanent: a layout group drops an inactive child, the
-            /// name label beside it would widen, a one-line name would rewrap to two, and the
-            /// height pinned at build time would then clip. Turning the pixels off leaves the
-            /// LayoutElement in place and the arithmetic intact.
-            /// </summary>
-            public Image Status;
-
-            /// <summary>The name as the row displays it, before any state word is folded in.</summary>
-            public string ItemName;
-
-            /// <summary>True when the item was locked at build time. Unlocks never regress.</summary>
-            public bool Locked;
-
-            /// <summary>True when the badge was showing at build time. Captured, never recomputed.</summary>
-            public bool IsNew;
-
-            /// <summary>The unlock sentence, reused verbatim in the accessible name.</summary>
-            public string UnlockSentence;
         }
 
         // ------------------------------------------------------------------ opening and closing
@@ -967,7 +955,7 @@ namespace SheepGate.UI
                 DesignTokens.Type.Body, DesignTokens.Ink.Primary, TextAnchor.UpperLeft,
                 DesignTokens.TypeRole.BodyStrong);
             playerName.verticalOverflow = VerticalWrapMode.Truncate;
-            PinTextBox(playerName, StageTextWidth, BodyLineHeight);
+            WardrobeRow.PinTextBox(playerName, StageTextWidth, BodyLineHeight);
 
             BuildRefusal(stageText);
         }
@@ -998,7 +986,7 @@ namespace SheepGate.UI
         {
             _refusal = UIKit.CreateText(stageText, "RefusalMessage", string.Empty, DesignTokens.Type.Body,
                 DesignTokens.Ink.Secondary, TextAnchor.UpperLeft);
-            PinTextBox(_refusal, StageTextWidth, RefusalHeight);
+            WardrobeRow.PinTextBox(_refusal, StageTextWidth, RefusalHeight);
 
             _refusalGroup = _refusal.gameObject.AddComponent<CanvasGroup>();
             _refusalGroup.alpha = 1f;
@@ -1323,449 +1311,88 @@ namespace SheepGate.UI
         /// No section heading — the tab is the heading — and no two-column grid, because a locked
         /// row has to print a whole sentence and rule 7 outranks any grid.
         ///
+        /// ==================================================================================
+        /// THE ROW IS <see cref="WardrobeRow"/> AND NOT A COPY OF IT
+        /// ==================================================================================
+        /// This method used to carry a ~250-line <c>BuildRow</c>, plus its own name row, its own
+        /// NOVO badge, its own price row, its own thumbnail, its own accessible-name composition
+        /// and its own text pinning — all of it a second copy of what character creation lists on
+        /// the screen the player sees first. Almost everything that makes the row correct is
+        /// arithmetic that looks like nothing when it drifts: the S4 name-line gap that stops
+        /// "Túnica de carregador" breaking mid-word, and the rule that every width descends from
+        /// <see cref="UIKit.CanvasWidth"/> and never from <see cref="UIKit.ReferenceWidth"/>. Two
+        /// screens that agree today and are edited separately do not stay agreed, and no gate in
+        /// this repository would report it: each screen looks entirely self-consistent.
+        ///
+        /// So the row is built by <see cref="WardrobeRow.Build"/>, from <see cref="RowMetrics"/>,
+        /// and what is left here is the three things that genuinely belong to the backpack rather
+        /// than to a row:
+        /// <list type="number">
+        /// <item><b>The badge read, and its order.</b> <see cref="Wardrobe.IsNew"/> is asked here,
+        /// per item, while the badge is still there to read — see the comment on it below.</item>
+        /// <item><b>The two flags.</b> <c>showNewBadge: true</c> because this is the screen a badge
+        /// exists to announce on, and <c>showTalentPrice: true</c> because this is the screen a
+        /// price belongs on. Character creation passes neither, and the price is drawn UNDER the
+        /// unlock sentence rather than instead of it — that ordering is <c>WardrobeRow.Build</c>'s
+        /// to keep, and it keeps it.</item>
+        /// <item><b>The body the thumbnails are drawn on</b>, read once per tab off this player's
+        /// own appearance rather than per row.</item>
+        /// </list>
+        ///
         /// A tab that draws nothing still exists, is still enabled, and says so in a sentence. The
         /// old behaviour — return false, destroy the section, leave the sheet a heading shorter —
         /// is deliberately not ported: a tab row that changes shape with save state is both the
         /// instability Apple warns about and a quiet punishment for not having found anything yet.
+        /// The sentence itself is <see cref="WardrobeRow.BuildEmpty"/>'s; the warning naming the
+        /// slot that came up empty stays here, because the slot is this sheet's own idea.
         /// </summary>
         void BuildWardrobeTab(RectTransform content, CharacterSlot slot)
         {
             CatalogItemDef[] items = Wardrobe.ItemsForSlot(slot);
+            int bodyArtVariant = Look().BodyArtVariant;
             int drawn = 0;
 
             for (int i = 0; items != null && i < items.Length; i++)
             {
-                if (BuildRow(content, items[i], slot))
+                CatalogItemDef item = items[i];
+                if (item == null || string.IsNullOrEmpty(item.id))
                 {
+                    Debug.LogWarning("[BackpackPanel] An item in slot " + slot + " has no id and was skipped.");
+                    continue;
+                }
+
+                bool locked = !Wardrobe.IsUnlocked(_state, item.id);
+
+                // Read while the badge is still there to read, and read HERE rather than inside the
+                // row, which is the whole reason WardrobeRow takes it as an argument. Every row in
+                // every tab is built before the first MarkSlotSeen runs — see Build() — and this
+                // bool is then never recomputed: the badges on the tab the player is looking at
+                // survive the whole open, while the tab's dot clears the instant it is looked at.
+                // That asymmetry is the design; a dot that survives being looked at is the nagging
+                // version. Moving this read one step later, into the row or into a repaint, wipes
+                // the badges the player is looking at as the sheet opens.
+                bool isNew = Wardrobe.IsNew(_state, item.id);
+
+                // The two flags are named at the call site rather than passed as bare positional
+                // trues. Three bools in a row is exactly the argument list a later edit transposes
+                // silently, and one of them decides whether a price appears on the screen.
+                WardrobeRow.View row = WardrobeRow.Build(content, item, slot, RowMetrics,
+                    bodyArtVariant, locked, showNewBadge: true, isNew: isNew, namePrefix: "Chip_",
+                    onTap: OnRowTapped, showTalentPrice: true);
+
+                if (row != null)
+                {
+                    _rows.Add(row);
                     drawn++;
                 }
             }
 
             if (drawn == 0)
             {
-                BuildEmpty(content, slot);
-            }
-        }
-
-        /// <summary>
-        /// What a tab says when its slot draws nothing. Plainly, and without blame: nothing the
-        /// player did caused it, and nothing of theirs was lost.
-        /// </summary>
-        void BuildEmpty(RectTransform content, CharacterSlot slot)
-        {
-            Debug.LogWarning("[BackpackPanel] Slot " + slot + " drew no rows. Either character_catalog.json " +
-                             "has no items for it, or every one of them failed to resolve.");
-
-            Text empty = UIKit.CreateText(content, "Empty", Loc.T(UnavailableKey), DesignTokens.Type.Body,
-                DesignTokens.Ink.Secondary, TextAnchor.UpperLeft);
-            PinText(empty, RowWidth);
-        }
-
-        /// <summary>
-        /// One item, as a full-width row: the piece drawn on the character's own body, its name,
-        /// its description, and — when it has not opened yet — a padlock and the condition in full.
-        ///
-        /// ==================================================================================
-        /// WHY THIS ROW CANNOT CLIP
-        /// ==================================================================================
-        /// Not "is unlikely to". Cannot. The mechanism is that <b>every width in the chain is a
-        /// build-time constant</b>, so no <see cref="Text"/> is ever measured against a width it
-        /// will not have, and every height is then pinned from that measurement:
-        /// <list type="number">
-        /// <item>the row is <see cref="RowWidth"/>, derived from the card, not from the design frame;</item>
-        /// <item>the text column is <see cref="TextColumnWidth"/>, with <c>flexibleWidth = 0</c>;</item>
-        /// <item>the status slot is width-permanent, so the name box never widens;</item>
-        /// <item>each label is given its box, asked for its height, and pinned to both.</item>
-        /// </list>
-        /// There is no <see cref="ContentSizeFitter"/> anywhere in a row and no width is flexible,
-        /// so nothing can renegotiate afterwards. The row's own height is then composed in code —
-        /// <c>max(48, 24 + max(thumb, column))</c> — rather than left to a layout group to discover.
-        ///
-        /// The worst real string in the catalogue is the English <c>acc_tool_bag</c> while locked:
-        /// a one-line name, a three-line description and a three-line condition, 205.30 design
-        /// points of row. The tallest pt-BR row is 183.06. Both fit, and the formula covers the
-        /// two-line-name case as well — "Bolsa de ferramentas" is 156.2 points wide, which is one
-        /// line in the 168.17-point locked box and two in the 110.11-point badged one.
-        ///
-        /// Built on <see cref="UIKit.CreateButton"/> so the row is a real design-system control with
-        /// the focus ring, the hover and pressed fills and the hairline border that come with it,
-        /// and then re-laid as a horizontal group. The pieces the kit already parented are marked
-        /// <c>ignoreLayout</c> first: the border and the focus ring are stretched to the whole
-        /// control and would otherwise be laid out as two more columns of the row.
-        /// </summary>
-        bool BuildRow(RectTransform content, CatalogItemDef item, CharacterSlot slot)
-        {
-            if (item == null || string.IsNullOrEmpty(item.id))
-            {
-                Debug.LogWarning("[BackpackPanel] An item in slot " + slot + " has no id and was skipped.");
-                return false;
-            }
-
-            string itemId = item.id;
-            bool locked = !Wardrobe.IsUnlocked(_state, itemId);
-
-            // Read while the badge is still there to read. Every row in every tab is built before
-            // the first MarkSlotSeen runs, and this bool is then never recomputed: the badges on the
-            // tab the player is looking at survive the whole open, while the tab's dot clears the
-            // instant it is looked at. That asymmetry is the design — a dot that survives being
-            // looked at is the nagging version.
-            bool isNew = Wardrobe.IsNew(_state, itemId);
-
-            // Resolved once and passed down: a missing name is an error in the log, and one row
-            // should account for one line of it, not two.
-            string itemName = DisplayName(item);
-
-            // UnlockEvaluator.Sentence returns the finished sentence — resolved against catalog.json's
-            // "unlock" table with the threshold and the plural already applied — so it never passes
-            // through Loc, and the accessible name reuses this exact string rather than rephrasing it.
-            string unlockSentence = locked ? UnlockEvaluator.Sentence(item.unlock_condition) : null;
-
-            // No label text: the row builds its own beside a thumbnail, and a centred label
-            // stretched across the whole control has nowhere to go in that arrangement. The kit's
-            // confirm cue is kept here on purpose — an equip is a confirm; it is only the tab bar
-            // that is silent.
-            Button chip = UIKit.CreateButton(content, "Chip_" + itemId, string.Empty,
-                UIKit.ButtonVariant.Secondary, () => OnRowTapped(itemId, slot));
-            var chipRect = (RectTransform)chip.transform;
-
-            for (int i = 0; i < chipRect.childCount; i++)
-            {
-                LayoutElement ignored = UIKit.Layout(chipRect.GetChild(i));
-                if (ignored != null)
-                {
-                    ignored.ignoreLayout = true;
-                }
-            }
-
-            UIKit.HorizontalGroup(chip.gameObject, DesignTokens.Space.S12, new RectOffset(
-                Mathf.RoundToInt(DesignTokens.Space.S12),
-                Mathf.RoundToInt(DesignTokens.Space.S12),
-                Mathf.RoundToInt(DesignTokens.Space.S12),
-                Mathf.RoundToInt(DesignTokens.Space.S12)), TextAnchor.MiddleLeft);
-
-            BuildThumb(chipRect, item);
-
-            RectTransform textColumn = UIKit.CreateRect("Text", chipRect);
-            UIKit.VerticalGroup(textColumn.gameObject, DesignTokens.Space.S12, new RectOffset());
-            LayoutElement textLayout = UIKit.Layout(textColumn);
-            textLayout.minWidth = TextColumnWidth;
-            textLayout.preferredWidth = TextColumnWidth;
-            textLayout.flexibleWidth = 0f;
-
-            Image status;
-            float nameRowHeight = BuildNameRow(textColumn, itemName, isNew, out status);
-            float columnHeight = nameRowHeight;
-
-            string description = item.description;
-            if (!string.IsNullOrWhiteSpace(description))
-            {
-                // Type.Body and Ink.Secondary, and both halves of that are a change from the old
-                // sheet. This is the string that tells four visually identical locked items apart,
-                // so it is prose rather than a label, and 12 points is a floor for labels. The old
-                // Ink.Muted measured 3.57:1 against a 4.5:1 requirement — the sheet's worst
-                // legibility failure, on its most load-bearing sentence, at the smallest size in the
-                // game. The cost of the promotion is 79 to 156 points of column height per tab, and
-                // it is paid knowingly.
-                Text descriptionText = UIKit.CreateText(textColumn, "Description", description,
-                    DesignTokens.Type.Body, DesignTokens.Ink.Secondary, TextAnchor.UpperLeft,
-                    DesignTokens.TypeRole.Body);
-                columnHeight += DesignTokens.Space.S12 + PinText(descriptionText, TextColumnWidth);
-            }
-
-            if (locked && !string.IsNullOrEmpty(unlockSentence))
-            {
-                // Ink.Primary, which makes this the brightest line in a locked row, on purpose.
-                // Rule 7 makes a locked row an invitation, and the sentence that says how to open it
-                // is the invitation. The ink step from Secondary to Primary is also what separates
-                // the condition from the description without spending vertical air — WCAG 1.4.8's
-                // AAA paragraph gap here would be 33.4 points against a column spacing of 12, so the
-                // separation is carried by ink and by the padlock in the name row instead.
-                Text unlock = UIKit.CreateText(textColumn, "Unlock", unlockSentence,
-                    DesignTokens.Type.Body, DesignTokens.Ink.Primary, TextAnchor.UpperLeft,
-                    DesignTokens.TypeRole.Body);
-                columnHeight += DesignTokens.Space.S12 + PinText(unlock, TextColumnWidth);
-            }
-
-            if (locked)
-            {
-                // Under the unlock sentence, not instead of it. The sentence is still the row's
-                // invitation and still its brightest line; the price is a second route that does
-                // not yet exist, so it must not displace the one that does.
-                columnHeight += DesignTokens.Space.S12
-                    + BuildPriceRow(textColumn, TalentPrice.For(itemId));
-            }
-
-            textLayout.minHeight = columnHeight;
-            textLayout.preferredHeight = columnHeight;
-            textLayout.flexibleHeight = 0f;
-
-            float rowHeight = Mathf.Max(UIKit.ButtonMinHeight,
-                2f * DesignTokens.Space.S12 + Mathf.Max(ThumbSize, columnHeight));
-
-            LayoutElement chipLayout = UIKit.Layout(chip);
-            chipLayout.minHeight = rowHeight;
-            chipLayout.preferredHeight = rowHeight;
-            chipLayout.flexibleHeight = 0f;
-
-            // Drawn over the row rather than by recolouring the kit's border: VariantButton owns
-            // that border's colour and repaints it on the next pointer event, so a tint applied from
-            // here would survive exactly until the finger moved. Clay and not gold — gold on this
-            // sheet means "not yet seen" and nothing else, so "the one you are wearing" is the same
-            // clay as "the tab you are on".
-            Image ring = UIKit.CreatePanel(chipRect, "Selected", DesignTokens.Brand.Primary,
-                UiSpriteKeys.FocusRing);
-            UIKit.Stretch((RectTransform)ring.transform);
-            ring.raycastTarget = false;
-            ring.gameObject.SetActive(false);
-            UIKit.Layout(ring).ignoreLayout = true;
-
-            var row = new RowView
-            {
-                ItemId = itemId,
-                Slot = slot,
-                Root = chip.gameObject,
-                Ring = ring,
-                Status = status,
-                ItemName = itemName,
-                Locked = locked,
-                IsNew = isNew,
-                UnlockSentence = unlockSentence
-            };
-
-            AccessibleLabel.Apply(row.Root, AccessibleNameFor(row, false));
-            _rows.Add(row);
-            return true;
-        }
-
-        /// <summary>
-        /// The name, the badge when the piece is new, and the one status icon the row can carry.
-        /// Returns the row's height and hands back the status image, so a repaint can swap its
-        /// sprite without walking the hierarchy.
-        ///
-        /// <b>The status slot is width-permanent.</b> It is built whether or not it has anything to
-        /// show, and it is hidden with <see cref="Behaviour.enabled"/> rather than by deactivating
-        /// it. A layout group drops an inactive child; the name label would then widen by 31.83
-        /// points, a name that was one line could rewrap to two, and the height pinned a moment ago
-        /// would clip. This is the exact failure the whole pinning policy exists to prevent, and it
-        /// would only appear on the rows nobody is wearing.
-        ///
-        /// The badge does not need the same treatment: <see cref="Wardrobe.IsNew"/> is captured once
-        /// at build time and cannot change while the sheet is open.
-        ///
-        /// The badge's width is measured rather than assumed. NOVO and NEW are different lengths and
-        /// a third locale would be a third length, so the name box is
-        /// <c>200 − (icon + 8) − (badge + 8)</c> computed from the badge that was actually built.
-        /// </summary>
-        /// <summary>
-        /// The talent price on a locked row: the coin, then the number, in gold.
-        ///
-        /// The same <see cref="UiSpriteKeys.IconCoin"/> the HUD spends for a talent balance, on
-        /// purpose — a second coin glyph invented for prices would read as a second currency. It
-        /// carries no caption for the reason <c>BuildTalentsReadout</c> gives: a coin beside a
-        /// number is legible as money without one.
-        ///
-        /// <b>The known risk, recorded rather than designed away.</b> A coin and a number on a row
-        /// can be misread as "you have 12" instead of "this costs 12", and the sheet has no balance
-        /// beside it to settle the question — the balance lives on the Materiais tab and in the
-        /// drawer. The word that would remove the ambiguity was left off because the brief asked
-        /// for the icon and the value; if playtesting shows the misread, a label is the fix, not a
-        /// different glyph.
-        ///
-        /// Mono for the number, like every other quantity in the game, so the digits are tabular
-        /// and a two-digit price does not shuffle the row against a one-digit one.
-        /// </summary>
-        static float BuildPriceRow(RectTransform textColumn, int price)
-        {
-            RectTransform row = UIKit.CreateRect("Price", textColumn);
-            UIKit.HorizontalGroup(row.gameObject, NameRowSpacing, new RectOffset(),
-                TextAnchor.MiddleLeft);
-
-            UIKit.CreateIcon(row, "Icon", UiSpriteKeys.IconCoin, DesignTokens.Brand.Secondary,
-                UIKit.IconSize);
-
-            Text amount = UIKit.CreateText(row, "Amount", price.ToString(CultureInfo.InvariantCulture),
-                DesignTokens.Type.Mono, DesignTokens.Brand.Secondary, TextAnchor.MiddleLeft,
-                DesignTokens.TypeRole.Mono);
-
-            float amountHeight = PinText(amount, TextColumnWidth - (UIKit.IconSize + NameRowSpacing));
-            float height = Mathf.Max(amountHeight, UIKit.IconSize);
-
-            LayoutElement rowLayout = UIKit.Layout(row);
-            rowLayout.minWidth = TextColumnWidth;
-            rowLayout.preferredWidth = TextColumnWidth;
-            rowLayout.flexibleWidth = 0f;
-            rowLayout.minHeight = height;
-            rowLayout.preferredHeight = height;
-            rowLayout.flexibleHeight = 0f;
-
-            return height;
-        }
-
-        static float BuildNameRow(RectTransform textColumn, string itemName, bool isNew, out Image status)
-        {
-            RectTransform row = UIKit.CreateRect("Name", textColumn);
-            UIKit.HorizontalGroup(row.gameObject, NameRowSpacing, new RectOffset(),
-                TextAnchor.MiddleLeft);
-
-            Text label = UIKit.CreateText(row, "Label", itemName, DesignTokens.Type.Body,
-                DesignTokens.Ink.Primary, TextAnchor.MiddleLeft, DesignTokens.TypeRole.BodyStrong);
-
-            float badgeWidth = 0f;
-            if (isNew)
-            {
-                badgeWidth = BuildNewBadge(row);
-            }
-
-            // Gold when it marks what is new; clay when it marks what is worn; the quieter secondary
-            // ink under the padlock, because a lock is neither new nor current and gold would say it
-            // was. The sprite and the colour are both set in Refresh.
-            status = UIKit.CreateIcon(row, "Status", UiSpriteKeys.IconCheck,
-                DesignTokens.Brand.Primary, UIKit.IconSize);
-            status.enabled = false;
-
-            float nameBox = TextColumnWidth - (UIKit.IconSize + NameRowSpacing);
-            if (isNew)
-            {
-                nameBox -= badgeWidth + NameRowSpacing;
-            }
-
-            float labelHeight = PinText(label, nameBox);
-
-            float height = Mathf.Max(labelHeight, UIKit.IconSize);
-            if (isNew)
-            {
-                height = Mathf.Max(height, BadgeHeight);
-            }
-
-            LayoutElement rowLayout = UIKit.Layout(row);
-            rowLayout.minWidth = TextColumnWidth;
-            rowLayout.preferredWidth = TextColumnWidth;
-            rowLayout.flexibleWidth = 0f;
-            rowLayout.minHeight = height;
-            rowLayout.preferredHeight = height;
-            rowLayout.flexibleHeight = 0f;
-
-            return height;
-        }
-
-        /// <summary>
-        /// The NOVO badge, and the width it took.
-        ///
-        /// Gold, because on this sheet gold means "not yet seen" and that is this badge's whole job
-        /// — the same meaning the tab dot carries, and the only meaning gold is allowed here. It is
-        /// not a call to action and does not spend the one gold CTA a screen is allowed; this sheet
-        /// has no Quest button at all, because it has no single action to nominate.
-        ///
-        /// Never on a locked item. <see cref="Wardrobe.IsNew"/> already refuses one, and that is
-        /// what keeps the announcement for the day the item actually opens — so a badge and a
-        /// padlock can never appear in the same row.
-        /// </summary>
-        static float BuildNewBadge(RectTransform row)
-        {
-            Image badge = UIKit.CreatePanel(row, "New", DesignTokens.Brand.Secondary, UiSpriteKeys.FrameSm);
-            badge.raycastTarget = false;
-
-            var badgeRect = (RectTransform)badge.transform;
-            UIKit.HorizontalGroup(badge.gameObject, 0f, new RectOffset(
-                Mathf.RoundToInt(BadgeSidePadding),
-                Mathf.RoundToInt(BadgeSidePadding),
-                Mathf.RoundToInt(DesignTokens.Space.S4),
-                Mathf.RoundToInt(DesignTokens.Space.S4)), TextAnchor.MiddleCenter);
-
-            Text text = UIKit.CreateText(badgeRect, "Label", Loc.T(NewBadgeKey), DesignTokens.Type.Minimum,
-                DesignTokens.Ink.OnSecondary, TextAnchor.MiddleCenter, DesignTokens.TypeRole.BodyStrong);
-
-            // Measured, not assumed: the word is a different length in every locale, and the name
-            // box beside it is derived from whatever this comes back as.
-            float textWidth = text.preferredWidth;
-            PinTextBox(text, textWidth, MinimumLineHeight);
-
-            float badgeWidth = textWidth + 2f * BadgeSidePadding;
-            LayoutElement badgeLayout = UIKit.Layout(badge);
-            badgeLayout.minWidth = badgeWidth;
-            badgeLayout.preferredWidth = badgeWidth;
-            badgeLayout.flexibleWidth = 0f;
-            badgeLayout.minHeight = BadgeHeight;
-            badgeLayout.preferredHeight = BadgeHeight;
-            badgeLayout.flexibleHeight = 0f;
-
-            return badgeWidth;
-        }
-
-        /// <summary>
-        /// The piece, drawn on the character's own body at thumbnail size.
-        ///
-        /// On the body and not alone, because four locked items in this catalogue write the same art
-        /// indices as items the player already has, and a bracelet floating on a blank square is
-        /// unreadable at any size. Seeing it worn is also what makes the locked row an invitation
-        /// rather than a listing: the player is looking at themselves in it.
-        /// </summary>
-        void BuildThumb(RectTransform chipRect, CatalogItemDef item)
-        {
-            RectTransform thumb = UIKit.CreateRect("Thumb", chipRect);
-            LayoutElement thumbLayout = UIKit.Layout(thumb);
-            thumbLayout.minWidth = ThumbSize;
-            thumbLayout.preferredWidth = ThumbSize;
-            thumbLayout.minHeight = ThumbSize;
-            thumbLayout.preferredHeight = ThumbSize;
-            thumbLayout.flexibleWidth = 0f;
-            thumbLayout.flexibleHeight = 0f;
-
-            Image surface = UIKit.CreatePanel(thumb, "Surface", DesignTokens.Surface.Panel,
-                UiSpriteKeys.FrameSm);
-            UIKit.Stretch((RectTransform)surface.transform);
-            surface.raycastTarget = false;
-
-            RectTransform figureArea = UIKit.CreateRect("FigureArea", thumb);
-            UIKit.Stretch(figureArea, DesignTokens.Space.S4, DesignTokens.Space.S4,
-                          DesignTokens.Space.S4, DesignTokens.Space.S4);
-
-            RectTransform figure = UIKit.CreateRect("Figure", figureArea);
-            UIKit.Stretch(figure);
-
-            var aspect = figure.gameObject.AddComponent<AspectRatioFitter>();
-            aspect.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
-            aspect.aspectRatio = FigureAspect;
-
-            AppearanceState look = Look();
-
-            Image body = BuildLayer(figure, "Body");
-            ApplyLayer(body, UIKit.GetSprite(UiSpriteKeys.Body(look.BodyArtVariant, FacingDirection.Down, 0)),
-                Shade(DesignTokens.Neutral.N500, look.body), 0f, 1f);
-
-            // The plain block, never the hooded one: a thumbnail shows the piece itself, and which
-            // variant it draws in a set depends on what else is worn, which the row cannot know.
-            ItemArtDef art = CharacterCatalog.ArtFor(item, false);
-            if (art == null)
-            {
-                return;
-            }
-
-            if (art.legs.HasValue)
-            {
-                ApplyLayer(BuildLayer(figure, "Legs"), UIKit.GetSprite(UiSpriteKeys.Legs(art.legs.Value)),
-                    Shade(DesignTokens.Ambient.Sky, art.legs.Value), 0.04f, 0.44f);
-            }
-
-            if (art.top.HasValue)
-            {
-                ApplyLayer(BuildLayer(figure, "Top"), UIKit.GetSprite(UiSpriteKeys.Top(art.top.Value)),
-                    Shade(DesignTokens.Brand.Primary, art.top.Value), 0.44f, 0.76f);
-            }
-
-            if (art.accessory.HasValue)
-            {
-                ApplyLayer(BuildLayer(figure, "Accessory"),
-                    UIKit.GetSprite(UiSpriteKeys.Accessory(art.accessory.Value)),
-                    Shade(DesignTokens.Ambient.Growth, art.accessory.Value), 0.78f, 0.97f);
-            }
-
-            if (art.hair.HasValue)
-            {
-                ApplyLayer(BuildLayer(figure, "Hair"),
-                    UIKit.GetSprite(SheepGate.Art.ArtKeys.Hair(art.hair.Value,
-                        UiSpriteKeys.ToArtFacing(FacingDirection.Down))),
-                    Shade(DesignTokens.Ambient.Sky, art.hair.Value), 0.76f, 1f);
+                Debug.LogWarning("[BackpackPanel] Slot " + slot + " drew no rows. Either " +
+                                 "character_catalog.json has no items for it, or every one of them " +
+                                 "failed to resolve.");
+                WardrobeRow.BuildEmpty(content, RowMetrics);
             }
         }
 
@@ -1887,7 +1514,7 @@ namespace SheepGate.UI
             Text hint = UIKit.CreateText(content, "EngagementHint", Loc.T("profile.meter.hint"),
                 DesignTokens.Type.Minimum, DesignTokens.Ink.Secondary, TextAnchor.UpperLeft);
             hint.horizontalOverflow = HorizontalWrapMode.Wrap;
-            SizeProfileText(hint, RowWidth);
+            SizeProfileText(hint, RowMetrics.RowWidth);
         }
 
         /// <summary>A section heading, and the line under it when the section has one.</summary>
@@ -1895,7 +1522,7 @@ namespace SheepGate.UI
         {
             Text title = UIKit.CreateText(content, name, heading, DesignTokens.Type.Body,
                 DesignTokens.Ink.Primary, TextAnchor.MiddleLeft, DesignTokens.TypeRole.BodyStrong);
-            SizeProfileText(title, RowWidth);
+            SizeProfileText(title, RowMetrics.RowWidth);
 
             if (string.IsNullOrEmpty(hint))
             {
@@ -1905,7 +1532,7 @@ namespace SheepGate.UI
             Text line = UIKit.CreateText(content, name + "Hint", hint, DesignTokens.Type.Minimum,
                 DesignTokens.Ink.Secondary, TextAnchor.UpperLeft);
             line.horizontalOverflow = HorizontalWrapMode.Wrap;
-            SizeProfileText(line, RowWidth);
+            SizeProfileText(line, RowMetrics.RowWidth);
         }
 
         /// <summary>
@@ -1941,11 +1568,14 @@ namespace SheepGate.UI
             fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
             LayoutElement cardLayout = UIKit.Layout(card);
-            cardLayout.minWidth = RowWidth;
-            cardLayout.preferredWidth = RowWidth;
+            // The wardrobe row's width, not a width of Perfil's own: this column scrolls under
+            // the same scrollbar and reserves the same lane, so a second derivation of one number
+            // could only ever be a way for the two lists to end up different widths.
+            cardLayout.minWidth = RowMetrics.RowWidth;
+            cardLayout.preferredWidth = RowMetrics.RowWidth;
             cardLayout.flexibleWidth = 0f;
 
-            float inner = RowWidth - 2f * DesignTokens.Space.S16;
+            float inner = RowMetrics.RowWidth - 2f * DesignTokens.Space.S16;
 
             Text heading = UIKit.CreateText(cardRect, "Title", title, DesignTokens.Type.Body,
                 DesignTokens.Ink.Primary, TextAnchor.MiddleLeft, DesignTokens.TypeRole.BodyStrong);
@@ -2154,11 +1784,11 @@ namespace SheepGate.UI
             Text label = UIKit.CreateText(cardRect, "Label", Loc.T(MaterialLabelKeys[index]),
                 DesignTokens.Type.Body, DesignTokens.Ink.Secondary, TextAnchor.MiddleLeft,
                 DesignTokens.TypeRole.Body);
-            PinText(label, box);
+            WardrobeRow.PinText(label, box);
 
             Text count = UIKit.CreateText(cardRect, "Count", string.Empty, DesignTokens.Type.Title,
                 DesignTokens.Ink.Primary, TextAnchor.MiddleLeft, DesignTokens.TypeRole.Mono);
-            PinTextBox(count, box, TitleLineHeight);
+            WardrobeRow.PinTextBox(count, box, TitleLineHeight);
 
             _materialCounts[index] = count;
         }
@@ -2342,25 +1972,14 @@ namespace SheepGate.UI
         /// </summary>
         void OnRowTapped(string itemId, CharacterSlot slot)
         {
-            if (string.Equals(Wardrobe.EquippedInSlot(_state, slot), itemId, StringComparison.Ordinal))
-            {
-                if (CharacterCatalog.SlotHoldsMany(slot))
-                {
-                    Wardrobe.Unequip(_state, itemId);
-                }
-
-                ShowRefusal(null);
-                return;
-            }
-
-            string refusalKey;
-            if (Wardrobe.TryEquip(_state, itemId, out refusalKey))
-            {
-                ShowRefusal(null);
-                return;
-            }
-
-            ShowRefusal(string.IsNullOrEmpty(refusalKey) ? null : Loc.T(refusalKey));
+            // The three outcomes and their arithmetic live in WardrobeRow.Tap, which character
+            // creation taps through as well; what is local is where the answer goes. A successful
+            // equip, a successful unequip and a deliberate no-op all hand back a null sentence,
+            // which clears the line rather than leaving the previous tap's refusal under a figure
+            // that has since changed.
+            string refusalSentence;
+            WardrobeRow.Tap(_state, itemId, slot, out refusalSentence);
+            ShowRefusal(refusalSentence);
         }
 
         /// <summary>
@@ -2681,7 +2300,7 @@ namespace SheepGate.UI
         {
             for (int i = 0; i < _rows.Count; i++)
             {
-                RowView row = _rows[i];
+                WardrobeRow.View row = _rows[i];
                 if (row == null)
                 {
                     continue;
@@ -2690,40 +2309,12 @@ namespace SheepGate.UI
                 // "Worn" is what the slot is actually showing, not merely what is in the worn list.
                 // The accessory slot may legitimately hold several pieces while AppearanceState has
                 // one accessory layer, so marking every one of them would put a check beside items
-                // the figure is not drawing.
+                // the figure is not drawing. The row cannot answer this for itself, which is why it
+                // is answered here and passed in.
                 bool worn = string.Equals(Wardrobe.EquippedInSlot(_state, row.Slot), row.ItemId,
                     StringComparison.Ordinal);
 
-                if (row.Ring != null)
-                {
-                    row.Ring.gameObject.SetActive(worn);
-                }
-
-                if (row.Status != null)
-                {
-                    if (worn)
-                    {
-                        row.Status.sprite = UIKit.GetSprite(UiSpriteKeys.IconCheck);
-                        row.Status.color = DesignTokens.Brand.Primary;
-                        row.Status.enabled = true;
-                    }
-                    else if (row.Locked)
-                    {
-                        row.Status.sprite = UIKit.GetSprite(UiSpriteKeys.IconLock);
-                        row.Status.color = DesignTokens.Ink.Secondary;
-                        row.Status.enabled = true;
-                    }
-                    else
-                    {
-                        // Hidden, never removed. The layout slot it occupies is what keeps the name
-                        // box the width every height in this row was measured against.
-                        row.Status.enabled = false;
-                    }
-                }
-
-                // Re-applied here and not only at build time: the announced state would otherwise go
-                // stale the moment the player equipped something.
-                AccessibleLabel.Apply(row.Root, AccessibleNameFor(row, worn));
+                WardrobeRow.Apply(row, worn);
             }
         }
 
@@ -2736,126 +2327,6 @@ namespace SheepGate.UI
             // Materiais", which is what it used to say and what silently made Perfil a wardrobe the
             // moment Perfil took index 0.
             return index > TabIndexProfile && index < TabIndexMaterials;
-        }
-
-        /// <summary>
-        /// The name a screen reader would say, with the row's state folded into it.
-        ///
-        /// Composed name-first and nested, so the separators and the word order are the locale's
-        /// business and no punctuation literal reaches this file: the base name, then
-        /// <c>backpack.state.new</c> around it if it is new, then <c>backpack.state.equipped</c>
-        /// around that if it is worn. A locked row takes a single form that carries the unlock
-        /// sentence <b>verbatim</b> — the same sentence the row prints, never a rephrasing of it,
-        /// because two wordings of one condition is two conditions as far as a listener can tell.
-        ///
-        /// Note for whoever builds the accessibility hierarchy: this project is on Unity 6 with
-        /// <c>com.unity.modules.accessibility</c> in the manifest, so VoiceOver over uGUI is now
-        /// possible and the older note that Unity publishes no accessibility tree is stale. When
-        /// someone wires it up, <b>a locked row must not map to a disabled-style state</b> — rule 7
-        /// keeps it fully interactable, and announcing it as unavailable would undo in speech
-        /// exactly what the visual design refuses to do.
-        /// </summary>
-        static string AccessibleNameFor(RowView row, bool worn)
-        {
-            if (row == null)
-            {
-                return string.Empty;
-            }
-
-            if (row.Locked)
-            {
-                return Loc.T(StateLockedKey, row.ItemName, row.UnlockSentence ?? string.Empty);
-            }
-
-            string composed = row.ItemName;
-
-            if (row.IsNew)
-            {
-                composed = Loc.T(StateNewKey, composed);
-            }
-
-            if (worn)
-            {
-                composed = Loc.T(StateEquippedKey, composed);
-            }
-
-            return composed;
-        }
-
-        /// <summary>
-        /// Gives a label its box, asks it how tall it is in that box, and pins it to both.
-        ///
-        /// This is the whole anti-clipping mechanism in four lines. Legacy <see cref="Text"/>
-        /// measures its wrapped height against <c>rect.width</c>, so the width has to be real before
-        /// the question is asked — which is why the anchors are collapsed to a point first, making
-        /// <c>sizeDelta</c> the actual size rather than an offset from a parent that has not been
-        /// laid out yet. Both dimensions then go onto a <see cref="LayoutElement"/> with zero
-        /// flexibility, so no layout group downstream can renegotiate the width the height was
-        /// measured against.
-        /// </summary>
-        static float PinText(Text text, float boxWidth)
-        {
-            if (text == null)
-            {
-                return 0f;
-            }
-
-            var rect = text.rectTransform;
-            rect.anchorMin = new Vector2(0.5f, 0.5f);
-            rect.anchorMax = new Vector2(0.5f, 0.5f);
-            rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.sizeDelta = new Vector2(boxWidth, 0f);
-
-            float height = text.preferredHeight;
-            PinTextBox(text, boxWidth, height);
-            return height;
-        }
-
-        /// <summary>
-        /// The same pinning with the height decided rather than measured, for the labels whose
-        /// reserve is a design decision instead of a consequence: the refusal line's three-line
-        /// headroom, the one line the player's own name is allowed, and a count that is empty at
-        /// build time and would otherwise measure as nothing.
-        /// </summary>
-        static void PinTextBox(Text text, float boxWidth, float height)
-        {
-            if (text == null)
-            {
-                return;
-            }
-
-            var rect = text.rectTransform;
-            rect.sizeDelta = new Vector2(boxWidth, height);
-
-            LayoutElement layout = UIKit.Layout(text);
-            layout.minWidth = boxWidth;
-            layout.preferredWidth = boxWidth;
-            layout.flexibleWidth = 0f;
-            layout.minHeight = height;
-            layout.preferredHeight = height;
-            layout.flexibleHeight = 0f;
-        }
-
-        /// <summary>
-        /// The item's player-facing name, or a visible stand-in.
-        ///
-        /// The name lives in <c>locales/&lt;locale&gt;/catalog.json</c> and is merged onto the
-        /// definition at load time, so a missing one means a translation gap. Showing the raw id
-        /// would put an English identifier on a pt-BR screen; showing a localised placeholder keeps
-        /// the row readable and makes the gap obvious to whoever is looking at it.
-        /// </summary>
-        static string DisplayName(CatalogItemDef item)
-        {
-            if (item != null && !string.IsNullOrWhiteSpace(item.display))
-            {
-                return item.display;
-            }
-
-            Debug.LogError("[BackpackPanel] Item '" + (item != null ? item.id : "null") +
-                           "' has no display name in locale " + CharacterCatalog.LoadedLocale +
-                           ". Add it to Resources/Data/locales/" + CharacterCatalog.LoadedLocale +
-                           "/catalog.json under \"items\".");
-            return Loc.T(UnnamedItemKey);
         }
 
         /// <summary>The look to draw. Never null, so no code path here can blank the character.</summary>

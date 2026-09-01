@@ -759,10 +759,13 @@ namespace SheepGate.Art
 
         /// <summary>
         /// Pose free overload. Only variant 4 differs between poses, so the other five are
-        /// identical either way and this is not a second drawing path. It is what the wardrobe
-        /// and the creation screen resolve to, since <c>ArtKeys.Accessory</c> carries no facing
-        /// or animation token — which makes Down / idle / frame 0 the shop window of every
-        /// accessory, and the facing each description has to be truest in.
+        /// identical either way and this is not a second drawing path.
+        ///
+        /// It takes a facing and drops only the pose, because <c>ArtKeys.Accessory</c> carries a
+        /// direction token: the four drawings above are reachable, and the creation screen's
+        /// four-facing strip is what reaches them. What still resolves to Down is the wardrobe
+        /// thumbnail and the backpack's stage figure, and there Down is a choice — a shop window
+        /// is front-on, and each catalogue description has to be truest in that facing.
         /// </summary>
         public static PixelCanvas Accessory(int variant, ArtFacing facing)
         {

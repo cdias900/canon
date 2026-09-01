@@ -20,9 +20,9 @@ namespace SheepGate.Art
     ///     prop_rubble  prop_well
     ///
     /// Character parts, 32x48, pivot bottom center (0.5, 0). Stack in this order:
-    ///     body -> legs -> top -> acc
-    ///     body_{0..1}_{dir}_{anim}_{frame}
-    ///     legs_{0..3}   top_{0..3}   acc_{0..3}
+    ///     body -> legs -> top -> acc -> hair
+    ///     body_{0..7}_{dir}_{anim}_{frame}
+    ///     legs_{0..3}   top_{0..3}   acc_{0..5}_{dir}   hair_{0..6}_{dir}
     ///     dir   = down | up | left | right
     ///     anim  = idle | walk | work
     ///     frame = 0 | 1
@@ -30,6 +30,16 @@ namespace SheepGate.Art
     /// so is `top_2_left_walk_1`. The extended form only changes shading and mirroring: the
     /// head, torso and thigh silhouettes are identical in every pose, which is what lets one
     /// static overlay sprite sit correctly on all 48 body sprites. See CharacterArt.
+    ///
+    /// The direction token is optional to the PARSER and mandatory to two of those layers.
+    /// Legs and top are mirrored, so `legs_2` and `legs_2_left` are the same drawing reflected
+    /// and either key is honest. Acc and hair are drawn per facing — the accessory because every
+    /// variant is anchored to one side or one face of the body and reflecting a right shoulder
+    /// gives you a left one — so `acc_1` is not "the map tube", it is the FRONT map tube, and a
+    /// caller that has a facing and omits it gets a wrong drawing rather than a coarse one. That
+    /// is why ArtKeys.Accessory and ArtKeys.Hair take a facing and ArtKeys.Top and ArtKeys.Legs
+    /// do not; the permissive parse survives for the world-figure fallbacks that still build a
+    /// bare `acc_<n>` by hand.
     ///
     /// UI, the original three, 32x32 at 32 pixels per unit. Nine-slice friendly: set
     /// Image.type = Sliced and the borders come along.

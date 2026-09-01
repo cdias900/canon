@@ -92,7 +92,7 @@
     },
     "acc_tool_bag": {
       "display": "Tool bag",
-      "description": "At the side of the belt, with what breaks stone and what lifts it."
+      "description": "At the belt, with what breaks stone and what lifts it."
     },
     "acc_ring_belt": {
       "display": "Ring belt",
@@ -109,13 +109,13 @@
   },
 
   "unlock": {
-    "wall_stage.one": "Take a stretch of the wall to stage {0}.",
-    "wall_stage.other": "Take a stretch of the wall to stage {0}.",
-    "segments_complete.one": "Close {0} whole stretch of the wall.",
-    "segments_complete.other": "Close {0} whole stretches of the wall.",
+    "wall_stage.one": "Take a stretch to stage {0}.",
+    "wall_stage.other": "Take a stretch to stage {0}.",
+    "segments_complete.one": "Close {0} whole stretch.",
+    "segments_complete.other": "Close {0} whole stretches.",
     "day_reached.one": "Reach day {0} in the valley.",
     "day_reached.other": "Reach day {0} in the valley.",
-    "discovery.intro_seen": "Go down to the wall and hear the man from the capital speak."
+    "discovery.intro_seen": "Hear the capital's man."
   },
 
   "player_name_fallback": "traveller"

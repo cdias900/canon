@@ -125,13 +125,13 @@
   },
 
   "unlock": {
-    "wall_stage.one": "Leve um trecho da muralha até a etapa {0}.",
-    "wall_stage.other": "Leve um trecho da muralha até a etapa {0}.",
-    "segments_complete.one": "Feche {0} trecho inteiro da muralha.",
-    "segments_complete.other": "Feche {0} trechos inteiros da muralha.",
+    "wall_stage.one": "Leve um trecho à etapa {0}.",
+    "wall_stage.other": "Leve um trecho à etapa {0}.",
+    "segments_complete.one": "Feche {0} trecho inteiro.",
+    "segments_complete.other": "Feche {0} trechos inteiros.",
     "day_reached.one": "Chegue ao dia {0} no vale.",
     "day_reached.other": "Chegue ao dia {0} no vale.",
-    "discovery.intro_seen": "Desça até o muro e ouça o homem da capital falar."
+    "discovery.intro_seen": "Ouça o homem da capital."
   },
 
   "player_name_fallback": "viajante"

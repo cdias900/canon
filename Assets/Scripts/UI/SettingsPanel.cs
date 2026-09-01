@@ -112,8 +112,61 @@ namespace SheepGate.UI
             BuildToggleField(cardRect, "Effects", Loc.T("settings.effects"),
                 () => AudioDirector.EffectsMuted, muted => AudioDirector.EffectsMuted = muted);
 
+            // Same field shape as the sound rows, and the same rule about what the button says: it
+            // reads the state of the motion, "Reduzido" or "Completo", never the verb that would
+            // change it. The predicate is inverted against the sound rows on purpose — those ask
+            // "is it muted", this asks "is it reduced" — so both read as the thing that is true.
+            BuildToggleField(cardRect, "Motion", Loc.T("settings.motion"),
+                () => AccessibilityPreferences.ReduceMotion,
+                reduced => AccessibilityPreferences.ReduceMotion = reduced,
+                MotionStateLabel);
+
+            BuildRestartField(cardRect);
+
             UIKit.CreateButton(cardRect, "Close", Loc.T("settings.close"),
                 UIKit.ButtonVariant.Primary, Close);
+        }
+
+        /// <summary>
+        /// The way to put the run down and start another one.
+        ///
+        /// <b>Why it is in here at all.</b> Until now there was none: a player who picked Adar and
+        /// wanted Neriah, or who wanted to see the opening again, had to delete the app. Three days
+        /// of content and a character chosen in the first minute is exactly the shape that needs a
+        /// second attempt.
+        ///
+        /// It is last in the card, under a hairline, because it is not a setting — it is an exit,
+        /// and it should not sit in the same rhythm as the switches above it. It asks before it
+        /// acts, and the asking is a modal rather than a two-step button, because a control that
+        /// changes meaning on the second tap is how a slip becomes a deleted run.
+        /// </summary>
+        void BuildRestartField(RectTransform cardRect)
+        {
+            RectTransform field = UIKit.CreateRect("RestartField", cardRect);
+            UIKit.VerticalGroup(field.gameObject, DesignTokens.Space.S8, new RectOffset());
+
+            Image rule = UIKit.CreatePanel(field, "RestartRule", DesignTokens.Surface.Border,
+                                           UiSpriteKeys.Panel);
+            rule.raycastTarget = false;
+            LayoutElement ruleLayout = UIKit.Layout(rule);
+            ruleLayout.minHeight = Mathf.Max(2f, DesignTokens.Px(1f));
+            ruleLayout.preferredHeight = ruleLayout.minHeight;
+
+            UIKit.CreateButton(field, "Restart", Loc.T("settings.restart"),
+                UIKit.ButtonVariant.Secondary, OnRestartClicked);
+        }
+
+        void OnRestartClicked()
+        {
+            // Settings closes first. The confirmation is a modal of its own, and leaving this one
+            // underneath would put the player two closes away from the village if they backed out.
+            Close();
+            RestartConfirmModal.Show();
+        }
+
+        static string MotionStateLabel(bool reduced)
+        {
+            return reduced ? Loc.T("settings.motion.reduced") : Loc.T("settings.motion.full");
         }
 
         /// <summary>
@@ -151,15 +204,18 @@ namespace SheepGate.UI
         /// than assumed from the click, so the label cannot disagree with what is actually stored.
         /// </summary>
         static void BuildToggleField(RectTransform cardRect, string name, string label,
-                                     Func<bool> isMuted, Action<bool> setMuted)
+                                     Func<bool> isMuted, Action<bool> setMuted,
+                                     Func<bool, string> describe = null)
         {
+            Func<bool, string> word = describe ?? StateLabel;
+
             RectTransform field = UIKit.CreateRect(name + "Field", cardRect);
             UIKit.VerticalGroup(field.gameObject, DesignTokens.Space.S8, new RectOffset());
 
             UIKit.CreateText(field, name + "Label", label,
                 DesignTokens.Type.Body, DesignTokens.Ink.Secondary, TextAnchor.MiddleLeft);
 
-            Button toggle = UIKit.CreateButton(field, name + "Toggle", StateLabel(isMuted()),
+            Button toggle = UIKit.CreateButton(field, name + "Toggle", word(isMuted()),
                 UIKit.ButtonVariant.Secondary, null);
 
             toggle.onClick.AddListener(() =>
@@ -169,7 +225,7 @@ namespace SheepGate.UI
                 Text text = toggle.GetComponentInChildren<Text>();
                 if (text != null)
                 {
-                    text.text = StateLabel(isMuted());
+                    text.text = word(isMuted());
                 }
             });
         }

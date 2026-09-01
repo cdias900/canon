@@ -101,12 +101,34 @@ namespace SheepGate.UI
         }
 
         /// <summary>
-        /// Accessory layer. The ceiling comes from the art module so a new variant is reachable the moment
-        /// it is drawn; a literal here renders every variant past it as the wrong item.
+        /// Accessory layer, in the facing the figure is drawing. The ceiling comes from the art
+        /// module so a new variant is reachable the moment it is drawn; a literal here renders
+        /// every variant past it as the wrong item.
+        ///
+        /// This one takes a facing where <see cref="Top"/> and <see cref="Legs"/> do not, because
+        /// the accessory layer is the one that is never mirrored: a coil of rope on the right
+        /// shoulder and a tube across the back are four separate drawings in
+        /// <see cref="SheepGate.Art.CharacterArt.Accessory"/>, and only a key carrying the
+        /// direction token reaches any of them but Down.
+        /// </summary>
+        public static string Accessory(int index, FacingDirection direction)
+        {
+            int max = SheepGate.Art.CharacterArt.AccessoryVariants - 1;
+            return SheepGate.Art.ArtKeys.Accessory(Mathf.Clamp(index, 0, max), ToArtFacing(direction));
+        }
+
+        /// <summary>
+        /// The accessory in its shop window facing, which is Down.
+        ///
+        /// Kept as its own overload rather than folded away because the callers that use it are
+        /// choosing Down, not forgetting to choose: the backpack's stage figure and the wardrobe
+        /// row thumbnails are front-on by design, and they pass <see cref="FacingDirection.Down"/>
+        /// explicitly to the hair layer beside this one. A caller that has a facing in hand passes
+        /// it — this overload is not the default, it is the front view.
         /// </summary>
         public static string Accessory(int index)
         {
-            return SheepGate.Art.ArtKeys.Accessory(Mathf.Clamp(index, 0, SheepGate.Art.CharacterArt.AccessoryVariants - 1));
+            return Accessory(index, FacingDirection.Down);
         }
 
         /// <summary>

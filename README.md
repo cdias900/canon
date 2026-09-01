@@ -98,12 +98,21 @@ UI hierarchy belong in `tools/e2e.sh`, which drives the real EventSystem from in
 SDKs produce libraries that cannot be linked against each other, so one directory cannot serve
 both.
 
-Reset a playtest — the save is meant to survive restarts, so clear it deliberately:
+Reset a playtest — the save is meant to survive restarts, so clear it deliberately.
+
+**From inside the game:** Ajustes → *Começar de novo*, which asks before it deletes and then reboots
+into a fresh run. That is the route a playtester has; the paths below are the ones you need when the
+game will not start, or when you want the device to forget it ever ran.
 
 ```bash
 rm -rf ~/Library/Application\ Support/com.Create-Hack.A-Cidade-Quebrada   # player build
 rm -rf ~/Library/Application\ Support/Create\ Hack                        # editor Play mode
 ```
+
+Deleting the save does **not** clear PlayerPrefs, and two preferences live there rather than in the
+run: the sound switches, reduced motion, and whether the opening has been watched to the end on this
+device. The last of those is what puts a skip on the opening from the second run onwards — so a
+fresh save still skips, which is what a playtest wants, and a genuinely clean device does not.
 
 **Both paths, because `Application.persistentDataPath` is not the same in the two.** A player
 build resolves it from the bundle identifier; the editor resolves it from company and product

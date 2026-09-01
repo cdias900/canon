@@ -110,8 +110,24 @@ namespace SheepGate.Player
     /// </summary>
     public sealed class ItemArtDef
     {
+        /// <summary>
+        /// The build, 0 or 1 — not the packed sprite index. Only a <c>base</c> item may name it,
+        /// because the build belongs to the chosen character, and
+        /// <c>CharacterCatalog.RejectBuildOutsideBase</c> is what makes that a rule rather than a
+        /// convention: it reports and drops a build named by any other slot, at load.
+        /// </summary>
         [JsonProperty("body")] public int? body;
+
+        /// <summary>
+        /// The skin tone. <b>No item may name this, and no character floor either</b> — the tone
+        /// belongs to the person playing, and this type carries the field only so the loaders can
+        /// see the mistake and say so. Both loaders refuse it by name:
+        /// <c>CharacterCatalog.RejectSkinLayer</c> for an item in this file,
+        /// <c>CharacterPresets.ResolveTokens</c> for a preset's floor, and
+        /// <c>CharacterPresets.VerifyAgainstCatalog</c> for the <c>characters</c> block here.
+        /// </summary>
         [JsonProperty("skin")] public int? skin;
+
         [JsonProperty("hair")] public int? hair;
         [JsonProperty("top")] public int? top;
         [JsonProperty("legs")] public int? legs;
@@ -1111,6 +1127,17 @@ namespace SheepGate.Player
                 item.TintChannels = ParseChannels(item.id, item.tint_channels);
                 item.HiddenSlots = ParseSlots(item.id, item.hides_slots);
 
+                // Decision 1b, held as code rather than as a convention: the tone belongs to the
+                // player and no item may write it; the build belongs to the chosen character and
+                // only its base item may. Both run before the emptiness check below, so an art
+                // block that named nothing but a refused key is reported twice and truthfully:
+                // once for the key no item of its kind may write, and once for what it leaves
+                // behind, which is nothing to draw.
+                RejectSkinLayer(item.id, item.art, "art");
+                RejectSkinLayer(item.id, item.art_hooded, "art_hooded");
+                RejectBuildOutsideBase(item, item.art, "art");
+                RejectBuildOutsideBase(item, item.art_hooded, "art_hooded");
+
                 if (item.art == null || item.art.IsEmpty)
                 {
                     Debug.LogError("[Catalog] Item '" + item.id + "' has no \"art\" block, so it would change nothing when worn.");
@@ -1205,6 +1232,86 @@ namespace SheepGate.Player
                                    "to hang where the anomaly is.");
                 }
             }
+        }
+
+        /// <summary>
+        /// Refuses a skin tone in one of an item's art blocks: reports it by name and then drops
+        /// the key, so no item in memory can write <see cref="AppearanceState.skin"/>.
+        ///
+        /// <b>Why this is a rule and not a convention.</b> The tone is the one layer that belongs
+        /// to the person playing rather than to the character or to anything worn — a character
+        /// supplies the build, and the two travel in one sprite index (see
+        /// <see cref="AppearanceState.BodyArtVariant"/>). An item that named a tone would take the
+        /// player's choice away on every recomposition, silently, because <see cref="Compose"/>
+        /// applies worn items over the character floor and nothing downstream can tell a tone that
+        /// was chosen from a tone that was worn. <c>CharacterPresets.ApplyTo</c> and
+        /// <c>Wardrobe.ApplyToAppearance</c> both read the tone back over their own call to
+        /// Compose, and that is what makes the mistake survivable — it is not what makes it
+        /// visible. This is the line that makes it visible, at the moment the file is read, naming
+        /// the id and the key to delete.
+        ///
+        /// Dropping the value rather than merely reporting it is the same shape
+        /// <c>CharacterPresets.ResolveTokens</c> uses on the presets file: the error says what to
+        /// change, and the run in the meantime keeps the player's tone instead of losing it once
+        /// per repaint.
+        ///
+        /// The <c>characters</c> block is deliberately NOT handled here. Its copy of the same
+        /// mistake is reported by <c>CharacterPresets.VerifyAgainstCatalog</c>, which reads the
+        /// value to do it; dropping it at load would leave that check looking at a field that can
+        /// no longer be wrong, which is a check that has stopped running without saying so.
+        /// </summary>
+        static void RejectSkinLayer(string itemId, ItemArtDef art, string blockName)
+        {
+            if (art == null || !art.skin.HasValue)
+            {
+                return;
+            }
+
+            Debug.LogError("[Catalog] Item '" + itemId + "' names a skin tone (\"skin\": " + art.skin.Value +
+                           ") in its \"" + blockName + "\" block in character_catalog.json. Remove the key: " +
+                           "a tone is never worn, never earned and never taken away, so no item may write " +
+                           "that layer — an item that did would replace the tone the player chose every time " +
+                           "the look is recomposed. An item declares a build only, and only in the base slot. " +
+                           "Ignoring it.");
+
+            art.skin = null;
+        }
+
+        /// <summary>
+        /// Refuses a build in the art block of an item that is not in the <c>base</c> slot: reports
+        /// it by name and then drops the key, so nothing a player puts on can rewrite
+        /// <see cref="AppearanceState.body"/>.
+        ///
+        /// <b>The other half of the same decision <see cref="RejectSkinLayer"/> holds.</b> Build and
+        /// tone travel in one sprite index, and they are split between two owners: the build belongs
+        /// to the chosen character, the tone to the person playing. A <c>base</c> item is the
+        /// character's floor and is the one place a build is authored — which is why that slot is
+        /// exempt here and only that slot. A hairstyle or an outfit that named a build would swap
+        /// Adar's frame for Neriah's the moment it was worn, on every recomposition, and unlike the
+        /// tone there is no read-and-restore anywhere to put it back: <c>CharacterPresets.ApplyTo</c>
+        /// and <c>Wardrobe.ApplyToAppearance</c> guard the tone precisely because the build is
+        /// supposed to come from the floor. So this is the only thing standing between that content
+        /// mistake and a character who silently changes shape.
+        ///
+        /// Reported at load, with the id, the block and the key to delete, for the same reason the
+        /// tone is: the mistake is invisible in play — a wrong body sprite reads as art, not as a
+        /// bug — and a rule that is only written down in a document is a rule that ships broken.
+        /// </summary>
+        static void RejectBuildOutsideBase(CatalogItemDef item, ItemArtDef art, string blockName)
+        {
+            if (item == null || art == null || !art.body.HasValue || item.Slot == CharacterSlot.Base)
+            {
+                return;
+            }
+
+            Debug.LogError("[Catalog] Item '" + item.id + "' is in the " + item.Slot +
+                           " slot and names a build (\"body\": " + art.body.Value + ") in its \"" + blockName +
+                           "\" block in character_catalog.json. Remove the key: the build belongs to the " +
+                           "chosen character and is authored once, in that character's base item, so a piece " +
+                           "worn over it would change the figure's frame every time the look is recomposed. " +
+                           "Ignoring it.");
+
+            art.body = null;
         }
 
         static TintChannel[] ParseChannels(string itemId, string[] tokens)

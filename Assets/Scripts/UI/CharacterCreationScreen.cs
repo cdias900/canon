@@ -48,6 +48,31 @@ namespace SheepGate.UI
     /// the valley calls you by a fallback word rather than refusing to open.
     ///
     /// ==================================================================================
+    /// THE VERTICAL BUDGET, AND WHO LOSES WHEN IT DOES NOT ADD UP
+    /// ==================================================================================
+    /// This screen has less height than it has content, and pretending otherwise is what broke it
+    /// once already. Both steps therefore allocate rather than lay out and hope, and both start
+    /// from the thing the step exists for:
+    ///
+    /// * <b>Step 2 gives the list <see cref="Composer.MinimumVisibleRows"/> rows of the tallest row
+    ///   in the running locale first</b>, then the fixed chrome — the eyebrow row, the tab bar, the
+    ///   action row, the safe-area lane — and the preview strip takes what is left. The strip is
+    ///   last because it is the only band on the step that is not a touch target, a safe-area inset
+    ///   or the list. On a 1080x1920 canvas that leaves it under its preferred height and it draws
+    ///   compact; on a phone it draws in full. See <see cref="Composer.ApplyVerticalBudget"/>.
+    /// * <b>Step 1 measures its own words before deciding how tall anything is</b> — the card's
+    ///   personality line and the hint under the name field both — caps the cards so the tone row
+    ///   always peeks above the fold, and scrolls for the rest. See
+    ///   <see cref="Composer.CardHeight"/> and <see cref="Composer.MeasureNameHint"/>.
+    ///
+    /// Two consequences are written here because they read as mistakes otherwise. <b>The chosen
+    /// character's name lives in the eyebrow row</b>, in the gap Back and the language toggle leave
+    /// empty, rather than on a line of its own. <b>The refusal lives on the preview strip</b>, drawn
+    /// over its foot when there is something to say, rather than in a reserved band that is empty in
+    /// every session where nothing was refused. Both moved for the same 100-odd units, and both are
+    /// the backpack's own answer to the same problem.
+    ///
+    /// ==================================================================================
     /// THE RULES THIS SCREEN CARRIES
     /// ==================================================================================
     /// * <b>Rule 7 — never punish.</b> Locked pieces are listed from the first minute, in full
@@ -271,15 +296,32 @@ namespace SheepGate.UI
             static readonly float MaxHeaderHeight =
                 EyebrowRowHeight + 2f * DesignTokens.Space.S8 + 6f * DesignTokens.Type.Display;
 
-            /// <summary>Bottom row: the clay action, the quiet one above it, and the home indicator.</summary>
-            static readonly float StartHeight = DesignTokens.Px(56f);
-            static readonly float SkipHeight = UIKit.ButtonMinHeight;
-            static readonly float ButtonGap = DesignTokens.Space.S12;
-            static readonly float StartBottom = DesignTokens.Space.SafeAreaBottom;
-            static readonly float SkipBottom = StartBottom + StartHeight + ButtonGap;
+            /// <summary>
+            /// The bottom of both steps: <b>one row holding the quiet action and the clay one, side
+            /// by side</b>, over the home indicator.
+            ///
+            /// They used to be stacked, and stacking cost a whole touch target plus a gap — 166
+            /// canvas units — of the one budget this screen has too little of. The measured
+            /// consequence was that step 2's list could not show two rows of the tallest item in the
+            /// catalogue on a 1080x1920 canvas no matter what else was given up. A row of two is the
+            /// ordinary shape for "leave" beside "go on", it keeps both controls a full touch target
+            /// tall, and the width each one gets is <i>measured from its own label</i> rather than
+            /// split down the middle — see <see cref="BuildActionRow"/>, because
+            /// "Doesn't matter, let's go" and "Start" are not the same size in any language.
+            /// </summary>
+            static readonly float ActionRowHeight = DesignTokens.Px(56f);
 
-            /// <summary>Clearance kept above the two buttons at the bottom, on both steps.</summary>
-            static readonly float BodyBottom = SkipBottom + SkipHeight + DesignTokens.Space.S16;
+            /// <summary>Clear space under the action row: the home indicator's lane.</summary>
+            static readonly float ActionRowBottom = DesignTokens.Space.SafeAreaBottom;
+
+            /// <summary>The gap above the action row, and the one between the step's own bands.</summary>
+            static readonly float BandGap = DesignTokens.Space.S8;
+
+            /// <summary>What the action row and its clearances take out of a step's height.</summary>
+            static readonly float ActionsBlockHeight = ActionRowBottom + ActionRowHeight + BandGap;
+
+            /// <summary>The gap between the two controls of the action row.</summary>
+            static readonly float ActionGap = DesignTokens.Space.S12;
 
             /// <summary>A body line's box. One line of prose, including its leading.</summary>
             static readonly float BodyLineHeight = WardrobeRow.BodyLineHeight;
@@ -294,22 +336,29 @@ namespace SheepGate.UI
 
             // ------------------------------------------------------------- step 1 geometry
 
-            /// <summary>Gap between the four blocks of step 1's scroll.</summary>
-            static readonly float SectionGap = DesignTokens.Space.S24;
+            /// <summary>
+            /// Gap between the three blocks of step 1's scroll.
+            ///
+            /// <c>S16</c> and not <c>S24</c>, and the two steps down it took — the message band left
+            /// the scroll and the gaps tightened — are what make the whole step fit inside a real
+            /// phone's viewport without scrolling at all. On the 1080x1920 canvas it still scrolls,
+            /// and the tone row is held above the fold on purpose; see <see cref="CardHeight"/>.
+            /// </summary>
+            static readonly float SectionGap = DesignTokens.Space.S16;
 
             /// <summary>Air after the last block, so a drag to the end is not flush to the frame.</summary>
-            static readonly float ScrollTail = DesignTokens.Space.S32;
+            static readonly float ScrollTail = DesignTokens.Space.S24;
 
             /// <summary>
-            /// The character cards' floor. A card below this cannot hold a legible figure over a
-            /// name over a personality line, and reaching it means the layout above has taken
-            /// something that is not available — which is why falling under it is an error and not a
-            /// clamp.
+            /// The largest a character card may be. The ceiling exists because a card that fills the
+            /// viewport hides the tone row entirely and the player never learns it is there.
+            ///
+            /// <b>There is no matching constant for the floor.</b> There used to be two — a 120-point
+            /// "error under this" and a 240-point clamp — and because the clamp sat above the error
+            /// the error could never fire: a negative band came out of the arithmetic and left the
+            /// screen pinned at 240 with no log line. A card's floor is now derived from what the
+            /// card actually has to hold, measured, in <see cref="CardMinimumHeight"/>.
             /// </summary>
-            static readonly float CardMinHeight = DesignTokens.Px(120f);
-
-            /// <summary>The band a card is allowed to occupy once the rest of step 1 has its share.</summary>
-            static readonly float CardFloor = DesignTokens.Px(240f);
             static readonly float CardCeiling = DesignTokens.Px(340f);
 
             /// <summary>The accent stripe along a card's top edge. Decoration; it carries no state.</summary>
@@ -328,34 +377,87 @@ namespace SheepGate.UI
             static readonly float ToneRowHeight =
                 SlotLabelHeight + DesignTokens.Space.S8 + ToneSwatchHeight;
 
+            /// <summary>
+            /// The smallest figure a character card is allowed to draw, and it is
+            /// <see cref="ToneSwatchHeight"/> rather than a number of its own.
+            ///
+            /// The rule it encodes is comparative and therefore cannot go stale: <b>the person you
+            /// are choosing is never drawn smaller than the skin tone underneath them.</b> A card
+            /// that fell under this would be asking the player to pick a character off a figure
+            /// smaller than a swatch, which is the point at which the choice stops being a choice
+            /// between two people and becomes a choice between two words.
+            /// </summary>
+            static readonly float CardFigureMinHeight = ToneSwatchHeight;
+
+            /// <summary>
+            /// What has to stay visible under the cards so the player knows the step continues.
+            ///
+            /// The cards are capped so that this much of the tone row is inside the viewport: its
+            /// label and half a swatch. A scroll view whose first block fills the fold is a scroll
+            /// view nobody scrolls, and the tone is the one thing on this screen that belongs to the
+            /// player rather than to the character — losing it below the fold loses decision 1b.
+            /// </summary>
+            static readonly float TonePeekHeight =
+                SlotLabelHeight + DesignTokens.Space.S8 + 0.5f * ToneSwatchHeight;
+
             /// <summary>The field is a touch target, so it is at least 48 design points tall.</summary>
             static readonly float NameFieldHeight = DesignTokens.Px(52f);
 
-            static readonly float NameRowHeight =
-                SlotLabelHeight + DesignTokens.Space.S8 + NameFieldHeight +
-                DesignTokens.Space.S8 + BodyLineHeight;
+            /// <summary>
+            /// Everything in the name row above the hint: the slot label, the field, and the two
+            /// gaps. Fixed, because all three of them are.
+            ///
+            /// <b>The hint is not part of this and is measured instead</b> — see
+            /// <see cref="MeasureNameHint"/>. It used to be one <see cref="BodyLineHeight"/> here,
+            /// which is a guess about a sentence in a language nobody laying this out is reading,
+            /// and at a real phone's width the guess is wrong in both of them.
+            /// </summary>
+            static readonly float NameRowFixed =
+                SlotLabelHeight + DesignTokens.Space.S8 + NameFieldHeight + DesignTokens.Space.S8;
+
+            /// <summary>
+            /// The three hints the row has to be able to hold. Every one of them is measured, not
+            /// just the one showing: the row is built once and the sentence changes under the
+            /// player's fingers. <c>Ok</c> is absent because its hint is empty.
+            /// </summary>
+            static readonly NameValidity[] MeasuredNameHints =
+            {
+                NameValidity.Unset, NameValidity.TooShort, NameValidity.TooLong
+            };
 
             /// <summary>Horizontal padding inside the name field, at the design system's body size.</summary>
             static readonly float FieldPadding = DesignTokens.Space.S16;
 
-            /// <summary>
-            /// A reserved two-line band under the name, empty until <c>ToCustomise</c> is tapped
-            /// with nothing chosen. Reserved rather than grown, so the button does not move under
-            /// the finger that just missed.
-            /// </summary>
-            static readonly float ChoiceMessageHeight = 2f * BodyLineHeight;
-
             // ------------------------------------------------------------- step 2 geometry
 
             /// <summary>
-            /// The four-facing strip's preferred height, and the floor it may be cut to when the
-            /// rows below it cannot show two of themselves. Below about 120 points the strip is what
-            /// crops the figure rather than the cell width.
+            /// The four-facing strip's preferred height, and the height under which it stops drawing
+            /// the facing captions. Above <see cref="PreviewHeightMin"/> a cell holds a figure over a
+            /// caption; below it the caption band is what would be cropping the figure, so the words
+            /// move to <see cref="AccessibleLabel"/> and the figure keeps the room.
             /// </summary>
             static readonly float PreviewHeightMax = DesignTokens.Px(160f);
             static readonly float PreviewHeightMin = DesignTokens.Px(120f);
 
             static readonly float PreviewPadding = DesignTokens.Space.S12;
+
+            /// <summary>Headroom over a compact strip's figures, which stand on its lower edge.</summary>
+            static readonly float PreviewCompactPadding = DesignTokens.Space.S4;
+
+            /// <summary>
+            /// The height under which the strip is no longer worth its band, expressed against the
+            /// thumbnail every row of the list already carries.
+            ///
+            /// <b>The rule is comparative on purpose.</b> The strip exists to answer a question the
+            /// list cannot — what the piece looks like from the side and from behind, which is where
+            /// an accessory anchored to a shoulder or a back actually shows. A strip whose figures
+            /// came out smaller than the thumbnail on the row beside them would be answering that
+            /// question worse than the thing it sits above, and at that point the band belongs to the
+            /// list. Falling under it is reported, never quietly absorbed.
+            /// </summary>
+            static readonly float PreviewHeightFloor =
+                WardrobeRow.ThumbSize + DesignTokens.Space.S4;
+
             static readonly float CaptionHeight = DesignTokens.Px(20f);
             static readonly float CaptionBottom = DesignTokens.Space.S8;
 
@@ -364,13 +466,17 @@ namespace SheepGate.UI
                 CaptionBottom + CaptionHeight + DesignTokens.Space.S8;
 
             static readonly float SegmentBarHeight = DesignTokens.Space.TouchTarget;
-            static readonly float DividerHeight = DesignTokens.Px(2f);
 
             /// <summary>
             /// How many rows the list must be able to show at the tallest row in the running
             /// locale. The backpack fought its way from 1.7 to 2.10 by turning its stage sideways;
             /// two is the floor below which a list stops reading as a list and starts reading as a
             /// single item with something peeking underneath.
+            ///
+            /// <b>This number does not move.</b> Everything else on step 2 is allocated after it —
+            /// see <see cref="ApplyVerticalBudget"/>, which now hands the list its two rows first
+            /// and spends what is left, instead of laying out the chrome and discovering afterwards
+            /// that the list got 0.93 of a row.
             /// </summary>
             const float MinimumVisibleRows = 2.0f;
 
@@ -390,6 +496,17 @@ namespace SheepGate.UI
             InputField _nameField;
             Text _nameHint;
 
+            /// <summary>The name row's own rect, positioned once the blocks above it are placed.</summary>
+            RectTransform _nameRow;
+
+            /// <summary>
+            /// How tall the name row came out, <b>measured from the hint it has to hold</b>. Read by
+            /// <see cref="CardHeight"/>, which is why the row is built before the cards are sized.
+            /// The initial value is the one-line reserve the row had before it was measured, and it
+            /// stands only for the window between construction and <see cref="BuildNameRow"/>.
+            /// </summary>
+            float _nameRowHeight = NameRowFixed + BodyLineHeight;
+
             Text _eyebrow;
             Button _back;
             Text _screenTitle;
@@ -402,9 +519,25 @@ namespace SheepGate.UI
             CanvasGroup _choiceGroup;
             Coroutine _choiceFade;
 
+            /// <summary>
+            /// The band the choice message reserves above step 1's action row, <b>measured from the
+            /// sentence it will hold</b> rather than reserved as a line count. Two words more in one
+            /// language is the whole difference between one line and two.
+            /// </summary>
+            float _choiceHeight;
+
             Text _refusal;
             CanvasGroup _refusalGroup;
             Coroutine _refusalFade;
+
+            /// <summary>
+            /// The opaque bar the refusal is written on, inside the preview panel. Sized on every
+            /// sentence, because it is the sentence that decides how tall it is.
+            /// </summary>
+            RectTransform _refusalBanner;
+
+            /// <summary>The width a refusal sentence is measured against. Set when the bar is built.</summary>
+            float _refusalWidth;
 
             Text _chosenName;
 
@@ -441,6 +574,17 @@ namespace SheepGate.UI
 
                 /// <summary>The suggested name, as this card shows it. Reused in the announced name.</summary>
                 public string CharacterName;
+
+                /// <summary>
+                /// How tall this card's own words came out: the name's line plus the personality
+                /// line's <i>measured</i> height. The row reserves the largest of them.
+                /// </summary>
+                public float CaptionBand;
+
+                /// <summary>The two bands laid out once every card has measured its words.</summary>
+                public RectTransform Caption;
+
+                public RectTransform FigureArea;
             }
 
             /// <summary>One tone swatch: the body it draws, and the two marks that say it is chosen.</summary>
@@ -498,11 +642,42 @@ namespace SheepGate.UI
             /// </summary>
             void Teardown()
             {
+                LanguageToggle.RebuildInPlace = null;
+
                 if (_canvas != null)
                 {
                     UnityEngine.Object.Destroy(_canvas.gameObject);
                     _canvas = null;
                 }
+            }
+
+            /// <summary>
+            /// Swaps this screen for the same screen in the language just chosen, leaving the scene
+            /// alone.
+            ///
+            /// <b>Why the in-scene path cannot reload.</b> This screen runs as a beat inside the
+            /// opening cutscene, and the cutscene cannot be skipped. A scene reload there restarts
+            /// the opening from the world map, so the player pays for a language switch by watching
+            /// the whole thing again — on the one screen where the toggle is guaranteed to be
+            /// reachable by someone who cannot read the interface.
+            ///
+            /// Rebuilding is safe here for the reason <see cref="Build"/> already documents: this
+            /// screen holds no draft. The name is written on every keystroke, the swaps mutate the
+            /// live <see cref="GameState"/>, and <c>Wardrobe.ApplyToAppearance</c> is idempotent —
+            /// so a screen composed from scratch comes back showing everything the player had
+            /// already done. The one thing rebuilding must not do is destroy the canvas the
+            /// cutscene is waiting behind before the new one exists, which is why the old canvas is
+            /// destroyed inside <see cref="Build"/>'s own frame rather than a frame earlier.
+            /// </summary>
+            void RebuildForLocale()
+            {
+                if (_canvas != null)
+                {
+                    UnityEngine.Object.Destroy(_canvas.gameObject);
+                    _canvas = null;
+                }
+
+                Build();
             }
 
             // ============================================================== building
@@ -535,6 +710,13 @@ namespace SheepGate.UI
                 // player had already made.
                 Wardrobe.ApplyToAppearance(_state);
 
+                // Only the in-scene path takes this over. The standalone screen owns the whole
+                // scene, so reloading it is both correct and cheaper than rebuilding by hand.
+                if (_onDone != null)
+                {
+                    LanguageToggle.RebuildInPlace = RebuildForLocale;
+                }
+
                 Canvas canvas = UIKit.CreateCanvas("CharacterCreationCanvas", _sortingOrder);
                 _canvas = canvas;
                 RectTransform root = UIKit.SafeArea(canvas);
@@ -547,7 +729,7 @@ namespace SheepGate.UI
                 // canvas along the camera housing, which reads as a rendering fault.
                 UIKit.Bleed(background);
 
-                RecomputeMetrics(root);
+                RecomputeMetrics();
 
                 float headerHeight = BuildHeader(root);
 
@@ -596,37 +778,58 @@ namespace SheepGate.UI
             /// <c>tools/e2e.sh</c> launches the macOS player at exactly 1080x1920, where the two
             /// numbers agree, so it structurally cannot see this.
             ///
-            /// The height is the one number that is read off the layout rather than computed,
-            /// because the safe area's insets are not in the scaler's formula. It is checked against
-            /// a plausible range for the same reason the header is: a canvas created this frame
-            /// reports a rect of zero, and zero is not obviously wrong to any arithmetic downstream.
+            /// <b>Nothing here reads a RectTransform.</b> It cannot: this runs on the frame the
+            /// canvas is created, before the <see cref="UnityEngine.UI.CanvasScaler"/> has set the
+            /// canvas's scale factor, so every rect under it is still measured in raw screen pixels.
+            /// Both axes therefore come from <see cref="Screen.safeArea"/>'s share of
+            /// <see cref="Screen.width"/> and <see cref="Screen.height"/> — a ratio, which is the
+            /// one thing about the inset that is true before a layout pass — applied to the scaler's
+            /// own formula. That is what a rect would report one frame later.
             /// </summary>
-            void RecomputeMetrics(RectTransform root)
+            void RecomputeMetrics()
             {
+                // The safe area's horizontal inset, applied as the ratio it is rather than read off
+                // the rect it will eventually produce.
+                //
+                // <b>This used to take Mathf.Min of the canvas width and root.rect.width, and that
+                // reading is wrong on every phone.</b> The rect of a canvas created this frame is
+                // still in raw screen pixels: the CanvasScaler has not run, so canvas.scaleFactor is
+                // 1 and a 402-point-wide phone reports a safe area 402 units across instead of the
+                // 977 it will have one frame later. The min then took the pixel count, every width
+                // downstream was derived from a third of the screen, and WardrobeRow.MetricsFor came
+                // out with a NEGATIVE text column — item names breaking mid-word, a character card
+                // needing more than the viewport, and the action button drawing one letter per line.
+                // It survived every run of tools/e2e.sh because the macOS player is exactly
+                // 1080x1920, where the pixel count and the canvas unit are the same number.
+                //
+                // Screen.safeArea and Screen.width are both in pixels, so their ratio is the one
+                // thing about the inset that is true before any layout has happened — which is the
+                // same technique SafeAreaHeight() already uses on the other axis, for the same
+                // reason. On a screen with no inset the ratio is 1 and this is CanvasWidth()
+                // unchanged, which is why the desktop numbers do not move.
                 float available = UIKit.CanvasWidth();
 
-                // A safe area with a real horizontal inset (a landscape orientation, a future
-                // device) is narrower than the canvas; a canvas created this frame reports zero.
-                // Taking the smaller of the two only when the container has a usable width covers
-                // both without trusting either on its own.
-                if (root != null && root.rect.width > 1f)
+                Rect safe = Screen.safeArea;
+                if (safe.width > 1f && Screen.width > 1f)
                 {
-                    available = Mathf.Min(available, root.rect.width);
+                    available *= safe.width / Screen.width;
                 }
 
                 _contentWidth = available - 2f * SideMargin;
                 _rowMetrics = WardrobeRow.MetricsFor(_contentWidth);
 
-                float measured = root != null ? root.rect.height : 0f;
-                float computed = SafeAreaHeight();
-
-                if (measured >= DesignTokens.Px(400f) && measured <= DesignTokens.Px(1400f))
-                {
-                    _rootHeight = measured;
-                    return;
-                }
-
-                _rootHeight = computed;
+                // The height comes from the same formula for the same reason, and no longer from
+                // root.rect.height at all.
+                //
+                // The reading it replaces was guarded by a plausible range rather than by anything
+                // that knew what units it was in, and raw pixels walk straight through that guard on
+                // real hardware: an iPhone 17 Pro reports 2622 pixels tall, so its unscaled safe-area
+                // rect lands inside the 1108-3877 band the range allowed and was accepted as canvas
+                // units — about a quarter too tall, which is a quarter of step 2's budget spent on
+                // room that is not there. SafeAreaHeight() is the scaler's own formula scaled by the
+                // inset's share of the screen, so it is what the rect would have reported one frame
+                // later, and it needs no range to be believed.
+                _rootHeight = SafeAreaHeight();
             }
 
             /// <summary>
@@ -727,6 +930,21 @@ namespace SheepGate.UI
                 backRect.anchoredPosition = Vector2.zero;
                 _back.gameObject.SetActive(false);
 
+                // The chosen character's name rides in the middle of this row rather than on a line
+                // of its own at the top of step 2. That line cost a full Title box plus its gap —
+                // 100 canvas units — out of the one budget step 2 has too little of, and it was
+                // spending it on a word that fits in a gap the language toggle and the Back button
+                // leave empty on every device. It is centred between the two of them, and its box
+                // stops short of both: a name long enough to reach either control would otherwise
+                // draw underneath it.
+                _chosenName = UIKit.CreateText(eyebrowRow, "ChosenName", string.Empty,
+                    DesignTokens.Type.Title, DesignTokens.Ink.Primary, TextAnchor.MiddleCenter,
+                    DesignTokens.TypeRole.Title);
+                UIKit.Stretch((RectTransform)_chosenName.transform,
+                    BackButtonWidth(_back) + DesignTokens.Space.S12,
+                    LanguageToggle.Width + DesignTokens.Space.S12, 0f, 0f);
+                _chosenName.gameObject.SetActive(false);
+
                 // Upper aligned, both of them. Inside a vertical group the block grows downward as
                 // it wraps, and a middle-aligned title that gains a line would climb into the row
                 // above it as well as pushing the one below.
@@ -766,18 +984,14 @@ namespace SheepGate.UI
             /// move the NOVO badge makes for the same reason. A per-character estimate would be one
             /// magic number that happens to fit the two words in the tree today. Never narrower than
             /// a touch target.
+            ///
+            /// It is <see cref="LabelWidth"/> under a name that says which button, because two of
+            /// the three widths on this screen that come from a word are read the same way and a
+            /// second copy of the arithmetic is a second thing to keep in step.
             /// </summary>
             static float BackButtonWidth(Button back)
             {
-                float measured = 0f;
-
-                Text word = back != null ? back.GetComponentInChildren<Text>(true) : null;
-                if (word != null)
-                {
-                    measured = word.preferredWidth;
-                }
-
-                return Mathf.Max(DesignTokens.Space.TouchTarget, measured + 2f * UIKit.ButtonPadding);
+                return LabelWidth(back);
             }
 
             // ============================================================== step 1
@@ -785,21 +999,33 @@ namespace SheepGate.UI
             /// <summary>
             /// Who you are: the two characters, the tone that stays yours, and your name.
             ///
-            /// Everything between the header and the buttons is one scroll view. It used to be
-            /// absolutely positioned against the canvas, which fitted only as long as the canvas was
-            /// the whole screen: once the layout honours the safe area the phone is a couple of
-            /// hundred units shorter, and the last block ended up underneath the buttons.
+            /// <b>Built bottom-up, and the order is the fix.</b> The action row and the message band
+            /// under the scroll are built first, because how tall the message comes out in this
+            /// locale is what decides where the scroll view ends — and the version this replaced
+            /// reserved two lines for it <i>inside</i> the scroll, where the one sentence that makes
+            /// the primary button explain itself could scroll off the bottom of the screen. Tapping
+            /// Continuar with nothing chosen then did nothing and said nothing, which on the first
+            /// screen of the game is the worst failure this file has ever had.
+            ///
+            /// Everything between the header and the action row is one scroll view, and on a short
+            /// canvas it genuinely scrolls: the cards are capped so that <see cref="TonePeekHeight"/>
+            /// of the tone row is always above the fold, which is the affordance that says so.
             /// </summary>
             void BuildStep1(RectTransform root, float top)
             {
                 _step1 = UIKit.CreateRect("Step1", root);
                 UIKit.Stretch(_step1);
 
+                BuildActionRow(_step1, QuickStartFromChoice, "ToCustomise", ContinueKey, ToCustomise);
+                BuildChoiceMessage(_step1);
+
+                float bottom = ActionsBlockHeight + _choiceHeight + BandGap;
+
                 ScrollRect options = UIKit.CreateScrollView(_step1, "Options", out RectTransform content);
                 var optionsRect = (RectTransform)options.transform;
                 optionsRect.anchorMin = new Vector2(0f, 0f);
                 optionsRect.anchorMax = new Vector2(1f, 1f);
-                optionsRect.offsetMin = new Vector2(0f, BodyBottom);
+                optionsRect.offsetMin = new Vector2(0f, bottom);
                 optionsRect.offsetMax = new Vector2(0f, -top);
 
                 // The helper lays its content out with a vertical group; this step positions by hand,
@@ -816,21 +1042,31 @@ namespace SheepGate.UI
                     contentFitter.enabled = false;
                 }
 
-                float viewport = _rootHeight - top - BodyBottom;
-                float cardHeight = CardHeight(viewport);
+                float viewport = _rootHeight - top - bottom;
 
-                float cursor = 0f;
-                BuildCharacterChoice(content, cursor, cardHeight);
-                cursor += cardHeight + SectionGap;
+                // Cards first, at whatever height the step can afford, and the height is decided from
+                // what the cards themselves measure — see BuildCharacterChoice, which builds the two
+                // of them, reads the tallest caption off the strings this locale actually has, and
+                // reports back how tall a card had to be.
+                // The name row is built first and placed last, and the inversion is the same one
+                // step 2 makes: how tall it comes out is an input to how tall a card may be, because
+                // CardHeight takes the name row out of the band before the cards get theirs. Its
+                // hint wraps to two lines at a real phone's width in both locales, and a card sized
+                // against a one-line reserve is a card sized against a row that does not exist.
+                // Where the row sits is decided below, once the cards and the tone row have taken
+                // their cursor; sibling order inside the scroll decides draw order only, and nothing
+                // in this column overlaps.
+                BuildNameRow(content);
+
+                float cardHeight = BuildCharacterChoice(content, 0f, viewport);
+
+                float cursor = cardHeight + SectionGap;
 
                 BuildToneRow(content, cursor);
                 cursor += ToneRowHeight + SectionGap;
 
-                BuildNameRow(content, cursor);
-                cursor += NameRowHeight + SectionGap;
-
-                BuildChoiceMessage(content, cursor);
-                cursor += ChoiceMessageHeight + ScrollTail;
+                UIKit.AnchorTop(_nameRow, _nameRowHeight, SideMargin, SideMargin, cursor);
+                cursor += _nameRowHeight + ScrollTail;
 
                 content.sizeDelta = new Vector2(0f, cursor);
 
@@ -838,50 +1074,59 @@ namespace SheepGate.UI
                 // nothing else on the screen says so; the bar sits in the gutter the content already
                 // leaves free, so it costs no width.
                 UIKit.AttachVerticalScrollbar(options, ScrollbarWidth);
-
-                Button skip = UIKit.CreateButton(_step1, "QuickStart", Loc.T(QuickStartKey),
-                    UIKit.ButtonVariant.Secondary, QuickStartFromChoice);
-                UIKit.AnchorBottom((RectTransform)skip.transform, SkipHeight, SideMargin, SideMargin, SkipBottom);
-
-                // "ToCustomise" and not "Continue", and the name is not a matter of taste.
-                // E2ERunner does a global Find("Continue") as its dialogue-advance fallback, and the
-                // dialogue canvas can still be alive underneath the cutscene blackout while this
-                // screen is up — so a control named Continue here would be tapped by the day loop.
-                //
-                // Clay, not gold: gold on this screen means nothing at all, and the design system's
-                // one gold action per screen is deliberately left unspent.
-                Button advance = UIKit.CreateButton(_step1, "ToCustomise", Loc.T(ContinueKey),
-                    UIKit.ButtonVariant.Primary, ToCustomise);
-                UIKit.AnchorBottom((RectTransform)advance.transform, StartHeight, SideMargin, SideMargin, StartBottom);
             }
 
             /// <summary>
-            /// How tall a character card may be: whatever step 1's scroll has left once the tone
-            /// row, the name row and the message band have taken theirs, held between a floor and a
-            /// ceiling.
+            /// How tall a character card may be, given the viewport and what a card has to hold.
             ///
-            /// The ceiling exists because a card that fills the viewport hides the tone row entirely
-            /// and the player never learns it is there. The floor exists because below it the figure
-            /// is smaller than the name under it. Falling under
-            /// <see cref="CardMinHeight"/> before the clamp is an error rather than a silent clamp:
-            /// the clamp would keep the screen looking correct while the scroll quietly grew past
-            /// what a thumb reaches, and nothing downstream would say so.
+            /// Three numbers, in this order:
+            /// <list type="number">
+            /// <item><b>The band</b> — what the scroll has left once the tone row, the name row and
+            /// the gaps have taken theirs. It can come out negative, and on a 1080x1920 canvas it
+            /// does.</item>
+            /// <item><b>The floor</b> — <paramref name="minimum"/>, derived in
+            /// <see cref="CardMinimumHeight"/> from the card's own measured caption. Below it the
+            /// card cannot draw what it has to draw, and that is the only condition worth an error
+            /// here.</item>
+            /// <item><b>The ceiling</b> — the design ceiling, or whatever leaves
+            /// <see cref="TonePeekHeight"/> of the tone row above the fold, whichever is smaller.
+            /// </item>
+            /// </list>
+            ///
+            /// <b>The band being smaller than the floor is not an error.</b> This is a scroll view
+            /// with a permanent scrollbar; a step whose content is taller than its viewport is what
+            /// a scroll view is for, and the tone row peeking under the cards is what tells the
+            /// player so. What the version this replaced did was worse than either: it clamped the
+            /// negative band up to a 240-point preference that sat <i>above</i> its own 120-point
+            /// error threshold, so the error could not fire, the cards were oversized for the space,
+            /// and the name field went under the fold with nothing above it saying there was more.
+            /// A clamp hiding a negative is an exception caught and carried on with.
             /// </summary>
-            float CardHeight(float viewport)
+            float CardHeight(float viewport, float minimum)
             {
-                float band = viewport -
-                             (ToneRowHeight + NameRowHeight + ChoiceMessageHeight +
-                              3f * SectionGap + ScrollTail);
+                float band = viewport - (ToneRowHeight + _nameRowHeight + 2f * SectionGap + ScrollTail);
 
-                if (band < CardMinHeight)
+                if (viewport < minimum)
                 {
-                    Debug.LogError("[CharacterCreation] Step 1 leaves only " + band + " units for the " +
-                                   "character cards, under the floor of " + CardMinHeight + ". The " +
-                                   "cards are being clamped to " + CardFloor + " and the step now " +
-                                   "scrolls further than it should. Viewport was " + viewport + ".");
+                    Debug.LogError("[CharacterCreation] Step 1 has a viewport of " + viewport +
+                                   " units and a character card needs at least " + minimum +
+                                   " to hold a figure over a name over its personality line. The card " +
+                                   "cannot be shown whole at all on this canvas, so the choice the " +
+                                   "step exists for is being made off a cropped figure. The header or " +
+                                   "the action row has to give a band back — never the type, and " +
+                                   "never the figure below " + CardFigureMinHeight + ".");
                 }
 
-                return Mathf.Clamp(Mathf.Max(CardMinHeight, band), CardFloor, CardCeiling);
+                float ceiling = Mathf.Min(CardCeiling, viewport - SectionGap - TonePeekHeight);
+                if (ceiling < minimum)
+                {
+                    // The peek cannot be honoured and the card's own floor wins: a card too short to
+                    // read is a worse trade than a tone row that starts below the fold, and the
+                    // scrollbar is still there to say the step continues.
+                    ceiling = minimum;
+                }
+
+                return Mathf.Clamp(band, minimum, ceiling);
             }
 
             /// <summary>
@@ -895,10 +1140,10 @@ namespace SheepGate.UI
             /// want to choose has <c>QuickStart</c>, which is the honest form of a default: a button
             /// that dresses you and moves on, rather than a decision made quietly on your behalf.
             /// </summary>
-            void BuildCharacterChoice(RectTransform content, float top, float cardHeight)
+            /// <returns>How tall the row of cards came out, so the caller can carry on below it.</returns>
+            float BuildCharacterChoice(RectTransform content, float top, float viewport)
             {
                 RectTransform row = UIKit.CreateRect("CharacterChoice", content);
-                UIKit.AnchorTop(row, cardHeight, SideMargin, SideMargin, top);
 
                 string[] ids = CharacterPresets.Ids();
                 if (ids.Length == 0)
@@ -906,17 +1151,54 @@ namespace SheepGate.UI
                     Debug.LogError("[CharacterCreation] character_presets.json has no characters, so the " +
                                    "first step of creation has nothing to choose between. QuickStart is " +
                                    "the only way past this screen.");
-                    return;
+                    UIKit.AnchorTop(row, 0f, SideMargin, SideMargin, top);
+                    return 0f;
                 }
 
                 float cardWidth = (_contentWidth - DesignTokens.Space.S12) / ids.Length;
+                float textWidth = cardWidth - 2f * CardPadding;
+
+                // Pass one: build the cards and let each one measure its own caption against the
+                // strings this locale actually has. The tallest of them is what every card reserves,
+                // so the two figures sit on the same line as each other whatever their personality
+                // lines came out at.
+                var built = new List<CardView>();
+                float captionBand = 0f;
 
                 for (int i = 0; i < ids.Length; i++)
                 {
-                    _cards.Add(BuildCharacterCard(row, ids[i], i, ids.Length, cardWidth, cardHeight));
+                    CardView view = BuildCharacterCard(row, ids[i], i, ids.Length, textWidth);
+                    built.Add(view);
+                    captionBand = Mathf.Max(captionBand, view.CaptionBand);
+                }
+
+                // Pass two: the caption is measured, so the card's own floor is known, so the row can
+                // be given a height and every card can be told where its figure ends.
+                float cardHeight = CardHeight(viewport, CardMinimumHeight(captionBand));
+                UIKit.AnchorTop(row, cardHeight, SideMargin, SideMargin, top);
+
+                for (int i = 0; i < built.Count; i++)
+                {
+                    LayOutCard(built[i], captionBand);
+                    _cards.Add(built[i]);
                 }
 
                 RefreshCards();
+                return cardHeight;
+            }
+
+            /// <summary>
+            /// The shortest a card can be and still hold what a card holds: its padding, the accent
+            /// stripe, a figure no smaller than a tone swatch, and the measured caption under it.
+            ///
+            /// Written as the sum of the bands it is made of rather than as a round number, so it
+            /// stays right when the type scale moves or a personality line gains a word.
+            /// </summary>
+            static float CardMinimumHeight(float captionBand)
+            {
+                return CardPadding + CardAccentHeight + DesignTokens.Space.S8 +
+                       CardFigureMinHeight +
+                       DesignTokens.Space.S8 + captionBand + CardPadding;
             }
 
             /// <summary>
@@ -935,9 +1217,17 @@ namespace SheepGate.UI
             /// would survive exactly until the finger moved, and a panel-coloured child drawn over
             /// it would swallow the hover and pressed states the design system requires every
             /// control to show.
+            ///
+            /// <b>The personality line is measured, not assumed.</b> It used to reserve two body
+            /// lines and pin the label to them, and Adar's "Carregador de pedras. Fala pouco." takes
+            /// three at this width — so the word "pouco." painted outside the card, on top of the
+            /// "Pele" label, on the first screen of the game. A reserved line count is a guess about
+            /// a string in a language nobody writing the layout is reading; <see cref="WardrobeRow.PinText"/>
+            /// asks the label how tall it is in the box it will have and pins it to the answer,
+            /// which is the same anti-clipping move every other measured band on this screen makes.
             /// </summary>
             CardView BuildCharacterCard(RectTransform row, string presetId, int index, int count,
-                                        float cardWidth, float cardHeight)
+                                        float textWidth)
             {
                 PresetDef preset = CharacterPresets.Get(presetId);
 
@@ -972,21 +1262,7 @@ namespace SheepGate.UI
 
                 string personality = preset != null ? preset.personality : null;
 
-                float textWidth = cardWidth - 2f * CardPadding;
-                float personalityHeight = string.IsNullOrWhiteSpace(personality) ? 0f : 2f * BodyLineHeight;
-                float captionBand = TitleLineHeight + DesignTokens.Space.S4 + personalityHeight;
-
-                RectTransform figureArea = UIKit.CreateRect("FigureArea", cardRect);
-                UIKit.Stretch(figureArea, CardPadding, CardPadding,
-                    CardPadding + CardAccentHeight + DesignTokens.Space.S8,
-                    CardPadding + captionBand + DesignTokens.Space.S8);
-                UIKit.Layout(figureArea).ignoreLayout = true;
-
-                RectTransform figure = CharacterFigure.CreateFigureRect(figureArea, "Figure");
-                Image[] layers = CharacterFigure.Build(figure);
-
                 RectTransform caption = UIKit.CreateRect("Caption", cardRect);
-                UIKit.AnchorBottom(caption, captionBand, CardPadding, CardPadding, CardPadding);
                 UIKit.Layout(caption).ignoreLayout = true;
                 UIKit.VerticalGroup(caption.gameObject, DesignTokens.Space.S4, new RectOffset(),
                     TextAnchor.UpperCenter);
@@ -995,13 +1271,21 @@ namespace SheepGate.UI
                     DesignTokens.Ink.Primary, TextAnchor.UpperCenter, DesignTokens.TypeRole.Title);
                 WardrobeRow.PinTextBox(nameLabel, textWidth, TitleLineHeight);
 
+                float captionBand = TitleLineHeight;
+
                 if (!string.IsNullOrWhiteSpace(personality))
                 {
                     Text personalityLabel = UIKit.CreateText(caption, "Personality", personality,
                         DesignTokens.Type.Body, DesignTokens.Ink.Secondary, TextAnchor.UpperCenter,
                         DesignTokens.TypeRole.Body);
-                    WardrobeRow.PinTextBox(personalityLabel, textWidth, personalityHeight);
+                    captionBand += DesignTokens.Space.S4 + WardrobeRow.PinText(personalityLabel, textWidth);
                 }
+
+                RectTransform figureArea = UIKit.CreateRect("FigureArea", cardRect);
+                UIKit.Layout(figureArea).ignoreLayout = true;
+
+                RectTransform figure = CharacterFigure.CreateFigureRect(figureArea, "Figure");
+                Image[] layers = CharacterFigure.Build(figure);
 
                 Image ring = BuildSelectionRing(cardRect);
                 Image mark = BuildSelectionMark(cardRect);
@@ -1013,8 +1297,36 @@ namespace SheepGate.UI
                     Ring = ring,
                     Mark = mark,
                     Layers = layers,
-                    CharacterName = characterName
+                    CharacterName = characterName,
+                    CaptionBand = captionBand,
+                    Caption = caption,
+                    FigureArea = figureArea
                 };
+            }
+
+            /// <summary>
+            /// Gives a built card its two bands, once the tallest caption across all the cards is
+            /// known. Split out of <see cref="BuildCharacterCard"/> because a card cannot be told
+            /// where its figure ends until every card has measured its own words.
+            /// </summary>
+            static void LayOutCard(CardView view, float captionBand)
+            {
+                if (view == null)
+                {
+                    return;
+                }
+
+                if (view.Caption != null)
+                {
+                    UIKit.AnchorBottom(view.Caption, captionBand, CardPadding, CardPadding, CardPadding);
+                }
+
+                if (view.FigureArea != null)
+                {
+                    UIKit.Stretch(view.FigureArea, CardPadding, CardPadding,
+                        CardPadding + CardAccentHeight + DesignTokens.Space.S8,
+                        CardPadding + captionBand + DesignTokens.Space.S8);
+                }
             }
 
             /// <summary>
@@ -1099,11 +1411,17 @@ namespace SheepGate.UI
             /// A blank name is allowed and blocks nothing: <see cref="CharacterPresets.NameHint"/>
             /// says the valley will call you by the fallback word, which is information rather than
             /// an error.
+            ///
+            /// <b>The row is built here and positioned by the caller</b>, because how tall it comes
+            /// out is measured rather than declared and <see cref="CardHeight"/> needs the answer
+            /// before the cards above it can be sized. It leaves <see cref="_nameRow"/> and
+            /// <see cref="_nameRowHeight"/> behind; <see cref="BuildStep1"/> anchors it once the
+            /// cards and the tone row have taken their share of the column.
             /// </summary>
-            void BuildNameRow(RectTransform content, float top)
+            void BuildNameRow(RectTransform content)
             {
                 RectTransform row = UIKit.CreateRect("NameRow", content);
-                UIKit.AnchorTop(row, NameRowHeight, SideMargin, SideMargin, top);
+                _nameRow = row;
 
                 Text label = UIKit.CreateText(row, "Label", Loc.T(NameLabelKey),
                     DesignTokens.Type.Minimum, DesignTokens.Ink.Secondary, TextAnchor.MiddleLeft,
@@ -1131,11 +1449,65 @@ namespace SheepGate.UI
 
                 _nameField.text = _name;
 
+                // UpperLeft and not MiddleLeft, now that the box can be taller than the sentence in
+                // it. The box is sized for the tallest of the three hints and the shortest of them
+                // is one line, so a middle-aligned hint would sit half a line lower when the player
+                // types two characters than it did when the field was empty — the line moving on its
+                // own, under the finger, for no reason the player can see. Anchored to the top of
+                // the band, it stays the same distance under the field whatever it says.
                 _nameHint = UIKit.CreateText(row, "NameHint", string.Empty, DesignTokens.Type.Body,
-                    DesignTokens.Ink.Secondary, TextAnchor.MiddleLeft);
-                UIKit.AnchorBottom((RectTransform)_nameHint.transform, BodyLineHeight, 0f, 0f, 0f);
+                    DesignTokens.Ink.Secondary, TextAnchor.UpperLeft);
 
+                float hintHeight = MeasureNameHint();
+                _nameRowHeight = NameRowFixed + hintHeight;
+
+                UIKit.AnchorTop(row, _nameRowHeight, SideMargin, SideMargin, 0f);
+                UIKit.AnchorBottom((RectTransform)_nameHint.transform, hintHeight, 0f, 0f, 0f);
+
+                // Measuring pinned the label to a LayoutElement carrying the last sentence asked
+                // about, which is not the band it ended up with. Nothing on this row is laid out by
+                // a group, so that element is inert either way — saying so here is what stops the
+                // next person who adds a group to this row from inheriting a stale height.
+                UIKit.Layout(_nameHint).ignoreLayout = true;
+            }
+
+            /// <summary>
+            /// How much room the hint under the name field needs in this locale at this width: the
+            /// tallest of every sentence it can hold, never under one <see cref="BodyLineHeight"/>.
+            ///
+            /// <b>Measured, for the same reason a card's personality line is measured.</b> The
+            /// reserve was one body line, and one body line is a guess about a string in a language
+            /// nobody writing the layout is reading. At 402x874 — a real iPhone, and about a hundred
+            /// canvas units narrower than the 1080-wide reference the desktop e2e player runs at —
+            /// the unset hint wraps in both locales and the second line was cropped: pt-BR lost
+            /// "viajante." and en lost "traveller.", which is the fallback word the sentence exists
+            /// to say. A truncated sentence is not a cosmetic defect.
+            ///
+            /// <b>All three hints are measured and not just the one showing.</b> The row is built
+            /// once and the sentence changes on every keystroke, so a box sized for
+            /// "Use ao menos 2 caracteres." would crop the unset line the moment the field is
+            /// cleared. The fourth validity has no sentence at all and is covered by the floor.
+            /// </summary>
+            float MeasureNameHint()
+            {
+                if (_nameHint == null)
+                {
+                    return BodyLineHeight;
+                }
+
+                float tallest = BodyLineHeight;
+
+                for (int i = 0; i < MeasuredNameHints.Length; i++)
+                {
+                    _nameHint.text = CharacterPresets.NameHint(MeasuredNameHints[i]);
+                    tallest = Mathf.Max(tallest, WardrobeRow.PinText(_nameHint, _contentWidth));
+                }
+
+                // The measuring left the label holding the last sentence it was asked about, and
+                // pinned to a box of that sentence's height. Both are put back: the text by the one
+                // method that owns what this label says, the box by the caller's AnchorBottom.
                 RefreshNameHint();
+                return tallest;
             }
 
             /// <summary>
@@ -1161,25 +1533,241 @@ namespace SheepGate.UI
             /// <summary>
             /// The band that answers <c>ToCustomise</c> when nothing is chosen yet.
             ///
+            /// <b>Pinned directly above the action row, outside the scroll.</b> It used to be the
+            /// last block <i>inside</i> step 1's scrolling column, and on any canvas where the step
+            /// overflowed — which is every canvas, since the cards, the tone row and the name row
+            /// together are taller than a 1080x1920 viewport — the sentence arrived below the fold.
+            /// The observed result on a device was a primary call to action that answered a tap with
+            /// no ring, no message and no movement, twice in a row, on the first screen of the game.
+            /// A message that explains a button belongs beside the button.
+            ///
             /// Reserved and empty rather than grown on demand, so the button the player just tapped
-            /// does not move. The sentence arrives on a fade, and <b>that fade keeps running under
-            /// reduced motion</b>: the design system suppresses parallax, pulse and shake, but a
-            /// fade is information, and a player who taps and sees nothing move cannot tell whether
-            /// the tap registered.
+            /// does not move — and the reserve is <b>measured from the sentence</b> rather than
+            /// counted in lines, because it is one line in one language and can be two in the next.
+            /// The sentence arrives on a fade, and <b>that fade keeps running under reduced
+            /// motion</b>: the design system suppresses parallax, pulse and shake, but a fade is
+            /// information, and a player who taps and sees nothing move cannot tell whether the tap
+            /// registered.
+            ///
+            /// <c>Ink.Secondary</c> and never <c>Feedback.Error</c>. Nothing went wrong: the player
+            /// asked to go on before answering the one question this step asks, and the screen is
+            /// telling them what it still needs. A scold here would be rule 7 broken in the first
+            /// ten seconds of the game.
             /// </summary>
-            void BuildChoiceMessage(RectTransform content, float top)
+            void BuildChoiceMessage(RectTransform parent)
             {
                 // The label IS the band, rather than a Text inside a wrapper rect. That is not
                 // tidiness: the end-to-end run reads this line with TextOf("ChoiceMessage"), which
                 // asks the object of that name for its own Text component and finds nothing on a
                 // wrapper. Same shape as RefusalMessage, for the same reason.
-                _choice = UIKit.CreateText(content, "ChoiceMessage", string.Empty, DesignTokens.Type.Body,
-                    DesignTokens.Ink.Secondary, TextAnchor.UpperLeft);
-                UIKit.AnchorTop((RectTransform)_choice.transform, ChoiceMessageHeight,
-                    SideMargin, SideMargin, top);
+                //
+                // Built holding the sentence so that it can be measured against the width it will
+                // have, then emptied. Measuring an empty label answers with the height of nothing.
+                _choice = UIKit.CreateText(parent, "ChoiceMessage", Loc.T(ChooseFirstKey),
+                    DesignTokens.Type.Body, DesignTokens.Ink.Secondary, TextAnchor.UpperLeft);
+
+                // Anchors collapsed to the parent's bottom-left corner before the question is asked,
+                // so sizeDelta IS the box rather than an offset from a parent that has not been laid
+                // out yet. Legacy Text measures its wrapped height against rect.width, and a width
+                // that is still zero answers with one word per line.
+                var choiceRect = (RectTransform)_choice.transform;
+                choiceRect.anchorMin = Vector2.zero;
+                choiceRect.anchorMax = Vector2.zero;
+                choiceRect.pivot = Vector2.zero;
+                choiceRect.sizeDelta = new Vector2(_contentWidth, 0f);
+
+                _choiceHeight = Mathf.Max(BodyLineHeight, _choice.preferredHeight);
+
+                choiceRect.sizeDelta = new Vector2(_contentWidth, _choiceHeight);
+                choiceRect.anchoredPosition = new Vector2(SideMargin, ActionsBlockHeight);
+                _choice.text = string.Empty;
 
                 _choiceGroup = _choice.gameObject.AddComponent<CanvasGroup>();
                 _choiceGroup.alpha = 1f;
+            }
+
+            /// <summary>
+            /// The bottom of a step: the quiet way out and the way on, <b>side by side in one row</b>,
+            /// each as wide as its own label needs.
+            ///
+            /// Stacked, these two spent a whole touch target and a gap more than they had to, and
+            /// that band is the difference between step 2's list showing two rows of the tallest
+            /// item in the catalogue and showing 0.93 of one. Side by side is also the ordinary
+            /// shape for "leave" beside "go on", and neither control loses a millimetre of height:
+            /// both are the full 56-point action row.
+            ///
+            /// <b>The split is measured, never a fraction.</b> "Tanto faz, vamos" and "Doesn't
+            /// matter, let's go" are not the same width and neither is half of anything, so each
+            /// button asks its own label how wide it is — the same move <see cref="BackButtonWidth"/>
+            /// makes — the quiet one takes exactly what its word needs, and the primary takes the
+            /// remainder. Usually that leaves the primary the wider of the two; in English at the
+            /// narrowest canvas it does not, because "Doesn't matter, let's go" is four times the
+            /// word "Start". <b>That is allowed and is not a hierarchy failure</b>: the primary is
+            /// the clay one at full action-row height beside a quiet one, and capping the quiet
+            /// button to make a sentence in this comment true would wrap its label for nobody's
+            /// benefit. When the two labels genuinely cannot both fit on one line the widths are
+            /// scaled rather than a label cut, and the label wraps inside a row tall enough for two
+            /// body lines. Nothing is ever truncated and nothing is ever shrunk.
+            ///
+            /// <b>Scaling has a floor under it, and the floor is a word.</b> Scaling two widths to
+            /// fit is only honest while each one still holds the longest word of its own label —
+            /// under that, Unity's wrap breaks the word itself and "Continue" comes out as "Continu"
+            /// over "e", which is what a proportional split produced in English at 402x874. So each
+            /// button is floored at <see cref="WordFloor"/>, the primary takes its floor out of the
+            /// quiet one rather than out of its own word, and when both floors and the gap will not
+            /// fit the row that is an error carrying the numbers — never a shorter label and never
+            /// smaller type.
+            /// </summary>
+            void BuildActionRow(RectTransform parent, Action onSkip, string primaryName,
+                                string primaryLabelKey, Action onPrimary)
+            {
+                RectTransform bar = UIKit.CreateRect("Actions", parent);
+                UIKit.AnchorBottom(bar, ActionRowHeight, SideMargin, SideMargin, ActionRowBottom);
+
+                // The GameObject name and the escape hatch it is are unchanged from every version of
+                // this screen: tools/e2e.sh reaches for QuickStart on both steps, and it is the one
+                // control here that has kept its name through every rebuild.
+                Button skip = UIKit.CreateButton(bar, "QuickStart", Loc.T(QuickStartKey),
+                    UIKit.ButtonVariant.Secondary, onSkip);
+
+                // "ToCustomise" and not "Continue", and the name is not a matter of taste.
+                // E2ERunner does a global Find("Continue") as its dialogue-advance fallback, and the
+                // dialogue canvas can still be alive underneath the cutscene blackout while this
+                // screen is up — so a control named Continue here would be tapped by the day loop.
+                //
+                // Clay, not gold: gold on this screen means nothing at all, and the design system's
+                // one gold action per screen is deliberately left unspent.
+                Button primary = UIKit.CreateButton(bar, primaryName, Loc.T(primaryLabelKey),
+                    UIKit.ButtonVariant.Primary, onPrimary);
+
+                float available = _contentWidth - ActionGap;
+                float skipWidth = LabelWidth(skip);
+                float primaryWidth = LabelWidth(primary);
+
+                // What each button may never be drawn under: its own longest word. The only floor
+                // here was the touch target, and a touch target is narrower than the word "Continue"
+                // needs at this type size — which is how the primary action on the first screen of
+                // the game came to render "Continu" over "e" at 402x874. See WordFloor.
+                float skipFloor = WordFloor(skip);
+                float primaryFloor = WordFloor(primary);
+
+                if (skipWidth + primaryWidth > available)
+                {
+                    float scale = available / (skipWidth + primaryWidth);
+                    skipWidth = Mathf.Max(skipFloor, skipWidth * scale);
+                }
+
+                primaryWidth = Mathf.Max(primaryFloor, available - skipWidth);
+
+                // The primary taking its floor is taken back out of the quiet button, down to the
+                // quiet button's own floor and no further. That is the whole trade: the quiet label
+                // wraps between two of its words, which the row is tall enough for, so that the
+                // primary label does not have to break inside one of its own.
+                if (skipWidth + primaryWidth > available)
+                {
+                    skipWidth = Mathf.Max(skipFloor, available - primaryWidth);
+                }
+
+                if (skipWidth + primaryWidth > available)
+                {
+                    // Both floors together are wider than the row. Nothing here shortens a label or
+                    // scales the type to make the sentence fit: the label is content and
+                    // DesignTokens.Type.Minimum is a floor rather than a budget. The buttons are
+                    // drawn at their floors and overhang, which is visible, and the numbers that
+                    // would have to move are named.
+                    Debug.LogError("[CharacterCreation] The action row needs " +
+                                   (skipFloor + primaryFloor + ActionGap) + " units for '" +
+                                   skip.name + "' (" + skipFloor + ") and '" + primary.name + "' (" +
+                                   primaryFloor + ") plus their gap, and the content column is " +
+                                   _contentWidth + " units wide in locale " + Loc.LoadedLocale +
+                                   ". Those are the widths of the longest word in each label, so the " +
+                                   "row cannot hold both without breaking a word. Shorten one of the " +
+                                   "two labels in that locale, or stack the row again and give step " +
+                                   "2's list the band back some other way — never the type, and " +
+                                   "never a touch target.");
+                }
+
+                PinActionButton(skip, 0f, skipWidth);
+                PinActionButton(primary, 1f, primaryWidth);
+            }
+
+            /// <summary>What separates two words for <see cref="WordFloor"/>: whitespace, nothing else.</summary>
+            static readonly char[] WordSeparators = { ' ', '\t', '\n', '\r' };
+
+            /// <summary>
+            /// The narrowest a button may be drawn: <b>its own longest word</b>, measured, plus the
+            /// padding the kit insets a label by. Never under a touch target.
+            ///
+            /// A floor and not a preference, because of how legacy <see cref="Text"/> wraps. Its
+            /// <c>HorizontalWrapMode.Wrap</c> breaks <i>inside</i> a word when the word is wider
+            /// than the box rather than letting it overhang, so a primary button a few units
+            /// narrower than the word "Continue" does not overflow — it renders "Continu" above
+            /// "e". A label wrapping between two of its words is a layout; a label wrapping through
+            /// the middle of one is a sentence cut in half with both halves still on screen, and it
+            /// is the same defect as a cropped line whatever the mechanism.
+            ///
+            /// <b>Nothing satisfies this by shortening the label or scaling the type.</b> The label
+            /// is a content decision and <c>DesignTokens.Type.Minimum</c> is a floor rather than a
+            /// budget; when two floors will not fit one row, <see cref="BuildActionRow"/> reports it
+            /// with the numbers in it.
+            ///
+            /// The measurement is the one <c>Text.preferredWidth</c> makes of itself — the
+            /// component's own generation settings, through a generator of our own — rather than
+            /// assigning each word to the label and reading the width back. The label holds its
+            /// sentence throughout, which matters because this runs on a live control the player is
+            /// about to see.
+            /// </summary>
+            static float WordFloor(Button button)
+            {
+                Text label = button != null ? button.GetComponentInChildren<Text>(true) : null;
+                if (label == null || string.IsNullOrEmpty(label.text))
+                {
+                    return DesignTokens.Space.TouchTarget;
+                }
+
+                TextGenerationSettings settings = label.GetGenerationSettings(Vector2.zero);
+                var generator = new TextGenerator();
+
+                float widest = 0f;
+                string[] words = label.text.Split(WordSeparators, StringSplitOptions.RemoveEmptyEntries);
+                for (int i = 0; i < words.Length; i++)
+                {
+                    widest = Mathf.Max(widest,
+                        generator.GetPreferredWidth(words[i], settings) / label.pixelsPerUnit);
+                }
+
+                return Mathf.Max(DesignTokens.Space.TouchTarget, widest + 2f * UIKit.ButtonPadding);
+            }
+
+            /// <summary>How wide a button has to be for its own label. Never under a touch target.</summary>
+            static float LabelWidth(Button button)
+            {
+                float measured = 0f;
+
+                Text word = button != null ? button.GetComponentInChildren<Text>(true) : null;
+                if (word != null)
+                {
+                    measured = word.preferredWidth;
+                }
+
+                return Mathf.Max(DesignTokens.Space.TouchTarget, measured + 2f * UIKit.ButtonPadding);
+            }
+
+            /// <summary>Pins one control of the action row to an edge of it: 0 is left, 1 is right.</summary>
+            static void PinActionButton(Button button, float edge, float width)
+            {
+                if (button == null)
+                {
+                    return;
+                }
+
+                var rect = (RectTransform)button.transform;
+                rect.anchorMin = new Vector2(edge, 0f);
+                rect.anchorMax = new Vector2(edge, 1f);
+                rect.pivot = new Vector2(edge, 0.5f);
+                rect.sizeDelta = new Vector2(width, 0f);
+                rect.anchoredPosition = Vector2.zero;
+                UIKit.Layout(button).ignoreLayout = true;
             }
 
             // ============================================================== step 2
@@ -1196,155 +1784,177 @@ namespace SheepGate.UI
             ///
             /// <b>The tab bar sits above the rows rather than at the bottom.</b> That is a
             /// deliberate divergence from the backpack, which anchors its bar to the bottom of its
-            /// sheet, and it is the only one: the bottom of this screen is already occupied by
-            /// QuickStart and Start, and a third bottom band would stack three bars on top of the
-            /// home indicator.
+            /// sheet, and it is the only one: the bottom of this screen is already occupied by the
+            /// action row, and a second bottom band would stack two bars on the home indicator.
             ///
             /// <b>The four-facing strip survives.</b> It is not replaced by the backpack's single
             /// horizontal figure, because accessories are anchored to named body parts now — a coil
             /// of rope on the right shoulder, a map tube across the back — and the back and side
-            /// facings are the only place a player ever sees them.
+            /// facings are the only place a player ever sees them. What it gave up instead is
+            /// everything that used to sit around it: the character's name moved into the eyebrow
+            /// row, the refusal moved onto the strip itself, the rule under the tab bar went, and
+            /// the two bottom buttons became one row. Between them those four are 360 canvas units,
+            /// and they are the reason the list can show two rows of the tallest item in the
+            /// catalogue instead of 0.93 of one.
             /// </summary>
             void BuildStep2(RectTransform root)
             {
                 _step2 = UIKit.CreateRect("Step2", root);
                 UIKit.Stretch(_step2);
 
+                BuildActionRow(_step2, Confirm, "Start", StartKey, Confirm);
+
                 RectTransform tabContent = UIKit.CreateRect("TabContent", _step2);
                 BuildTabs(tabContent);
 
-                float preview = PreviewHeightMax;
-                bool keepCustomiseTitle = true;
-                int refusalLines = 2;
-                ApplyVerticalBudget(ref preview, ref keepCustomiseTitle, ref refusalLines);
+                float preview;
+                bool keepCustomiseTitle;
+                ApplyVerticalBudget(out preview, out keepCustomiseTitle);
 
-                float cursor = HeaderTop + EyebrowRowHeight + DesignTokens.Space.S16;
-
-                _chosenName = UIKit.CreateText(_step2, "ChosenName", string.Empty, DesignTokens.Type.Title,
-                    DesignTokens.Ink.Primary, TextAnchor.MiddleLeft, DesignTokens.TypeRole.Title);
-                UIKit.AnchorTop((RectTransform)_chosenName.transform, TitleLineHeight,
-                    SideMargin, SideMargin, cursor);
-                cursor += TitleLineHeight;
+                float cursor = HeaderTop + EyebrowRowHeight + BandGap;
 
                 // No Display type on this step. The screen already spent its one Display line on
                 // step 1, and the vertical band is what the rows need.
                 if (keepCustomiseTitle)
                 {
-                    cursor += DesignTokens.Space.S4;
                     Text customise = UIKit.CreateText(_step2, "CustomiseTitle", Loc.T(CustomiseTitleKey),
                         DesignTokens.Type.Body, DesignTokens.Ink.Secondary, TextAnchor.MiddleLeft);
                     UIKit.AnchorTop((RectTransform)customise.transform, BodyLineHeight,
                         SideMargin, SideMargin, cursor);
-                    cursor += BodyLineHeight;
+                    cursor += BodyLineHeight + BandGap;
                 }
 
-                cursor += DesignTokens.Space.S12;
                 BuildPreviewStrip(_step2, cursor, preview);
-                cursor += preview + DesignTokens.Space.S12;
-
-                BuildRefusal(_step2, cursor, refusalLines);
-                cursor += refusalLines * BodyLineHeight + DesignTokens.Space.S12;
+                cursor += preview + BandGap;
 
                 BuildSegmentBar(_step2, cursor);
-                cursor += SegmentBarHeight + DesignTokens.Space.S8;
+                cursor += SegmentBarHeight + BandGap;
 
-                Image divider = UIKit.CreatePanel(_step2, "TabDivider",
-                    UIKit.WithAlpha(DesignTokens.Ink.Primary, 0.20f), null);
-                UIKit.AnchorTop((RectTransform)divider.transform, DividerHeight,
-                    SideMargin, SideMargin, cursor);
-                divider.raycastTarget = false;
-                cursor += DividerHeight + DesignTokens.Space.S12;
-
-                UIKit.Stretch(tabContent, SideMargin, SideMargin, cursor, BodyBottom);
-
-                Button skip = UIKit.CreateButton(_step2, "QuickStart", Loc.T(QuickStartKey),
-                    UIKit.ButtonVariant.Secondary, Confirm);
-                UIKit.AnchorBottom((RectTransform)skip.transform, SkipHeight, SideMargin, SideMargin, SkipBottom);
-
-                Button start = UIKit.CreateButton(_step2, "Start", Loc.T(StartKey),
-                    UIKit.ButtonVariant.Primary, Confirm);
-                UIKit.AnchorBottom((RectTransform)start.transform, StartHeight, SideMargin, SideMargin, StartBottom);
+                UIKit.Stretch(tabContent, SideMargin, SideMargin, cursor, ActionsBlockHeight);
 
                 SelectTab(0);
             }
 
             /// <summary>
-            /// Decides what step 2 gives up so the list can show two rows.
+            /// Spends step 2's height, <b>list first</b>.
             ///
-            /// Measured, never assumed: the tallest row in the running locale is read off the rows
-            /// that were just built. If the band that is left cannot show
-            /// <see cref="MinimumVisibleRows"/> of it, three things are cut, <b>in this order and no
-            /// other</b>:
+            /// This is the inversion that fixes the step. It used to lay the chrome out at its
+            /// preferred sizes, ask what was left, and cut three things one at a time until the list
+            /// had two rows — an order that reads as careful and cannot work, because on a 1080x1920
+            /// canvas the sum of the preferences is larger than the canvas and every cut still lands
+            /// short. What it produced was a screen that showed 0.93 of a row and an error nobody
+            /// could act on.
+            ///
+            /// So the arithmetic runs the other way now:
             /// <list type="number">
-            /// <item>the preview shrinks toward <see cref="PreviewHeightMin"/>, and only by as much
-            /// as is needed;</item>
-            /// <item>the step's subtitle goes, keeping the character's name;</item>
-            /// <item>the refusal band drops from two lines to one.</item>
+            /// <item>the tallest row in the running locale is measured off the rows that were just
+            /// built — never assumed, because it depends on the longest description and unlock
+            /// sentence in a language this file cannot read;</item>
+            /// <item><see cref="MinimumVisibleRows"/> of it is set aside first, before anything
+            /// else is placed;</item>
+            /// <item>the fixed chrome — the eyebrow row, the tab bar, the action row and the gaps —
+            /// takes its share, and none of it is negotiable: every piece of it is a touch target,
+            /// a safe-area inset or the gap between two of them;</item>
+            /// <item>whatever is left over is the preview strip's, clamped between
+            /// <see cref="PreviewHeightFloor"/> and <see cref="PreviewHeightMax"/>. The step's own
+            /// subtitle is kept only if doing so still leaves the strip a full
+            /// <see cref="PreviewHeightMin"/>.</item>
             /// </list>
+            ///
+            /// <b>That clamp is an invariant and not a preference: the strip is never drawn under
+            /// <see cref="PreviewHeightFloor"/>, whatever the leftover comes out at.</b> There is
+            /// therefore exactly one way this step can fail — the floor eats into the list, and the
+            /// list falls under <see cref="MinimumVisibleRows"/> — and it is an error every time.
+            /// There is no second, quieter failure where the strip is allowed to shrink away
+            /// instead; that fork existed, and it made a one-unit strip the non-fatal outcome.
+            ///
             /// <b>Type is never shrunk, a touch target is never shrunk, and a sentence is never
-            /// truncated.</b> Those are the three things the design system and rule 7 forbid, and
-            /// they are exactly the three a builder reaches for when a layout will not fit — which
-            /// is why the order is written down here rather than left to judgement. If all three
-            /// cuts run and it still does not fit, that is reported with the numbers rather than
-            /// solved by breaking one of them.
+            /// truncated.</b> Those three are what a builder reaches for when a layout will not fit,
+            /// and they are the three this method may not touch. What it may spend is the preview's
+            /// height, which is why the preview is last in the queue rather than first — and when
+            /// even the preview's floor cannot buy the list its two rows, that is reported with
+            /// every number in it and nothing is quietly given back.
+            ///
+            /// <b>The one honest trade, stated out loud:</b> at 1080x1920 — the aspect the desktop
+            /// e2e player runs at, and a canvas 150 design points shorter than any phone this game
+            /// has been played on — the leftover lands under <see cref="PreviewHeightMin"/> and the
+            /// strip draws compact, without its facing captions. The rows keep their two, because
+            /// between a list that cannot show what it lists and a preview drawn at the size of the
+            /// thumbnails beside it, the list is the thing the step exists for.
             /// </summary>
-            void ApplyVerticalBudget(ref float preview, ref bool keepCustomiseTitle, ref int refusalLines)
+            void ApplyVerticalBudget(out float preview, out bool keepCustomiseTitle)
             {
+                preview = PreviewHeightMax;
+                keepCustomiseTitle = true;
+
                 float tallest = TallestRowHeight();
                 if (tallest <= 0f)
                 {
+                    // No rows were drawn at all, which BuildTabRows has already reported. There is
+                    // nothing to budget against, so the chrome keeps its preferences.
                     return;
                 }
 
                 float needed = MinimumVisibleRows * tallest;
-                float band = RowsBand(preview, keepCustomiseTitle, refusalLines);
+                float spare = _rootHeight - FixedChrome() - needed;
 
-                if (band < needed)
-                {
-                    float take = Mathf.Min(needed - band, preview - PreviewHeightMin);
-                    preview -= take;
-                    band += take;
-                }
-
-                if (band < needed && keepCustomiseTitle)
-                {
-                    keepCustomiseTitle = false;
-                    band += DesignTokens.Space.S4 + BodyLineHeight;
-                }
-
-                if (band < needed && refusalLines > 1)
-                {
-                    refusalLines = 1;
-                    band += BodyLineHeight;
-                }
-
-                if (band < needed)
-                {
-                    Debug.LogError("[CharacterCreation] Step 2 shows " + (band / tallest).ToString("0.00") +
-                                   " rows at the tallest row in locale " + Loc.LoadedLocale + " (" + tallest +
-                                   " units) after every cut, against a floor of " + MinimumVisibleRows +
-                                   ". The band is " + band + " units of a " + _rootHeight +
-                                   "-unit safe area. Shorten the longest catalogue string in that locale, " +
-                                   "or take a band out of the chrome — never the type and never a touch target.");
-                }
-            }
-
-            /// <summary>How much room the list has, given what the chrome above it is keeping.</summary>
-            float RowsBand(float preview, bool keepCustomiseTitle, int refusalLines)
-            {
-                float top = HeaderTop + EyebrowRowHeight + DesignTokens.Space.S16 + TitleLineHeight;
-
+                float titleCost = BodyLineHeight + BandGap;
+                keepCustomiseTitle = spare - titleCost >= PreviewHeightMin;
                 if (keepCustomiseTitle)
                 {
-                    top += DesignTokens.Space.S4 + BodyLineHeight;
+                    spare -= titleCost;
                 }
 
-                top += DesignTokens.Space.S12 + preview + DesignTokens.Space.S12;
-                top += refusalLines * BodyLineHeight + DesignTokens.Space.S12;
-                top += SegmentBarHeight + DesignTokens.Space.S8;
-                top += DividerHeight + DesignTokens.Space.S12;
+                preview = Mathf.Clamp(spare, PreviewHeightFloor, PreviewHeightMax);
 
-                return _rootHeight - top - BodyBottom;
+                if (spare >= PreviewHeightFloor)
+                {
+                    return;
+                }
+
+                // Under the strip's own floor — and the clamp above is what holds, at every value
+                // of spare rather than only at the ones that reach here negative.
+                //
+                // This branch used to fork, and the fork ran the severity backwards. Between zero
+                // and the floor the strip yielded instead: preview = spare, with no lower bound at
+                // all, on the argument that the list is what the step exists for and a short strip
+                // is cosmetic. The argument is right about the list and wrong about "cosmetic" —
+                // with nothing under it, a spare of one unit drew a one-unit strip and warned, while
+                // a spare of minus one kept the clamp, drew the strip at its floor and raised an
+                // error. The visibly broken outcome was the quiet one, and the floor the error
+                // below reports held only in the cases where it had not been needed.
+                //
+                // So the floor holds, and the shortfall lands where it can be counted: the list is
+                // short by exactly (PreviewHeightFloor - spare), which is the one condition
+                // MinimumVisibleRows is a floor against. One outcome, one severity, and both
+                // monotone in spare. The lever is still the same one — shorten the longest
+                // catalogue string in the running locale — and it is named in the error.
+                float band = needed + spare - PreviewHeightFloor;
+
+                Debug.LogError("[CharacterCreation] Step 2 shows " + (band / tallest).ToString("0.00") +
+                               " rows at the tallest row in locale " + Loc.LoadedLocale + " (" + tallest +
+                               " units), against a floor of " + MinimumVisibleRows +
+                               ". The band is " + band + " units of a " + _rootHeight +
+                               "-unit safe area, with the preview already at its floor of " +
+                               PreviewHeightFloor + " and " + FixedChrome() +
+                               " units of chrome that is all touch target and safe area. Shorten the " +
+                               "longest catalogue string in that locale, or take a band out of the " +
+                               "chrome — never the type and never a touch target.");
+            }
+
+            /// <summary>
+            /// Everything on step 2 that cannot be spent: the eyebrow row and its clearance, the tab
+            /// bar, the action row, the home indicator's lane, and the four gaps between them.
+            ///
+            /// Written as the sum of its bands rather than as a number, because that is the list a
+            /// reader has to argue with before claiming the step has room for anything else.
+            /// </summary>
+            static float FixedChrome()
+            {
+                return HeaderTop + EyebrowRowHeight + BandGap +   // the row with Back and the toggle
+                       BandGap +                                  // under the preview strip
+                       SegmentBarHeight + BandGap +               // the slot bar and its clearance
+                       ActionsBlockHeight;                        // the action row and the indicator
             }
 
             /// <summary>
@@ -1383,11 +1993,21 @@ namespace SheepGate.UI
             }
 
             /// <summary>
-            /// The four facings, as one panel of four cells.
+            /// The four facings, as one panel of four cells, with the refusal written across its
+            /// foot.
             ///
             /// Each cell fits its figure to the character ratio rather than sizing it, so the same
             /// code gives the largest figure the cell allows at 1080 units across and at the ~977 a
             /// phone reports.
+            ///
+            /// <b>Two shapes, decided by the height the budget could afford.</b> At
+            /// <see cref="PreviewHeightMin"/> and above a cell is a figure over its facing caption.
+            /// Below it there is no caption band: the words would be cropping the figure to say
+            /// something the picture already says, so they move to <see cref="AccessibleLabel"/> —
+            /// where a screen reader still reads them out — and the figures stand on the panel's
+            /// lower edge with <see cref="PreviewCompactPadding"/> of headroom. Nothing is shrunk
+            /// that a player reads; a caption at <c>Type.Minimum</c> is the design system's floor
+            /// and is never taken below it.
             /// </summary>
             void BuildPreviewStrip(RectTransform parent, float top, float height)
             {
@@ -1396,16 +2016,22 @@ namespace SheepGate.UI
                 UIKit.AnchorTop(stripRect, height, SideMargin, SideMargin, top);
                 strip.raycastTarget = false;
 
+                bool captions = height >= PreviewHeightMin;
+
                 for (int i = 0; i < Directions.Length; i++)
                 {
-                    BuildPreviewCell(stripRect, i);
+                    BuildPreviewCell(stripRect, i, captions);
                 }
+
+                BuildRefusal(stripRect);
             }
 
-            void BuildPreviewCell(RectTransform stripRect, int index)
+            void BuildPreviewCell(RectTransform stripRect, int index, bool caption)
             {
                 float left = index / (float)Directions.Length;
                 float right = (index + 1) / (float)Directions.Length;
+
+                string facing = Loc.T(DirectionCaptionKeys[index]);
 
                 RectTransform cell = UIKit.CreateRect("Cell_" + Directions[index].ToKey(), stripRect);
                 cell.anchorMin = new Vector2(left, 0f);
@@ -1414,20 +2040,51 @@ namespace SheepGate.UI
                 cell.offsetMin = new Vector2(DesignTokens.Space.S4, 0f);
                 cell.offsetMax = new Vector2(-DesignTokens.Space.S4, 0f);
 
+                // Said out loud in both shapes, so the compact strip loses the printed word and not
+                // the word itself.
+                AccessibleLabel.Apply(cell.gameObject, facing);
+
                 RectTransform figureArea = UIKit.CreateRect("FigureArea", cell);
-                UIKit.Stretch(figureArea, 0f, 0f, PreviewPadding, CaptionBandHeight);
+                UIKit.Stretch(figureArea, 0f, 0f,
+                    caption ? PreviewPadding : PreviewCompactPadding,
+                    caption ? CaptionBandHeight : 0f);
 
                 RectTransform figure = CharacterFigure.CreateFigureRect(figureArea, "Figure");
                 _previewLayers[index] = CharacterFigure.Build(figure);
 
-                Text caption = UIKit.CreateText(cell, "Caption", Loc.T(DirectionCaptionKeys[index]),
+                if (!caption)
+                {
+                    return;
+                }
+
+                Text label = UIKit.CreateText(cell, "Caption", facing,
                     DesignTokens.Type.Minimum, DesignTokens.Ink.Secondary, TextAnchor.MiddleCenter,
                     DesignTokens.TypeRole.BodyStrong);
-                UIKit.AnchorBottom((RectTransform)caption.transform, CaptionHeight, 0f, 0f, CaptionBottom);
+                UIKit.AnchorBottom((RectTransform)label.transform, CaptionHeight, 0f, 0f, CaptionBottom);
             }
 
             /// <summary>
             /// The line that answers a tap the wardrobe could not carry out.
+            ///
+            /// <b>It lives on the preview panel, and it costs the vertical budget nothing.</b> It
+            /// used to have a reserved band of its own between the strip and the tab bar — two body
+            /// lines of empty space on every frame of every session in which nothing was refused,
+            /// sitting directly on top of the band the list was short of. This is the backpack's own
+            /// answer to the same problem, arrived at for the same reason: put the sentence on the
+            /// stage, not under the list.
+            ///
+            /// The strip has no spare width beside four figures the way the backpack's stage has
+            /// beside one, so the bar is drawn <i>over</i> the foot of the strip rather than beside
+            /// it, on its own opaque ground. That is the cost, stated plainly: while a refusal is up
+            /// it covers the facing captions and the figures' feet. It is up only after a tap that
+            /// could not be carried out, it clears on the next tab change and on the next piece that
+            /// does go on, and it sits under the thing whose non-change it explains.
+            ///
+            /// <b>Its height is measured from the sentence, every time.</b> A reserved line count is
+            /// a guess about a string in a language nobody writing the layout is reading — see
+            /// <see cref="ShowRefusal"/>, which asks the label how tall it is in the width it has and
+            /// grows the bar to the answer. Nothing here can clip a refusal, in any locale, at any
+            /// width.
             ///
             /// It carries the same GameObject name the backpack's does, so one e2e helper reads
             /// both; the two screens never coexist. <c>Ink.Secondary</c> and never
@@ -1435,24 +2092,43 @@ namespace SheepGate.UI
             /// pieces, not a mistake the player made, and nothing was lost by trying. On this
             /// palette that tone rule is also a legibility one — <c>Feedback.Error</c> measures
             /// 3.22:1 on a card and fails AA outright.
-            ///
-            /// <b>Acceptance rule:</b> no <c>backpack.refusal.*</c> string may exceed the reserved
-            /// band at this screen's content width in either locale.
             /// </summary>
-            void BuildRefusal(RectTransform parent, float top, int lines)
+            void BuildRefusal(RectTransform stripRect)
             {
-                // The label is the band itself, with no wrapper: the end-to-end run reads this line
-                // with TextOf("RefusalMessage"), which asks the object of that name for its own Text
-                // component. The band is a reserve rather than a clip — a sentence that outgrew it
-                // would spill visibly toward the tab bar, which is what a daily screenshot catches
-                // and what a truncation would hide.
-                _refusal = UIKit.CreateText(parent, "RefusalMessage", string.Empty, DesignTokens.Type.Body,
-                    DesignTokens.Ink.Secondary, TextAnchor.UpperLeft);
-                UIKit.AnchorTop((RectTransform)_refusal.transform, lines * BodyLineHeight,
-                    SideMargin, SideMargin, top);
+                Image banner = UIKit.CreatePanel(stripRect, "RefusalBanner",
+                    DesignTokens.Surface.Panel, UiSpriteKeys.FrameMd);
+                banner.raycastTarget = false;
+                UIKit.Layout(banner).ignoreLayout = true;
 
-                _refusalGroup = _refusal.gameObject.AddComponent<CanvasGroup>();
-                _refusalGroup.alpha = 1f;
+                _refusalBanner = (RectTransform)banner.transform;
+                _refusalBanner.anchorMin = new Vector2(0f, 0f);
+                _refusalBanner.anchorMax = new Vector2(1f, 0f);
+                _refusalBanner.pivot = new Vector2(0.5f, 0f);
+                _refusalBanner.offsetMin = new Vector2(DesignTokens.Space.S4, 0f);
+                _refusalBanner.offsetMax = new Vector2(-DesignTokens.Space.S4, 0f);
+                _refusalBanner.sizeDelta = new Vector2(_refusalBanner.sizeDelta.x, BodyLineHeight);
+
+                _refusalWidth = _contentWidth - 2f * DesignTokens.Space.S4 - 2f * DesignTokens.Space.S8;
+
+                // The label is the object the run reads, with no wrapper: the end-to-end run reads
+                // this line with TextOf("RefusalMessage"), which asks the object of that name for its
+                // own Text component and finds nothing on a wrapper.
+                _refusal = UIKit.CreateText(_refusalBanner, "RefusalMessage", string.Empty,
+                    DesignTokens.Type.Body, DesignTokens.Ink.Secondary, TextAnchor.MiddleCenter);
+
+                // Collapsed to the bar's centre before it is sized, so sizeDelta is the box rather
+                // than an offset from a parent whose own height changes with every sentence.
+                var refusalRect = _refusal.rectTransform;
+                refusalRect.anchorMin = new Vector2(0.5f, 0.5f);
+                refusalRect.anchorMax = new Vector2(0.5f, 0.5f);
+                refusalRect.pivot = new Vector2(0.5f, 0.5f);
+                refusalRect.anchoredPosition = Vector2.zero;
+                WardrobeRow.PinTextBox(_refusal, _refusalWidth, BodyLineHeight);
+
+                // The group holds the ground as well as the words, so an empty refusal is an invisible
+                // bar rather than an opaque stripe across the figures' feet.
+                _refusalGroup = banner.gameObject.AddComponent<CanvasGroup>();
+                _refusalGroup.alpha = 0f;
             }
 
             /// <summary>
@@ -1689,6 +2365,13 @@ namespace SheepGate.UI
                 if (_back != null)
                 {
                     _back.gameObject.SetActive(customise);
+                }
+
+                // The chosen character's name shares the eyebrow row with Back and the toggle, so it
+                // comes and goes with the step the way Back does rather than with a step's body.
+                if (_chosenName != null)
+                {
+                    _chosenName.gameObject.SetActive(customise);
                 }
 
                 if (_screenTitle != null)
@@ -2055,7 +2738,36 @@ namespace SheepGate.UI
             }
 
             /// <summary>
-            /// Puts a sentence under the preview, or clears it.
+            /// Puts a sentence across the foot of the preview, or takes it away.
+            ///
+            /// <b>The bar is sized to the sentence before it is shown.</b> The label is measured in
+            /// the width it actually has and the ground behind it grows to the answer, so a refusal
+            /// cannot be clipped by a band somebody reserved in another language. Cleared, the whole
+            /// group goes to zero — the ground with the words, because an opaque stripe across four
+            /// figures' feet with nothing written on it would be worse than the message it is not
+            /// showing.
+            /// </summary>
+            void ShowRefusal(string sentence)
+            {
+                if (_refusal != null && _refusalBanner != null && !string.IsNullOrEmpty(sentence))
+                {
+                    _refusal.text = sentence;
+                    float height = WardrobeRow.PinText(_refusal, _refusalWidth);
+                    _refusal.rectTransform.anchoredPosition = Vector2.zero;
+                    _refusalBanner.sizeDelta = new Vector2(_refusalBanner.sizeDelta.x,
+                        height + 2f * DesignTokens.Space.S8);
+                }
+
+                _refusalFade = Announce(_refusal, _refusalGroup, _refusalFade, sentence, 0f);
+            }
+
+            void ShowChoiceMessage(string sentence)
+            {
+                _choiceFade = Announce(_choice, _choiceGroup, _choiceFade, sentence, 1f);
+            }
+
+            /// <summary>
+            /// The fade both announced bands share. Returns the tween handle to store, or null.
             ///
             /// A sentence arrives on a fade, and that fade keeps running under reduced motion — the
             /// design system suppresses parallax, pulse and shake, but a fade is information.
@@ -2063,21 +2775,15 @@ namespace SheepGate.UI
             /// to fade, and a half-finished fade-in would otherwise leave a stale alpha behind for
             /// the next sentence. The previous tween is stopped first, because tapping two rows in
             /// quick succession is an ordinary thing to do.
+            ///
+            /// <paramref name="clearedAlpha"/> is what the group rests at with nothing to say, and
+            /// the two callers want different answers. A bare label on the step's own ground rests
+            /// at 1 — there is nothing to see either way, and leaving it at 0 would mean the next
+            /// sentence had two things to undo. A label on its own opaque ground rests at 0, because
+            /// the ground is visible even when the words are not.
             /// </summary>
-            void ShowRefusal(string sentence)
-            {
-                _refusalFade = Announce(_refusal, _refusalGroup, _refusalFade, sentence);
-            }
-
-            void ShowChoiceMessage(string sentence)
-            {
-                _choiceFade = Announce(_choice, _choiceGroup, _choiceFade, sentence);
-            }
-
-            /// <summary>
-            /// The fade both reserved bands share. Returns the tween handle to store, or null.
-            /// </summary>
-            static Coroutine Announce(Text target, CanvasGroup group, Coroutine running, string sentence)
+            static Coroutine Announce(Text target, CanvasGroup group, Coroutine running, string sentence,
+                                      float clearedAlpha)
             {
                 if (target == null)
                 {
@@ -2095,7 +2801,7 @@ namespace SheepGate.UI
 
                 if (string.IsNullOrEmpty(sentence))
                 {
-                    group.alpha = 1f;
+                    group.alpha = clearedAlpha;
                     return null;
                 }
 

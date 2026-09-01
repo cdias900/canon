@@ -50,6 +50,35 @@ namespace SheepGate.Dialogue
         private bool awaitingChoice;
         private string queuedNodeId;
 
+        /// <summary>
+        /// What has already been said in the node on screen, oldest first.
+        ///
+        /// <b>Why it is kept at all.</b> A tap anywhere advances, the catcher covers the whole
+        /// screen, and a line that has gone is gone: one impatient thumb and the player has skipped
+        /// a sentence they cannot get back. In a game whose north-star metric depends on the text
+        /// being read, a conversation with no way to look back is the one place a slip costs
+        /// exactly the thing being measured.
+        ///
+        /// <b>Why only the current node.</b> A full transcript of a run is a reading log — it would
+        /// turn what was said into a collection, and there is no version of that which is not a
+        /// count of how much someone has read. One node is what a player asks to see again; the
+        /// whole day is a record.
+        /// </summary>
+        private readonly List<DialogueRecord> spoken = new List<DialogueRecord>();
+
+        /// <summary>One line as it was actually shown: who said it, and the words.</summary>
+        public struct DialogueRecord
+        {
+            public string Speaker;
+            public string Body;
+        }
+
+        /// <summary>The lines already read in the node on screen, oldest first.</summary>
+        public IReadOnlyList<DialogueRecord> Spoken
+        {
+            get { return spoken; }
+        }
+
         public bool IsPlaying
         {
             get { return playing; }
@@ -107,12 +136,21 @@ namespace SheepGate.Dialogue
 
             EnsureUI();
 
+            // A conversation owns the screen from here. The toast is not a modal, so nothing else
+            // takes it down, and a line about a rubble pile sitting under the speech bubble is the
+            // interface talking over the person.
+            SheepGate.UI.Toast.Dismiss();
+
             currentNode = node;
             currentNodeId = nodeId;
             lineIndex = 0;
             playing = true;
             awaitingChoice = false;
             pendingChoices = null;
+
+            // The record is per node, so it starts empty here. See the field for why it is not a
+            // transcript of the whole run.
+            spoken.Clear();
 
             if (ui != null)
             {
@@ -206,6 +244,7 @@ namespace SheepGate.Dialogue
             ui.AdvanceRequested += OnAdvanceRequested;
             ui.ChapterRequested += OnChapterRequested;
             ui.ChoiceSelected += OnChoiceSelected;
+            ui.HistoryRequested += OnHistoryRequested;
         }
 
         private void DetachUI()
@@ -218,12 +257,25 @@ namespace SheepGate.Dialogue
             ui.AdvanceRequested -= OnAdvanceRequested;
             ui.ChapterRequested -= OnChapterRequested;
             ui.ChoiceSelected -= OnChoiceSelected;
+            ui.HistoryRequested -= OnHistoryRequested;
             ui = null;
         }
 
         private void OnAdvanceRequested()
         {
             Advance();
+        }
+
+        /// <summary>
+        /// Shows what has already been said in this node.
+        ///
+        /// The line still typing is included, because <see cref="BeginBody"/> records a line as it
+        /// starts: a player who held the screen halfway through a sentence is asking about that
+        /// sentence too, and showing it whole is the answer they wanted.
+        /// </summary>
+        private void OnHistoryRequested()
+        {
+            DialogueHistoryPanel.Show(spoken);
         }
 
         private void StartLine(int index)
@@ -307,6 +359,17 @@ namespace SheepGate.Dialogue
             currentBody = body ?? string.Empty;
             revealed = 0f;
             typing = currentBody.Length > 0;
+
+            // Recorded as the line begins, not as it ends: a player who skipped a line by tapping
+            // twice never reached its end, and that line is precisely the one they want back.
+            if (currentBody.Length > 0)
+            {
+                spoken.Add(new DialogueRecord
+                {
+                    Speaker = currentNode != null ? DialogueData.DisplayNameOf(currentNode.npc) : string.Empty,
+                    Body = currentBody
+                });
+            }
         }
 
         private void CompleteTyping()

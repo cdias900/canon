@@ -94,8 +94,38 @@ namespace SheepGate.Core
             return state;
         }
 
+        /// <summary>
+        /// While true, <see cref="Save"/> writes nothing.
+        ///
+        /// It exists for one moment: the player asking to start over. Deleting the file is not
+        /// enough on its own, because tearing the village down runs a scene's worth of teardown —
+        /// panels closing, the wall flushing its progress — and any one of those calls
+        /// <c>WorldRuntime.SaveNow</c> and writes the run straight back out. A flag on the writer
+        /// closes every one of those doors at once, which auditing the callers could not.
+        ///
+        /// It is raised by <see cref="SuspendWrites"/> rather than by <see cref="Delete"/>, because
+        /// Delete has an existing caller — the acceptance harness — that deletes a scratch save and
+        /// then carries on writing real ones. Restarting is a decision, so it says so in its own
+        /// call.
+        /// </summary>
+        public static bool Suspended { get; private set; }
+
+        /// <summary>
+        /// Stops every further write for the lifetime of the process. Nothing lowers it: the only
+        /// supported way back is the boot sequence, which starts from a fresh process state.
+        /// </summary>
+        public static void SuspendWrites()
+        {
+            Suspended = true;
+        }
+
         public static void Save(GameState state)
         {
+            if (Suspended)
+            {
+                return;
+            }
+
             if (state == null)
             {
                 Debug.LogError("[SaveSystem] Refusing to save a null game state.");

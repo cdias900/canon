@@ -836,10 +836,10 @@ namespace SheepGate.Player
             }
         }
 
-        // Nothing in the project loads the presets: BootSequence loads the catalogue and stops
-        // there. They are read here for two fields — signature_item, and now the id the save carries
-        // — so the read is lazy, attempted once, and loud on failure the same way every other
-        // content load in this project is.
+        // The presets are read here for two fields — signature_item, and the id the save carries —
+        // in case nothing has read them yet: the lazy load is attempted once and is loud on failure
+        // the same way every other content load in this project is. In a booted run it does
+        // nothing, because BootSequence.ApplyLocale has already loaded both content files.
         static void EnsurePresetsLoaded()
         {
             if (_presetsRequested || (CharacterPresets.All != null && CharacterPresets.All.Length > 0))
@@ -850,22 +850,15 @@ namespace SheepGate.Player
             _presetsRequested = true;
             CharacterPresets.LoadAll();
 
-            // The cross-file audit, run here because nothing else was running it anywhere: it was
-            // written to be called and then never called, which in this project is the failure that
-            // actually ships — correct code no path reaches reports nothing and is
-            // indistinguishable from a check that passes.
+            // The cross-file audit, for the run that never went through the boot sequence: a scene
+            // opened straight from the editor, or a test harness that composes a screen by hand.
+            // BootSequence.ApplyLocale owns the audit for every real run and calls it there, right
+            // after both loaders, which is where its contract says it belongs.
             //
-            // Its own doc says "call it once, after both loaders, not from either loader", and this
-            // honours that rather than breaking it: it is outside both loaders, BootSequence has
-            // read the catalogue long before any wardrobe question is asked, and if it somehow has
-            // not, the audit answers 0 and says nothing — which is what it is designed to do while
-            // content is still landing.
-            //
-            // It is not a guarantee, and must not be read as one. This method early-returns
-            // when the presets are already loaded, so if some other screen calls
-            // CharacterPresets.LoadAll first, this line never runs and the audit is silent by
-            // absence. The durable home for it is the boot sequence, after both LoadAll calls; this
-            // is the best available call site from inside the wardrobe, not the right one.
+            // The two calls do not collide, and the early return above is what keeps them apart: a
+            // booted run reaches this method with the presets already loaded and leaves before this
+            // line. This one fires only on the path where the wardrobe itself did the loading, and
+            // on that path it is the only audit there is — which is the whole reason it stays.
             CharacterPresets.VerifyAgainstCatalog();
         }
 

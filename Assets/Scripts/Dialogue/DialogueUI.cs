@@ -45,6 +45,15 @@ namespace SheepGate.Dialogue
         /// <summary>Raised when the player taps anywhere on the dialogue while it is on screen.</summary>
         public event Action AdvanceRequested;
 
+        /// <summary>
+        /// Raised when the player holds the screen: they want the lines already read.
+        ///
+        /// The same surface reports both gestures because there is only one surface — the catcher
+        /// covers the screen, and adding a second control for this would put a permanent button on
+        /// top of the conversation for something asked for rarely.
+        /// </summary>
+        public event Action HistoryRequested;
+
         /// <summary>Raised by the secondary affordance: chapter reference, then verse reference.</summary>
         public event Action<string, string> ChapterRequested;
 
@@ -484,6 +493,7 @@ namespace SheepGate.Dialogue
             catcherImage.raycastTarget = true;
             catcher = catcherRect.gameObject.AddComponent<DialogueTapCatcher>();
             catcher.Clicked += OnCatcherClicked;
+            catcher.LongPressed += OnCatcherLongPressed;
 
             // The catcher above covers the whole screen so a tap anywhere advances; the bubble
             // does not, because at the bottom of a modern phone "anywhere" includes the strip the
@@ -622,6 +632,15 @@ namespace SheepGate.Dialogue
         private void OnCatcherClicked()
         {
             Action handler = AdvanceRequested;
+            if (handler != null)
+            {
+                handler();
+            }
+        }
+
+        private void OnCatcherLongPressed()
+        {
+            Action handler = HistoryRequested;
             if (handler != null)
             {
                 handler();

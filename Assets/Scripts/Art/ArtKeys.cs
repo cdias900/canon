@@ -136,9 +136,21 @@ namespace SheepGate.Art
             return Part(HairPrefix, variant, facing, ArtAnim.Idle, 0);
         }
 
-        public static string Accessory(int variant)
+        /// <summary>
+        /// Accessory layer key: acc_&lt;variant&gt;_&lt;direction&gt;_idle_0.
+        ///
+        /// The direction token is not decoration. Alone among the worn layers, the accessory is
+        /// never mirrored — every variant is anchored to one side or one face of the character
+        /// (<c>shoulder_r</c>, <c>wrist_r</c>, <c>back_center</c>, <c>waist_front</c>), so
+        /// <see cref="CharacterArt.Accessory"/> draws all four facings by hand. A key without the
+        /// token parses back as Down, which fed those four drawings one facing and threw the other
+        /// three away — the map tube across the back rendered as the front view of the map tube.
+        /// So this builder is shaped like <see cref="Hair"/> and takes the facing, rather than like
+        /// <see cref="Top"/> and <see cref="Legs"/>, whose layers really are facing-free.
+        /// </summary>
+        public static string Accessory(int variant, ArtFacing facing)
         {
-            return AccessoryPrefix + "_" + variant.ToString(CultureInfo.InvariantCulture);
+            return Part(AccessoryPrefix, variant, facing, ArtAnim.Idle, 0);
         }
 
         public static string Part(string prefix, int variant, ArtFacing facing, ArtAnim anim, int frame)

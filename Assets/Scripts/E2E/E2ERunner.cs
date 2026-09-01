@@ -185,7 +185,7 @@ namespace SheepGate.E2E
         /// part and the suffix is what names the tab, and a run that got one of the four wrong by
         /// hand would report a missing tab rather than a typo.
         /// </summary>
-        static readonly string[] BackpackTabs = { "Hair", "Outfit", "Accessory", "Materials" };
+        static readonly string[] BackpackTabs = { "Profile", "Hair", "Outfit", "Accessory", "Materials" };
 
         /// <summary>
         /// What character creation settled on, held so the backpack can be asked whether it agrees.
@@ -3047,13 +3047,27 @@ namespace SheepGate.E2E
             yield return SelectBackpackTab("Materials", "04d-backpack-materials");
 
             RecordMaterialsTab();
+            Record("a section with no slots takes the slot bar with it", Find("SegmentHair") == null,
+                "SegmentHair active=" + (Find("SegmentHair") != null));
 
-            // Back to the tab it opened on. This is the only selection that has to move the layout
-            // in both directions — the materials tab has no character above its list — so a sheet
-            // that can leave the wardrobe and not come back fails here rather than in a screenshot
-            // somebody looks at next week.
+            // Perfil is PR #7's headline screen, and this branch's rewrite of the runner dropped
+            // the only steps that had ever selected it — so the meter, the missions and the studies
+            // went back to being carried by the review that wrote them. Restored from main on the
+            // merge, unchanged, because losing coverage is not a thing a season is allowed to do
+            // quietly. Unlike Aparência it is a panel of its own, so SelectBackpackTab's exemption
+            // does not apply and TabProfile is asserted like any other panel.
+            yield return SelectBackpackTab("Profile", "04e-backpack-profile");
+            RecordProfileTab();
+
+            // Back through Aparência, which is the only way to a wardrobe now. This is the one
+            // selection that has to move the layout in both directions — neither Perfil nor Itens
+            // has a character above its list or a bar under it — so a sheet that can leave the
+            // wardrobe and not come back fails here rather than in a screenshot somebody looks at
+            // next week.
+            yield return SelectBackpackTab("Appearance", null);
             yield return SelectBackpackTab("Hair", null);
-            Record("leaving the materials tab brings the character back", Find("CharacterStage") != null,
+            Record("leaving a section with no character brings the character back",
+                Find("CharacterStage") != null,
                 Find("CharacterStage") != null ? "CharacterStage is up again" : "the stage never came back");
         }
 
@@ -3267,7 +3281,12 @@ namespace SheepGate.E2E
             yield return TapObject(segment, "select Segment" + tab);
             yield return null;
 
-            RecordOnlyBackpackTab(tab, "selecting Segment" + tab + " shows Tab" + tab + " and nothing else");
+            // Aparência opens whichever wardrobe list was last used rather than a panel of its own,
+            // so the panel assertion does not apply to it. Everything else about the tap does.
+            if (tab != "Appearance")
+            {
+                RecordOnlyBackpackTab(tab, "selecting Segment" + tab + " shows Tab" + tab + " and nothing else");
+            }
             Record("selecting Segment" + tab + " repaints the tab bar", IsShowing("SegmentFill" + tab),
                 "SegmentFill" + tab + " showing=" + IsShowing("SegmentFill" + tab));
             Record("the dot on Segment" + tab + " does not survive being looked at",
@@ -3990,6 +4009,30 @@ namespace SheepGate.E2E
         /// nothing behind it that no amount of looking could ever clear — which is exactly the
         /// nagging the badge is built to avoid everywhere else.
         /// </summary>
+        /// <summary>
+        /// The profile section: the engagement meter and the two headings under it.
+        ///
+        /// Ported back from main during the merge that brought the season onto it. Rule 10 is why
+        /// this asserts the meter is drawn and never what it reads.
+        /// </summary>
+        void RecordProfileTab()
+        {
+            bool drawn = Find("EngagementMeter") != null && Find("MissionsHeading") != null
+                && Find("StudiesHeading") != null;
+            Record("the profile section draws its meter and both headings", drawn,
+                "meter=" + (Find("EngagementMeter") != null)
+                + " missions=" + (Find("MissionsHeading") != null)
+                + " studies=" + (Find("StudiesHeading") != null));
+
+            Record("the profile section gives its column the whole sheet", Find("CharacterStage") == null,
+                Find("CharacterStage") == null
+                    ? "the character stage is away"
+                    : "the stage is still standing over the profile");
+
+            Record("the profile section takes the slot bar with it too", Find("SegmentHair") == null,
+                "SegmentHair active=" + (Find("SegmentHair") != null));
+        }
+
         void RecordMaterialsTab()
         {
             bool grid = Find("MaterialsGrid") != null && Find("Material_stone") != null
@@ -4041,7 +4084,7 @@ namespace SheepGate.E2E
 
         /// <summary>
         /// Asserts that exactly one of creation's slot panels is on screen — the same assertion the
-        /// backpack makes about its own four, and for the same reason: two lists drawn over one
+        /// backpack makes about its own five, and for the same reason: two lists drawn over one
         /// another logs nothing and throws nothing.
         /// </summary>
         void RecordOnlyCreationTab(CharacterSlot slot, string step)

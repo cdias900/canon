@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using SheepGate.Core;
+using SheepGate.UI;
 
 namespace SheepGate.World
 {
@@ -71,6 +72,11 @@ namespace SheepGate.World
         /// introduced one half at a time.
         /// </summary>
         public const int TimberFirstDay = 2;
+
+        // Locale keys for the two ways a tap on a pile does nothing. The "...Key" suffix is what
+        // tells the content validator these are keys rather than sentences.
+        private const string NotYetKey = "toast.pile.not_yet";
+        private const string TakenTodayKey = "toast.pile.taken_today";
 
         /// <summary>
         /// Unchanged, and it must stay unchanged: it is the prefix of a save key. See the class
@@ -294,12 +300,17 @@ namespace SheepGate.World
             // or the pile may have moved on.
             if (!HasArrived())
             {
+                Toast.Show(Loc.T(NotYetKey));
                 Debug.Log("[World] " + Kind + " pile " + Index + " is not in the village yet; it arrives on day " + FirstDay + ".");
                 return;
             }
 
             if (TakenToday())
             {
+                // The pile is hidden the moment it is taken, so this is the rarer of the two: the
+                // player pathed towards a pile that emptied while they were walking. Saying so
+                // beats a walk that ends in nothing.
+                Toast.Show(Loc.T(TakenTodayKey));
                 Debug.Log("[World] " + Kind + " pile " + Index + " was already collected today.");
                 return;
             }

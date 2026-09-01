@@ -5,6 +5,8 @@ using Pointer = UnityEngine.InputSystem.Pointer;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using SheepGate.Core;
+using SheepGate.World;
+using SheepGate.UI;
 using SheepGate.Dialogue;
 
 #if ENABLE_INPUT_SYSTEM
@@ -37,6 +39,12 @@ namespace SheepGate.Player
 
         /// <summary>Name of the public bool property the world's interactables use to opt out.</summary>
         private const string AvailabilityPropertyName = "IsAvailable";
+
+        /// <summary>
+        /// What the village says when a tap has nowhere to go. Named "...Key" so the content
+        /// validator reads it as a locale key rather than as a sentence.
+        /// </summary>
+        private const string NoPathKey = "toast.no_path";
 
         private static readonly Dictionary<Type, PropertyInfo> AvailabilityCache =
             new Dictionary<Type, PropertyInfo>();
@@ -164,14 +172,10 @@ namespace SheepGate.Player
         /// <summary>Paths to a world position and runs a callback on arrival. False when unreachable.</summary>
         public bool MoveToWorld(Vector2 worldPosition, Action onArrive)
         {
-            GridPathfinder pathfinder = Pathfinder;
-            Vector2Int goal = GridPathfinder.WorldToGrid(worldPosition);
-
-            if (!pathfinder.IsWalkable(goal))
+            Vector2Int goal;
+            if (!TryResolveGoal(worldPosition, out goal))
             {
-                Vector2Int nearest;
-                if (!pathfinder.TryFindNearestWalkable(goal, NearestWalkableSearchRadius, out nearest)) return false;
-                goal = nearest;
+                return false;
             }
 
             return MoveToCell(goal, onArrive);
@@ -316,7 +320,53 @@ namespace SheepGate.Player
                 return;
             }
 
-            MoveTo(worldPosition);
+            // Every tap on open ground now answers, one way or the other. It used to answer only
+            // when it worked: a tap into a wall, or onto a cell with no route to it, did nothing at
+            // all and was indistinguishable from a tap the game never received — with the player's
+            // own finger over the spot they were checking.
+            Vector2Int goal;
+            if (!TryResolveGoal(worldPosition, out goal))
+            {
+                Toast.Show(Loc.T(NoPathKey));
+                return;
+            }
+
+            // The marker goes on the cell the pathfinder accepted, not on the raw touch point: a
+            // tap just inside a wall is slid to the nearest open cell, and drawing the ring where
+            // the finger landed would teach the player the wrong shape of the map.
+            if (!MoveToCell(goal, null))
+            {
+                Toast.Show(Loc.T(NoPathKey));
+                return;
+            }
+
+            TapMarker.ShowAt(GridPathfinder.GridToWorld(goal));
+        }
+
+        /// <summary>
+        /// The cell a tap resolves to: the tapped one when it is walkable, otherwise the nearest
+        /// open cell within <see cref="NearestWalkableSearchRadius"/>. False when neither exists.
+        ///
+        /// Split out of <see cref="MoveToWorld"/> so the answer can be shown as well as walked to.
+        /// </summary>
+        private bool TryResolveGoal(Vector2 worldPosition, out Vector2Int goal)
+        {
+            GridPathfinder pathfinder = Pathfinder;
+            goal = GridPathfinder.WorldToGrid(worldPosition);
+
+            if (pathfinder.IsWalkable(goal))
+            {
+                return true;
+            }
+
+            Vector2Int nearest;
+            if (!pathfinder.TryFindNearestWalkable(goal, NearestWalkableSearchRadius, out nearest))
+            {
+                return false;
+            }
+
+            goal = nearest;
+            return true;
         }
 
         private void ApproachAndInteract(Component target)

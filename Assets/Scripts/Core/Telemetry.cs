@@ -189,5 +189,11 @@ namespace SheepGate.Core
         /// <summary>Raised when the player changes language mid-run, never on boot.</summary>
         public const string LocaleChanged = "locale_changed";
         public const string CheckIn = "check_in";
+
+        /// <summary>
+        /// The player deleted a run on purpose. Worth an event because a playtest that restarts
+        /// twice on day one is telling us something the finished runs cannot.
+        /// </summary>
+        public const string RunRestarted = "run_restarted";
     }
 }

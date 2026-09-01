@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using SheepGate.Core;
+using SheepGate.UI;
 
 namespace SheepGate.World
 {
@@ -15,6 +16,7 @@ namespace SheepGate.World
     {
         public const int AttemptsBeforeCatch = 3;
         private const string AttemptsKey = "well_attempts";
+        private const string AlreadyCaughtKey = "toast.well.already_caught";
 
         public static Well Spawn(Vector2Int cell, Transform parent, TilemapBuilder tilemap)
         {
@@ -61,6 +63,10 @@ namespace SheepGate.World
                 }
                 else
                 {
+                    // The authored follow-up is the good answer; this is the fallback for a build
+                    // where it is missing, and it says so on screen rather than leaving the well
+                    // looking broken.
+                    Toast.Show(Loc.T(AlreadyCaughtKey));
                     Debug.Log("[World] The fish is already caught and no follow-up node is authored for the well.");
                 }
 

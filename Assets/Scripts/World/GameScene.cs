@@ -796,6 +796,20 @@ namespace SheepGate.World
             }
         }
 
+        /// <summary>
+        /// Drops the cached state, so the next read resolves from scratch.
+        ///
+        /// Only the restart needs this. <see cref="State"/> caches in a static, and a static
+        /// outlives a scene load — so a run that was deleted from disk would come back the moment
+        /// anything asked for the state again, because the object it was cached in is still there.
+        /// Clearing the service locator alone does not reach it: the cache is consulted after the
+        /// locator, exactly so a scene rebuild does not lose the run.
+        /// </summary>
+        public static void Forget()
+        {
+            _state = null;
+        }
+
         public static void SaveNow()
         {
             GameState state = State;

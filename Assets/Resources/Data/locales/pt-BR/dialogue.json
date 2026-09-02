@@ -759,7 +759,7 @@
         "verse": "NEH.3.2"
       },
       {
-        "text": "— Não vou perguntar de onde vocês vieram. Vou perguntar onde vocês moram, e vocês levantam o pedaço que fica na frente."
+        "text": "— Quem mora aqui pega o pedaço na frente da própria casa. Quem veio de fora pega o que estiver ao lado."
       },
       {
         "text": "Um ourives se apresenta. Um perfumista atrás dele. Nenhum dos dois trabalha com pedra e nenhum dos dois está aqui por engano."
@@ -786,7 +786,10 @@
         "text": "Depois ele lê os quatro trechos que sobraram desta ponta da cidade, um por um, e diz cada um em voz alta para que fique claro qual é qual."
       },
       {
-        "text": "— Quem pegar um trecho responde por ele. Não é castigo. É para que, quando estiver de pé, se saiba de quem foi a mão."
+        "text": "— Quem pegar um trecho responde por ele. Não é castigo."
+      },
+      {
+        "text": "O escriba não levanta a cabeça. Anota para que, quando estiver de pé, se saiba de quem foi a mão."
       },
       {
         "text": "A praça se desfaz sozinha. Cada um vai andando para o pedaço que agora é seu."
@@ -938,6 +941,10 @@
         "text": "— Vocês estão ouvindo? É para ouvirem. Eu não preciso de mais nada além disto: eu falo, e vocês param sozinhos."
       },
       {
+        "frame": "O que ele quer com isso não é segredo, e não é dedução nossa: ficou escrito, com essas palavras.",
+        "verse": "NEH.6.9"
+      },
+      {
         "frame": "O amonita está ao lado dele. Emenda uma piada curta, e a piada também ficou anotada:",
         "verse": "NEH.4.3"
       },
@@ -1075,7 +1082,7 @@
     "day": 6,
     "lines": [
       {
-        "text": "O amonita desce um pouco mais que os outros. Ele conhece esta estrada: já veio aqui convidado, quando ainda havia quem convidasse."
+        "text": "O amonita desce um pouco mais que os outros. Ele conhece esta estrada: tem parente casado aqui dentro, e gente lá de cima que responde as cartas dele."
       },
       {
         "frame": "O que os de fora andavam dizendo entre eles chegou pelos que moram perto deles, e chegou repetido dez vezes:",
@@ -1355,7 +1362,7 @@
         "text": "A quinta carta traz o nome dele embaixo e nenhum lacre em cima."
       },
       {
-        "text": "— Vem conversar. Um dia de estrada, um povoado, uma tarde. Ninguém precisa saber que você veio."
+        "text": "— Vem conversar. Um dia de estrada, um povoado, uma tarde. Só isso."
       },
       {
         "text": "— Já pedi quatro vezes com a carta fechada. Esta eu deixei aberta, e você vai entender por quê antes do fim do dia."

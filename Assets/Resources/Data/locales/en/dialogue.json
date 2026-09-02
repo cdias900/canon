@@ -759,7 +759,7 @@
         "verse": "NEH.3.2"
       },
       {
-        "text": "— I'm not going to ask where you came from. I'm going to ask where you live, and you'll take the piece in front of it."
+        "text": "— If you live here, you take the piece in front of your own house. If you came in from outside, you take what is beside it."
       },
       {
         "text": "A goldsmith puts himself forward. A perfumer behind him. Neither of them works in stone and neither of them is here by mistake."
@@ -786,7 +786,10 @@
         "text": "After that he reads out the four stretches left on this end of the city, one at a time, saying each one aloud so it is clear which is which."
       },
       {
-        "text": "— Whoever takes a stretch answers for it. That isn't a punishment. It's so that when it's standing, it's known whose hands did it."
+        "text": "— Whoever takes a stretch answers for it. That isn't a punishment."
+      },
+      {
+        "text": "The scribe doesn't look up. He writes it down so that when it is standing, it is known whose hands did it."
       },
       {
         "text": "The square breaks up on its own. Everyone walks off towards the piece that is theirs now."
@@ -938,6 +941,10 @@
         "text": "— Are you listening? You're meant to. I don't need anything more than this: I talk, and you stop on your own."
       },
       {
+        "frame": "What he wants out of it is no secret, and it is not our guess: it was written down, in those words.",
+        "verse": "NEH.6.9"
+      },
+      {
         "frame": "The Ammonite is beside him. He adds a short joke, and the joke was written down too:",
         "verse": "NEH.4.3"
       },
@@ -1075,7 +1082,7 @@
     "day": 6,
     "lines": [
       {
-        "text": "The Ammonite comes a little lower than the rest. He knows this road: he has been here as a guest, back when there was anyone to invite him."
+        "text": "The Ammonite comes a little lower than the rest. He knows this road: he has family married in here, and people up there who answer his letters."
       },
       {
         "frame": "What the ones outside were saying among themselves came in through the people who live near them, and it came in ten times over:",
@@ -1355,7 +1362,7 @@
         "text": "The fifth letter has his name at the bottom of it and no seal on the top."
       },
       {
-        "text": "— Come and talk. A day on the road, a village, an afternoon. Nobody needs to know you came."
+        "text": "— Come and talk. A day on the road, a village, an afternoon. That is all."
       },
       {
         "text": "— I've asked four times with the letter closed. This one I left open, and you'll understand why before the day is out."

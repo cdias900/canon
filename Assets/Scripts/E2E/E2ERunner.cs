@@ -261,6 +261,13 @@ namespace SheepGate.E2E
             // A macOS player stops rendering when its window loses focus, and this one is launched
             // from a terminal that keeps it. Without this, the first WaitForEndOfFrame never
             // returns and the run hangs before its first screenshot.
+            //
+            // It does NOT cover the other way a player stops rendering here. A window the system
+            // considers fully occluded — which is what a second player launched at the same size on
+            // the same screen produces — is suspended regardless of this flag, and then every step
+            // of this class stops with it, because they are all `yield return null`. That one is
+            // fixed in tools/e2e.sh by running the locales one at a time; do not go looking for it
+            // here, and do not conclude from this line that focus has been ruled out.
             Application.runInBackground = true;
 
             // -data-path does not cover PlayerPrefs, and this run taps the language toggle. Without

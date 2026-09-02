@@ -16,9 +16,10 @@
 # on, and the one that ends the season) and every other stage is traversed cheaply.
 #
 # Usage:
-#   tools/e2e.sh                  build, then run every locale, concurrently
+#   tools/e2e.sh                  build, then run every locale, ONE AT A TIME
 #   tools/e2e.sh --no-build       reuse the player already in Builds/mac
 #   tools/e2e.sh --locale en      just that one
+#   tools/e2e.sh --parallel       all locales at once — FAST AND KNOWN TO HANG, see below
 #   tools/e2e.sh --from-stage 6   AUTHORING ONLY: seed a save at stage 6 and start there
 #
 # Screenshots and per-locale results land in Builds/e2e/, which is emptied at the start of every
@@ -42,9 +43,11 @@ while IFS= read -r LINE; do LOCALES+=("${LINE}"); done < <(
 
 BUILD=1
 FROM_STAGE=""
+PARALLEL=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --no-build) BUILD=0; shift ;;
+    --parallel) PARALLEL=1; shift ;;
     --locale) LOCALES=("${2:-}"); shift 2 ;;
     --from-stage) FROM_STAGE="${2:-}"; shift 2 ;;
     *) echo "Unknown argument: $1" >&2; exit 2 ;;
@@ -108,13 +111,32 @@ if [[ -n "${FROM_STAGE}" ]]; then
   echo "      fresh save, because reachability from the first frame is why this harness exists."
 fi
 
-# One player per locale, all at once.
+# One player per locale, one at a time.
 #
-# Free concurrency with no correctness cost, which is why it is worth doing: each locale already had
-# its own disposable data directory, its own log, its own locale-suffixed screenshots and its own
-# result file, so the two runs share nothing but the read-only app bundle. The wall clock stops
-# being the sum of the locales and becomes the slowest of them, and a nine-stage season is exactly
-# where that stops being a nicety.
+# THIS USED TO RUN THEM ALL AT ONCE AND THAT IS WHAT HAS BEEN HANGING THIS HARNESS. The concurrency
+# looked free, and on paper it was: each locale has its own disposable data directory, its own log,
+# its own locale-suffixed screenshots and its own result file, so the runs share nothing but the
+# read-only app bundle. The wall clock stopped being the sum of the locales and became the slowest
+# of them. What it was not free of is the window server.
+#
+# Both players are launched windowed at the same 1080x1920 (below), so on one screen they are born
+# in the same place and the second one covers the first completely. macOS suspends rendering for a
+# fully occluded window, the player stops producing frames, and EVERY step of the runner is a
+# `yield return null` that only resumes on the next frame — so the run does not fail, it stops.
+# No exception, no log line, nothing until the outer watchdog kills it 990 seconds later. It hung
+# that way on 30/08, on 01/09 and twice on 02/09, always a few steps past the opening screenshot,
+# and always passed on the next attempt, which is exactly how a race reads.
+#
+# Two fixes were considered and neither works:
+#   * A watchdog inside the runner. It would be a coroutine, and coroutines do not run when frames
+#     do not. The thing that would fire it is the thing that stopped.
+#   * -batchmode / -nographics. The runner screenshots every beat; without a renderer there is
+#     nothing to capture and the evidence this harness exists to produce goes away.
+#   * Different window sizes per locale. Both windows are still centred, so the smaller one ends up
+#     entirely inside the larger: it changes which player hangs, not whether one does.
+#
+# --parallel keeps the old behaviour for anyone who wants the wall clock back and is watching the
+# run. It is opt-in because a gate that is fast and hangs is worse than a gate that is slow.
 run_locale() {
   local locale="$1"
   local data="${OUT}/data-${locale}"
@@ -172,19 +194,31 @@ run_locale() {
   return ${status}
 }
 
-PIDS=()
-for LOCALE in "${LOCALES[@]}"; do
-  run_locale "${LOCALE}" &
-  PIDS+=($!)
-done
-
-# Collected in the order the locales were listed, so a concurrent run reads like a sequential one.
 STATUS=0
-for INDEX in "${!PIDS[@]}"; do
-  if ! wait "${PIDS[${INDEX}]}"; then
-    STATUS=1
+if [[ ${PARALLEL} -eq 1 ]]; then
+  echo "NOTE: --parallel runs ${#LOCALES[@]} player(s) at once. This is the mode that hangs; watch it."
+  PIDS=()
+  for LOCALE in "${LOCALES[@]}"; do
+    run_locale "${LOCALE}" &
+    PIDS+=($!)
+  done
+
+  # Collected in the order the locales were listed, so a concurrent run reads like a sequential one.
+  for INDEX in "${!PIDS[@]}"; do
+    if ! wait "${PIDS[${INDEX}]}"; then
+      STATUS=1
+    fi
+  done
+else
+  if [[ ${#LOCALES[@]} -gt 1 ]]; then
+    echo "Running ${#LOCALES[@]} locales one at a time; allow up to $(( PLAYER_TIMEOUT * ${#LOCALES[@]} ))s."
   fi
-done
+  for LOCALE in "${LOCALES[@]}"; do
+    if ! run_locale "${LOCALE}"; then
+      STATUS=1
+    fi
+  done
+fi
 
 for LOCALE in "${LOCALES[@]}"; do
   cat "${OUT}/console-${LOCALE}.txt" 2>/dev/null

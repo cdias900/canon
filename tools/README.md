@@ -31,10 +31,19 @@ stage is traversed cheaply, asserting only that it was reached, that its panels 
 that the day rolled over. The two chapter-reader taps on the reveal and the ending are never in the
 cheap tier: those are the `deep_read` doors and they are the reason the harness exists.
 
-The locales run **concurrently**, so the wall clock is the slowest locale rather than their sum.
-Each one already had its own disposable data directory, log, locale-suffixed screenshots and result
-file, so they share nothing but the read-only app bundle. `Builds/e2e/` is emptied at the start of
-every run: screenshots from a shorter run sitting beside a longer one read as current evidence.
+The locales run **one at a time**, so the wall clock is their sum. That is deliberate and it is a
+step backwards taken on purpose. They used to run concurrently — each has its own disposable data
+directory, log, locale-suffixed screenshots and result file, so they share nothing but the read-only
+app bundle, and the concurrency looked free. It was not: both players are launched windowed at the
+same size, the second covers the first completely, and **macOS suspends rendering for a fully
+occluded window**. Every step of the runner is a `yield return null`, so a player that stops getting
+frames does not fail — it stops, silently, until the outer watchdog kills it fifteen minutes later.
+That is the hang this harness had on 30/08, 01/09 and twice on 02/09, always just past the opening
+screenshot. `--parallel` brings the old behaviour back for anyone who wants the wall clock and is
+watching the run.
+
+`Builds/e2e/` is emptied at the start of every run: screenshots from a shorter run sitting beside a
+longer one read as current evidence.
 
 `--from-stage N` seeds a save at stage N and starts there. It is an **authoring convenience and not
 the gate** - the cold run from a fresh save is the gate, because reachability from the first frame

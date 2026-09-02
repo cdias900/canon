@@ -21,9 +21,9 @@ namespace SheepGate.EditorTools
     ///
     /// NUMBERED CRITERIA COME FROM §13; the letter-prefixed ones do not, and the prefix is how you
     /// tell. <c>L1</c>-<c>L3</c> are the localization checks that arrived with the content split,
-    /// and <c>S1</c>-<c>S2</c> are the two the nine-stage season needed: that the stage table holds
-    /// together, and that a save written by the three-day build comes forward without losing
-    /// anything. Reusing a §13 number for a check §13 does not contain would make the report
+    /// and <c>S1</c>-<c>S3</c> are the three the nine-stage season needed: that the stage table
+    /// holds together, that a save written by the three-day build comes forward without losing
+    /// anything, and that a move a flag unlocks is shut without it. Reusing a §13 number for a check §13 does not contain would make the report
     /// unreadable against the document it is named for.
     ///
     /// EVERY CHECK THAT USED TO NAME A DAY NOW READS THE SEASON. The old shape — day 3 for the
@@ -91,6 +91,7 @@ namespace SheepGate.EditorTools
                     WallProgressNeverRegresses();
                     SaveRoundTrip();
                     ContestRules();
+                    FlagGatedMovesAreShut(sourceDialogue);
                     VocationResolution();
                     NightDiffers();
                     DaylightClock();
@@ -723,6 +724,177 @@ namespace SheepGate.EditorTools
 
             if (harsh != null) UnityEngine.Object.DestroyImmediate(harsh.gameObject);
             if (kind != null) UnityEngine.Object.DestroyImmediate(kind.gameObject);
+        }
+
+        /// <summary>
+        /// S3 — a move that a FLAG unlocks is shut without the flag, open with it, and something in
+        /// the content still raises it.
+        ///
+        /// Criterion 08 proves this for the move A Página unlocks, and stops there because in the
+        /// three-day build that was the only gated move there was. The season added a second kind:
+        /// <c>keep_working</c> exists only for a player who refused the invitation six stages
+        /// earlier. Nothing asserted that gate, and the way it fails is the failure this project
+        /// keeps meeting — not a crash, but a move that quietly never appears, in a fight most runs
+        /// reach having accepted the invitation, so the absence looks exactly like the rule working.
+        ///
+        /// <b>Both halves are needed, and the second is the one worth the trouble.</b> The gate
+        /// itself is a two-line read of <see cref="MoraleContest.IsMoveAvailable"/>. But a gate that
+        /// works perfectly on a flag no content grants is correct code nothing calls: the move would
+        /// be unreachable in a played game while every rule about it passed. So the flag is also
+        /// traced back to a dialogue node that raises it — through <c>grants.set_flag</c> on the
+        /// node or on any of its branches, which is how the refusal actually writes it.
+        ///
+        /// Nothing here names <c>letters</c>, <c>keep_working</c> or <c>refused_invite</c>. It reads
+        /// the contest table the way criterion 06 reads the nights: whatever moves declare a flag
+        /// gate, in whatever contest, are the moves this checks. A move gated by BOTH the page and a
+        /// flag is reported and skipped rather than half-tested — the page half needs a fight played
+        /// to turn 2, which is criterion 08's job, not this one's.
+        /// </summary>
+        static void FlagGatedMovesAreShut(IReadOnlyDictionary<string, DialogueNode> sourceDialogue)
+        {
+            if (GameData.Contests == null || GameData.Stages == null)
+            {
+                Check("S3 a flag-gated move is shut without its flag", false,
+                    "no contest table or no stage table to read");
+                return;
+            }
+
+            var faults = new List<string>();
+            var checkedMoves = new List<string>();
+            var skipped = new List<string>();
+
+            foreach (KeyValuePair<string, ContestConfig> pair in GameData.Contests)
+            {
+                ContestConfig config = pair.Value;
+                if (config == null || config.moves == null) continue;
+
+                foreach (ContestMoveDef move in config.moves)
+                {
+                    if (move == null || string.IsNullOrEmpty(move.unlocked_by_flag)) continue;
+
+                    if (move.unlocked_by_page)
+                    {
+                        skipped.Add(pair.Key + "/" + move.id + " (page and flag; 08 owns the page half)");
+                        continue;
+                    }
+
+                    StageDef stage = StageFighting(pair.Key);
+                    if (stage == null)
+                    {
+                        faults.Add("no stage declares the contest \"" + pair.Key + "\", so \"" +
+                            move.id + "\" can never be reached");
+                        continue;
+                    }
+
+                    string flag = move.unlocked_by_flag;
+
+                    // ONE CONTEST AT A TIME, asked and thrown away before the next is built.
+                    // IsMoveAvailable reads the state out of the ServiceLocator when it is called,
+                    // not when the contest was built, and BuildContestAt clears the registry — so
+                    // holding two contests and asking them afterwards asks the same state twice,
+                    // whichever was built last. Criterion 07 can hold both because it compares
+                    // EnemyResolveMax, which is fixed at Begin(). This one cannot.
+                    bool openWithout = MoveIsOffered(stage, move.id, null);
+                    bool openWith = MoveIsOffered(stage, move.id, delegate(GameState state)
+                    {
+                        state.SetFlag(flag);
+                    });
+
+                    if (openWithout)
+                    {
+                        faults.Add("\"" + move.id + "\" is offered in \"" + pair.Key +
+                            "\" without \"" + flag + "\"");
+                    }
+
+                    if (!openWith)
+                    {
+                        faults.Add("\"" + move.id + "\" stays shut in \"" + pair.Key +
+                            "\" even with \"" + flag + "\" set, so the choice that earns it pays nothing");
+                    }
+
+                    string granting = NodeGranting(sourceDialogue, flag);
+                    if (granting == null)
+                    {
+                        faults.Add("no dialogue node grants \"" + flag + "\", so \"" + move.id +
+                            "\" is correct code nothing calls");
+                    }
+
+                    checkedMoves.Add(pair.Key + "/" + move.id + " <- " + flag +
+                        (granting != null ? " (" + granting + ")" : ""));
+                }
+            }
+
+            string note = skipped.Count > 0 ? "; skipped [" + string.Join(", ", skipped.ToArray()) + "]" : "";
+
+            if (checkedMoves.Count == 0 && faults.Count == 0)
+            {
+                Check("S3 a flag-gated move is shut without its flag", true,
+                    "no contest declares a flag-gated move" + note);
+                return;
+            }
+
+            Check("S3 a flag-gated move is shut without its flag", faults.Count == 0,
+                faults.Count == 0
+                    ? "checked [" + string.Join(", ", checkedMoves.ToArray()) + "]" + note
+                    : string.Join("; ", faults.ToArray()));
+        }
+
+        /// <summary>
+        /// Whether the move is offered in a fresh run of the stage's contest, prepared as asked.
+        /// Built, asked and destroyed inside one call, because the answer depends on registry state
+        /// that the next build would replace.
+        /// </summary>
+        static bool MoveIsOffered(StageDef stage, string moveId, Action<GameState> prepare)
+        {
+            MoraleContest contest = BuildContestAt(stage, "HarnessMoveGate", prepare);
+            if (contest == null) return false;
+
+            bool offered = contest.IsMoveAvailable(moveId);
+            UnityEngine.Object.DestroyImmediate(contest.gameObject);
+            return offered;
+        }
+
+        /// <summary>The first stage that fights the named contest, or null if none does.</summary>
+        static StageDef StageFighting(string contestId)
+        {
+            StageDef[] stages = GameData.Stages;
+            if (stages == null) return null;
+
+            foreach (StageDef stage in stages)
+            {
+                if (stage != null && stage.contest == contestId) return stage;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Id of a dialogue node that raises the flag, on the node itself or on one of its branches,
+        /// or null when nothing in the content does. The branch case is the one that matters: a
+        /// refusal is a choice, and the flag rides on the choice rather than on the node.
+        /// </summary>
+        static string NodeGranting(IReadOnlyDictionary<string, DialogueNode> dialogue, string flag)
+        {
+            if (dialogue == null || string.IsNullOrEmpty(flag)) return null;
+
+            foreach (KeyValuePair<string, DialogueNode> pair in dialogue)
+            {
+                DialogueNode node = pair.Value;
+                if (node == null) continue;
+
+                if (node.grants != null && node.grants.set_flag == flag) return pair.Key;
+
+                if (node.choices == null) continue;
+                foreach (DialogueChoice choice in node.choices)
+                {
+                    if (choice != null && choice.grants != null && choice.grants.set_flag == flag)
+                    {
+                        return pair.Key + "/" + choice.id;
+                    }
+                }
+            }
+
+            return null;
         }
 
         static MoraleContest BuildContestAt(StageDef stage, string hostName, Action<GameState> prepare)

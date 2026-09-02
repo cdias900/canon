@@ -1,5 +1,12 @@
 # Character creation — scope
 
+> **Status: done.** The work this file orders was carried out and merged — the creation screen now
+> speaks the catalogue's vocabulary, locked items show their condition, and the contradiction
+> described below no longer ships. It was **Pedro's rebuild of the screen on top of the catalogue**
+> (direct commits on `main`, 31/08) that closed the contradiction; PR #10 (`0b24069`) then fixed the
+> vertical overflow that rebuild left on an iPhone. **The file is kept as the record of the decisions and the reasoning,
+> not as a work order.** The present tense below describes the game as it was before the fix.
+
 Align the creation screen with the catalogue, so that the items which appear in the backpack also
 appear in the first wardrobe, given the same treatment. Decided by Pedro; this file is the record.
 

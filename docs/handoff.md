@@ -7,10 +7,12 @@ This file is the part that would otherwise have to be rediscovered.
 
 ## Where it is
 
-Three days play end to end. Compiles at 0 errors and 0 warnings across ~85 C# files. Desktop and
-iOS both build. `tools/acceptance.sh` passes every criterion **in both languages**, the content
-validator is clean, and `tools/e2e.sh` plays **all three days** of a real build in each language —
-the opening, the split, the trial, A Página, the reader and the vocation reveal — and screenshots it.
+**A nine-stage season plays end to end**, `the_summons` → `the_dedication`. Compiles at 0 errors and
+0 warnings. Desktop and iOS both build. `tools/acceptance.sh` passes every criterion **in both
+languages**, the content validator is clean, and `tools/e2e.sh` plays **the whole season** of a real
+build in each language — the opening, the split, both contests, A Página, the reader and the vocation
+reveal — and screenshots it. The season is `Assets/Resources/Data/stages.json`: nine rows, and
+nothing in C# counts days. `StageDirector` does what the row it is standing in declares.
 
 **The game is bilingual: pt-BR and English.** pt-BR is the authoring locale. No player-facing string
 exists in C# any more; they all live in `Assets/Resources/Data/locales/<locale>/` and are read
@@ -28,8 +30,11 @@ through `Loc.T`. Structure and numbers are shared, so balance cannot diverge bet
 neighbour crosses the square and speaks → you follow him into his house → character creation → you
 follow him to the gathering → the unnamed man from the capital speaks and sends everyone for stone.
 
-**Day 3** starts the trial, A Página lands at turn 2 and unlocks *Metade e metade*, the gate closes
-with the player's name on it, then an optional "Saber mais" and the vocation reveal.
+**Stage 6** (`enemies_rise`) starts the `raid` contest, A Página lands at turn 2 and unlocks *Metade
+e metade*, then an optional "Saber mais" opens `NEH.4`. **Stage 8** fights `letters` and finishes the
+wall. **Stage 9** (`the_dedication`, the terminal stage) closes the gate with the player's name on
+it, offers `NEH.12` behind a second "Saber mais", and names the vocation. In the three-day build all
+of that was day 3; it is now spread across four stages.
 
 **The day ends on its own.** There is no end-of-day button any more. Work capacity is the only thing
 a day is spent on, so the light is that capacity seen a second way: every stone laid pulls it down,
@@ -50,10 +55,13 @@ break by accident:
 
 ## What is not finished
 
-- **iOS is played through day 2 and no further. Day 3 is the gap.** On an iPhone 17 Pro simulator,
-  days 1 and 2 both behave end to end: the opening, creation, the village, rubble, the wall, the
-  mat, the split, the night, the morning report, the quiz, and on day 2 Baruque, Zacur, the well
-  (`verse_shown` confirms `JHN.21.6`) and the whole invitation branch.
+- **The season has never been played on a phone past its third stage.** On an iPhone 17 Pro
+  simulator the first three stages behave end to end: the opening, creation, the village, rubble,
+  the wall, the mat, the split, the night, the morning report, the quiz, and on stage 2 Baruque,
+  Zacur, the well (`verse_shown` confirms `JHN.21.6`) and the whole invitation branch. The old
+  day-3 payoff was also played there — but in the **three-day numbering**, where it was the third
+  stage. The same beats now sit at stages 6 and 9, behind five stages of content no hand has
+  touched on a device.
 
   **The invitation chain is the one worth knowing held**, because it is the path nothing else
   covers: accepting spent the day to `0/12`, the village went to dusk and the split correctly did
@@ -61,17 +69,18 @@ break by accident:
   (`NpcActor.Start` re-deriving it); Malquias's return line released it and the split opened by
   itself, offering no way back because capacity was zero.
 
-  **What day 3 still has to prove on a phone:** the trial, A Página landing at turn 2 and unlocking
-  *Metade e metade*, the gate closing with the player's name, the "Saber mais" that opens `NEH.4`
-  in the reader — this is the `deep_read` path and the reason this build exists — and the vocation
-  reveal. Day 3 also never ends on the daylight clock: `Day3Director` holds the evening open for
-  the whole day, so a split that appears there is a bug.
+  **What the season still has to prove on a phone:** stages 4 through 9 — the rest and its
+  gathering, Sambalate and Tobias speaking, the `raid` contest with A Página at turn 2 unlocking
+  *Metade e metade*, the `letters` contest and its `refused_invite` move, the wall finishing, the
+  gate closing with the player's name, both "Saber mais" doors (`NEH.4` and `NEH.12` — this is the
+  `deep_read` path and the reason this build exists) and the vocation reveal. Note that only the
+  **terminal** stage holds its evening open: every other stage, contest or not, ends through the
+  ordinary split-panel path, so a split that fails to appear on stage 6 or 8 is now the bug.
 
-  A run is parked on the simulator ready for exactly that: day 3, `12/12` work, 6 rubble, player at
-  cell `(22, 21)`, `seg_01` at stage 1 and `seg_02` at stage 2, with `watch_posted_d1`,
-  `watch_posted_d2`, `fish_caught` and `accepted_invite` all set — so the trial should open with the
-  enemy on the *prepared* footing for the watches and the *neglected* one for the invitation.
-  `tools/ios-sim.sh run` resumes it; `tools/ios-sim.sh reset` throws it away and starts clean.
+  `tools/e2e.sh --from-stage <n>` seeds a save at a stage and starts there — **authoring only**, and
+  the fastest way to put a late stage in front of a human without playing the eight before it.
+  `tools/ios-sim.sh run` resumes whatever is parked on the simulator; `tools/ios-sim.sh reset`
+  throws it away and starts clean.
 
 - **Driving the village by tapping is slow, and the reason is worth knowing before you start.**
   There is no accessibility tree to query, and the camera clamps at the map edges, so "the player
@@ -133,8 +142,10 @@ persisted preference meant the *next* launch was the one that actually switched.
 
 Still open:
 
-- **`tools/e2e.sh` reaches day 3, but not through the world.** It now plays all three days, the
-  trial, the Page, the reader and the reveal. What it deliberately does *not* drive: it spends a day
+- **`tools/e2e.sh` reaches the end of the season, but not through the world.** It plays every stage
+  the table declares, both contests, the Page, the reader and the reveal — asserting hard on three
+  stages it picks out of the table (the first, the one that turns chapter and verse on, and the one
+  that ends the season) and traversing the rest cheaply. What it deliberately does *not* drive: it spends a day
   through `ResourceSystem` rather than walking the player to the wall, so the interaction layer
   between a tap on the ground and a stone on the wall is still only covered by playing it.
 - **Nobody has read the English translation against the passage.** `node tools/list-curation.mjs`

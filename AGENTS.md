@@ -10,7 +10,7 @@ cannot be violated.**
 player is one of the people called up to rebuild the wall of Jerusalem. Scripture arrives as a
 **strategy guide**. See `docs/nehemiah-game-design.md`.
 
-**In development now:** the MVP — three days of play, one gate, Unity, iOS and desktop. It is what
+**In development now:** the MVP — a nine-stage season, one gate, Unity, iOS and desktop. It is what
 gets presented at the end of the hackathon. See `MVP-SCOPE.md`.
 
 Names, in three layers, because four of them circulated and only these three mean anything:
@@ -197,7 +197,7 @@ reads is pt-BR, because pt-BR is the authoring locale for the content.
 | File | What it is |
 |---|---|
 | **`AGENTS.md`** (this one) | The constitution. North-star metric, the 20 non-negotiable rules, decisions taken and open. Every agent reads it before anything else. |
-| `MVP-SCOPE.md` | **What gets executed.** The three days, the systems, the morale trial, what is done, what is left, and the acceptance criteria. |
+| `MVP-SCOPE.md` | **What gets executed.** The season, the systems, the morale contests, what is done, what is left, and the acceptance criteria. |
 | `README.md` | How to run, build, test and play it. The first file for anyone arriving. |
 | `docs/persona-and-purpose.md` | **Who the game is for and what it has to cause.** Age band, the transformation thesis, the ladder of steps, the desire metrics, and rules 19-20. |
 | `docs/nehemiah-game-design.md` | The design of the whole season, beyond the MVP: vocations, the day/night loop, the four threats, discretion, risks. |
@@ -244,7 +244,7 @@ The summary:
 - `verses.json` is **generated**, one per locale. Never edit it by hand.
 - **A change is not done until it has run in a build.** `tools/unity-check.sh` compiles,
   `node tools/validate-content.mjs` validates the content, `tools/acceptance.sh` asserts the rules,
-  and `tools/e2e.sh` builds the player and plays the opening **and all three days** in every language,
+  and `tools/e2e.sh` builds the player and plays the opening **and the whole season** in every language,
   with screenshots. The first three are not enough: this project has already shipped correct code that
   nothing called, and bugs that were invisible rather than broken.
 - **Testing on an iPhone is always `tools/ios-sim.sh`, and touch always goes through it.** `setup`

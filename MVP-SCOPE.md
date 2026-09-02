@@ -6,7 +6,7 @@
 | **Target** | iOS · macOS · (Android target kept, never installed) |
 | **Mode** | Single player |
 | **Login** | None |
-| **Length** | ~20 min · 3 days of play |
+| **Length** | 9 stages · one season, `the_summons` → `the_dedication` |
 | **Languages** | pt-BR (authoring) · en |
 
 End-to-end scope. Written to be executed by agents: every section defines concrete artifacts,
@@ -18,13 +18,19 @@ here.
 ## 00 · Objective and success criterion
 
 The build exists to answer one question: **does the player open the chapter of their own accord?**
-Everything else is a means. If by the end of day 3 `deep_read` never fires without the game asking,
-it has done its job — it answered no, and answered cheaply.
+Everything else is a means. If by the end of the season `deep_read` never fires without the game
+asking, it has done its job — it answered no, and answered cheaply.
 
 > **Definition of done**
-> The game installs and opens with no sign-up, and a person who has never seen the project plays all
-> three days to the end with no outside help, with the wall visibly built, a morale trial won or
-> lost, and the chapter reader opened at least once.
+> The game installs and opens with no sign-up, and a person who has never seen the project plays the
+> season to the end with no outside help — from `the_summons` to `the_dedication`, the stage that
+> declares itself terminal — with the wall visibly built, a morale contest won or lost, and the
+> chapter reader opened at least once.
+
+> **There are two `deep_read` doors, not one.** A Página offers `NEH.4` at the contest of stage 6,
+> and the closed gate offers `NEH.12` at stage 9. Both go through **Saber mais**, which stays the
+> only way into the reader. A build that opens one and not the other has answered the question by
+> half.
 
 Android keeps its build target and stays in this definition, but **no APK has ever been installed**.
 iOS and macOS are what has actually been played. Known gap, not a scope change.
@@ -73,9 +79,11 @@ Assets/
                    MorningReportUI  VocationRevealPanel  SettingsPanel  ModalRoot
     Vocation/      VocationTracker
     World/         GameScene  DayCycle  WallSystem  ResourceSystem  CameraRig
-                   IntroCutscene  Day3Director  NpcActor  WorldMapView  RestPoint
+                   IntroCutscene  StageDirector  NpcActor  WorldMapView  RestPoint
+                   CutsceneActor  NpcWander  MapViewportController  TapMarker
   Resources/Data/
     map.json  wall_segments.json  npcs.json  contest.json           // structure and numbers:
+    stages.json                                                         // the season, in order
     vocations.json  quiz.json                                       // ONE copy, every language
     character_catalog.json  character_presets.json
     locales/<locale>/                                               // words only
@@ -149,7 +157,28 @@ and fails on any disagreement. A translator cannot change what the game does.
 [ { "id": "seg_01", "grid_x": 13, "stage_cost": [1, 1, 1, 1], "exposed": false } ]
 ```
 
-Four segments, four stages each. `seg_02` is the exposed one.
+Four segments, four **courses** each. `seg_02` is the exposed one.
+
+> **The word `stage` means two different things, and the field names keep both.** A *course* is one
+> of the four steps that build a wall segment (`stage_cost`, `WallSystem`). A *season stage* is one
+> of the nine days in `stages.json`. The code cannot rename either without a migration, so this
+> document says **course** for the wall and **stage** for the season, and never the reverse.
+
+### `stages.json` — the season, structure, shared
+
+```json
+[ { "day": 6, "id": "enemies_rise", "type": "battle", "terminal": false, "night_threat": true,
+    "contest": "raid", "cutscene_node": null, "finishes_wall": false, "closes_gate": false,
+    "gate_segment": null, "reveals_page": true, "reveals_vocation": false,
+    "reward_item": "acc_watch_horn", "map_anchor": [0.67, 0.60], "map_focus": [0.68, 0.62] } ]
+```
+
+**Nine rows, and nothing in C# counts days.** `StageDirector` reads the row the run is standing in
+and does what it declares; `DayCycle` reads `night_threat`; the map reads the anchors. Adding a
+stage is a data change. The table is validated on load: a season without exactly one `terminal`
+stage, or with the terminal stage anywhere but last, logs an error naming what would break — *"with
+none, that beat never happens; with more than one, it happens twice."* It logs rather than throws,
+which is enough because `e2e.sh` fails on any error in the log.
 
 ---
 
@@ -189,17 +218,17 @@ standalone screen, so that route keeps working; nothing routes to it.
 |---|---|
 | `GameState` | Central serialisable state: day, resources, segments, morale, flags, vocation counters, equipped items, player cell. Single source of truth. |
 | `PlayerController` · `GridPathfinder` | Tap the ground → path → move. Tap an interactable → approach and `Interact()`. A* on the tilemap grid. |
-| `WallSystem` | Stages per segment, consumes work, swaps sprite, raises completion. `DamageSegment` clears in-progress work only. |
+| `WallSystem` | Courses per segment, consumes work, swaps sprite, raises completion. `DamageSegment` clears in-progress work only. |
 | `ResourceSystem` | Rubble split into stone, timber and crafted blocks, plus daily work capacity. **Capacity is the day's clock.** |
-| `DayCycle` | **The day ends by itself.** Light tracks capacity spent; when it hits zero the village goes to dusk and the split panel opens on its own. `DuskWaits` holds the night for whatever has the screen. |
+| `DayCycle` | **The day ends by itself.** Light tracks capacity spent; when it hits zero the village goes to dusk and the split panel opens on its own. `DuskWaits` holds the night for whatever has the screen. A stage with `night_threat: false` still plays its whole night — that flag switches off the damage and nothing else. |
 | `DialogueSystem` | Line queue, typewriter reveal, resolves `verse`, applies `grants`. |
 | `ScriptureService` | In-memory index of the locale's `verses.json`. Never hits the network. |
 | `ScriptureVisibility` | Decides whether `ref_display` is shown. One-way: hidden until the reveal, never re-hidden. |
 | `ChapterReaderUI` | Scrollable panel with the whole chapter. Fires `deep_read` past 20s **and** 60% scroll. |
-| `MoraleContest` | Turn machine for day 3. See §07. |
-| `Day3Director` | Holds day 3's evening open for the whole day — a split appearing there is a bug. |
-| `VocationTracker` | Accumulates silently. **No public score getter.** Reveals at the end of day 3. |
-| `DailyQuiz` | One question a day. Check-in counts whether right or wrong. Listens to `MorningStarted` **and** `DuskBegan`, because day 1 opens in a cutscene and has no morning. |
+| `MoraleContest` | Turn machine for any stage that names a `contest`. Two exist. See §07. |
+| `StageDirector` | Everything a stage asks for beyond an ordinary working day: the contest, A Página, the gathering, the wall finishing, the gate closing, the vocation. **Driven entirely by `stages.json` — it counts nothing.** A beat holds the day open only while it runs and then gives the hold back, so the stage still ends through the one end-of-day path every other stage uses. The `terminal` stage is the single exception: it takes `HoldFinalDay` and never releases it, because it has no tomorrow. |
+| `VocationTracker` | Accumulates silently. **No public score getter.** Reveals at the terminal stage. |
+| `DailyQuiz` | One question a stage. Check-in counts whether right or wrong. Listens to `MorningStarted` **and** `DuskBegan`, because stage 1 opens in a cutscene and has no morning. |
 | `Wardrobe` · `CharacterCatalog` · `UnlockEvaluator` | Items, presets, and the world-state conditions that unlock them. Never a score condition. |
 | `Telemetry` | Append-only JSONL behind `ITelemetrySink`. See §10. |
 
@@ -219,7 +248,26 @@ standalone screen, so that route keeps working; nothing routes to it.
 
 ---
 
-## 06 · Content — the three days
+## 06 · Content — the season
+
+Nine stages, from the summons to the dedication. The table is `stages.json`; this section is what
+the rows mean.
+
+| # | id | type | beat it declares | reward |
+|---|---|---|---|---|
+| 1 | `the_summons` | intro | opening cutscene, creation, the gathering | `acc_tool_bag` |
+| 2 | `vision_and_plan` | work | the invitation from outside, the well | `hair_headscarf` |
+| 3 | `preparation` | work | ordinary working day | `outfit_expedition_gear` |
+| 4 | `the_people_united` | rest | `gathering_d4` · **`night_threat: false`** | `outfit_valley_mantle` |
+| 5 | `the_work_begins` | work | Sambalate first speaks | `outfit_work_apron` |
+| 6 | `enemies_rise` | battle | **contest `raid` · `reveals_page`** — A Página, `NEH.4.17` | `acc_watch_horn` |
+| 7 | `prayer_and_guard` | work | the watch | `acc_bead_bracelet` |
+| 8 | `the_work_finished` | boss | **contest `letters` · `finishes_wall`** | `acc_old_seal` |
+| 9 | `the_dedication` | gate | **`terminal` · `closes_gate` (`seg_02`) · `reveals_vocation`** | `acc_gate_key` |
+
+> **The two beats the build exists for are now three stages apart.** A Página lands at stage 6 and the
+> gate closes at stage 9. In the three-day build both happened on day 3; anything that still says so
+> is describing a game that no longer exists.
 
 Six residents, all named in Nehemiah 3 and **with no recorded speech in the text**. That is the
 category where writing dialogue is legitimate: the Bible names them and does not quote them.
@@ -231,9 +279,14 @@ category where writing dialogue is legitimate: the Bible names them and does not
 | `baruque` | Baruque | `NEH.3.20` | The one the text singles out for working with zeal. Pushes toward the exposed stretch. |
 | `meremote` | Meremote | `NEH.3.4` | Day 2: saw horsemen on the road. **Correct information.** |
 | `zacur` | Zacur | `NEH.3.2` | Day 2: says nobody is coming. **Wrong information.** The game does not say so. |
-| `malquias` | Malquias | `NEH.3.14` | District ruler. Delivers the outside invitation on day 2. |
+| `malquias` | Malquias | `NEH.3.14` | District ruler. Delivers the outside invitation on stage 2. |
 
-### Day 1 — The summons
+**Two adversaries also speak** — `sanballat` (stages 5, 6 and 8) and `tobiah` (stage 6). They are a
+different case from the six, and a harder one: **the text does quote them** (`NEH.2.19`, `NEH.4.1-3`,
+`NEH.6.1-9`). Every line they say is authored against a passage that already puts words in their
+mouths, so rule 4's human read is not optional there. Both are in the curation queue, unread.
+
+### Stage 1 — `the_summons`
 
 - Opening cutscene into the village. Minimal HUD: work capacity, materials. **No end-of-day button.**
 - Talking to `hananias`, `salum` and `baruque` unlocks the stretch.
@@ -242,7 +295,7 @@ category where writing dialogue is legitimate: the Bible names them and does not
   **watch**.
 - The check-in lands at the evening, because day 1 opens in a cutscene and never has a morning.
 
-### Day 2 — Those who call from outside
+### Stage 2 — `vision_and_plan`, those who call from outside
 
 - Morning report: what the night did, with and without a watch.
 - `meremote` and `zacur` contradict each other. No indicator of which to believe.
@@ -254,34 +307,84 @@ category where writing dialogue is legitimate: the Bible names them and does not
   re-derived in `Start`, so a scene rebuild mid-beat restores it. The mat can overrule it, and must —
   a player who never goes back would otherwise have no way to reach tomorrow.
 
-### Day 3 — The breach and the reading
+### Stage 3 — `preparation`
 
-- Short morning, then the assault fires the trial (§07).
+An ordinary working day: no contest, no cutscene, no reveal.
+
+> **A migrated save never sees this stage.** Days 1 and 2 keep their numbers — those stages are the
+> same stages, unedited. **Day 3 maps to stage 6**, because the anchor is the beat and not the
+> position: the old day 3 *was* the day of the trial, and the trial is stage 6. A save that had
+> already fought that trial lands on **7**, the first day it genuinely has not seen. Stages 3, 4 and
+> 5 are content a migrated player never had, which is not the same as progress taken away. The
+> mapping is a fixed historical step written in literals, not a lookup in `stages.json` — a later
+> renumbering gets its own schema step rather than a quiet change of meaning under this one.
+
+### Stage 6 — `enemies_rise`, the breach and the reading
+
+- Short morning, then the assault fires the `raid` contest (§07).
 - On turn 2 **A Página** arrives and unlocks the strong move.
-- Win or lose, the gate closes with the player's name on it.
-- **Saber mais** opens `NEH.4` in the internal reader.
-- The vocation reveal, and the end.
+- **Saber mais** opens `NEH.4` in the internal reader. First `deep_read` door.
+
+### Stage 8 — `the_work_finished`
+
+The `letters` contest, and the wall finishes. `finishes_wall` hands the segment enough work to
+complete it — the story closing the wall, not the player spending anything.
+
+### Stage 9 — `the_dedication`, the gate
+
+- The gate closes with the player's name on it (`seg_02`), the record plate drawn from `NEH.3`.
+- **Saber mais** opens `NEH.12`. Second `deep_read` door.
+- The vocation reveal, and the end. This is the `terminal` stage: it has no tomorrow, and it holds
+  the day open for good.
+
+> **Stages 4, 5 and 7 are not specified here.** They exist in the table, they carry dialogue and
+> rewards, and their beats are ordinary — a rest with a gathering, a working day, a working day. What
+> they say has not been audited against a passage line by line, and this document will not pretend
+> otherwise.
 
 ---
 
-## 07 · Morale trial
+## 07 · Morale contests
 
 Alternating turns. **No health bar and no death counter:** you win by making the other side give up.
-The outcome is decided by what the player did on days 1 and 2 — that is what makes it feel earned
-rather than rolled.
+The outcome is decided by what the player did in the stages before it — that is what makes it feel
+earned rather than rolled. **Nothing is random: two players who prepared the same way see the same
+fight.**
+
+**There are two contests, and they are data** (`contest.json`); a stage names which one it fights.
+`MoraleContest` is instanced once and every encounter runs through it, so what used to be "the trial"
+is now "this contest" — including whether it has already been fought, and whose lines the other side
+speaks.
 
 ```
 player.morale   = 100
-enemy.resolve   = 60 + (10 if !watchPostedD2) + (10 if acceptedInvite)
+enemy.resolve   = base + 10 when no watch was posted on the night before this stage
+                       + 10 when the invitation from outside was accepted
+enemy.pressure  = base +  6 for the missing watch + 6 for the accepted invitation
+                       +  1 for every course of the contested segment still unbuilt
 turn limit      = 8   // overflow = the enemy withdraws, a technical draw
 ```
 
+| | `raid` — stage 6 | `letters` — stage 8 |
+|---|---|---|
+| resolve base | 60 | **78** |
+| pressure base | 12 | **14** |
+| A Página | **turn 2, `NEH.4.17`** | none — the reveal already happened |
+| extra move | — | **Keep working**, −24 resolve · +4 morale, only with `refused_invite` |
+
 | Move | Effect | Depends on |
 |---|---|---|
-| Hold the line | −8 resolve | +1 per stage built |
+| Hold the line | −8 resolve | +1 per course built |
 | Call the others | +12 morale | ×(NPCs spoken to / 6) |
-| Show the watch | −20 resolve if a watch was posted | flag `watch_posted_d2` |
+| Show the watch | −20 resolve (`raid`) · −14 (`letters`) | a watch was posted |
 | **Half and half** *(unlocks on t2)* | −15 resolve **and** +8 morale, same turn | Only exists after A Página |
+| **Keep working** *(`letters` only)* | −24 resolve **and** +4 morale | flag `refused_invite` |
+
+> **The second contest pays out the first refusal.** Whoever turned the invitation down at stage 2
+> carries the strongest move in the game into stage 8 — six stages later, and never announced. It is
+> the same choice that raises the other side's resolve when it is accepted. The flag is authored,
+> not coded: `malquias_d2_refuse` grants `set_flag: refused_invite` (and 2 points of `zelote`), which
+> is what `keep_working` gates on.
 
 > **A Página — the moment this build exists to test**
 > At the start of turn 2 the trial pauses and a panel slides in showing `NEH.4.17`, reference visible
@@ -291,24 +394,25 @@ turn limit      = 8   // overflow = the enemy withdraws, a technical draw
 
 > **LOSING IS NOT GAME OVER**
 > If `morale <= 0` the enemy withdraws anyway at the end of the turn, a segment loses **one unfinished
-> stage**, and day 3 continues normally to the reading and the vocation. **You can lose tomorrow,
-> never yesterday:** a completed stage never regresses. There is no defeat screen.
+> course**, and the stage continues normally to whatever it still owes — the reading, the gate, the
+> vocation. **You can lose tomorrow, never yesterday:** a completed course never regresses. There is
+> no defeat screen.
 
 ---
 
 ## 08 · Vocation scoring
 
-Six vocations, accumulated in silence. At the end of day 3 the highest is revealed; ties break by the
-order in `vocations.json`.
+Six vocations, accumulated in silence. At the **terminal stage** the highest is revealed; ties break
+by the order in `vocations.json`.
 
 | Vocation | Actions that score |
 |---|---|
-| `zelote` | Work the exposed segment · refuse the invitation outright · open the trial with Hold the line |
+| `zelote` | Work the exposed segment · refuse the invitation outright · open a contest with Hold the line |
 | `escriba` | Open the chapter reader · speak to all 6 NPCs · re-read a dialogue |
 | `pastor` | Use Call the others · speak to Hananias and Salum on both days · donate rubble |
 | `exilado` | Use the Patrol 3+ times · catch the fish · walk to the map edge |
 | `profeta` | Believe Meremote and not Zacur · close A Página without skipping |
-| `mordomo` | End days 1 and 2 with capacity fully spent · zero rubble wasted |
+| `mordomo` | End **every night the run actually played** with capacity fully spent · the same for rubble left lying. Two separate awards, worth 3 each, checked once on the season's **last night** — which is the stage before the terminal one, because the terminal stage never resolves a night. It used to name days 1 and 2 by hand: correct only while the season had two nights, and in a longer one it handed the vocation out on the second night and asked nothing of the rest. |
 
 ---
 
@@ -396,16 +500,40 @@ the version abbreviation and its copyright notice (`ChapterReaderUI.BuildColopho
 | 02 | Character creation produces a distinct appearance, persisted between sessions. |
 | 03 | Tapping the ground moves; tapping an NPC approaches and opens dialogue. |
 | 04 | Every verse displayed came from `verses.json`; no literal in C#. Checkable with grep. |
-| 05 | A segment changes sprite across its 4 stages and progress survives closing the app. |
-| 06 | Ending day 1 without a watch produces a different morning report than with one. |
+| 05 | A segment changes sprite across its 4 courses and progress survives closing the app. |
+| 06 | Ending stage 1 without a watch produces a different morning report than with one. |
 | 07 | Refusing the invitation shows `NEH.6.3`; accepting spends the day and damages the segment. |
-| 08 | A Página appears on turn 2 and unlocks **Half and half**. |
-| 09 | Losing the trial shows **no** game over and does not regress a completed stage. |
+| 08 | A Página appears on turn 2 of the `raid` contest and unlocks **Half and half**. |
+| 09 | Losing a contest shows **no** game over and does not regress a completed course. |
 | 10 | `deep_read` appears in `telemetry.jsonl` after a real reading of `NEH.4`. |
 | 11 | The vocation revealed matches the highest score; no UI exposed progress beforehand. |
 | 12 | Runs offline start to finish, in aeroplane mode. |
 | 13 | The day ends by itself when capacity hits zero; no HUD button ends it; no night resolves with a panel open. |
 | 14 | The translation copyright is displayed in-game. |
+
+> **The harness carries more than the fourteen, and the prefix says which is which.** Numbered
+> criteria come from this section; `L1`–`L3` are the localization checks that arrived with the
+> content split, and **`S1`–`S3` are the season's own**: that the stage table holds together and is
+> reachable, that **a save written by the three-day build comes forward without losing anything** —
+> the one change that could quietly destroy a run somebody already played — and that a move a flag
+> unlocks is shut without it.
+>
+> **Every check that used to name a day now reads the season.** The old shape — day 3 for the
+> contest, night 1 for the watch, `NEH.4` for the reader — passed happily on a season where six of
+> the nine stages could not be reached, because it asked only about the part that had not moved.
+> Criterion 06 now loops every night, 10 derives its chapters from what the content actually cites
+> (both contests' `page_verse`, and the gate's own `NEH.12` read off `StageDirector`'s constants),
+> and `night_threat: false` is asserted night by night.
+>
+> **`S3` closes the `letters` interlock.** `keep_working` exists only for a player who refused the
+> invitation six stages earlier; criterion 08 proved the move **A Página** unlocks is shut before the
+> Page, and nothing proved the same for a move a **flag** unlocks. `S3` reads the contest table the
+> way 06 reads the nights — whatever moves declare a flag gate, in whatever contest — and asserts
+> three things about each: shut without the flag, open with it, and **traceable back to a dialogue
+> node that grants it**. That last half is the one worth the trouble: a gate that works perfectly on
+> a flag no content raises is correct code nothing calls, and the move would be unreachable in a
+> played game while every rule about it passed. It reports the whole chain, so the report names what
+> it proved: `letters/keep_working <- refused_invite (malquias_d2_refuse)`.
 
 ---
 
@@ -413,11 +541,16 @@ the version abbreviation and its copyright notice (`ChapterReaderUI.BuildColopho
 
 ### Done
 
-Three days play end to end. Compiles at 0 errors and 0 warnings across ~85 C# files. `tools/e2e.sh`
-builds a real player and plays **all three days in both languages** — the opening, creation, the
-village, the split, the night, the morning report, the quiz, the trial, A Página, the reader and the
-vocation reveal — screenshotting into `Builds/e2e/`. `tools/acceptance.sh` passes every criterion in
-both languages, and the content validator is clean.
+**The nine-stage season plays end to end**, in both languages. Compiles at 0 errors on the editor
+the project declares (`ProjectVersion.txt`, 6000.3.23f1). On a **6000.5** editor it still compiles
+clean but raises ~118 `CS0618` obsolescence warnings — `FindFirstObjectByType`,
+`FindObjectsSortMode`, `AndroidApiLevel25` — none of them from anything this project wrote wrong.
+Whoever moves the project to 6000.5 inherits that list; nobody has decided to.
+`tools/e2e.sh` builds a real player and plays whatever the season declares, in order, from a cold
+save to the terminal stage — the opening, creation, the village, the split, the night, the morning
+report, the quiz, both contests, A Página, the reader and the vocation reveal — screenshotting into
+`Builds/e2e/`. It reads the stage count out of `stages.json` rather than knowing it.
+`tools/acceptance.sh` passes every criterion in both languages, and the content validator is clean.
 
 | | |
 |---|---|
@@ -426,24 +559,32 @@ both languages, and the content validator is clean.
 | iOS device | `Builds/ios/` — valid project, **never run on a device** |
 | Android | Build target exists; **never installed** |
 
+**Closed since the three-day build:** the old **day-3 gap on a phone** — the trial, A Página, the
+gate closing with the player's name, the **Saber mais** that opens `NEH.4`, the vocation reveal — was
+played end to end on the iOS simulator; character creation now speaks the catalogue's vocabulary, so
+the contradiction with the backpack is resolved (`docs/character-creation-scope.md` is the record of
+a finished job, not a work order); and `WorldMapOverlay.Place.Caption`, which was never drawn, was
+removed rather than wired.
+
+> **What that does not say.** Those beats were proved on a phone in the **three-day** numbering,
+> where they were day 3. In the nine-stage season the same beats live at stages 6 and 9, three and
+> six stages further in, behind content that has never been played on a phone at all. The season
+> end to end is proved by `e2e.sh` on a desktop player, not by a hand on a device.
+
 ### Not done
 
-- **iOS is played through day 2 and no further. Day 3 is the gap on a phone.** What it still has to
-  prove there: the trial, A Página at turn 2, the gate closing with the player's name, the **Saber
-  mais** that opens `NEH.4` — this is the `deep_read` path and the reason this build exists — and the
-  vocation reveal. A run is parked on the simulator ready for exactly that; `tools/ios-sim.sh run`
-  resumes it.
-- **Character creation contradicts the catalogue.** Creation offers hair variants the backpack then
-  says are locked. This is the live work order — see
-  [`docs/character-creation-scope.md`](docs/character-creation-scope.md), which carries the decisions,
-  the art cost (+5 procedural shapes) and the execution order.
 - **The curation queue has never been read.** `intro_gathering` (the governor) awaits a human read
-  against the passage, in **both** languages. Rule 4 requires it.
+  against the passage, in **both** languages, and the season added five more nodes behind it —
+  including `sanballat` and `tobiah`, who **are quoted in the text**, which makes them the hardest
+  case in the queue rather than the easiest. Rule 4 requires it. `node tools/list-curation.mjs`
+  prints the queue.
 - **The English has had no native pass.**
-- **`WorldMapOverlay.Place.Caption` is never drawn.** Either it was meant to render, or the field
-  should go.
+- **Android has never had an APK installed**, and **iOS has never run on a physical device.** Both
+  are inside the §00 definition of done. Both need hardware, not code.
+- **Stages 4, 5 and 7 have not been audited line by line** against their passages. They play; nobody
+  has read them against the text.
 - **The buildable wall is a straight run** along the north of a circular city. Nehemiah 3 assigns each
   group a stretch, so it reads correctly, but a true arc would need `WallSystem`, the contest and the
-  patrol camera to change together.
+  patrol camera to change together. **Deferred by decision.**
 - **The four skin tones and the build silhouettes are unjudged.** Nobody has looked at whether tones 2
   and 3 are distinguishable at 32×48, or whether the narrower build reads.

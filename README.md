@@ -1,6 +1,6 @@
 # A Cidade Quebrada
 
-A turn-based building-and-defence game set in the book of Nehemiah. Three days of play, one gate,
+A turn-based building-and-defence game set in the book of Nehemiah. A nine-stage season, one gate,
 Unity 6.
 
 Names, in three layers: **A Cidade Quebrada** is the game, **Cinquenta e Dois Dias** is the season,
@@ -39,12 +39,13 @@ tools/unity-check.sh --open      # open the project in the editor, then press Pl
 tools/unity-check.sh             # headless compile, reports C# errors
 node tools/validate-content.mjs  # scripture integrity, locale parity, hardcoded strings
 tools/acceptance.sh              # assert the acceptance criteria, once per language
-tools/e2e.sh                     # build a player and play all three days, every language
+tools/e2e.sh                     # build a player and play the whole season, every language
 ```
 
-`tools/e2e.sh` is the one that runs a real build. It launches the player per locale and plays all
-three days — the opening, character creation, the split, the night, the trial, A Página, the reader
-and the vocation reveal — driving it through the EventSystem, refusing to click a control that
+`tools/e2e.sh` is the one that runs a real build. It launches the player per locale and plays the
+season the way `stages.json` declares it, from a cold save to the terminal stage — the opening,
+character creation, the split, the night, both contests, A Página, the reader and the vocation
+reveal — driving it through the EventSystem, refusing to click a control that
 something else is covering. It screenshots into `Builds/e2e/` and fails on an unresolved string or
 any error in the log. The other three are necessary and not sufficient: nothing before it composes a
 scene. **Read the screenshots** — a green exit code means nothing was missing, not that the screen

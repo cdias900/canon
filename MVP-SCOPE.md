@@ -460,8 +460,11 @@ so a real backend can arrive later without touching the call sites.
 ## 11 · Art
 
 **Art comes through one seam.** `ArtLibrary.Get(key)` is the only way to obtain a sprite. Most keys
-are generated procedurally in `SheepGate.Art` from a reduced palette; ground, rubble and water come
-from a drawn CC0 sheet (Kenney's Roguelike/RPG pack, licence in `Assets/Art/`). The sheet ships as a
+are generated procedurally in `SheepGate.Art` from a reduced palette. Exactly one key,
+`tile_water`, comes from a drawn CC0 sheet (Kenney's Roguelike/RPG pack, licence in `Assets/Art/`) —
+this paragraph used to say ground, rubble and water, and it was wrong in the direction that matters:
+it sent a reader looking for a sheet to edit when the ground and the rubble are code
+(`Assets/Art/Tileset.cs:42` is the whole dictionary). The sheet ships as a
 `.bytes` file and is decoded at runtime rather than imported as a Unity sprite: no import settings to
 get wrong, no `.meta` to hand-write, and no slicing stored in an asset nobody can review in a diff. A
 key with no drawn tile falls through to the generated one, so the swap happens a key at a time.

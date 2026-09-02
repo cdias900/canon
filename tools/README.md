@@ -17,6 +17,14 @@ tools/acceptance.sh          the product rules, asserted once per locale
 tools/e2e.sh                 build a player and play the declared season in every locale, with shots
 tools/ios-sim.sh             build, install, run and drive an iOS simulator - the only way we
                              touch a phone; `setup` once, then tap/press/swipe/text/key/shot
+tools/ios-device.sh          the same on a real iPhone over USB; needs a signing team, which
+                             lives in ProjectSettings so a Unity re-export cannot lose it
+tools/tile-preview.sh        render the procedural tile art to a PNG without Unity, in about a
+                             second; sheet / zoom / field <density> / check
+
+tools/study-server.mjs       the study endpoint, run by hand during development. The game only
+                             calls it when a URL is configured, so the player is offline by
+                             default; the model key lives here and never in the client (rule 16)
 ```
 
 `e2e.sh` deliberately does not say how many stages it plays, and neither does the runner. Coverage

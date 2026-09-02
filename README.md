@@ -40,19 +40,48 @@ tools/unity-check.sh             # headless compile, reports C# errors
 node tools/validate-content.mjs  # scripture integrity, locale parity, hardcoded strings
 tools/acceptance.sh              # assert the acceptance criteria, once per language
 tools/e2e.sh                     # build a player and play the whole season, every language
+tools/tile-preview.sh sheet      # every generated tile as a PNG in seconds, without a build
 ```
 
-`tools/e2e.sh` is the one that runs a real build. It launches the player per locale and plays the
+`tools/e2e.sh` is the one that runs a real build. It launches one player per locale and plays the
 season the way `stages.json` declares it, from a cold save to the terminal stage — the opening,
-character creation, the split, the night, both contests, A Página, the reader and the vocation
-reveal — driving it through the EventSystem, refusing to click a control that
-something else is covering. It screenshots into `Builds/e2e/` and fails on an unresolved string or
-any error in the log. The other three are necessary and not sufficient: nothing before it composes a
-scene. **Read the screenshots** — a green exit code means nothing was missing, not that the screen
-looks right.
+character creation, the split, the night, both contests, A Página, the reader, the backpack, the
+progression map and the vocation reveal — driving it through the EventSystem, refusing to click a
+control that something else is covering. It screenshots into `Builds/e2e/` and fails on an
+unresolved string or any error in the log. The compile, the validator and the acceptance run are
+necessary and not sufficient: nothing
+before it composes a scene. **Read the screenshots** — a green exit code means nothing was missing,
+not that the screen looks right.
 
 Run it in one language only with `tools/e2e.sh --locale en`, or against the player already built
 with `tools/e2e.sh --no-build`.
+
+**The locales run one at a time, and that is the fix for a hang, not a preference.** Every player is
+launched windowed at the same size and centred, so a second one covers the first completely; macOS
+suspends rendering for a fully occluded window, and every step of the runner is a
+`yield return null` that only resumes on the next frame. The run does not fail, it stops — no
+exception, nothing in the log, until the watchdog kills it. `--parallel` restores the concurrent
+run and the shorter wall clock; it is opt-in because it is the mode that hangs.
+
+`tools/tile-preview.sh` is the art loop rather than a fifth gate. Every tile in this game is drawn
+in C# at runtime, so seeing one used to cost a full export, Xcode compile, install and screenshot —
+minutes per glance, for art you change ten times in a row. It compiles the shipping
+`ArtPalette`, `PixelCanvas`, `ValueNoise` and `TileArt` — those files, not copies — against a stub
+`UnityEngine`, using the Roslyn inside the Unity install, and writes a PNG to `Logs/tile-preview/`
+in seconds. Because it compiles the shipping sources, drift breaks the build instead of producing a
+preview that lies.
+
+```bash
+tools/tile-preview.sh sheet      # every tile side by side
+tools/tile-preview.sh zoom       # the same at 5x, for judging pixels
+tools/tile-preview.sh field 0.45 # a field of ruin tiles at that density, 0 to 1
+tools/tile-preview.sh check      # every pixel in the world palette, and opaque
+```
+
+`field` is the mode that earns the tool: a rubble field a full device build reported as fine was
+shown here to be a checkerboard of hard-edged squares. `check` is the only thing that palette-checks
+a generated world tile at all — the e2e palette assertion walks UI sprites named `map_progress_*`,
+`map_node_*` and `map_reward_*`, and reaches no world tile. Do not read it as covering them.
 
 Build and run a player:
 
@@ -173,12 +202,18 @@ behaviour; every GameObject, sprite and UI element is constructed at runtime fro
 scene YAML with GUID cross-references is the easiest thing to get silently wrong, and the compiler
 cannot check it. Runtime construction moves that whole class of error into code.
 
-**Art comes through one seam.** `ArtLibrary.Get(key)` is the only way to obtain a sprite. Most keys
-are still generated procedurally in `SheepGate.Art` from a three-colour palette; the ground, rubble
-and water tiles now come from a drawn CC0 sheet instead, which is what §11 of the implementation
-spec asked for and what that seam existed to allow. A key with no drawn tile behind it falls
-through to the generated one, so the swap happens a key at a time and the game runs with the sheet
-missing.
+**Art comes through one seam.** `ArtLibrary.Get(key)` is the only way to obtain a sprite. Almost
+every key is generated procedurally in `SheepGate.Art`, out of the three base colour families and
+the neutral ramp `ArtPalette` declares once and nothing else may add to. Exactly one key,
+`tile_water`, comes from a drawn CC0 sheet today — which is what §11 of the implementation spec
+asked for and what the seam existed to allow. A key with no drawn tile behind it falls through to
+the generated one, so the swap happens a key at a time and the game runs with the sheet missing.
+
+Ground and rubble were tried on the sheet and deliberately left generated: tiled five by five and
+judged as a field, which is the only honest way to look at a fill, its seamless fills are pale
+interior floors and its textured ones are autotile edges that show a seam every tile.
+`TileArt.Ground` was tuned instead. `Tileset.cs` carries the map of which drawn tile stands behind
+which key, and the reason next to every key deliberately not on it — read that before adding one.
 
 The sheet is Kenney's Roguelike/RPG pack (CC0, licence in `Assets/Art/`). It ships as a `.bytes`
 file and is decoded at runtime rather than imported as a Unity sprite: no import settings to get
@@ -194,6 +229,7 @@ module was built against — read it before changing a public signature.
 | `Assets/Scripts/Core/` | State, save, telemetry, data loading, service locator |
 | `Assets/Scripts/Core/Localization/` | `Locales` and `Loc` — which language is running, and every string in it |
 | `Assets/Scripts/E2E/` | The autopilot that plays a built player and screenshots it |
+| `Assets/Scripts/Art/` | Every sprite, generated from `ArtPalette`; `Tileset` holds the drawn keys |
 | `Assets/Scripts/Scripture/` | Verse resolution and the chapter reader |
 | `Assets/Scripts/World/` | Scene composition, wall, day cycle, camera, interactables |
 | `Assets/Scripts/Contest/` | The morale trial, and the Page |
@@ -207,6 +243,13 @@ module was built against — read it before changing a public signature.
 - `VocationTracker` deliberately has **no way to read a score.** That is a product rule, not an
   oversight: showing progress turns discovery into a checklist. Do not add a getter.
 - Completed wall stages must never regress. Damage clears in-progress work only.
+- **The outside of the map looks like terrain and is still not walkable.** Void cells draw the same
+  ground the city stands on with fallen wall scattered over them, because the camera clamps to the
+  drawn cells and flat near-black rectangles read as rendering holes. Appearance and walkability are
+  separate questions about the same cell now. The old bug — the whole outer border walkable, the
+  player strolling out of the village — was caught by eye when the outside looked wrong, and would
+  not be today, so `E2ERunner.VerifyTheOutsideIsNotWalkable` gates it and asserts the map has an
+  outside before asserting anything about it.
 - There is no game-over screen, no health bar, and no death counter anywhere, by design.
 - Never send the reading out of the app. An external link destroys the measurement the whole
   product exists to take.

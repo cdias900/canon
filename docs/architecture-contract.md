@@ -1,6 +1,6 @@
 # Architecture Contract — Sheep Gate
 
-The public seams nobody changes alone. **Accurate as of 2026-08-30**, which is a claim this file has
+The public seams nobody changes alone. **Accurate as of 2026-09-02**, which is a claim this file has
 to keep earning: it was written as a frozen spec before the code existed, and by the time anyone
 checked, eight of its declarations had drifted from the code they described. A frozen document that
 is wrong is worse than no document.
@@ -36,9 +36,17 @@ fix it.**
 
 ## Root namespace
 
-`SheepGate`, with one sub-namespace per folder: `SheepGate.Core`, `SheepGate.Player`,
-`SheepGate.World`, `SheepGate.Dialogue`, `SheepGate.Scripture`, `SheepGate.Contest`,
-`SheepGate.Vocation`, `SheepGate.Quiz`, `SheepGate.UI`, `SheepGate.Art`.
+`SheepGate`, with one sub-namespace per folder. All fourteen, because a list that is nearly complete
+sends a reader grepping for a module they were told does not exist — this one was four short of the
+tree until it was checked with `grep -rh "^namespace SheepGate" Assets/Scripts/ | sort -u`, which is
+the only way to keep it honest:
+
+`SheepGate.Art`, `SheepGate.Audio`, `SheepGate.Boot`, `SheepGate.Contest`, `SheepGate.Core`,
+`SheepGate.Dialogue`, `SheepGate.E2E`, `SheepGate.Economy`, `SheepGate.Player`, `SheepGate.Quiz`,
+`SheepGate.Scripture`, `SheepGate.UI`, `SheepGate.Vocation`, `SheepGate.World`.
+
+`SheepGate.Boot` holds only the three bootstraps the scenes point at (see *Scene entry points*), and
+`SheepGate.E2E` only the run harness — neither is a module anything else may call into.
 
 ## Unity authoring strategy (read carefully — this is unusual on purpose)
 
@@ -337,6 +345,80 @@ other. Taken unconditionally it stops the calendar dead wherever it is taken, wh
 table says comes next — which is why scoping it is the single change that makes a longer season
 reachable at all.
 
+### The map grid — `TilemapBuilder`
+
+```csharp
+public sealed class TilemapBuilder : MonoBehaviour {
+    public const char GroundChar = '.';
+    public const char VoidChar   = ' ';                  // off the map, and the map's own boundary
+    public enum CellKind { Ground, Rubble, Water, House, Wall, Void }
+
+    public bool[,] Walkable { get; private set; }        // the array the pathfinder consumes
+    public Bounds WorldBounds { get; private set; }      // the map rectangle
+    public Bounds ContentBounds { get; private set; }    // the box around every non-Void cell
+    public CellKind KindAt(int x, int y);                // anything out of bounds reads Void
+    public bool IsWalkable(int x, int y);
+
+    public void SetVoidColor(Color color);               // the region map flattens the outside…
+    public void SetVoidSprite(Sprite sprite);
+    public void RestoreVoidColor();                      // …and closing it puts the terrain back
+}
+```
+
+**The void invariant, and it is a contract rather than a description.** A `Void` cell **may draw
+anything. It is never walkable, never pathable, never an entity.** Appearance and walkability are
+two separate questions about the same cell, and exactly one line answers the second —
+`TilemapBuilder.cs:352`, `Walkable[x, y] = kind == CellKind.Ground || kind == CellKind.Rubble`.
+Nothing that changes what the outside *looks* like may go near it. The invariant is not hygiene:
+the space character was once read as a second ground character, which made the whole outer border
+walkable and let the player stroll around the wall and out of the village
+(`TilemapBuilder.cs:47-54`).
+
+That invariant is now **gated**, because it can no longer be seen. It used to be caught by eye —
+the outside looked wrong — and the outside looks right now, which is precisely when an unasserted
+invariant starts costing sessions. `E2ERunner.VerifyTheOutsideIsNotWalkable`
+(`Assets/Scripts/E2E/E2ERunner.cs:3698`, run from the e2e village sweep at `:454`) records **two**
+results, and the first is the load-bearing one: *the map has an outside to test*, `voidCells > 0`,
+because an assertion that passes for want of anything to check is the failure mode it exists to
+refuse. On the shipped `map.json` — 40 by 28, with the drawn city occupying well under half of it —
+that is **640 void cells of 1120**, none walkable.
+
+`ContentBounds` is the second half of the same story and is why the outside had to be drawn at all:
+`CameraRig` clamps to it (`CameraRig.cs:283`) rather than to `WorldBounds`, and a camera clamped to
+the drawn content still frames the corners of the band. Near-black rectangles there read as a
+rendering hole, not as the edge of a valley.
+
+```csharp
+namespace SheepGate.World {
+    internal static class VoidScatter {
+        public static bool[,] Build(bool[,] isVoid, int width, int height, int skirtX, int skirtY);
+    }
+}
+```
+
+`internal`, and stated as it is because this document is worth nothing if a signature in it is
+approximate. It decides **which off-map cells carry the fallen wall, and nothing else** — the grid
+it returns is indexed `[x + skirtX, y + skirtY]`, covering the map rectangle plus the skirt painted
+on all four sides, so column `x` runs from `-skirtX` to `width + skirtX - 1`. Cells the map actually
+draws are always `false`. Its one caller is `TilemapBuilder.Build`
+(`TilemapBuilder.cs:250`), and what it hands back is consumed by `OutsideTileFor` as **a sprite swap
+and nothing else** (`TilemapBuilder.cs:548`): the cell stays void, stays unwalkable, and the stone on
+it is terrain rather than a `RubblePile` the player clears.
+
+Two properties are load-bearing and cheap to break:
+
+- **It has no Unity dependency.** The file opens on `namespace SheepGate.World` with no `using` at
+  all, and reaches for `System.Math.Sqrt` where it needs a square root. That is deliberate and its
+  own summary says so: a scatter can only be judged by *counting* what it produces over a whole map,
+  and a Unity reference puts that count behind a device build. The density numbers in its summary
+  are of that kind — the metric it uses today replaced one that measured 75% stone on column 0 and
+  11-15% on the columns a close camera can actually frame, which is a drawn line down the edge of
+  the map and is invisible to any assertion this repository has.
+- **It is deterministic from integer coordinates.** Every number comes from a hash of `(x, y, salt)`
+  — no `System.Random`, no `UnityEngine.Random`, no clock, no build order — so the same map scatters
+  identically on every device, on every run, and in both locales. A screenshot taken twice shows the
+  same stones, which is what makes a visual diff mean anything.
+
 ## Dialogue — `SheepGate.Dialogue`
 
 ```csharp
@@ -378,6 +460,95 @@ public class VocationTracker {
 }
 ```
 
+## UI — `SheepGate.UI`
+
+### How a screen learns how wide it is
+
+```csharp
+public static class UIKit {
+    public const float ReferenceWidth  = 1080f;   // the design resolution, NOT a device width
+    public const float ReferenceHeight = 1920f;
+    public const float CanvasMatch     = 0.5f;    // the scaler's matchWidthOrHeight, named once
+    public static float CanvasWidth();            // what a screen actually gets, in canvas units
+}
+```
+
+**Every fixed width a screen computes starts at `CanvasWidth()` and never at `ReferenceWidth`.** The
+canvas is 1080 units across only on a device whose aspect is exactly 1080x1920; an iPhone 17 Pro
+(1206x2622) reports about 976, and a width pinned to the reference overflows its parent by the
+difference (`UIKit.cs:175-192`).
+
+Two properties of that method are the contract, not the implementation:
+
+- **It computes the scaler's own formula — a log-space lerp between the two axis ratios — instead of
+  reading a `RectTransform`.** A canvas created this frame has not had its scale factor set, so
+  every rect under it is still measured in **raw screen pixels**: at 402x874 a safe-area rect reads
+  402 where it will read 977 one frame later, and a width derived from it came out a third of the
+  size — enough to hand `WardrobeRow.MetricsFor` a **negative** text column. `CanvasMatch` is a named
+  constant for the same reason: a second literal is how the formula and the scaler silently disagree.
+- **A safe-area inset is applied as a *ratio* of `Screen.width` / `Screen.height`, never as a rect.**
+  The ratio is the one thing about the inset that is true before a layout pass, and on a screen with
+  no inset it is 1, which is why desktop numbers do not move.
+
+Both of those defects survive every `tools/e2e.sh` run by construction, because the macOS player is
+launched at exactly 1080x1920 (`tools/e2e.sh:159`) — the one resolution where pixels and canvas units
+are the same number. **The e2e gate cannot see this class of bug. Only a phone can.**
+
+### `WardrobeRow` — one row renderer, two screens
+
+```csharp
+public static class WardrobeRow {
+    public static readonly float BodyLineHeight;          // Type.Body * Type.BodyLeading
+    public static readonly float ThumbSize;               // Px(56)
+    public static readonly float ScrollbarWidth;          // Space.S8
+
+    public struct Metrics       { public float RowWidth, TextColumnWidth, ThumbSize; }
+    public sealed class View    { public string ItemId; public CharacterSlot Slot; /* … */ }
+
+    public static Metrics MetricsFor(float contentWidth);
+    public static View Build(RectTransform content, CatalogItemDef item, CharacterSlot slot,
+                             Metrics metrics, int bodyArtVariant, bool locked, bool showNewBadge,
+                             bool isNew, string namePrefix, Action<string, CharacterSlot> onTap,
+                             bool showTalentPrice = false);
+    public static void BuildEmpty(RectTransform content, Metrics metrics);
+    public static void Apply(View view, bool worn);
+    public static void ApplyBody(View view, int bodyArtVariant);
+    public static bool Tap(GameState state, string itemId, CharacterSlot slot, out string refusalSentence);
+    public static float PinText(Text text, float boxWidth);
+    public static void PinTextBox(Text text, float boxWidth, float height);
+}
+```
+
+**Two screens list the wardrobe, and exactly one of them draws a row.** `BackpackPanel` and
+`CharacterCreationScreen` both go through this class, and that is a seam rather than a tidy-up,
+because almost everything that makes a row correct is arithmetic that looks like nothing when it
+drifts: `MetricsFor` derives the text column as `rowWidth - (3·S12 + ThumbSize)` and **logs an error
+below 80 points**, because legacy `Text` breaks a word it cannot fit — "Túnica de carregador" once
+rendered as "Túnica de / carregad / or" when the column lost sixteen points to an S8 gap. A second
+copy of that row is a second copy of that threshold, and a phone is the only place either is visible.
+
+`Metrics` is a **struct passed down, not mutable statics**, and that is part of the seam rather than
+style: one sheet at a time could get away with statics, two screens cannot, and a static that one
+screen sets and the other reads is the quietest possible way to lay a row out against a width it
+does not have.
+
+The corollary a caller must honour: **`MetricsFor` subtracts the scrollbar lane, so the caller has
+to reserve it as right-hand padding** on the layout group its rows are parented into — otherwise the
+row is built narrower than the space it is given and sits with a gap on its right. Both callers do
+it, on the `VerticalLayoutGroup` of their scroll content. And `contentWidth` comes from
+`UIKit.CanvasWidth()` by the chain above, never from `ReferenceWidth`.
+
+`showTalentPrice` is trailing and optional deliberately — adding it could not silently reorder the
+three `bool` parameters ahead of it at an existing call site.
+
+### The wardrobe slot keys
+
+Both screens name the three slots from the **same key namespace** — `slot.hair`, `slot.outfit`,
+`slot.accessory` (`CharacterCreationScreen.cs:209`, `BackpackPanel.cs:196-198`, defined per locale at
+`locales/<locale>/ui.json:217-219`). That is the point of them: renaming a slot is one edit in each
+locale file and it lands on both screens at once. The last rename — Detalhes → **Extras** — is why
+the key is `slot.accessory` and the word is not; the key is the seam, the word is content.
+
 ## Art — `SheepGate.Art`
 
 ```csharp
@@ -387,9 +558,66 @@ public static class ArtLibrary {
 }
 ```
 Keys are declared in `SheepGate.Art.ArtKeys` — read that rather than a list here, which is how this
-section drifted last time. Ground, rubble and water resolve from a drawn CC0 sheet decoded at
-runtime; every other key is generated procedurally, and a key with no drawn tile behind it falls
-through to the generated one.
+section drifted last time. **Today exactly one key resolves from the drawn CC0 sheet: `tile_water`**
+(`Tileset.cs:42`). This paragraph used to say ground, rubble and water, and it was wrong in the
+direction that matters — `Tileset.cs:47` records ground and rubble as *deliberately* unmapped, because
+the sheet's seamless fills are pale interior floors and its textured ones are autotile edge pieces
+that seam every tile, judged as a five-by-five field rather than as single tiles. Everything else is
+generated procedurally, and a key with no drawn tile behind it falls through to the generated one
+(`ArtLibrary.cs:186`) — so mapping a new key is additive and needs no caller to change.
+
+```csharp
+// ArtKeys — the wall lying where it fell: the terrain of the ruin band outside the city.
+public const string TileFallenWall = "tile_fallen_wall";
+public const int FallenWallVariantCount = 12;
+public static string FallenWallVariant(int variant);   // variant 0 is the plain key
+
+// TileArt — the drawing itself, on the standing wall's own masonry.
+public static PixelCanvas FallenWall(int seed);        // TileArt.cs:440
+```
+
+`FallenWallVariant` **mirrors `GroundVariant`'s shape exactly** — clamp, modulo the count, variant 0
+returns the bare key and every other returns `<key>_<n>` — because `ArtLibrary` resolves both by
+`StartsWith` on the base key and seeds the drawing from the key itself (`ArtLibrary.cs:228-239`). A
+variant scheme that did not match would resolve to the wrong family or to nothing.
+
+**The count is 12 against ground's 6, and that is a decision, not a spare digit.** A ground tile
+carries noise, so a repeat is invisible; a fallen-wall tile carries block silhouettes the eye matches
+across the screen. The ruin band is around two hundred cells, which puts any one tile at roughly
+sixteen appearances (`ArtKeys.cs:121-129`). Note also what the key is *not*: `tile_fallen_wall` is
+not `tile_rubble`. Rubble is a cell the player walks onto and clears; this is terrain on a cell that
+is not walkable at all. **Two things that mean opposite things may not draw the same pixels.**
+
+Two constraints on this tile are not stylistic and cost a session each when they were missed. The
+drawing must **leave the base tile unshaded and let blocks run off the edge and wrap** — a stone
+drawn wholly inside its own cell leaves the 32px lattice readable however the cell is shaded, which
+is exactly the checkerboard the first attempt produced (`TileArt.cs:428-438`). And the **variant
+picker must mix before it takes the modulo**: it was `Mathf.Abs(x * 40503461 ^ y * 12582917) % 12`,
+and since both multipliers are 1 mod 4 while 12 divides by 4, `variant % 4` was exactly
+`((x ^ y) & 3)` on every cell — twelve variants collapsed to four classes on the same 4x4 lattice
+the tile exists to break (`TilemapBuilder.cs:605-618`). Both passed compile, validator and e2e. Both
+were found by counting, not by reading, which is what `tools/tile-preview.sh field` is for.
+
+```csharp
+public static string Hair(int variant, ArtFacing facing);
+public static string Accessory(int variant, ArtFacing facing);   // WAS: Accessory(int variant)
+public static string Top(int variant);                           // facing-free, and correctly so
+public static string Legs(int variant);
+```
+
+**`Accessory` gained a facing, and this is the entry this whole document exists for.** It took only
+`(int variant)` and built a bare `acc_<n>`; the permissive parser reads a missing direction token as
+`Down`. The accessory is the one worn layer that is never mirrored — every variant is anchored to a
+side or a face (`shoulder_r`, `wrist_r`, `back_center`, `waist_front`) and `CharacterArt.Accessory`
+draws all four facings by hand — so the omission did not draw a coarse accessory, it drew **the
+front view on a back view**, and four correct drawings per variant existed and never reached a
+screen. The builder is now shaped like `Hair`, which always took a facing, and not like `Top` and
+`Legs`, whose layers really are facing-free. The permissive parse survives for the world-figure
+fallbacks that still build a bare `acc_<n>` by hand (`ArtLibrary.cs:36-42`), which is why the
+compiler could not have caught this and cannot catch the next one: **the wrapper is the guard.**
+`UiSpriteKeys.Accessory(int index, FacingDirection direction)` is that wrapper for UI callers
+(`UIKit.cs:114-118`), and it clamps to `CharacterArt.AccessoryVariants` so a newly drawn variant is
+reachable the moment it exists.
 
 **No gold light, no dove, no cross, no praying hands, no robes, no sandals** — rule 13. Note that
 `Brand.Secondary` gold *is* ratified as an interaction colour: see `design-system.md` §Gold. It
@@ -417,7 +645,23 @@ node tools/list-curation.mjs                          # authored canonical speec
 tools/unity-check.sh                                  # headless compile
 tools/acceptance.sh                                   # the product rules, per locale
 tools/e2e.sh                                          # build a player and play every stage the table declares
+tools/tile-preview.sh sheet|zoom|field [d]|check      # the world tiles, drawn without Unity
 ```
+
+`tools/tile-preview.sh` is a seam of its own, and the reason it is listed here rather than in a
+tooling note: it **compiles the shipping `ArtPalette.cs`, `PixelCanvas.cs`, `ValueNoise.cs` and
+`TileArt.cs`** — the real files, not copies — against a small `UnityEngine` stub, using the Roslyn
+inside Unity. So those four files must stay free of anything Unity actually implements, and drift
+breaks that build rather than producing a preview that lies. `check` asserts every pixel is in the
+world palette and opaque.
+
+That is also the only palette check that reaches generated **world** tiles, and the trap is the name
+of the other one. E2E records *"generated map art uses only the exact world palette"*
+(`E2ERunner.cs:1588-1590`), which reads as coverage it does not have: it walks `Image` components and
+filters by `IsMapSpriteName`, matching `map_progress_*`, `map_node_*` and `map_reward_*` and nothing
+else (`E2ERunner.cs:1685-1710`). That is the progression map's chart art. No tile the tilemap draws
+is an `Image`, and neither `tools/acceptance.sh` nor `tools/validate-content.mjs` asserts anything
+about a palette. **Any claim that e2e palette-checks the world is wrong.**
 
 ## Scene entry points (the integration seam)
 

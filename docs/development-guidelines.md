@@ -151,15 +151,59 @@ or fails.
 **Every change is verified against a build, not against a compile.** In order, cheapest first:
 
 ```bash
+tools/tile-preview.sh             # ART ONLY: draws the tiles to a PNG in seconds, without Unity
 tools/unity-check.sh              # compiles; 0 errors AND 0 warnings is the bar
 node tools/validate-content.mjs   # scripture integrity, locale parity, hardcoded strings
 tools/acceptance.sh               # the product rules, asserted per locale
-tools/e2e.sh                      # builds a player and plays the opening and a day, every language
+tools/e2e.sh                      # builds a player and plays the declared season, every language
 tools/ios-sim.sh                  # the same build on a phone, driven by hand
 ```
 
-The first three are necessary and not sufficient. This project has learned three times that they are
-not enough:
+`tools/e2e.sh` deliberately does not have a day count here. It reads
+`Assets/Resources/Data/stages.json` and plays whatever the season declares; this line said "the
+opening and a day" for a season that has been nine stages for a while, and a stale description is
+worse than none, because it is what people read instead of the code.
+
+### Seeing a tile without building the game
+
+`tools/tile-preview.sh` sits first because it is by far the cheapest thing in this list — `check`
+measured under a second on this machine, against a Unity batch-mode launch for anything below it —
+and last in usefulness for everything that is not art. **It answers exactly one class of question:
+what does the generated tile art actually look like.** It composes no scene, runs no game loop and
+proves no rule, so it never substitutes for a gate below it. It is the inner loop that comes
+*before* them.
+
+**Why it exists.** Every tile in this game is drawn in C# at runtime, so the only way to see one
+used to be a full build — Unity export, Xcode compile, install, launch, screenshot. Minutes per
+glance, for art that gets changed ten times in a row, which in practice means the art stopped being
+looked at.
+
+**Why its output can be trusted.** It compiles `ArtPalette.cs`, `PixelCanvas.cs`, `ValueNoise.cs`
+and `TileArt.cs` **from `Assets/`, not copies** (`tools/tile-preview.sh:62-68`), against a small
+`UnityEngine` stub, with the Roslyn that ships inside Unity. A preview harness with its own copy of
+the drawing code drifts and then lies; this one breaks the build instead. It also never opens the
+project — no `-projectPath`, only the bundled `dotnet` and `csc.dll` — so unlike `unity-check.sh` it
+runs happily while the Editor holds the `Library` lock.
+
+Modes: `sheet` (every tile side by side), `zoom` (5x, for judging pixels), `field <density>` (a
+field of ruin tiles, which is how you tell scattered stone from wallpaper) and `check` (asserts
+every pixel is in the world palette and opaque). Output lands in `Logs/tile-preview/`, gitignored.
+
+**What it caught, which is the whole argument.** A rubble field that a full device build reported
+as fine was shown here to be a checkerboard of hard-edged squares — the tile shaded its whole 32px
+square before drawing stones, so the lattice was readable however the stones fell. The cure is
+letting blocks **cross the tile edge**, and that is a thing you can only see in a field, not in one
+tile. The same harness then showed twelve variants collapsing into four classes on a 4x4 lattice,
+because the variant picker multiplied by constants that are 1 mod 4 and took `% 12`; both bugs had
+passed the compile, the validator and the e2e run. **Both were found by counting, not by reading.**
+
+**`check` is also the only palette gate that reaches world tiles.** The e2e palette assertion walks
+UI `Image` components and filters them by `IsMapSpriteName` — `map_progress_`, `map_node_`,
+`map_reward_` (`Assets/Scripts/E2E/E2ERunner.cs:1704-1710`). No generated ground, wall or rubble
+sprite matches those prefixes, so nothing in the world is palette-checked by e2e.
+
+The compile, the validator and the acceptance run are necessary and not sufficient. This project has
+learned three times that they are not enough:
 
 - **Correct code that nothing calls.** `MoraleContest.Begin()` and `VocationTracker.Resolve()` once
   had no runtime caller at all, so day 3 was unreachable in a built game while every unit-level rule
@@ -247,6 +291,68 @@ returned a picture of the terminal where the game should have been.
 accessibility tree, so `idb ui describe-all` reports one node for the whole application. Tap a
 point, screenshot, look. Anything that needs to assert on the UI hierarchy belongs in `tools/e2e.sh`
 instead, which drives the real EventSystem from inside the build and can see it.
+
+### The iteration loop
+
+**Unity's Play Mode works here and is far faster than the export-compile-install loop.** Every gate
+above goes through a build, which is right for a gate and wrong for the twentieth time you nudge a
+number. Nothing about section 4's near-empty scenes stops the Editor from running the game: all
+three are in `ProjectSettings/EditorBuildSettings.asset` and each carries its own entry point —
+`Boot.unity` -> `BootLoader`, `CharacterCreation.unity` -> `CharacterCreationBootstrap`,
+`Game.unity` -> `GameBootstrap`, all three in `Assets/Scripts/Boot/`, each one an `Awake` that
+calls a composer. Opening `Game.unity` and pressing Play composes the game scene directly, with no
+export and no device.
+
+**Making Play near-instant is one setting, and it is the one place to be careful.**
+`ProjectSettings/EditorSettings.asset:27-28` currently reads `m_EnterPlayModeOptionsEnabled: 1` with
+`m_EnterPlayModeOptions: 0` — the feature is switched on, and **neither** domain reload nor scene
+reload is disabled, so entering Play still costs a full domain reload. `3` disables both.
+
+Do not reach for `3` first. **This codebase leans on static state, and disabling domain reload
+carries all of it from one Play session into the next**, which is how a stale cache presents itself
+as a new bug:
+
+| Static | Where | What survives |
+|---|---|---|
+| `TilemapBuilder.Instance` | `Assets/Scripts/World/TilemapBuilder.cs:78` | **nothing** — its `OnDestroy` nulls it (`:215-221`). This is the one row that already resets itself, and it is the shape the others are missing |
+| `ArtLibrary` sprite caches | `Assets/Scripts/Art/ArtLibrary.cs:116-119` | every sprite generated last run, including the one you just edited |
+| `Loc` string table | `Assets/Scripts/Core/Localization/Loc.cs:24-26` | the table **and** the loaded-locale marker |
+| `CharacterCatalog.LoadedLocale` and its indexes | `Assets/Scripts/Player/CharacterCatalog.cs:469-480` | the catalogue read under the previous locale |
+| `Wardrobe` warn sets and `_presetsRequested` | `Assets/Scripts/Player/Wardrobe.cs:159-167` | one-shot flags that will not fire again |
+
+**That table is what was observed, not a census.** The authoritative list of what a locale touches
+is the body of `BootSequence.ApplyLocale` (`Assets/Scripts/Core/BootSequence.cs:102-116`) — it
+reloads `GameData` and `CharacterPresets` as well, each with statics of its own — and it is the
+right thing to mirror, because it is compiler-checked and a list in this file is not.
+
+The sharpest of these is worth spelling out, because which scene you press Play on decides it.
+`Loc.Load` returns early when `!force && _loadedLocale == canonical`
+(`Assets/Scripts/Core/Localization/Loc.cs:54-59`), and with the domain kept `_loadedLocale` outlives
+the session. `Boot.unity` is safe: `BootSequence.ApplyLocale` calls `Loc.Reload()`
+(`Assets/Scripts/Core/BootSequence.cs:105`), which is `Load(Locales.Active, true)` and forces the
+reread. **`Game.unity` and `CharacterCreation.unity` are not** — their bootstraps call a composer,
+never `BootSequence`, so `Loc` is left on its lazy `EnsureLoaded` path, which calls `Load` without
+`force`. Edit a string, press Play on `Game.unity`, and the screen shows the previous session's
+words with nothing in the log. That is the fast loop, so that is exactly where it bites; the art
+cache does the same for a tile you just redrew, in every scene, because nothing calls
+`ArtLibrary.ClearCache()` at all.
+
+So, in order:
+
+1. **Use Play Mode as it is configured today.** The reloads still run, nothing is carried over, and
+   it is already far cheaper than a build. This needs no change to any file.
+2. **Only then consider `m_EnterPlayModeOptions: 3`, and only alongside explicit static resets** —
+   a `[RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]` that clears
+   every static above that does not already clear itself, mirroring `ApplyLocale`.
+   `ArtLibrary.ClearCache()` already exists for this
+   (`Assets/Scripts/Art/ArtLibrary.cs:154`) and currently has no caller anywhere in the repository;
+   `Loc.Reload()` (`Loc.cs:102`) is the matching handle for the string table. Turning the setting on
+   without that work buys speed by trading it for a class of bug this project has already paid for
+   twice — the invisible kind, that logs nothing.
+
+**Play Mode does not replace a build.** It runs the Editor's player loop, not the shipped one, and
+it says nothing about the phone. It is the loop for the twenty iterations before the gate, not the
+gate.
 
 ## 4. Conventions worth stating
 

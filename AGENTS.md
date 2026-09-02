@@ -167,17 +167,63 @@ exist. Always an internal reader; an external channel is a secondary, optional b
   equivalence and passes; NTLH or NVT would pass better at 13, and the `deep_read` conversion rate
   depends on it. A product decision, not a licence one, and swapping is one line in
   `tools/verses.manifest.json`. Decides: Pedro.
+- **What may a `deep_read` mean, when the chapter fits on one screen?** `ChapterReaderUI` treats a
+  scroll fraction of 1.0 as "read to the end", and `CurrentScrollFraction` returns exactly that when
+  the content is shorter than the viewport — so a short chapter awards the north-star event after 20
+  seconds of nothing but sitting there. The instance that made this urgent is gone: `NEH.3` now ships
+  (32 verses, both locales, added by `a2cc8a8`), so the study card opens real text rather than a
+  one-line placeholder. The **mechanism** is still there for any chapter short enough, and it decides
+  what the product's one measurement is allowed to count. Options are a minimum dwell that scales
+  with length, a floor on verses, or accepting that a short chapter genuinely is read in 20 seconds.
+  Decides: Pedro.
+- **The engagement meter's baseline is a lie, and zeroing it alone makes the meter worse.**
+  `EngagementMeter.TestBaseline` is `62` (`Assets/Scripts/Core/EngagementMeter.cs:41`) and its own
+  comment says it "has to go to zero before this ships": a bar that opens 62% full tells a new player
+  they have already done most of something they have not touched. But the six contributors cap at
+  12 + 12 + 8 + 6 + 8 + 4 = **50** (`EngagementMeter.cs:44-49`) against a `Ceiling` of `100`
+  (`:30`), so setting the baseline to zero on its own gives a player who does everything the meter
+  counts a bar that stops at 50/100. Two honest exits, and they read differently on screen: double
+  the six caps, which preserves every ratio between the signals and every relative weight, or drop
+  `Ceiling` to 50. Note that the class comment at `:25` asserts "The caps sum to `Ceiling`" and is
+  wrong by a factor of two — that drift is why this went unnoticed. Decides: Pedro.
 - **Jesus / the Holy Spirit as a guide** — deferred. The typological reading is legitimate; it comes
   back as an easter egg in a season that earns it, never as generated speech.
-- **The human read of the curation queue** — `intro_gathering` (the governor) awaits a read against
-  the passage, **in both languages**. Rule 4 requires it, and no script decides it.
-  `node tools/list-curation.mjs` prints the queue.
+- **The curation read is done; two citations it identified are not.** The human read rule 4 requires
+  has happened: all six nodes carrying authored canonical speech — `intro_gathering`, `gathering_d4`,
+  `sanballat_d5`, `sanballat_d6`, `tobiah_d6`, `sanballat_d8` — were read against the passage **in
+  both locales**, in two passes (`6d9d0ac`, then `079aac4`, which kept 32 of 36 lines and changed
+  four). What that read surfaced and could not finish: `tobiah_d6` frames `NEH.4.12` and shows
+  `NEH.4.11`, and `sanballat_d8` cites nothing at all in the episode the book records at most length.
+  The verse the frame wants, `NEH.4.12`, is **not** in `tools/verses.manifest.json` — `NEH.4.11`,
+  which the node actually renders, is there and always was; and `sanballat_d8` has no anchor verse
+  chosen yet, so there is nothing to look up for it. `079aac4` held them back for want of the
+  YouVersion key, and **that reason has expired**: `YOUVERSION_API_KEY` is set in `.env.local` on
+  this machine, which is the file `tools/fetch-verses.mjs:42-50` reads. So what is left is a task —
+  add the two references and refetch — not a blocker, and it stays open only because adding a
+  citation is a content judgement about which verse the frame is actually describing.
+  Note that `needs_curation` was **not** cleared by either pass, so `node tools/list-curation.mjs`
+  still prints those six nodes as awaiting a read. The queue is a record of what carries authored
+  canonical speech, not a backlog; whether a completed read should leave a mark is unsettled, and
+  until it does, **the tool cannot tell you a node has been read** — `git log` can.
 - **The English has never had a native pass.** It reads correctly and holds the register, but it was
   written by the same agent that wrote the code.
+- **The landscape skirt has never been on a screen.** macOS has been played — that is in the
+  decisions table — but the terrain skirt is new, and the landscape case of it is not covered.
+  `ProjectSettings/ProjectSettings.asset:114` ships `fullscreenMode: 1`, so a Mac player runs at the
+  display's own landscape aspect, and the skirt that fills whatever the camera frames past the map
+  rectangle is sized for aspects up to 2:1
+  (`MaxCoveredAspect`, `Assets/Scripts/World/TilemapBuilder.cs:147`). Every gate we own runs
+  portrait — `tools/e2e.sh:159` forces `-screen-width 1080 -screen-height 1920` — so the widest case
+  the arithmetic was written for is the one case nothing has ever looked at. Arithmetic is what the
+  previous version had too: it painted rows and not columns, on an argument true of the close view
+  and false of the patrol view, and a sixth of the screen on each side came out clear colour with a
+  hard edge against real terrain. Closing this is a run, not a decision — open the Mac player in a
+  landscape window and look. It is listed here because **no gate can close it for us.**
 - **The 13-19 band crosses the minor/adult boundary of rule 17**, which forbids mixed teams by a
-  database constraint — and with multiplayer in the MVP that became a schema decision. Refinement
-  proposed in `docs/persona-and-purpose.md`: open matchmaking never crosses; a closed team joined by
-  code may. **Pending ratification by Pedro + cybersecurity. Do not change rule 17 before that.**
+  database constraint — and it becomes a schema decision the moment multiplayer arrives, which the
+  decisions table puts outside this MVP. Refinement proposed in `docs/persona-and-purpose.md`: open
+  matchmaking never crosses; a closed team joined by code may. **Pending ratification by Pedro +
+  cybersecurity. Do not change rule 17 before that.**
 
 ## The team
 
@@ -191,8 +237,10 @@ What survived it lives in `MVP-SCOPE.md` and in the decisions above.
 
 ## Document map
 
-Eleven files. **Everything a developer reads is English** — this file included. Only what a *player*
-reads is pt-BR, because pt-BR is the authoring locale for the content.
+Twelve documents, plus a two-file archive under `docs/superpowers/`. **Everything a developer reads
+is English** — this file included. Only what a *player* reads is pt-BR, because pt-BR is the
+authoring locale for the content. `CLAUDE.md` is a symlink to this file, not a thirteenth document:
+editing either edits both.
 
 | File | What it is |
 |---|---|
@@ -201,12 +249,14 @@ reads is pt-BR, because pt-BR is the authoring locale for the content.
 | `README.md` | How to run, build, test and play it. The first file for anyone arriving. |
 | `docs/persona-and-purpose.md` | **Who the game is for and what it has to cause.** Age band, the transformation thesis, the ladder of steps, the desire metrics, and rules 19-20. |
 | `docs/nehemiah-game-design.md` | The design of the whole season, beyond the MVP: vocations, the day/night loop, the four threats, discretion, risks. |
-| `docs/character-creation-scope.md` | **Open work order.** Why creation and the backpack disagree today, the decisions taken, the art cost, and the order of execution. |
+| `docs/character-creation-scope.md` | **The record of a closed work order**, kept for its reasoning rather than its instructions — the file marks itself done, and creation and the backpack now draw every wardrobe row through the same `WardrobeRow`. Read it for *why* the two screens speak the catalogue's vocabulary, not for what to do next. |
 | `docs/development-guidelines.md` | **How code is written here.** English in the code, player text only in `locales/`, how to add a string and a language, and what "tested" means — including the simulator dead ends. |
 | `docs/architecture-contract.md` | The public seams nobody changes alone: scene names, signatures, schemas. |
 | `docs/design-system.md` | Sistema Vale: tokens, typography, and the rules that are design rather than style. |
 | `docs/handoff.md` | State of the build and what is not finished. |
 | `docs/youversion-api.md` | The verified API surface, and the licence obligations. |
+| `tools/README.md` | **What every script in `tools/` is for**, in one screen: the Node half that turns the manifest into `verses.json` and checks nothing copied scripture, and the shell half that drives Unity — compile, validate, acceptance, e2e, and the simulator. |
+| `docs/superpowers/` | Archive of a plan and its spec (`daily-check-in`), both carried out — `DailyCheckIn.cs` and `CheckInRewardModal.cs` ship. Kept as history, not as a document to write new work against. The spec is in pt-BR and should not be: it was added *after* the pass that put every document in English (`e1fabdd`, hours after `17da494`), so it is a miss, not an exemption. |
 
 ## Conventions
 

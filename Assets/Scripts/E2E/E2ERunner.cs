@@ -451,6 +451,7 @@ namespace SheepGate.E2E
             // 6. The village is populated, not staged: with nothing on screen asking for anything,
             // somebody should be walking around out there.
             yield return VerifyResidentsWander();
+            yield return VerifyTheOutsideIsNotWalkable();
 
             // 7. Help: the one screen that tells a lost player what to do next.
             yield return VerifyHelpPanel();
@@ -3680,6 +3681,69 @@ namespace SheepGate.E2E
         /// whether the village was being held at the moment the run gave up, which is the difference
         /// between a bug in the wander and a bug in what is allowed to hold it.
         /// </summary>
+        /// <summary>
+        /// Every cell outside the map is drawn, and none of it is walkable.
+        ///
+        /// This exists because the two halves stopped agreeing on screen. The outside used to be a
+        /// near-black band, so "you cannot go there" was obvious; it now draws the same ground the
+        /// city stands on, with the fallen wall scattered over it, and the only thing still saying
+        /// where the world ends is the stone. Appearance and walkability became separate questions
+        /// that same day, and nothing asserted the second one.
+        ///
+        /// The bug this guards against has shipped here before: a space was once read as a second
+        /// ground character, which left the whole outer border walkable and let the player stroll
+        /// around the wall and out of the village. That was caught by eye, when the outside looked
+        /// wrong. It would not be caught by eye now, because the outside looks right.
+        /// </summary>
+        IEnumerator VerifyTheOutsideIsNotWalkable()
+        {
+            TilemapBuilder map = TilemapBuilder.Instance;
+            if (map == null || map.Walkable == null)
+            {
+                Record("the outside of the map is not walkable", false, "no tilemap in the scene");
+                yield break;
+            }
+
+            int voidCells = 0;
+            int walkableVoid = 0;
+            string firstOffender = null;
+
+            for (int x = 0; x < map.Width; x++)
+            {
+                for (int y = 0; y < map.Height; y++)
+                {
+                    if (map.KindAt(x, y) != TilemapBuilder.CellKind.Void)
+                    {
+                        continue;
+                    }
+
+                    voidCells++;
+                    if (!map.Walkable[x, y])
+                    {
+                        continue;
+                    }
+
+                    walkableVoid++;
+                    if (firstOffender == null)
+                    {
+                        firstOffender = "(" + x + ", " + y + ")";
+                    }
+                }
+            }
+
+            // A map with no void at all would make the assertion below pass while proving nothing,
+            // which is the shape of failure this file exists to refuse.
+            Record("the map has an outside to test", voidCells > 0,
+                voidCells + " void cell(s) of " + (map.Width * map.Height));
+
+            Record("the outside of the map is not walkable", walkableVoid == 0,
+                walkableVoid == 0
+                    ? voidCells + " void cell(s), none walkable"
+                    : walkableVoid + " of " + voidCells + " void cell(s) are walkable, first at " + firstOffender);
+
+            yield break;
+        }
+
         IEnumerator VerifyResidentsWander()
         {
             NpcActor[] residents = UnityEngine.Object.FindObjectsByType<NpcActor>(FindObjectsSortMode.None);

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace SheepGate.Art
@@ -408,6 +409,408 @@ namespace SheepGate.Art
 
             canvas.OutlineOpaque(ArtPalette.Ink);
             return canvas;
+        }
+
+
+        // ------------------------------------------------------------ fallen wall
+
+        /// <summary>
+        /// The wall lying where it fell.
+        ///
+        /// This is not <see cref="RubbleTile"/> with a different seed, and the difference is the
+        /// whole point. Rubble inside the city is gathered material: a dark patch packed edge to
+        /// edge with small stones, something a player walks onto and clears. This is masonry that
+        /// came off the wall decades ago and was never picked up, so it is drawn from the wall's
+        /// own vocabulary — <see cref="DrawCourse"/>'s block proportions, <see cref="ArtPalette.StoneRamp"/>,
+        /// a lit top edge with a dark underside — only level, aligned and mortared has become
+        /// tilted, chipped and half sunk.
+        ///
+        /// Three properties exist to stop a field of these reading as a 32 pixel grid, which is
+        /// exactly what the first attempt at this band did:
+        ///   - The base is ordinary <see cref="Ground"/>, untouched. Nothing shades the whole
+        ///     tile, so there is no square edge for the eye to find; the only shading is the
+        ///     contact shadow each block casts on the ground it sits on.
+        ///   - Every coordinate wraps. A block placed near an edge runs off it and reappears on
+        ///     the far side, so stone silhouettes straddle the seams instead of stopping short of
+        ///     them, and the tile is seamless against a copy of itself.
+        ///   - The stones gather around a clump centre that moves per variant, and the count runs
+        ///     from two to eleven, so some tiles are nearly bare and some are a heap. A run of
+        ///     ruin cells is uneven inside each cell as well as between them.
+        /// </summary>
+        public static PixelCanvas FallenWall(int seed)
+        {
+            PixelCanvas canvas = Ground(seed + 613);
+
+            List<FallenBlock> blocks = new List<FallenBlock>();
+
+            // Where the stone gathers on this tile, and how tightly. A small spread leaves most
+            // of the tile bare; a large one scatters across the whole cell.
+            int clumpX = ValueNoise.RangeInt(seed, 900, 0, Size);
+            int clumpY = ValueNoise.RangeInt(seed, 901, 0, Size);
+            int spread = ValueNoise.RangeInt(seed, 902, 8, 21);
+
+            int count = ValueNoise.RangeInt(seed, 903, 2, 9);
+            for (int i = 0; i < count; i++)
+            {
+                blocks.Add(ScatteredBlock(seed, i, clumpX, clumpY, spread));
+            }
+
+            // Two variants in five keep a piece of course together: three blocks that went over
+            // as one and are still roughly in line, ends nearly touching. Nothing else on the
+            // tile says "this was a wall" as plainly as a course that fell without breaking up.
+            if (ValueNoise.Value01(seed, 904) < 0.4f)
+            {
+                AddToppledCourse(blocks, seed);
+            }
+
+            // Painter's order, lowest edge last, so a heap occludes the way a heap does.
+            SortByBottomEdge(blocks);
+
+            // Stone and its hard shadow go down block by block, so a block that came to rest on
+            // another occludes it. The soft halo is collected across the whole tile and laid down
+            // once at the end: blended per block it would darken twice wherever two stones lie
+            // close enough for their halos to meet, and a twice-shaded pixel is a colour the
+            // world palette does not have.
+            bool[] occupied = new bool[Size * Size];
+            bool[] halo = new bool[Size * Size];
+            for (int i = 0; i < blocks.Count; i++)
+            {
+                DrawFallenBlock(canvas, blocks[i], seed, i, occupied, halo);
+            }
+
+            for (int i = 0; i < halo.Length; i++)
+            {
+                if (halo[i] && !occupied[i]) canvas.Blend(i % Size, i / Size, ArtPalette.SoftShade);
+            }
+
+            DrawSpall(canvas, blocks, seed);
+            return canvas;
+        }
+
+        /// <summary>
+        /// One block of the fallen wall. Coordinates are in tile space and wrap, so X and Y may
+        /// sit outside 0..<see cref="Size"/> and the block simply crosses the tile edge.
+        /// </summary>
+        struct FallenBlock
+        {
+            public int X;
+            public int Y;
+
+            /// <summary>Along the long axis: the length of a course block, 6 to 12 pixels.</summary>
+            public int Length;
+
+            /// <summary>Across it: the depth of a course, 4 to 6 pixels.</summary>
+            public int Thickness;
+
+            /// <summary>True when the long axis runs down the tile: a block stood on its edge.</summary>
+            public bool Upright;
+
+            /// <summary>Pixels of run per pixel of rise. 0 is level, 3 is the steepest rest.</summary>
+            public int SlopeRun;
+
+            /// <summary>Which way the block leans, -1 or +1.</summary>
+            public int SlopeDir;
+
+            /// <summary>Index into <see cref="ArtPalette.StoneRamp"/> for the block's face.</summary>
+            public int Shade;
+
+            /// <summary>
+            /// Sunk into the ground. It loses its dark underside line and its contact shadow,
+            /// which is the whole cue: the dark line is what says a stone is resting on top of
+            /// the ground, so a block without one reads as a block the ground has closed over.
+            /// </summary>
+            public bool Buried;
+
+            /// <summary>Bit 1 knocks the corner off the head, bit 2 off the tail.</summary>
+            public int Chip;
+
+            public int Height { get { return Upright ? Length : Thickness; } }
+        }
+
+        static FallenBlock ScatteredBlock(int seed, int index, int clumpX, int clumpY, int spread)
+        {
+            int key = index * 7 + 300;
+            FallenBlock block = new FallenBlock();
+
+            // A few blocks came down on edge rather than flat. They stay short: a tall one reads
+            // as a pillar still standing, which is the opposite of what this tile says.
+            block.Upright = ValueNoise.Value01(seed, key) < 0.12f;
+            block.Length = block.Upright
+                ? ValueNoise.RangeInt(seed, key + 1, 5, 9)
+                : ValueNoise.RangeInt(seed, key + 1, 6, 13);
+            block.Thickness = ValueNoise.RangeInt(seed, key + 2, 4, 7);
+            block.X = clumpX + ValueNoise.RangeInt(seed, key + 3, -spread, spread + 1);
+            block.Y = clumpY + ValueNoise.RangeInt(seed, key + 4, -spread, spread + 1);
+
+            // How far from level it came to rest. Two in five are flat, the rest lean; nothing
+            // leans so hard that the staircase stops reading as one straight block.
+            float tilt = ValueNoise.Value01(seed, key + 5);
+            block.SlopeRun = tilt < 0.40f ? 0 : (tilt < 0.75f ? 5 : 3);
+            block.SlopeDir = ValueNoise.Value01(seed, key + 6) < 0.5f ? -1 : 1;
+
+            // Weighted toward the darker half of the ramp: stone that has been out in the
+            // weather for decades, not a face that came off the saw this morning.
+            float value = ValueNoise.Value01(seed, key + 7);
+            block.Shade = value < 0.42f ? 1 : (value < 0.84f ? 2 : 3);
+            block.Buried = ValueNoise.Value01(seed, key + 8) < 0.34f;
+            if (block.Buried) block.Thickness = Mathf.Min(block.Thickness, 4);
+            block.Chip = ValueNoise.RangeInt(seed, key + 9, 0, 4);
+            return block;
+        }
+
+        static void AddToppledCourse(List<FallenBlock> blocks, int seed)
+        {
+            int x = ValueNoise.RangeInt(seed, 905, -8, Size);
+            int y = ValueNoise.RangeInt(seed, 906, 0, Size);
+            int direction = ValueNoise.Value01(seed, 907) < 0.5f ? -1 : 1;
+
+            for (int i = 0; i < 3; i++)
+            {
+                int key = 910 + i * 6;
+                FallenBlock block = new FallenBlock();
+                block.Length = ValueNoise.RangeInt(seed, key, 8, 12);
+                block.Thickness = 5;
+                block.X = x;
+                block.Y = y + ValueNoise.RangeInt(seed, key + 1, -1, 2);
+                block.SlopeRun = 5;
+                block.SlopeDir = direction;
+                block.Shade = ValueNoise.RangeInt(seed, key + 2, 1, 4);
+                block.Chip = ValueNoise.RangeInt(seed, key + 3, 0, 4);
+                blocks.Add(block);
+
+                // Ends nearly touching, the way blocks that fell together still sit.
+                x += block.Length + ValueNoise.RangeInt(seed, key + 4, 1, 4);
+                y += direction * 2;
+            }
+        }
+
+        /// <summary>Insertion sort, because List.Sort is not stable and the art must be.</summary>
+        static void SortByBottomEdge(List<FallenBlock> blocks)
+        {
+            for (int i = 1; i < blocks.Count; i++)
+            {
+                FallenBlock block = blocks[i];
+                int bottom = block.Y + block.Height;
+                int j = i - 1;
+                while (j >= 0 && blocks[j].Y + blocks[j].Height > bottom)
+                {
+                    blocks[j + 1] = blocks[j];
+                    j--;
+                }
+                blocks[j + 1] = block;
+            }
+        }
+
+        /// <summary>
+        /// One block: its bed of mortar shadow, its face, and the pitting on it.
+        ///
+        /// The block is rasterised into a scratch buffer before anything reaches the canvas,
+        /// because the dark edge has to know the whole silhouette first. Drawn per column it
+        /// would land inside the block wherever the tilt steps, and would double-blend the soft
+        /// shadow wherever two columns share a neighbour.
+        ///
+        /// The dark edge is <see cref="ArtPalette.StoneDeep"/> and it is not decoration: it is the
+        /// same value the standing wall packs between its blocks in <see cref="DrawCourses"/>.
+        /// Without it a fallen block is a pale smear on pale ground — the two share the stone
+        /// ramp — and with it the block reads as the same masonry, one course of it, on its side.
+        /// </summary>
+        static void DrawFallenBlock(PixelCanvas canvas, FallenBlock block, int seed, int index,
+            bool[] occupied, bool[] halo)
+        {
+            Color32[] face = new Color32[Size * Size];
+            bool[] solid = new bool[Size * Size];
+
+            Color32[] ramp = ArtPalette.StoneRamp;
+            Color32 body = ramp[block.Shade];
+            Color32 lit = ramp[Mathf.Min(block.Shade + 1, ramp.Length - 1)];
+            Color32 under = ramp[Mathf.Max(block.Shade - 1, 0)];
+
+            for (int i = 0; i < block.Length; i++)
+            {
+                int cut = EndCut(block, i);
+                int depth = block.Thickness - cut;
+                if (depth < 2) continue;
+
+                int drift = block.SlopeRun <= 0 ? 0 : (i / block.SlopeRun) * block.SlopeDir;
+
+                for (int k = 0; k < depth; k++)
+                {
+                    Color32 colour = body;
+                    bool farEdge = k == depth - 1;
+
+                    if (block.Upright)
+                    {
+                        // Stood on its edge: we see the narrow face, lit down its near side.
+                        if (k == 0) colour = lit;
+                        else if (farEdge) colour = under;
+                        if (i == 0) colour = lit;
+                        else if (i == block.Length - 1 && !block.Buried) colour = under;
+                        Mark(face, solid, block.X + cut + k + drift, block.Y + i, colour);
+                    }
+                    else
+                    {
+                        // Lying flat: the top face catches the light, the far edge falls away.
+                        if (k == 0) colour = lit;
+                        else if (farEdge && !block.Buried) colour = under;
+                        if (i == block.Length - 1) colour = under;
+                        Mark(face, solid, block.X + i, block.Y + cut + k + drift, colour);
+                    }
+                }
+            }
+
+            // Pitting and old mortar loss on the face. Weathering is what says "decades ago",
+            // not "collapsed last night".
+            int pits = block.Length * block.Thickness < 28 ? 0 : ValueNoise.RangeInt(seed, index * 31 + 11, 0, 3);
+            for (int p = 0; p < pits; p++)
+            {
+                int px = block.X + ValueNoise.RangeInt(seed, index * 31 + 20 + p, 0, Mathf.Max(1, block.Upright ? block.Thickness : block.Length));
+                int py = block.Y + ValueNoise.RangeInt(seed, index * 31 + 40 + p, 0, Mathf.Max(1, block.Height));
+                int at = WrappedIndex(px, py);
+                if (solid[at]) face[at] = ArtPalette.StoneDark;
+            }
+
+            DrawSeat(canvas, solid, block.Buried, occupied, halo);
+
+            for (int i = 0; i < solid.Length; i++)
+            {
+                if (!solid[i]) continue;
+                canvas.Set(i % Size, i / Size, face[i]);
+                occupied[i] = true;
+            }
+        }
+
+        /// <summary>
+        /// How much of the block's depth is missing at column i: a corner knocked off in the
+        /// fall. Two pixels at the very end, one beside it, and always off the upper edge, so a
+        /// broken end reads as bevelled rather than sawn — which matters most where the block
+        /// crosses a tile seam.
+        /// </summary>
+        static int EndCut(FallenBlock block, int i)
+        {
+            int cut = 0;
+            if ((block.Chip & 1) != 0 && i <= 1) cut = 2 - i;
+            if ((block.Chip & 2) != 0 && i >= block.Length - 2)
+            {
+                cut = Mathf.Max(cut, 2 - (block.Length - 1 - i));
+            }
+            return Mathf.Max(cut, 0);
+        }
+
+        /// <summary>
+        /// What seats the stone on the ground: one pixel of <see cref="ArtPalette.StoneDeep"/>
+        /// around the silhouette, then one pixel of soft shadow beyond it on the shaded side.
+        /// This is the only shading the tile gets — nothing touches the ground the block is not
+        /// standing on, which is why a field of these has no square in it.
+        ///
+        /// A block that is half sunk gets neither below its lower edge. The dark line is the
+        /// "resting on top" cue, and its absence is what reads as "sunk in".
+        /// </summary>
+        static void DrawSeat(PixelCanvas canvas, bool[] solid, bool buried, bool[] occupied, bool[] halo)
+        {
+            bool[] rim = new bool[solid.Length];
+            for (int y = 0; y < Size; y++)
+            {
+                for (int x = 0; x < Size; x++)
+                {
+                    if (!solid[y * Size + x]) continue;
+
+                    // Only the shaded side. A dark line all the way round turns a block into a
+                    // sticker with an outline; light from the upper left means the shadow falls
+                    // below and to the right, and the lit top and left edges are told apart from
+                    // the ground by their own value instead.
+                    MarkFree(solid, rim, x + 1, y);
+                    if (buried) continue;
+                    MarkFree(solid, rim, x, y + 1);
+                    MarkFree(solid, rim, x + 1, y + 1);
+                    MarkFree(solid, rim, x - 1, y + 1);
+                }
+            }
+
+            if (!buried)
+            {
+                for (int y = 0; y < Size; y++)
+                {
+                    for (int x = 0; x < Size; x++)
+                    {
+                        if (!rim[y * Size + x]) continue;
+                        MarkSoft(solid, rim, halo, x, y + 1);
+                        MarkSoft(solid, rim, halo, x + 1, y);
+                    }
+                }
+            }
+
+            for (int i = 0; i < rim.Length; i++)
+            {
+                if (!rim[i]) continue;
+                canvas.Set(i % Size, i / Size, ArtPalette.StoneDeep);
+                occupied[i] = true;
+            }
+        }
+
+        static void MarkFree(bool[] solid, bool[] rim, int x, int y)
+        {
+            int at = WrappedIndex(x, y);
+            if (!solid[at]) rim[at] = true;
+        }
+
+        static void MarkSoft(bool[] solid, bool[] rim, bool[] halo, int x, int y)
+        {
+            int at = WrappedIndex(x, y);
+            if (!solid[at] && !rim[at]) halo[at] = true;
+        }
+
+        /// <summary>
+        /// Spall: the chips a block sheds where it lands, dropped beside the stone rather than
+        /// anywhere on the tile. They exist so that a block cut by a tile edge never ends alone
+        /// against clean ground, which is the last thing that would still let the eye find a seam.
+        /// </summary>
+        static void DrawSpall(PixelCanvas canvas, List<FallenBlock> blocks, int seed)
+        {
+            if (blocks.Count == 0) return;
+
+            int chips = ValueNoise.RangeInt(seed, 960, 2, 8);
+            for (int i = 0; i < chips; i++)
+            {
+                int key = 970 + i * 5;
+                FallenBlock host = blocks[ValueNoise.RangeInt(seed, key, 0, blocks.Count)];
+                int x = host.X + ValueNoise.RangeInt(seed, key + 1, -4, host.Length + 4);
+                int y = host.Y + ValueNoise.RangeInt(seed, key + 2, -3, host.Height + 5);
+                int width = ValueNoise.RangeInt(seed, key + 3, 1, 4);
+
+                for (int k = 0; k < width; k++)
+                {
+                    SetWrapped(canvas, x + k, y, ArtPalette.StoneLight);
+                    SetWrapped(canvas, x + k, y + 1, ArtPalette.StoneDark);
+                }
+            }
+        }
+
+        static void Mark(Color32[] face, bool[] solid, int x, int y, Color32 colour)
+        {
+            int at = WrappedIndex(x, y);
+            face[at] = colour;
+            solid[at] = true;
+        }
+
+        /// <summary>
+        /// Index of a tile pixel, wrapped on both axes. Every coordinate in the fallen wall goes
+        /// through here: that is what lets a block run off one edge and back on at the other, and
+        /// so what puts stone across the seams instead of a bare gutter along them.
+        /// </summary>
+        static int WrappedIndex(int x, int y)
+        {
+            return WrapCoordinate(y) * Size + WrapCoordinate(x);
+        }
+
+        static void SetWrapped(PixelCanvas canvas, int x, int y, Color32 colour)
+        {
+            canvas.Set(WrapCoordinate(x), WrapCoordinate(y), colour);
+        }
+
+        static int WrapCoordinate(int value)
+        {
+            int wrapped = value % Size;
+            return wrapped < 0 ? wrapped + Size : wrapped;
         }
 
         static void DrawStone(PixelCanvas canvas, int x, int y, int width, int height, Color32[] ramp, int seed, int index)

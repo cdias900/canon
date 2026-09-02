@@ -31,6 +31,15 @@ namespace SheepGate.World
     /// ground would hand the player cells the author never drew. Unknown characters still fall
     /// back to ground with a single warning.
     ///
+    /// Void is not walkability and appearance in one word, and reading it as one is how the outer
+    /// border became walkable the first time. What a void cell IS was settled then and does not
+    /// move: never walkable, never pathable, never an entity. What a void cell DRAWS is a
+    /// separate question, and the answer is the valley carrying on — the same ground the city
+    /// stands on, with the fallen wall scattered over it by <see cref="VoidScatter"/> — nearly
+    /// clear against the city and thickening outward, saturating within about three cells rather
+    /// than climbing all the way to the map's edge. Nothing in that second answer may touch the
+    /// first.
+    ///
     /// Cell size is one world unit, matching 32 px sprites at 32 pixels per unit.
     /// </summary>
     public sealed class TilemapBuilder : MonoBehaviour
@@ -58,7 +67,10 @@ namespace SheepGate.World
             House = 3,
             Wall = 4,
 
-            /// <summary>Outside the map. Never walkable, and drawn as a dark edge band.</summary>
+            /// <summary>
+            /// Outside the map. Never walkable; drawn as the valley continuing, with the ruins of
+            /// the wall strewn across it. The map view flattens it to one sprite while it is up.
+            /// </summary>
             Void = 5
         }
 
@@ -99,15 +111,94 @@ namespace SheepGate.World
         private readonly Dictionary<CellKind, Tile> _tiles = new Dictionary<CellKind, Tile>();
 
         /// <summary>
-        /// Colour of the cells outside the built map. Darker than the camera's clear colour at the
-        /// close view, so the edge of the map reads as ground dropping away.
+        /// How far the terrain is painted past the map rectangle, in cells, on every side.
         ///
-        /// It becomes a problem exactly once: pulled back to the region, those cells are a hard
-        /// black rectangle around the village with the map's own bounds for edges, and no amount of
-        /// framing survives a rectangle. <see cref="SetVoidColor"/> lets the map view flatten it
-        /// into the surrounding field for as long as it is up.
+        /// The rectangle in <c>map.json</c> is where the author drew; it is not where the valley
+        /// ends, and the camera can see past it. A cell nobody paints is the camera's clear
+        /// colour, which is the flat black this whole change exists to remove.
+        ///
+        /// Both depths are derived rather than chosen — see <see cref="SkirtDepth"/>. On this map
+        /// they come out at twenty columns and seven rows.
+        ///
+        /// FOUR SIDES, and what makes that safe. The version before this painted rows only, on the
+        /// argument that no shipped aspect can see past the left and right edges. That is true of
+        /// the close view and false of the patrol view: ProjectSettings ships
+        /// <c>fullscreenMode: 1</c>, so a Mac player runs at the display's own landscape aspect,
+        /// and at 1470x956 the patrol view spans world x [-10.8, 50.8] against paint that stopped
+        /// at [0, 40] — a sixth of the screen on each side was clear colour with a hard edge
+        /// against real terrain. The reason the sides had been left out was the region map, which
+        /// draws these same cells as its island: measured against <c>WorldMapOverlay.CoastAt</c>,
+        /// the painted rectangle already clears the south bay on the left by only 0.71 world units
+        /// at its bottom corner, so even one extra painted column there would put land on the sea.
+        /// That is settled by <see cref="OutsideSprite"/> rather than by the width — the skirt
+        /// draws nothing at all while the region map is up, and the region draws its own coastline
+        /// through the gap, which is exactly what those coordinates held before any of this
+        /// existed.
+        /// </summary>
+        private int _skirtColumns;
+        private int _skirtRows;
+
+        /// <summary>
+        /// The widest viewport the skirt is sized for, as width over height. Two covers every
+        /// phone in landscape and every 16:9 and 16:10 desktop window; past it the outermost strip
+        /// falls back to the clear colour, which is the state every landscape window was in
+        /// before this.
+        /// </summary>
+        private const float MaxCoveredAspect = 2f;
+
+        /// <summary>
+        /// Cells that draw the fallen wall, indexed
+        /// [x + <c>_skirtColumns</c>, y + <c>_skirtRows</c>] — see
+        /// <see cref="VoidScatter.Build"/>. Appearance only.
+        /// </summary>
+        private bool[,] _fallenWall;
+
+        /// <summary>
+        /// The tiles the cells outside the city are drawn with, one per variant, and four caches
+        /// because a tile carries a sprite and these four groups do not always show the same one.
+        ///
+        /// Ground and fallen wall are the obvious split. The other one is less obvious and is
+        /// the whole reason the skirt can be as wide as it is: cells inside the map rectangle and cells
+        /// beyond it part company as soon as the region map asks for the outside to be flattened.
+        /// The ones inside the rectangle take the flat sprite, because the region draws the
+        /// village's own bounding box as land. The ones beyond it draw nothing, because the region
+        /// draws its coastline there and the rectangle plus a full skirt would reach into the sea.
+        ///
+        /// All four are separate from the city's own ground tiles, and have to be: flattening the
+        /// outside may not take the ground the player is standing on with it.
+        /// </summary>
+        private readonly Dictionary<int, Tile> _voidGroundTiles = new Dictionary<int, Tile>();
+        private readonly Dictionary<int, Tile> _voidFallenTiles = new Dictionary<int, Tile>();
+        private readonly Dictionary<int, Tile> _skirtGroundTiles = new Dictionary<int, Tile>();
+        private readonly Dictionary<int, Tile> _skirtFallenTiles = new Dictionary<int, Tile>();
+
+        /// <summary>
+        /// What the cells off the map are drawing. Three states, and the map view drives all
+        /// three: the close view wants terrain, the region view flattens the outside to one sprite
+        /// so the city reads as a shape, and closing it puts the terrain back.
+        /// </summary>
+        private enum VoidLook
+        {
+            Terrain = 0,
+            Flat = 1,
+            Custom = 2
+        }
+
+        private VoidLook _voidLook = VoidLook.Terrain;
+        private Sprite _voidOverride;
+
+        /// <summary>
+        /// The flat colour the cells outside the map are painted when something asks for them to
+        /// be flattened. It used to be what they were painted always, and that was the bug: a
+        /// camera clamped to the drawn content still frames the corners of the band, and near
+        /// black corners read as a rendering hole rather than as the edge of a valley. Those cells
+        /// draw terrain now; this colour is only the default for <see cref="SetVoidColor"/>.
         /// </summary>
         private static readonly Color DefaultVoidColor = new Color(0.05f, 0.055f, 0.06f);
+
+        /// <summary>Colours the tiles fall back to when the sprite library has not been built.</summary>
+        private static readonly Color GroundFallbackColor = new Color(0.50f, 0.46f, 0.39f);
+        private static readonly Color RubbleFallbackColor = new Color(0.42f, 0.38f, 0.33f);
 
         private Color _voidColor = DefaultVoidColor;
         private readonly HashSet<char> _warnedChars = new HashSet<char>();
@@ -143,14 +234,43 @@ namespace SheepGate.World
 
             CreateGrid();
             ParseRows(map);
-            PaintTiles();
 
+            // Bounds first, because how far the terrain has to reach is a question about where the
+            // camera can go, and where the camera can go is ContentBounds.
             Vector3 min = Grid.CellToWorld(new Vector3Int(0, 0, 0));
             Vector3 max = Grid.CellToWorld(new Vector3Int(Width, Height, 0));
             Bounds bounds = new Bounds();
             bounds.SetMinMax(new Vector3(min.x, min.y, 0f), new Vector3(max.x, max.y, 0f));
             WorldBounds = bounds;
             ContentBounds = ComputeContentBounds(bounds);
+
+            _skirtColumns = SkirtDepth(CameraRig.PatrolSize * MaxCoveredAspect, ContentBounds.center.x, Width);
+            _skirtRows = SkirtDepth(CameraRig.PatrolSize, ContentBounds.center.y, Height);
+
+            _fallenWall = VoidScatter.Build(VoidMask(), Width, Height, _skirtColumns, _skirtRows);
+            PaintTiles();
+        }
+
+        /// <summary>
+        /// How many cells past one edge of the map rectangle a camera can frame, along one axis.
+        ///
+        /// <c>CameraRig.ClampToBounds</c> keeps the viewport inside <see cref="ContentBounds"/>
+        /// while it fits and centres it on <see cref="ContentBounds"/> when it does not, so the
+        /// widest thing the player ever sees along an axis is the content's centre plus the
+        /// viewport's half-size. The patrol view is the worst case on both axes — it is the larger
+        /// orthographic size, and clamping only ever shows less.
+        ///
+        /// <paramref name="half"/> is that half-size in world units, <paramref name="center"/> the
+        /// centre of the content on this axis, and <paramref name="span"/> the map rectangle's
+        /// length on it. The two ends are measured separately and the deeper one wins, because the
+        /// skirt is the same depth all the way round.
+        /// </summary>
+        private static int SkirtDepth(float half, float center, float span)
+        {
+            float before = half - center;
+            float after = center + half - span;
+            float deepest = Mathf.Max(before, after);
+            return deepest <= 0f ? 0 : Mathf.CeilToInt(deepest);
         }
 
         /// <summary>The box around every non-Void cell, or the whole map when there are none.</summary>
@@ -286,7 +406,53 @@ namespace SheepGate.World
                 for (int x = 0; x < Width; x++)
                 {
                     CellKind kind = _kinds[x, y];
-                    Tile tile = kind == CellKind.Ground ? GroundTileFor(x, y) : TileFor(kind);
+                    Tile tile;
+                    if (kind == CellKind.Void)
+                    {
+                        tile = OutsideTileFor(x, y, false);
+                    }
+                    else if (kind == CellKind.Ground)
+                    {
+                        tile = GroundTileFor(x, y);
+                    }
+                    else
+                    {
+                        tile = TileFor(kind);
+                    }
+
+                    if (tile != null)
+                    {
+                        Tilemap.SetTile(new Vector3Int(x, y, 0), tile);
+                    }
+                }
+            }
+
+            PaintSkirt();
+        }
+
+        /// <summary>
+        /// Paints the terrain that carries on past the map rectangle, on all four sides — see
+        /// <see cref="SkirtDepth"/> for how deep, and the field it fills for why.
+        ///
+        /// These cells are outside the grid entirely: they are not in <c>_kinds</c>, not in
+        /// <see cref="Walkable"/>, and <see cref="InBounds"/> already answers false for every one
+        /// of them, which is what makes this safe. A Unity tilemap has no bounds of its own, so
+        /// this is a sprite at a coordinate and nothing more. Nothing about where the world ends
+        /// moves: <see cref="WorldBounds"/> and <see cref="ContentBounds"/> are computed from the
+        /// map rectangle and the camera still clamps to the same box it always did.
+        /// </summary>
+        private void PaintSkirt()
+        {
+            for (int x = -_skirtColumns; x < Width + _skirtColumns; x++)
+            {
+                for (int y = -_skirtRows; y < Height + _skirtRows; y++)
+                {
+                    if (x >= 0 && x < Width && y >= 0 && y < Height)
+                    {
+                        continue;
+                    }
+
+                    Tile tile = OutsideTileFor(x, y, true);
                     if (tile != null)
                     {
                         Tilemap.SetTile(new Vector3Int(x, y, 0), tile);
@@ -309,8 +475,7 @@ namespace SheepGate.World
         /// </summary>
         private Tile GroundTileFor(int x, int y)
         {
-            int hash = x * 73856093 ^ y * 19349663;
-            int variant = Mathf.Abs(hash) % ArtKeys.GroundVariantCount;
+            int variant = GroundVariantFor(x, y);
 
             Tile tile;
             if (_groundTiles.TryGetValue(variant, out tile) && tile != null)
@@ -318,15 +483,188 @@ namespace SheepGate.World
                 return tile;
             }
 
-            tile = ScriptableObject.CreateInstance<Tile>();
-            tile.name = "tile_ground_" + variant;
-            tile.colliderType = Tile.ColliderType.None;
-            tile.sprite = WorldRuntime.GetSprite(ArtKeys.GroundVariant(variant)) ?? SpriteFor(CellKind.Ground);
+            tile = CreateTile("tile_ground_" + variant, GroundSpriteFor(variant));
             _groundTiles[variant] = tile;
             return tile;
         }
 
+        /// <summary>Which ground variant a cell draws. The cells off the map ask this too.</summary>
+        private static int GroundVariantFor(int x, int y)
+        {
+            int hash = x * 73856093 ^ y * 19349663;
+            return Mathf.Abs(hash) % ArtKeys.GroundVariantCount;
+        }
+
+        private static Sprite GroundSpriteFor(int variant)
+        {
+            return WorldRuntime.GetSprite(ArtKeys.GroundVariant(variant))
+                ?? WorldRuntime.GetSprite(ArtKeys.TileGround)
+                ?? WorldRuntime.SolidSprite(GroundFallbackColor);
+        }
+
         private readonly Dictionary<int, Tile> _groundTiles = new Dictionary<int, Tile>();
+
+        /// <summary>Which cells are off the map, for the scatter. It reads this and nothing else.</summary>
+        private bool[,] VoidMask()
+        {
+            bool[,] mask = new bool[Width, Height];
+            if (_kinds == null)
+            {
+                return mask;
+            }
+
+            for (int x = 0; x < Width; x++)
+            {
+                for (int y = 0; y < Height; y++)
+                {
+                    mask[x, y] = _kinds[x, y] == CellKind.Void;
+                }
+            }
+
+            return mask;
+        }
+
+        /// <summary>
+        /// The tile a cell outside the city draws.
+        ///
+        /// Ground, chosen with the same variant hash the city's own ground uses, so the texture
+        /// runs straight across the boundary instead of stopping at it — the valley does not end
+        /// where the author stopped drawing. Some of those cells draw a fallen-wall tile instead,
+        /// and which ones is <see cref="VoidScatter"/>'s decision: the wall that fell outward is
+        /// what tells the player where the world ends, now that the ground no longer does. The
+        /// stone picks its variant from the cell's coordinates exactly as the ground does, and
+        /// with its own multipliers, so the two fields do not line up with each other.
+        ///
+        /// <paramref name="skirt"/> is true for the cells beyond the map rectangle. It changes
+        /// nothing about what is drawn here and everything about what happens when the region map
+        /// flattens the outside; see <see cref="OutsideSprite"/>.
+        ///
+        /// It is a sprite swap and nothing else. The cell is still void, still unwalkable, and the
+        /// stone here is terrain — not a <see cref="RubblePile"/>, which is a thing the player
+        /// clears and which draws prop_rubble on top of the ground rather than as it. That is why
+        /// it is <c>tile_fallen_wall</c> and not <c>tile_rubble</c>: two cells that mean opposite
+        /// things may not draw the same pixels.
+        /// </summary>
+        private Tile OutsideTileFor(int x, int y, bool skirt)
+        {
+            bool fallen = FallenWallAt(x, y);
+            int variant = fallen ? FallenWallVariantFor(x, y) : GroundVariantFor(x, y);
+
+            Dictionary<int, Tile> cache = fallen
+                ? (skirt ? _skirtFallenTiles : _voidFallenTiles)
+                : (skirt ? _skirtGroundTiles : _voidGroundTiles);
+
+            Tile tile;
+            if (cache.TryGetValue(variant, out tile) && tile != null)
+            {
+                return tile;
+            }
+
+            string name = (skirt ? "tile_skirt_" : "tile_void_") + (fallen ? "fallen_" : "ground_") + variant;
+            tile = CreateTile(name, OutsideSprite(fallen, variant, skirt));
+            cache[variant] = tile;
+            return tile;
+        }
+
+        /// <summary>
+        /// Whether the cell draws the fallen wall rather than bare ground. The scatter grid covers
+        /// the skirt on every side, so it is offset by both skirt depths, and this is the one
+        /// place those offsets are spelled out.
+        /// </summary>
+        private bool FallenWallAt(int x, int y)
+        {
+            if (_fallenWall == null)
+            {
+                return false;
+            }
+
+            int column = x + _skirtColumns;
+            int row = y + _skirtRows;
+            return column >= 0 && row >= 0
+                && column < _fallenWall.GetLength(0) && row < _fallenWall.GetLength(1)
+                && _fallenWall[column, row];
+        }
+
+        /// <summary>
+        /// Which fallen-wall variant a cell draws, chosen from the cell's own coordinates exactly
+        /// as the ground's is. Different multipliers from <see cref="GroundVariantFor"/> on
+        /// purpose: sharing them would make the stone a function of the ground underneath it, and
+        /// the two fields would repeat together.
+        /// </summary>
+        /// <summary>
+        /// Which fallen-wall variant a cell draws.
+        ///
+        /// <b>The mix is load-bearing, not decoration.</b> This was
+        /// <c>Mathf.Abs(x * 40503461 ^ y * 12582917) % 12</c>, and both multipliers are 1 mod 4
+        /// while the variant count divides by 4 — so the low bits never moved and
+        /// <c>variant % 4</c> was exactly <c>((x ^ y) &amp; 3)</c> for every cell on the map. Twelve
+        /// variants collapsed into four classes on a 4x4 lattice: the same lattice this tile was
+        /// drawn to break, reintroduced by the code that picks it. A modulo only sees the low bits,
+        /// so the finalizer below moves the high ones down before it.
+        /// </summary>
+        private static int FallenWallVariantFor(int x, int y)
+        {
+            unchecked
+            {
+                uint hash = (uint)(x * 40503461) ^ (uint)(y * 12582917);
+                hash ^= hash >> 16;
+                hash *= 0x7feb352du;
+                hash ^= hash >> 15;
+                hash *= 0x846ca68bu;
+                hash ^= hash >> 16;
+                return (int)(hash % (uint)ArtKeys.FallenWallVariantCount);
+            }
+        }
+
+        /// <summary>
+        /// What one of the outside tiles should be showing right now. Every outside tile is
+        /// created and repainted through here, so the region map finds the outside as it asked
+        /// for it even if it asked before the map was built.
+        ///
+        /// The skirt is the interesting case. While the region map is up it draws nothing at all,
+        /// and the region's own coastline shows through the gap. That is deliberate and it is what
+        /// lets the skirt be twenty columns wide: the region draws the map rectangle as land
+        /// inside an island, and the rectangle's bottom-left corner already sits 0.71 world units
+        /// inside the south bay of <c>WorldMapOverlay.CoastAt</c>. One extra painted column there
+        /// would put village ground on the sea; twenty would put it in open water on both sides.
+        /// Blank is also exactly what those coordinates held before the skirt existed, so the
+        /// region map looks the way it always did.
+        /// </summary>
+        private Sprite OutsideSprite(bool fallen, int variant, bool skirt)
+        {
+            Sprite terrain = fallen ? FallenWallSpriteFor(variant) : GroundSpriteFor(variant);
+            if (_voidLook == VoidLook.Terrain)
+            {
+                return terrain;
+            }
+
+            if (skirt)
+            {
+                return null;
+            }
+
+            if (_voidLook == VoidLook.Flat)
+            {
+                return WorldRuntime.SolidSprite(_voidColor);
+            }
+
+            return _voidOverride != null ? _voidOverride : terrain;
+        }
+
+        private static Sprite FallenWallSpriteFor(int variant)
+        {
+            return WorldRuntime.GetSprite(ArtKeys.FallenWallVariant(variant))
+                ?? WorldRuntime.SolidSprite(RubbleFallbackColor);
+        }
+
+        private static Tile CreateTile(string name, Sprite sprite)
+        {
+            Tile tile = ScriptableObject.CreateInstance<Tile>();
+            tile.name = name;
+            tile.colliderType = Tile.ColliderType.None;
+            tile.sprite = sprite;
+            return tile;
+        }
 
         private Tile TileFor(CellKind kind)
         {
@@ -336,60 +674,79 @@ namespace SheepGate.World
                 return tile;
             }
 
-            tile = ScriptableObject.CreateInstance<Tile>();
-            tile.name = "tile_" + kind.ToString().ToLowerInvariant();
-            tile.colliderType = Tile.ColliderType.None;
-            tile.sprite = SpriteFor(kind);
+            tile = CreateTile("tile_" + kind.ToString().ToLowerInvariant(), SpriteFor(kind));
             _tiles[kind] = tile;
             return tile;
         }
 
+        /// <summary>
+        /// The sprite a cell kind is drawn with. Void is not here: what the cells outside the
+        /// city draw depends on where they sit and on whether the region map is up, which is
+        /// <see cref="OutsideTileFor"/> and <see cref="OutsideSprite"/>.
+        /// </summary>
         private Sprite SpriteFor(CellKind kind)
         {
             switch (kind)
             {
-                case CellKind.Void:
-                    // Deliberately darker than the camera's clear colour, so the edge of the map
-                    // reads as ground dropping away rather than as a rendering gap.
-                    return WorldRuntime.SolidSprite(_voidColor);
                 case CellKind.Rubble:
-                    return WorldRuntime.GetSprite("tile_rubble") ?? WorldRuntime.SolidSprite(new Color(0.42f, 0.38f, 0.33f));
+                    return WorldRuntime.GetSprite(ArtKeys.TileRubble) ?? WorldRuntime.SolidSprite(RubbleFallbackColor);
                 case CellKind.Water:
-                    return WorldRuntime.GetSprite("tile_water") ?? WorldRuntime.SolidSprite(new Color(0.20f, 0.31f, 0.38f));
+                    return WorldRuntime.GetSprite(ArtKeys.TileWater) ?? WorldRuntime.SolidSprite(new Color(0.20f, 0.31f, 0.38f));
                 case CellKind.House:
-                    return WorldRuntime.GetSprite("tile_house") ?? WorldRuntime.SolidSprite(new Color(0.30f, 0.27f, 0.25f));
+                    return WorldRuntime.GetSprite(ArtKeys.TileHouse) ?? WorldRuntime.SolidSprite(new Color(0.30f, 0.27f, 0.25f));
                 case CellKind.Wall:
                     // The wall line renders ground; wall stages are drawn by WallSystem on top.
-                    return WorldRuntime.GetSprite("tile_ground") ?? WorldRuntime.SolidSprite(new Color(0.50f, 0.46f, 0.39f));
+                    return WorldRuntime.GetSprite(ArtKeys.TileGround) ?? WorldRuntime.SolidSprite(GroundFallbackColor);
                 default:
-                    return WorldRuntime.GetSprite("tile_ground") ?? WorldRuntime.SolidSprite(new Color(0.50f, 0.46f, 0.39f));
+                    return WorldRuntime.GetSprite(ArtKeys.TileGround) ?? WorldRuntime.SolidSprite(GroundFallbackColor);
             }
         }
 
         /// <summary>
-        /// Repaints every cell outside the map. One shared tile backs all of them, so this is a
-        /// sprite swap and a refresh rather than a walk over the grid.
+        /// Pushes the current look onto every tile the outside is drawn with. A couple of dozen
+        /// shared tiles back three and a half thousand cells, so this is a handful of sprite
+        /// assignments and one refresh rather than a walk over the grid.
+        /// </summary>
+        private void ApplyVoidLook()
+        {
+            RepaintOutside(_voidGroundTiles, false, false);
+            RepaintOutside(_voidFallenTiles, true, false);
+            RepaintOutside(_skirtGroundTiles, false, true);
+            RepaintOutside(_skirtFallenTiles, true, true);
+
+            if (Tilemap != null)
+            {
+                Tilemap.RefreshAllTiles();
+            }
+        }
+
+        private void RepaintOutside(Dictionary<int, Tile> cache, bool fallen, bool skirt)
+        {
+            foreach (KeyValuePair<int, Tile> entry in cache)
+            {
+                if (entry.Value != null)
+                {
+                    entry.Value.sprite = OutsideSprite(fallen, entry.Key, skirt);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Flattens every cell outside the map to one colour, losing the terrain until something
+        /// restores it. Pulled back far enough the outside is a field rather than a place, and a
+        /// field of ground texture with a village in the middle of it reads as clutter.
         /// </summary>
         public void SetVoidColor(Color color)
         {
-            if (_voidColor == color)
+            if (_voidLook == VoidLook.Flat && _voidColor == color)
             {
                 return;
             }
 
             _voidColor = color;
-
-            Tile tile;
-            if (!_tiles.TryGetValue(CellKind.Void, out tile) || tile == null)
-            {
-                return;
-            }
-
-            tile.sprite = WorldRuntime.SolidSprite(color);
-            if (Tilemap != null)
-            {
-                Tilemap.RefreshAllTiles();
-            }
+            _voidOverride = null;
+            _voidLook = VoidLook.Flat;
+            ApplyVoidLook();
         }
 
         /// <summary>
@@ -404,25 +761,28 @@ namespace SheepGate.World
                 return;
             }
 
-            Tile tile;
-            if (!_tiles.TryGetValue(CellKind.Void, out tile) || tile == null)
+            _voidOverride = sprite;
+            _voidLook = VoidLook.Custom;
+            ApplyVoidLook();
+        }
+
+        /// <summary>
+        /// Puts the cells outside the map back to the terrain the close view is built around:
+        /// valley ground, and the ruins of the wall scattered across it. The name is older than
+        /// the terrain — it used to restore a flat colour — and it is kept because it is the seam
+        /// the map overlay closes through.
+        /// </summary>
+        public void RestoreVoidColor()
+        {
+            if (_voidLook == VoidLook.Terrain)
             {
                 return;
             }
 
-            _voidColor = Color.clear;   // forces the next SetVoidColor through
-            tile.sprite = sprite;
-            if (Tilemap != null)
-            {
-                Tilemap.RefreshAllTiles();
-            }
-        }
-
-        /// <summary>Puts the edge of the map back to the colour the close view is built around.</summary>
-        public void RestoreVoidColor()
-        {
-            _voidColor = Color.clear;
-            SetVoidColor(DefaultVoidColor);
+            _voidColor = DefaultVoidColor;
+            _voidOverride = null;
+            _voidLook = VoidLook.Terrain;
+            ApplyVoidLook();
         }
 
         public bool InBounds(int x, int y)

@@ -23,6 +23,15 @@ namespace SheepGate.Art
         public const string TileWater = "tile_water";
         public const string TileHouse = "tile_house";
 
+        /// <summary>
+        /// The wall lying where it fell: the terrain of the ruin band outside the city.
+        ///
+        /// Not <see cref="TileRubble"/>. Rubble is a cell the player walks onto and clears, and
+        /// two things that mean opposite things must not draw the same pixels — this repository
+        /// has been bitten by that before. See <see cref="Art.TileArt.FallenWall"/>.
+        /// </summary>
+        public const string TileFallenWall = "tile_fallen_wall";
+
         public const string PropRubble = "prop_rubble";
         public const string PropWell = "prop_well";
         public const string PropMat = "prop_mat";
@@ -108,6 +117,22 @@ namespace SheepGate.Art
         {
             int clamped = variant <= 0 ? 0 : variant % GroundVariantCount;
             return clamped == 0 ? TileGround : TileGround + "_" + clamped;
+        }
+
+        /// <summary>
+        /// How many fallen-wall tiles the library can produce, and twice the ground's count for a
+        /// reason: a ground tile carries nothing but noise, so a repeat is invisible, whereas
+        /// these carry block silhouettes the eye can match from across the screen. The ruin band
+        /// is around two hundred cells, so twelve keeps any one tile down to roughly sixteen
+        /// appearances.
+        /// </summary>
+        public const int FallenWallVariantCount = 12;
+
+        /// <summary>Key for one of the fallen-wall variants. Variant 0 is the plain key.</summary>
+        public static string FallenWallVariant(int variant)
+        {
+            int clamped = variant <= 0 ? 0 : variant % FallenWallVariantCount;
+            return clamped == 0 ? TileFallenWall : TileFallenWall + "_" + clamped;
         }
 
         public static string Wall(int stage)

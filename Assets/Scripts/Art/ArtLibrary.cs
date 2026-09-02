@@ -13,7 +13,7 @@ namespace SheepGate.Art
     /// KEYS
     /// ---------------------------------------------------------------------------------
     /// Tiles, 32x32, pivot centered:
-    ///     tile_ground  tile_rubble  tile_water  tile_house
+    ///     tile_ground  tile_rubble  tile_water  tile_house  tile_fallen_wall
     ///     wall_0 wall_1 wall_2 wall_3 wall_4      (0 = footing, 4 = finished and crenellated)
     ///
     /// Props, 32x32, pivot centered, transparent background:
@@ -195,6 +195,7 @@ namespace SheepGate.Art
             {
                 case ArtKeys.TileGround: return World(key, TileArt.Ground(seed));
                 case ArtKeys.TileRubble: return World(key, TileArt.RubbleTile(seed));
+                case ArtKeys.TileFallenWall: return World(key, TileArt.FallenWall(seed));
                 case ArtKeys.TileWater: return World(key, TileArt.Water(seed));
                 case ArtKeys.TileHouse: return World(key, TileArt.House(seed));
                 case ArtKeys.PropRubble: return World(key, TileArt.PropRubble(seed));
@@ -229,6 +230,12 @@ namespace SheepGate.Art
             if (key.StartsWith(ArtKeys.TileGround, StringComparison.Ordinal))
             {
                 return World(key, TileArt.Ground(seed));
+            }
+
+            // tile_fallen_wall_1 .. tile_fallen_wall_11, on the same terms.
+            if (key.StartsWith(ArtKeys.TileFallenWall, StringComparison.Ordinal))
+            {
+                return World(key, TileArt.FallenWall(seed));
             }
 
             if (key.StartsWith(ArtKeys.WallPrefix, StringComparison.Ordinal))

@@ -177,6 +177,9 @@ namespace SheepGate.Core
         [JsonProperty("answer")] public int answer;
 
         [JsonProperty("note")] public string note;
+
+        /// <summary>Tomorrow, in one line, merged in from the locale. Empty on the last day.</summary>
+        [JsonProperty("hook")] public string hook;
     }
 
     /// <summary>The single village map, from map.json. <c>rows</c> is one string per grid row.</summary>
@@ -441,5 +444,12 @@ namespace SheepGate.Core
         [JsonProperty("prompt")] public string prompt;
         [JsonProperty("options")] public string[] options;
         [JsonProperty("note")] public string note;
+
+        /// <summary>
+        /// What tomorrow holds, shown under the note once the question is answered. The question
+        /// closes the session, so this is the last thing read before the split, and it points at
+        /// the next day's chapter rather than at a reward. Optional; the last day has none.
+        /// </summary>
+        [JsonProperty("hook")] public string hook;
     }
 }

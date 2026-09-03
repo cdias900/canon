@@ -59,6 +59,7 @@ namespace SheepGate.Quiz
         RectTransform _container;
         RectTransform _card;
         Text _noteText;
+        Text _hookText;
         Button _continueButton;
 
         readonly List<Button> _optionButtons = new List<Button>();
@@ -147,7 +148,14 @@ namespace SheepGate.Quiz
 
         void OnMorningStarted(int day)
         {
-            RequestForDay(day);
+            // Every other day asks at dusk, so the question closes the session and its hook is
+            // the last thing read before the split. The dedication has no dusk once the gate is
+            // earned, so the last day is the one morning that still asks.
+            StageDef stage = GameData.Stage(day);
+            if (stage != null && stage.terminal)
+            {
+                RequestForDay(day);
+            }
         }
 
         void TryShowPending()
@@ -346,6 +354,7 @@ namespace SheepGate.Quiz
             _container = null;
             _card = null;
             _noteText = null;
+            _hookText = null;
             _continueButton = null;
             _optionButtons.Clear();
 
@@ -391,6 +400,7 @@ namespace SheepGate.Quiz
 
             _card = null;
             _noteText = null;
+            _hookText = null;
             _continueButton = null;
             _optionButtons.Clear();
 
@@ -470,6 +480,18 @@ namespace SheepGate.Quiz
                 DesignTokens.Ink.Secondary,
                 TextAnchor.UpperLeft);
             _noteText.gameObject.SetActive(false);
+
+            // Tomorrow, in one line, under the answer. The question closes the session now, so
+            // this is the last thing read before the split: a hook into the next day's chapter,
+            // never a reward. Muted, and absent on the last day, which has no tomorrow.
+            _hookText = UIKit.CreateText(
+                _card,
+                "Hook",
+                string.Empty,
+                DesignTokens.Type.Body,
+                DesignTokens.Ink.Muted,
+                TextAnchor.UpperLeft);
+            _hookText.gameObject.SetActive(false);
 
             _continueButton = UIKit.CreateButton(
                 _card,
@@ -694,6 +716,12 @@ namespace SheepGate.Quiz
             {
                 _noteText.text = _question.note ?? string.Empty;
                 _noteText.gameObject.SetActive(!string.IsNullOrEmpty(_noteText.text));
+            }
+
+            if (_hookText != null && _question != null)
+            {
+                _hookText.text = _question.hook ?? string.Empty;
+                _hookText.gameObject.SetActive(!string.IsNullOrEmpty(_hookText.text));
             }
 
             if (_continueButton != null)

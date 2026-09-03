@@ -403,7 +403,7 @@ namespace SheepGate.World
             }
 
             state.damaged = false;
-            SheepGate.Audio.AudioDirector.Play(SheepGate.Audio.AudioKeys.Stone);
+            SheepGate.Audio.AudioDirector.Play(SheepGate.Audio.AudioKeys.AnyStone());
 
             int remaining = units;
             bool completedNow = false;

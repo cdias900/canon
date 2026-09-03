@@ -203,6 +203,11 @@ a form:
 > the square and speaks → you follow him into his house → **character creation** → you follow him to
 > the gathering → the unnamed man from the capital speaks and sends everyone for stone
 
+Fourteen cards from the wordmark to the first stone, down from twenty-four on 2026-09-03: the
+neighbour's two nodes before creation lost their asides, and the gathering keeps the man's every
+attested word, both citations and both directives and drops only narration. The first run still
+carries no skip.
+
 `CharacterCreation.unity` stays registered and `CharacterCreationScreen.Compose()` still builds the
 standalone screen, so that route keeps working; nothing routes to it.
 
@@ -248,7 +253,7 @@ standalone screen, so that route keeps working; nothing routes to it.
 | `MoraleContest` | Turn machine for any stage that names a `contest`. Two exist. See §07. |
 | `StageDirector` | Everything a stage asks for beyond an ordinary working day: the contest, A Página, the gathering, the wall finishing, the gate closing, the vocation. **Driven entirely by `stages.json` — it counts nothing.** A beat holds the day open only while it runs and then gives the hold back, so the stage still ends through the one end-of-day path every other stage uses. The `terminal` stage is the single exception: once its gate segment is standing it takes `HoldFinalDay` and never releases it, because it has no tomorrow; before that it is a working day that repeats its date. |
 | `VocationTracker` | Accumulates silently. **No public score getter.** Reveals at the terminal stage. |
-| `DailyQuiz` | One question a stage. Check-in counts whether right or wrong. Listens to `MorningStarted` **and** `DuskBegan`, because stage 1 opens in a cutscene and has no morning. |
+| `DailyQuiz` | One question a stage, asked at **dusk** so it closes the session, with a one-line `hook` into tomorrow under the answer; only the terminal stage asks at its morning, because an earned gate leaves it no dusk. Counts whether right or wrong. |
 | `Wardrobe` · `CharacterCatalog` · `UnlockEvaluator` | Items, presets, and the world-state conditions that unlock them. Never a score condition. |
 | `Telemetry` | Append-only JSONL behind `ITelemetrySink`. See §10. |
 
@@ -313,7 +318,7 @@ mouths, so rule 4's human read is not optional there. Both are in the curation q
 - Gather rubble → work a segment. Every stone laid pulls the light down.
 - End of day: capacity runs out, night falls, and the panel asks for the split between **work** and
   **watch**.
-- The check-in lands at the evening, because day 1 opens in a cutscene and never has a morning.
+- The question lands at the evening, on this and every other day but the last: it closes the session and its hook names tomorrow.
 
 ### Stage 2 — `vision_and_plan`, those who call from outside
 
@@ -528,7 +533,7 @@ get wrong, no `.meta` to hand-write, and no slicing stored in an asset nobody ca
 key with no drawn tile falls through to the generated one, so the swap happens a key at a time.
 
 Character art is procedural and layered (`CharacterArt`): build, skin tone, hair, top, legs,
-accessory. Six synthesised sounds, no audio assets.
+accessory. Eight synthesised sounds (three of them the stone, so a day of courses is not one tap repeated), no audio assets.
 
 **No golden light, no dove, no cross, no praying hands, no robes, no sandals** — rule 13.
 `docs/design-system.md` covers tokens, typography and the rules that are design rather than style.

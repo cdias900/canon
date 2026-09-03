@@ -6,7 +6,8 @@
       "From the burnt ruins of the city itself",
       "It came by cart, with the man from the capital"
     ],
-    "note": "From the ruins. The city is put back together out of its own material, which is why clearing rubble and laying stone are one job in two stages."
+    "note": "From the ruins. The city is put back together out of its own material, which is why clearing rubble and laying stone are one job in two stages.",
+    "hook": "Tomorrow two residents will tell you different things about the road. Only one of them saw."
   },
   "2": {
     "prompt": "Two residents told you different things about the road. How does the game show you which one is right?",
@@ -15,7 +16,8 @@
       "It doesn't",
       "By the icon that appears on the line"
     ],
-    "note": "It doesn't, and it isn't going to. You decide with what you have: who saw it, where they saw it from, and what being wrong costs in each of the two directions."
+    "note": "It doesn't, and it isn't going to. You decide with what you have: who saw it, where they saw it from, and what being wrong costs in each of the two directions.",
+    "hook": "Tomorrow timber reaches the square. And the Tekoites arrive with half their people."
   },
   "3": {
     "prompt": "The standoff ends when...",
@@ -24,7 +26,8 @@
       "the other side is cut down",
       "your strength runs out"
     ],
-    "note": "It ends when somebody gives up. Nobody counts the fallen on this wall, on your side or theirs: the watch exists so the attack isn't worth making."
+    "note": "It ends when somebody gives up. Nobody counts the fallen on this wall, on your side or theirs: the watch exists so the attack isn't worth making.",
+    "hook": "Tomorrow the city gathers in the middle. Everyone will hear where their stretch is."
   },
   "4": {
     "prompt": "At today's roll call, how were the stretches handed out?",
@@ -33,7 +36,8 @@
       "Each person took the piece in front of their own house",
       "The best masons took the worst stretches"
     ],
-    "note": "Each one close to home. It is the most obvious division and the hardest to cheat: nobody has to be watched to build the wall outside their own door properly."
+    "note": "Each one close to home. It is the most obvious division and the hardest to cheat: nobody has to be watched to build the wall outside their own door properly.",
+    "hook": "Tomorrow someone shouts from the upper road. It is not worth answering a man who only talks."
   },
   "5": {
     "prompt": "The two men shouted from the road all day. Which move answers that?",
@@ -42,7 +46,8 @@
       "A heavier watch",
       "None of them"
     ],
-    "note": "None of them. The season's first threat is the only one with no counter: it goes away when the wall goes up in front of it. Morale lost to talk costs the talker nothing."
+    "note": "None of them. The season's first threat is the only one with no counter: it goes away when the wall goes up in front of it. Morale lost to talk costs the talker nothing.",
+    "hook": "Tomorrow they do not come alone. And in the middle of the assault someone hands you a page."
   },
   "6": {
     "prompt": "Half and half turned up in the middle of the standoff. What does that move do?",
@@ -51,7 +56,8 @@
       "Half the city leaves and half stays",
       "It doubles the load on whoever was already laying stone"
     ],
-    "note": "Both things in the same person, at the same time. It is the strongest move because it is the only one that does not choose between the work and the defence, and the other side had no answer ready for it."
+    "note": "Both things in the same person, at the same time. It is the strongest move because it is the only one that does not choose between the work and the defence, and the other side had no answer ready for it.",
+    "hook": "Tomorrow the road wakes up empty. A resident will tell you what to do with that."
   },
   "7": {
     "prompt": "That day the city did two things. Which two?",
@@ -60,7 +66,8 @@
       "Prayed and posted a guard, on the same day",
       "Posted a guard, and left the praying for when there was time"
     ],
-    "note": "Both, with an \"and\" in the middle. It is the axis of the whole season: prayer alone loses the wall, a guard alone loses the reason to raise it."
+    "note": "Both, with an \"and\" in the middle. It is the axis of the whole season: prayer alone loses the wall, a guard alone loses the reason to raise it.",
+    "hook": "Tomorrow letters come. Five, with the same day named, and one left open on purpose."
   },
   "8": {
     "prompt": "Five letters arrived. What tells a true letter from a well-written one?",
@@ -69,7 +76,8 @@
       "The seal",
       "Whether it matches what was already written"
     ],
-    "note": "Checking it against what was already written. A guard is no use against paper; against paper what works is having the earlier version to hand and comparing the two."
+    "note": "Checking it against what was already written. A guard is no use against paper; against paper what works is having the earlier version to hand and comparing the two.",
+    "hook": "Tomorrow the gate. It only closes if your stretch is standing."
   },
   "9": {
     "prompt": "The name of whoever repaired each stretch was written down. What for?",

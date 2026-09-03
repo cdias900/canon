@@ -88,7 +88,10 @@ namespace SheepGate.Audio
                 case AudioKeys.AmbienceNight: return Ambience(key, 8f, 120f, 0.8f, 0.22f);
                 case AudioKeys.MusicVillage: return Music(key);
                 case AudioKeys.Step: return Step(key);
-                case AudioKeys.Stone: return Stone(key);
+                case AudioKeys.Stone:
+                case AudioKeys.StoneB:
+                case AudioKeys.StoneC:
+                    return Stone(key);
                 case AudioKeys.Confirm: return Confirm(key);
                 case AudioKeys.Trumpet: return Trumpet(key);
             }
@@ -157,12 +160,16 @@ namespace SheepGate.Audio
             float filtered = 0f;
             float phase = 0f;
 
+            // A slightly different stone per key: the second is heavier, the third lighter. The
+            // seed already differs with the key, so the grit differs with it.
+            float weight = key == AudioKeys.StoneB ? 0.88f : key == AudioKeys.StoneC ? 1.12f : 1f;
+
             for (int i = 0; i < count; i++)
             {
                 float t = i / (float)count;
 
                 // The thud drops in pitch as it decays, which is what a heavy thing does.
-                float frequency = Mathf.Lerp(120f, 62f, t);
+                float frequency = Mathf.Lerp(120f, 62f, t) * weight;
                 phase += frequency / SampleRate * Mathf.PI * 2f;
                 float thud = Mathf.Sin(phase) * Mathf.Exp(-9f * t);
 
@@ -440,6 +447,22 @@ namespace SheepGate.Audio
         public const string MusicVillage = "mus_village";
         public const string Step = "sfx_step";
         public const string Stone = "sfx_stone";
+
+        /// <summary>
+        /// The same thud from two other stones. Stone on stone never sounds the same twice, and a
+        /// day of identical taps reads as a button rather than as masonry; each variant is the same
+        /// synthesis under a different seed and a slightly different weight.
+        /// </summary>
+        public const string StoneB = "sfx_stone_b";
+        public const string StoneC = "sfx_stone_c";
+
+        static readonly string[] Stones = { Stone, StoneB, StoneC };
+
+        /// <summary>One of the three stones, chosen at random for each course laid.</summary>
+        public static string AnyStone()
+        {
+            return Stones[UnityEngine.Random.Range(0, Stones.Length)];
+        }
         public const string Confirm = "sfx_confirm";
         public const string Trumpet = "sfx_trumpet";
     }

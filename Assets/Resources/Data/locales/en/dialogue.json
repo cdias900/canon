@@ -5,10 +5,7 @@
     "cutscene": true,
     "lines": [
       {
-        "text": "You walked a long way to get here. Almost everyone here walked."
-      },
-      {
-        "text": "The cities you left behind are still standing. This one isn't."
+        "text": "You walked a long way to get here. The cities you left behind are still standing. This one isn't."
       }
     ]
   },
@@ -21,17 +18,11 @@
         "text": "Hey. You're one of the ones who came in this week, aren't you? It shows on your face."
       },
       {
-        "text": "Welcome. I live in that house over there, the one that still has a roof."
-      },
-      {
         "text": "Look around. This was a wall. Now it's rubble, and rubble keeps nobody outside."
       },
       {
         "frame": "People came up from the big city asking how we were getting on. This is how it was put to them:",
         "verse": "NEH.1.3"
-      },
-      {
-        "text": "That's why we came back, and that's why nobody sleeps properly. We're home and the home is wide open."
       }
     ]
   },
@@ -44,12 +35,6 @@
         "text": "Today is different, though. A man came from the capital, with letters from the king, and called everyone together by the wall."
       },
       {
-        "text": "Nobody's quite sure who he is. I know he rode out before dawn, alone, to see the size of the damage before he opened his mouth."
-      },
-      {
-        "text": "That already tells me more than a speech would."
-      },
-      {
         "text": "Come on. Not in those road clothes, though. Go inside, find something decent, and we'll walk down together."
       }
     ]
@@ -59,9 +44,6 @@
     "day": 0,
     "cutscene": true,
     "lines": [
-      {
-        "text": "Better. Now you look like you came to stay, not like you came to look."
-      },
       {
         "text": "Come on. Everyone's down there already."
       }
@@ -76,9 +58,6 @@
         "text": "The man from the capital climbed onto a stone where everyone could see him. He waited for the noise to die down."
       },
       {
-        "text": "— Some of you got here this week. Others were born here, in the middle of it."
-      },
-      {
         "text": "— I went out at night to see the wall, and came back in by the same gate I left by. Before I said a word to anyone. I know the size of what I am asking."
       },
       {
@@ -90,17 +69,7 @@
         "verse": "NEH.2.18"
       },
       {
-        "text": "Then he was quiet for a while. It wasn't a pause for effect; it was something else."
-      },
-      {
-        "frame": "The neighbour beside you whispered that he has been praying like that since before he got here:",
-        "verse": "NEH.1.11"
-      },
-      {
         "text": "— Each of you takes the stretch nearest your own house."
-      },
-      {
-        "text": "Beside you, the same neighbour muttered the rest under his breath: nobody hauls stone for a wall that doesn't cover their own door."
       },
       {
         "text": "— The stone is in the rubble. It's the same stone that fell. Start today."

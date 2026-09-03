@@ -325,6 +325,7 @@ namespace SheepGate.Core
                     question.prompt = entry.prompt;
                     question.options = entry.options;
                     question.note = entry.note;
+                    question.hook = entry.hook;
                 }
                 else
                 {

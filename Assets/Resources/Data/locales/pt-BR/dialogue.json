@@ -5,10 +5,7 @@
     "cutscene": true,
     "lines": [
       {
-        "text": "Você andou muito para chegar até aqui. Quase todo mundo aqui andou."
-      },
-      {
-        "text": "As cidades que você deixou para trás continuam de pé. Esta não."
+        "text": "Você andou muito para chegar até aqui. As cidades que você deixou para trás continuam de pé. Esta não."
       }
     ]
   },
@@ -21,17 +18,11 @@
         "text": "Ei. Você é dos que chegaram esta semana, não é? Dá para ver pela cara."
       },
       {
-        "text": "Bem-vindo. Eu moro naquela casa ali, a que ainda tem telhado."
-      },
-      {
         "text": "Olha em volta. Isso aqui era muro. Agora é entulho, e entulho não segura ninguém do lado de fora."
       },
       {
         "frame": "Chegou gente da cidade grande perguntando como estávamos. Contaram assim:",
         "verse": "NEH.1.3"
-      },
-      {
-        "text": "Foi por isso que voltamos e foi por isso que ninguém dorme direito. A gente está em casa e a casa está aberta."
       }
     ]
   },
@@ -44,12 +35,6 @@
         "text": "Mas hoje é diferente. Chegou um homem da capital, com cartas do rei, e mandou juntar todo mundo perto do muro."
       },
       {
-        "text": "Ninguém sabe direito quem ele é. Sei que ele saiu a cavalo de madrugada, sozinho, para ver o tamanho do estrago antes de abrir a boca."
-      },
-      {
-        "text": "Isso já me diz mais do que discurso."
-      },
-      {
         "text": "Vamos. Só que não com essa roupa de estrada. Entra ali em casa, arruma alguma coisa que preste, e a gente desce junto."
       }
     ]
@@ -59,9 +44,6 @@
     "day": 0,
     "cutscene": true,
     "lines": [
-      {
-        "text": "Melhorou. Agora você parece que veio ficar, não que veio olhar."
-      },
       {
         "text": "Vem. Já está todo mundo lá embaixo."
       }
@@ -76,9 +58,6 @@
         "text": "O homem da capital subiu numa pedra para todo mundo ver. Esperou o barulho baixar."
       },
       {
-        "text": "— Alguns de vocês chegaram esta semana. Outros nasceram aqui, no meio disso."
-      },
-      {
         "text": "— Saí de noite para ver o muro, e voltei pela mesma porta por onde saí. Antes de falar com qualquer um. Eu sei o tamanho do que estou pedindo."
       },
       {
@@ -90,17 +69,7 @@
         "verse": "NEH.2.18"
       },
       {
-        "text": "Depois ele ficou quieto um tempo. Não foi pausa de discurso; foi outra coisa."
-      },
-      {
-        "frame": "O vizinho ao seu lado cochichou que ele reza assim desde antes de chegar:",
-        "verse": "NEH.1.11"
-      },
-      {
         "text": "— Cada um pega o trecho mais perto da própria casa."
-      },
-      {
-        "text": "Ao seu lado, o mesmo vizinho resmungou o resto, baixinho: ninguém carrega pedra para um muro que não protege a própria porta."
       },
       {
         "text": "— A pedra está no entulho. É a mesma que caiu. Comecem hoje."

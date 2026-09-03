@@ -6,7 +6,8 @@
       "Dos escombros queimados da própria cidade",
       "Veio de carroça, com o homem da capital"
     ],
-    "note": "Dos escombros. A cidade é remontada com o material dela mesma, e é por isso que catar entulho e assentar pedra são a mesma tarefa em dois tempos."
+    "note": "Dos escombros. A cidade é remontada com o material dela mesma, e é por isso que catar entulho e assentar pedra são a mesma tarefa em dois tempos.",
+    "hook": "Amanhã dois moradores vão te contar coisas diferentes sobre a estrada. Só um deles viu."
   },
   "2": {
     "prompt": "Dois moradores te contaram coisas diferentes sobre a estrada. Como o jogo mostra quem está certo?",
@@ -15,7 +16,8 @@
       "Não mostra",
       "Pelo ícone que aparece na fala"
     ],
-    "note": "Não mostra, e não vai mostrar. Você decide com o que tem: quem viu, de onde viu, e quanto custa estar errado em cada uma das duas direções."
+    "note": "Não mostra, e não vai mostrar. Você decide com o que tem: quem viu, de onde viu, e quanto custa estar errado em cada uma das duas direções.",
+    "hook": "Amanhã chega madeira na praça. E os de Tecoa chegam com metade da gente."
   },
   "3": {
     "prompt": "A prova de ânimo termina quando...",
@@ -24,7 +26,8 @@
       "o outro lado é derrubado",
       "a sua força acaba"
     ],
-    "note": "Termina quando alguém desiste. Não há contagem de baixas nesta muralha, nem do seu lado nem do outro: a guarda existe para o ataque não valer a pena."
+    "note": "Termina quando alguém desiste. Não há contagem de baixas nesta muralha, nem do seu lado nem do outro: a guarda existe para o ataque não valer a pena.",
+    "hook": "Amanhã a cidade se junta no meio. Cada um vai ouvir onde é o seu trecho."
   },
   "4": {
     "prompt": "Na chamada de hoje, como os trechos foram divididos?",
@@ -33,7 +36,8 @@
       "Cada um ficou com o pedaço em frente à própria casa",
       "Os melhores pedreiros ficaram com os piores trechos"
     ],
-    "note": "Cada um perto de casa. É a divisão mais óbvia e a mais difícil de trair: quem levanta o muro da própria porta não precisa de ninguém olhando para fazer direito."
+    "note": "Cada um perto de casa. É a divisão mais óbvia e a mais difícil de trair: quem levanta o muro da própria porta não precisa de ninguém olhando para fazer direito.",
+    "hook": "Amanhã alguém grita da estrada de cima. Não vale a pena responder a quem só fala."
   },
   "5": {
     "prompt": "Os dois homens gritaram da estrada o dia inteiro. Qual jogada responde a isso?",
@@ -42,7 +46,8 @@
       "Guarda reforçada",
       "Nenhuma"
     ],
-    "note": "Nenhuma. A primeira ameaça da temporada é a única sem contra-ataque: ela só some quando o muro sobe na frente dela. Ânimo perdido por palavra sai de graça para quem fala."
+    "note": "Nenhuma. A primeira ameaça da temporada é a única sem contra-ataque: ela só some quando o muro sobe na frente dela. Ânimo perdido por palavra sai de graça para quem fala.",
+    "hook": "Amanhã eles não vêm sozinhos. E no meio da investida alguém vai te entregar uma página."
   },
   "6": {
     "prompt": "Metade e metade apareceu no meio da investida. O que essa jogada faz?",
@@ -51,7 +56,8 @@
       "Metade da cidade vai embora e metade fica",
       "Dobra o trabalho de quem já estava na pedra"
     ],
-    "note": "As duas coisas na mesma pessoa, ao mesmo tempo. É a jogada mais forte porque é a única que não escolhe entre obra e defesa, e o outro lado não tinha resposta pronta para ela."
+    "note": "As duas coisas na mesma pessoa, ao mesmo tempo. É a jogada mais forte porque é a única que não escolhe entre obra e defesa, e o outro lado não tinha resposta pronta para ela.",
+    "hook": "Amanhã a estrada amanhece vazia. Um morador vai te dizer o que fazer com isso."
   },
   "7": {
     "prompt": "Naquele dia a cidade fez duas coisas. Quais?",
@@ -60,7 +66,8 @@
       "Rezou e pôs guarda, no mesmo dia",
       "Pôs guarda, e deixou a reza para quando desse"
     ],
-    "note": "As duas, com um \"e\" no meio. É o eixo da temporada inteira: só reza perde o muro, só guarda perde o motivo de levantá-lo."
+    "note": "As duas, com um \"e\" no meio. É o eixo da temporada inteira: só reza perde o muro, só guarda perde o motivo de levantá-lo.",
+    "hook": "Amanhã chegam cartas. Cinco, com o mesmo dia marcado, e uma aberta de caso pensado."
   },
   "8": {
     "prompt": "Chegaram cinco cartas. O que separa uma carta verdadeira de uma bem escrita?",
@@ -69,7 +76,8 @@
       "O lacre",
       "Bater com o que já estava escrito antes"
     ],
-    "note": "Conferir com o que já estava escrito. Guarda não serve contra papel; contra papel serve ter a versão anterior à mão e comparar as duas."
+    "note": "Conferir com o que já estava escrito. Guarda não serve contra papel; contra papel serve ter a versão anterior à mão e comparar as duas.",
+    "hook": "Amanhã a porta. Só fecha se o seu trecho estiver de pé."
   },
   "9": {
     "prompt": "O nome de quem reparou cada trecho ficou anotado. Para quê?",

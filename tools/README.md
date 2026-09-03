@@ -260,3 +260,25 @@ Two rules still hold mechanically and are not a matter of judgement:
   recorded speech; it never restates it in other words. `validate-content.mjs` fails the build on
   any 8+ word run shared with the scripture text, which is what stops a paraphrase drifting in.
 - **God, Jesus and the Holy Spirit never speak in generated text.** No flag, no exception.
+
+## `table-server.mjs` — multiplayer, the part that runs
+
+```bash
+node tools/table-server.mjs --port 8788 --db table.db   # :memory: by default
+node --test tools/table-server.test.mjs                  # 15 rules that cannot be wrong
+```
+
+The design is `docs/multiplayer.md`; this is the server it specifies. **No Unity client exists yet**
+— this is a foundation, not a feature a player can reach.
+
+It is here rather than in the game for the same reason `study-server.mjs` is: rules that a client
+enforces are rules that live in a text editor. Two of them are rule 17 — a minor never shares a
+table with an adult, and a minor table can never carry free text — and both are `CHECK` constraints
+in the schema rather than validation on the way in, so a future code path that forgets gets an
+exception instead of a quiet row. A third is rule 11: a committed contest move is stored but never
+returned until its turn resolves.
+
+**Free text and private tables ship switched off** (`ALLOW_FREE_TEXT=1` turns them on, for adult
+tables only). That default is not timidity — `docs/persona-and-purpose.md` argues the chat
+protections have to hold on both sides of the age boundary *because age is self-declared*, and
+turning them off is a decision for Pedro and cybersecurity rather than a side effect of a commit.

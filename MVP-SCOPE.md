@@ -498,7 +498,9 @@ accessory. Six synthesised sounds, no audio assets.
 
 ## 12 · Out of scope
 
-- Multiplayer, expeditions, seats — **the schema anticipates it, this build does not implement it**
+- Multiplayer, expeditions, seats — **the schema anticipates it, and the server for it now exists**
+  (`docs/multiplayer.md`, `tools/table-server.mjs`). **No client does**: nothing a player can reach
+  in this build is multiplayer, and §01's *no network at runtime* still describes what ships
 - The village as a separate base with its own construction
 - A shop, spendable talents, currency, any purchase
 - A daily streak, push notifications

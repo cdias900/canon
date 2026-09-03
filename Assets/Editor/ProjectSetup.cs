@@ -185,10 +185,18 @@ namespace SheepGate.EditorTools
             try
             {
                 PlayerSettings.Android.minSdkVersion = AndroidSdkVersions.AndroidApiLevel25;
+
+                // ARM64 is the only architecture a phone made this decade ships, and ARM64 on
+                // Android needs IL2CPP: Mono has no ARM64 player. The asset file records the
+                // backend as "whatever this editor's default is", which is not a value anyone can
+                // read off the file — so it is set here, where the identifier and the minimum SDK
+                // already are, and every build re-applies it.
+                PlayerSettings.SetScriptingBackend(NamedBuildTarget.Android, ScriptingImplementation.IL2CPP);
+                PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
             }
             catch (Exception exception)
             {
-                Debug.LogWarning("[Setup] Could not set the Android minimum SDK: " + exception.Message);
+                Debug.LogWarning("[Setup] Could not set the Android build settings: " + exception.Message);
             }
         }
 

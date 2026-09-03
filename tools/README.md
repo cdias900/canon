@@ -19,6 +19,11 @@ tools/ios-sim.sh             build, install, run and drive an iOS simulator - th
                              touch a phone; `setup` once, then tap/press/swipe/text/key/shot
 tools/ios-device.sh          the same on a real iPhone over USB; needs a signing team, which
                              lives in ProjectSettings so a Unity re-export cannot lose it
+tools/android-emu.sh         the Android half: build the APK (IL2CPP, ARM64), create and boot an
+                             arm64 emulator, install, launch, screenshot; tap/swipe/text/key in
+                             PIXELS. `setup` once, then `build`, `run`, `shot`. No command line
+                             reaches the player there, so neither the e2e runner nor -table-url
+                             can be driven on Android: it is tap-and-look for the solo game
 tools/tile-preview.sh        render the procedural tile art to a PNG without Unity, in about a
                              second; sheet / zoom / field <density> / check
 

@@ -58,6 +58,15 @@ watching the run.
 `Builds/e2e/` is emptied at the start of every run: screenshots from a shorter run sitting beside a
 longer one read as current evidence.
 
+**The group screen is on the gate.** Each locale's player gets a table server of its own — started
+by `e2e.sh` from `tools/table-server.mjs`, in memory, on `TABLE_PORT` (default 8799, plus the
+locale's index) and killed with the player — and the URL is passed as `-table-url`, the way a
+developer passes it. The runner opens the drawer, makes a table, stands through one poll interval
+(the redraw that once threw), sounds the trumpet, declines the call and closes the screen. Without
+node, or with the port busy, the player runs with no URL and the runner **SKIPs the table visibly**
+rather than passing a screen it never opened. The raid itself is not on the gate: it opens at the
+trumpet's hour, two hours out, and its arithmetic is the server tests' job.
+
 `--from-stage N` seeds a save at stage N and starts there. It is an **authoring convenience and not
 the gate** - the cold run from a fresh save is the gate, because reachability from the first frame
 is the whole reason this harness exists, and a run that started at stage six would have passed

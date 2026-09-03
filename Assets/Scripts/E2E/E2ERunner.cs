@@ -564,6 +564,10 @@ namespace SheepGate.E2E
             // changes the character. Nothing automated had ever opened it.
             yield return VerifyBackpack();
 
+            // 9b. The table, when the build has one. Every defect the group screen has had was
+            // found on a phone and not by this harness, because this harness had never opened it.
+            yield return VerifyTheTable();
+
             // 10. The toggle, in the authoring locale's run only — one pass is enough to prove the
             // path, and it is the only thing here that exercises a language change at runtime
             // rather than a language pinned at boot. Everything else in this file would pass on a
@@ -577,6 +581,112 @@ namespace SheepGate.E2E
             // hand-written day scripts: a season that grows a stage grows a leg of the run with it,
             // instead of quietly going untested past the last one somebody remembered to write.
             yield return PlayTheSeason();
+        }
+
+        /// <summary>
+        /// Opens the group screen against a real server, makes a table, lets it refresh twice,
+        /// sounds the trumpet, declines the call, and closes it.
+        ///
+        /// <b>Why the two refreshes are the point.</b> The screen redraws its rows on every poll,
+        /// and the first version added a layout group to a row on every redraw; the second poll got
+        /// a null from Unity and threw, from the moment a trumpet appeared — on a phone, in the
+        /// second hour of playing it, and past four green gates. A logged exception fails this run,
+        /// so standing here for one poll interval is the assertion.
+        ///
+        /// <b>What this cannot prove.</b> The raid itself: it opens at the trumpet's hour, and the
+        /// hour is two hours out. The server's turn arithmetic is covered by its own tests; what a
+        /// second phone sees is covered by nobody, which the group design document says in §09.
+        ///
+        /// Skipped, visibly, when no -table-url was given: without one the drawer has no button and
+        /// the screen does not exist, which is the property that lets the solo build ship unchanged.
+        /// tools/e2e.sh starts a server and passes the URL, so on the gate this is never skipped.
+        /// </summary>
+        IEnumerator VerifyTheTable()
+        {
+            if (!TableService.Available)
+            {
+                Skip("the group screen", "no -table-url; the drawer has no button and the screen does not exist");
+                yield break;
+            }
+
+            yield return OpenHudMenu();
+            yield return Tap("TableButton", "Obra em grupo in the drawer");
+            yield return WaitForObject("CreateTable", "the group screen's two doors");
+            Record("the group screen is the top modal", ModalRoot.TopId == "table", "top " + DescribeTopModal());
+            yield return Capture(1, "table-doors");
+
+            yield return Tap("CreateTable", "Criar uma obra");
+            yield return WaitUntil(() => { string c = TextOf("Code"); return c != null && c.Length == 6; },
+                "a six-character code from the server");
+            string code = TextOf("Code") ?? string.Empty;
+            bool readable = code.Length == 6 && code.IndexOfAny(new[] { '0', 'O', '1', 'I', 'L' }) < 0;
+            Record("the code can be read aloud", readable, "code=" + code);
+
+            yield return WaitForObject("SeatsFree", "the empty seats, in one line");
+            yield return WaitUntil(() => FindByPrefix("Event_") != null, "the first feed line");
+            yield return Capture(1, "table-made");
+
+            // One full poll interval, plus a frame: the second redraw of every row.
+            float until = Time.realtimeSinceStartup + TablePollSeconds + 1f;
+            while (Time.realtimeSinceStartup < until) yield return null;
+            Record("the group screen survives a second poll", Find("SeatsFree") != null && ModalRoot.TopId == "table",
+                "still on screen after " + TablePollSeconds + "s");
+
+            yield return Tap("Trumpet", "Tocar a trombeta");
+            yield return WaitForObject("NotToday", "the call with its two answers");
+            Record("sounding it counts as coming", TextOf("CallMine") == Loc.T("table.call.you_sounded"),
+                "CallMine=" + Quote(TextOf("CallMine")));
+            yield return Capture(1, "table-call");
+
+            yield return Tap("NotToday", "Não consigo hoje");
+            yield return WaitUntil(() => TextOf("CallMine") == Loc.T("table.call.you_cannot"),
+                "the answer echoed back");
+            Record("not coming is an answer the screen keeps", TextOf("CallMine") == Loc.T("table.call.you_cannot"),
+                "CallMine=" + Quote(TextOf("CallMine")));
+
+            yield return TapTheTableClose();
+            yield return WaitUntil(() => ModalRoot.TopId != "table", "the group screen to close");
+            Record("the group screen closes", ModalRoot.TopId != "table", "top " + DescribeTopModal());
+        }
+
+        /// <summary>Matches the screen's own poll interval; a change there should change this.</summary>
+        const float TablePollSeconds = 6f;
+
+        /// <summary>
+        /// The table's Fechar, and not any other panel's: several screens name their close control
+        /// the same, so this one is found under the card the table modal owns.
+        /// </summary>
+        IEnumerator TapTheTableClose()
+        {
+            GameObject target = null;
+            foreach (Transform transform in Resources.FindObjectsOfTypeAll<Transform>())
+            {
+                if (transform == null || transform.name != "Close") continue;
+                GameObject go = transform.gameObject;
+                if (!IsInLiveScene(go) || !go.activeInHierarchy) continue;
+                if (go.GetComponentInParent<TablePanel>() == null) continue;
+                target = go;
+                break;
+            }
+
+            if (target == null)
+            {
+                Record("tap the table's Fechar", false, "no active Close under a TablePanel");
+                yield break;
+            }
+
+            yield return TapObject(target, "tap the table's Fechar");
+        }
+
+        static GameObject FindByPrefix(string prefix)
+        {
+            foreach (Transform transform in Resources.FindObjectsOfTypeAll<Transform>())
+            {
+                if (transform == null || !transform.name.StartsWith(prefix, StringComparison.Ordinal)) continue;
+                GameObject go = transform.gameObject;
+                if (IsInLiveScene(go) && go.activeInHierarchy) return go;
+            }
+            return null;
         }
 
         /// <summary>

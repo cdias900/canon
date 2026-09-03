@@ -137,8 +137,55 @@ fi
 #
 # --parallel keeps the old behaviour for anyone who wants the wall clock back and is watching the
 # run. It is opt-in because a gate that is fast and hangs is worse than a gate that is slow.
+# The table server, for the group screen.
+#
+# Every defect that screen has had was found on a phone, because the runner had never opened it:
+# without a -table-url the drawer has no button and the screen does not exist. So each locale gets
+# a server of its own — in memory, on a port nobody else uses, killed with the player — and the URL
+# is passed the way a developer passes it. If node is missing the player runs without a URL and the
+# runner SKIPS the table visibly rather than passing a screen it never saw.
+TABLE_PORT="${TABLE_PORT:-8799}"
+
+start_table_server() {
+  local log="$1"
+  local port="$2"
+  if ! command -v node >/dev/null 2>&1; then
+    echo "NOTE: node not found; the group screen will be skipped." >&2
+    return 1
+  fi
+  if lsof -nP -iTCP:"${port}" -sTCP:LISTEN >/dev/null 2>&1; then
+    echo "NOTE: port ${port} is busy; the group screen will be skipped. Set TABLE_PORT to another port." >&2
+    return 1
+  fi
+  node "${ROOT}/tools/table-server.mjs" --port "${port}" --db :memory: > "${log}" 2>&1 &
+  TABLE_PID=$!
+  local tries=0
+  until curl -sf "http://127.0.0.1:${port}/health" >/dev/null 2>&1; do
+    tries=$(( tries + 1 ))
+    if [[ ${tries} -ge 50 ]]; then
+      echo "NOTE: the table server did not answer on ${port}; the group screen will be skipped." >&2
+      kill "${TABLE_PID}" 2>/dev/null
+      TABLE_PID=""
+      return 1
+    fi
+    sleep 0.1
+  done
+  return 0
+}
+
+stop_table_server() {
+  if [[ -n "${TABLE_PID:-}" ]]; then
+    kill "${TABLE_PID}" 2>/dev/null
+    wait "${TABLE_PID}" 2>/dev/null
+    TABLE_PID=""
+  fi
+}
+
 run_locale() {
   local locale="$1"
+  # One port per locale, offset by its position in the list, so --parallel does not put two
+  # servers on one port and skip the table in the second run.
+  local port=$(( TABLE_PORT + ${2:-0} ))
   local data="${OUT}/data-${locale}"
   local log="${ROOT}/Logs/e2e-${locale}.log"
   local console="${OUT}/console-${locale}.txt"
@@ -162,6 +209,11 @@ run_locale() {
     args+=(-e2e-start-stage "${FROM_STAGE}")
   fi
 
+  TABLE_PID=""
+  if start_table_server "${OUT}/table-server-${locale}.log" "${port}"; then
+    args+=(-table-url "http://127.0.0.1:${port}")
+  fi
+
   "${BINARY}" "${args[@]}" &
   local player=$!
 
@@ -174,6 +226,7 @@ run_locale() {
   local status=$?
   kill "${watcher}" 2>/dev/null
   wait "${watcher}" 2>/dev/null
+  stop_table_server
 
   {
     echo
@@ -206,8 +259,8 @@ STATUS=0
 if [[ ${PARALLEL} -eq 1 ]]; then
   echo "NOTE: --parallel runs ${#LOCALES[@]} player(s) at once. This is the mode that hangs; watch it."
   PIDS=()
-  for LOCALE in "${LOCALES[@]}"; do
-    run_locale "${LOCALE}" &
+  for INDEX in "${!LOCALES[@]}"; do
+    run_locale "${LOCALES[${INDEX}]}" "${INDEX}" &
     PIDS+=($!)
   done
 
@@ -221,8 +274,8 @@ else
   if [[ ${#LOCALES[@]} -gt 1 ]]; then
     echo "Running ${#LOCALES[@]} locales one at a time; allow up to $(( PLAYER_TIMEOUT * ${#LOCALES[@]} ))s."
   fi
-  for LOCALE in "${LOCALES[@]}"; do
-    if ! run_locale "${LOCALE}"; then
+  for INDEX in "${!LOCALES[@]}"; do
+    if ! run_locale "${LOCALES[${INDEX}]}" "${INDEX}"; then
       STATUS=1
     fi
   done

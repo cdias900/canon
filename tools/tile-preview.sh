@@ -20,6 +20,9 @@
 #   tools/tile-preview.sh zoom               the same at 5x, for judging pixels
 #   tools/tile-preview.sh field [density]    a field of ruin tiles at 0..1 density (default 0.45),
 #                                            which is how you tell scattered stone from wallpaper
+#   tools/tile-preview.sh characters         the eight bodies — two builds, four skin tones — at 1x
+#                                            and at 4x, bare and dressed, front/side/back and walking:
+#                                            the sheet for the judgement no gate makes
 #   tools/tile-preview.sh check              assert every pixel is in the world palette and opaque
 #
 # Output goes to Logs/tile-preview/ and is gitignored.
@@ -29,7 +32,17 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 UNITY_VERSION="${UNITY_VERSION:-6000.3.23f1}"
 UNITY_ROOT="${UNITY_ROOT:-/Applications/Unity/Hub/Editor/${UNITY_VERSION}/Unity.app/Contents/Resources/Scripting}"
 DOTNET="${UNITY_ROOT}/NetCoreRuntime/dotnet"
+# Roslyn moved between Unity versions: 6000.3 ships it at DotNetSdkRoslyn/csc.dll, 6000.5 inside
+# the full SDK at DotNetSdk/sdk/<version>/Roslyn/bincore/csc.dll. Take whichever exists, so the
+# harness does not die with a "download a .NET SDK" message that has nothing to do with the cause.
 CSC="${UNITY_ROOT}/DotNetSdkRoslyn/csc.dll"
+if [[ ! -f "${CSC}" ]]; then
+  CSC="$(ls -d "${UNITY_ROOT}"/DotNetSdk/sdk/*/Roslyn/bincore/csc.dll 2>/dev/null | head -1)"
+fi
+if [[ -z "${CSC}" || ! -f "${CSC}" ]]; then
+  echo "No Roslyn csc.dll inside Unity ${UNITY_VERSION} under ${UNITY_ROOT}." >&2
+  exit 1
+fi
 SRC="${ROOT}/tools/tile-preview"
 OUT="${ROOT}/Logs/tile-preview"
 
@@ -65,6 +78,7 @@ ART=(
   "${ROOT}/Assets/Scripts/Art/PixelCanvas.cs"
   "${ROOT}/Assets/Scripts/Art/ValueNoise.cs"
   "${ROOT}/Assets/Scripts/Art/TileArt.cs"
+  "${ROOT}/Assets/Scripts/Art/CharacterArt.cs"
 )
 
 build() {
@@ -86,9 +100,10 @@ case "${1:-sheet}" in
   sheet) build Sheet.cs sheet; render sheet ;;
   zoom)  build Zoom.cs  zoom;  render zoom ;;
   field) build Field.cs field; render field "${2:-0.45}" ;;
+  characters) build Characters.cs characters; render characters ;;
   check)
     build Check.cs check
     "${DOTNET}" "${OUT}/check.dll"
     ;;
-  *) echo "Usage: tools/tile-preview.sh [sheet|zoom|field <density>|check]" >&2; exit 2 ;;
+  *) echo "Usage: tools/tile-preview.sh [sheet|zoom|field <density>|characters|check]" >&2; exit 2 ;;
 esac

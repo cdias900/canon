@@ -261,18 +261,16 @@ What covers them is `tools/tile-preview.sh check`, which asserts every pixel is 
 and opaque, and which nothing runs automatically. If world-tile palette drift matters, that check
 needs a caller.
 
-### The landscape skirt has never been on a screen
+### The landscape skirt has been on a screen — since 03/09/2026
 
 `TilemapBuilder` paints a skirt of terrain past the map on all four sides, sized by
-`_skirtColumns` / `_skirtRows` against `MaxCoveredAspect = 2f` (`TilemapBuilder.cs:138-147`,
-computed at `:247-248`). The argument is written out and checks: `ProjectSettings` ships
-`fullscreenMode: 1`, so a Mac player runs at the display's own landscape aspect, and at 1470×956 the
-patrol view spans world x [−10.8, 50.8] against paint that stopped at [0, 40] — a sixth of the
-screen on each side was clear colour with a hard edge against real terrain. **The arithmetic is
-right. Arithmetic is what the previous gate also had.** `tools/e2e.sh` launches the macOS player
-windowed at 1080×1920 (`tools/e2e.sh:159`), which is portrait, so the run that would show this
-cannot. Open the desktop build full-screen on a wide display and look at the patrol view; that is
-the whole test.
+`_skirtColumns` / `_skirtRows` against `MaxCoveredAspect = 2f`. For a while the only thing that
+said it worked was arithmetic — and arithmetic is what the previous, broken version also had. On
+03/09/2026 the macOS player was launched with the e2e's own arguments at 1920×1080 and looked at:
+the skirt covers the patrol view with no clear-colour edge. What landscape did break was the UI —
+character creation and the backpack — and `087f000` made the interface fit the window it is given
+(390 e2e steps and 0 failures landscape, portrait unchanged). `tools/e2e.sh` still runs portrait
+only, so this is checked by hand, the same way, whenever the skirt or the camera changes.
 
 ### The backpack's list density is asserted by two comments that disagree
 

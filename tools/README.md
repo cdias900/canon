@@ -24,8 +24,10 @@ tools/android-emu.sh         the Android half: build the APK (IL2CPP, ARM64), cr
                              PIXELS. `setup` once, then `build`, `run`, `shot`. No command line
                              reaches the player there, so neither the e2e runner nor -table-url
                              can be driven on Android: it is tap-and-look for the solo game
-tools/tile-preview.sh        render the procedural tile art to a PNG without Unity, in about a
-                             second; sheet / zoom / field <density> / check
+tools/tile-preview.sh        render the procedural art to a PNG without Unity, in about a
+                             second; sheet / zoom / field <density> / characters / check —
+                             `characters` is the eight bodies (two builds × four skin tones) at
+                             1x and 4x, the sheet for the judgement no gate makes
 
 tools/study-server.mjs       the study endpoint, run by hand during development. The game only
                              calls it when a URL is configured, so the player is offline by

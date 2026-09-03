@@ -207,18 +207,13 @@ exist. Always an internal reader; an external channel is a secondary, optional b
   until it does, **the tool cannot tell you a node has been read** — `git log` can.
 - **The English has never had a native pass.** It reads correctly and holds the register, but it was
   written by the same agent that wrote the code.
-- **The landscape skirt has never been on a screen.** macOS has been played — that is in the
-  decisions table — but the terrain skirt is new, and the landscape case of it is not covered.
-  `ProjectSettings/ProjectSettings.asset:114` ships `fullscreenMode: 1`, so a Mac player runs at the
-  display's own landscape aspect, and the skirt that fills whatever the camera frames past the map
-  rectangle is sized for aspects up to 2:1
-  (`MaxCoveredAspect`, `Assets/Scripts/World/TilemapBuilder.cs:147`). Every gate we own runs
-  portrait — `tools/e2e.sh:159` forces `-screen-width 1080 -screen-height 1920` — so the widest case
-  the arithmetic was written for is the one case nothing has ever looked at. Arithmetic is what the
-  previous version had too: it painted rows and not columns, on an argument true of the close view
-  and false of the patrol view, and a sixth of the screen on each side came out clear colour with a
-  hard edge against real terrain. Closing this is a run, not a decision — open the Mac player in a
-  landscape window and look. It is listed here because **no gate can close it for us.**
+- **The landscape skirt — closed on 03/09/2026, kept here because no gate closes it.** The Mac
+  player was run at 1920×1080 with the e2e's own arguments (`087f000`): the skirt paints past the
+  map on all four sides and the patrol view has no clear-colour edge; what landscape actually broke
+  was the UI — creation and the backpack — and that commit made the interface fit the window it is
+  given (390 steps, 0 failures landscape; portrait unchanged). Still true: `tools/e2e.sh` forces
+  portrait, so a regression here would be found the same way it was — by launching the player at
+  1920×1080 by hand and looking. `ProjectSettings.asset` still ships `fullscreenMode: 1`.
 - **The 13-19 band crosses the minor/adult boundary of rule 17**, which forbids mixed teams by a
   database constraint — and it becomes a schema decision the moment multiplayer arrives, which the
   decisions table puts outside this MVP. Refinement proposed in `docs/persona-and-purpose.md`: open

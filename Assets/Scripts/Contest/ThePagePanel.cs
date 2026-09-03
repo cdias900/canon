@@ -272,11 +272,14 @@ namespace SheepGate.Contest
                 Loc.T("page.skip"),
                 UIKit.ButtonVariant.Ghost,
                 Skip);
+            // Bottom right, not top right: the contest's own header — its title and "Turno 2 de 8"
+            // — sits at the top of the screen under this modal's scrim, and a skip drawn over the
+            // turn counter covered the one number that says where the fight is.
             UIKit.AnchorCorner(
                 (RectTransform)_skipButton.transform,
-                new Vector2(1f, 1f),
+                new Vector2(1f, 0f),
                 SkipSize,
-                new Vector2(DesignTokens.Space.Gutter, DesignTokens.Space.S16));
+                new Vector2(DesignTokens.Space.Gutter, DesignTokens.Space.SafeAreaBottom));
 
             Report(turn, verse);
             PlayEntrance();

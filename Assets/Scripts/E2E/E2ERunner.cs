@@ -307,6 +307,9 @@ namespace SheepGate.E2E
         /// flag is raised and the reveal has not happened, so a seeded run is a way to LOOK at a
         /// stage, never a way to assert anything about the season that leads to it.
         /// </summary>
+        /// <summary>Stands in for the name a real run would have typed. Authoring only.</summary>
+        const string SeededPlayerName = "Hanani";
+
         static void SeedStartStageIfAsked()
         {
             int day = StartStage;
@@ -319,6 +322,14 @@ namespace SheepGate.E2E
             {
                 GameState seeded = GameState.NewGame();
                 seeded.day = day;
+
+                // A name, because a save standing on stage 6 belongs to somebody who went through
+                // character creation, and a seeded state without one is a save no player could
+                // ever have. That used to be invisible; it stopped being so when the launch screen
+                // started deciding what to show from whether the run has a name, and a nameless
+                // stage-6 save would be shown the new player's splash.
+                seeded.playerName = SeededPlayerName;
+
                 SaveSystem.Save(seeded);
                 Debug.LogWarning("[E2E] Seeded a save at stage " + day +
                     ". THIS RUN IS NOT A GATE: every stage before " + day +
@@ -453,7 +464,8 @@ namespace SheepGate.E2E
                 Record("the launch screen is a splash on a cold run", startStage <= 1,
                     startStage <= 1
                         ? "no Play button, as a run with no character should have"
-                        : "a seeded run reached stage " + startStage + " with no character to show");
+                        : "a seeded run reached stage " + startStage + " with no character to show, " +
+                          "which means SeedStartStageIfAsked stopped naming the player");
             }
 
             // Either path ends the same way: the screen fades itself out, and nothing else may

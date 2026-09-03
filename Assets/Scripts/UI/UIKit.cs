@@ -165,12 +165,43 @@ namespace SheepGate.UI
         public const float ReferenceHeight = 1920f;
 
         /// <summary>
-        /// The <see cref="CanvasScaler.matchWidthOrHeight"/> every canvas here is created with.
+        /// The <see cref="CanvasScaler.matchWidthOrHeight"/> a portrait screen is scaled with.
         ///
         /// Named rather than written twice, because <see cref="CanvasWidth"/> has to compute the
         /// same number the scaler does and a second literal is how those two silently disagree.
         /// </summary>
-        public const float CanvasMatch = 0.5f;
+        public const float PortraitCanvasMatch = 0.5f;
+
+        /// <summary>
+        /// The same, for a window wider than it is tall.
+        ///
+        /// <b>1 means the height decides the scale</b>, and that is the whole fix for landscape.
+        /// Every layout in this project is written against 1920 units of height. At the portrait
+        /// match of 0.5 a 1920x1080 window resolves to a scale of exactly 1 — the two axis ratios,
+        /// 1.78 and 0.5625, cancel — so the canvas hands those layouts <b>1080 units of height</b>
+        /// and they are asked to fit in a little over half the room they were drawn for. That is
+        /// not a rounding problem: character creation reported a viewport of 99 units where a
+        /// character card needs 461, and said so itself, in red, on screen.
+        ///
+        /// Matching on height instead gives the same 1920 units a phone gives, at any width. What
+        /// changes is that the canvas becomes very WIDE — about 3413 units at 16:9 — and width is
+        /// the axis this interface can afford to have spare, because <see cref="SafeArea"/> caps
+        /// the band the content is laid out in. Height was never spare.
+        /// </summary>
+        public const float LandscapeCanvasMatch = 1f;
+
+        /// <summary>
+        /// Which of the two the current screen gets. Portrait and square keep the behaviour they
+        /// have always had, so nothing about a phone changes; only a window wider than it is tall
+        /// takes the other branch.
+        /// </summary>
+        public static float CanvasMatch
+        {
+            get
+            {
+                return Screen.width > Screen.height ? LandscapeCanvasMatch : PortraitCanvasMatch;
+            }
+        }
 
         /// <summary>
         /// The width, in canvas units, that a screen actually gets — which is <b>not</b>
@@ -201,7 +232,16 @@ namespace SheepGate.UI
             float logWidth = Mathf.Log(width / ReferenceWidth, 2f);
             float logHeight = Mathf.Log(height / ReferenceHeight, 2f);
             float scale = Mathf.Pow(2f, Mathf.Lerp(logWidth, logHeight, CanvasMatch));
-            return scale > 0f ? width / scale : ReferenceWidth;
+            float canvas = scale > 0f ? width / scale : ReferenceWidth;
+
+            // Capped, because the number this returns is the width a SCREEN gets, and screens are
+            // built inside the safe area — which ContentWidthCap holds to ReferenceWidth in a wide
+            // window. Returning the canvas's own width there would hand every layout about 3413
+            // units to lay itself out in and then park it in a parent 1080 wide: nothing would look
+            // broken, and every tap would land on the background behind a control that believes it
+            // is somewhere else. That is not hypothetical — it is what the wardrobe did for twelve
+            // e2e steps before this line existed.
+            return Mathf.Min(canvas, ReferenceWidth);
         }
 
         /// <summary>
@@ -664,6 +704,7 @@ namespace SheepGate.UI
             canvas.sortingOrder = sortingOrder;
 
             CanvasScaler scaler = go.GetComponent<CanvasScaler>();
+            go.AddComponent<CanvasMatchFitter>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(ReferenceWidth, ReferenceHeight);
             scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
@@ -698,6 +739,7 @@ namespace SheepGate.UI
             RectTransform rect = CreateRect(SafeAreaName, canvas.transform);
             Stretch(rect);
             rect.gameObject.AddComponent<SafeAreaFitter>();
+            rect.gameObject.AddComponent<ContentWidthCap>();
             return rect;
         }
 

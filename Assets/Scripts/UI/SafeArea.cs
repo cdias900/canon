@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace SheepGate.UI
 {
@@ -87,6 +88,186 @@ namespace SheepGate.UI
     }
 
     /// <summary>
+    /// Keeps the scaler's match in step with the window's shape, so a window that is resized
+    /// through the portrait/landscape boundary is re-scaled instead of staying on the match it
+    /// happened to be created under.
+    ///
+    /// The canvas is built once, usually before anyone has resized anything, and
+    /// <see cref="UIKit.CanvasMatch"/> is read at that moment. On a phone that is the end of it.
+    /// On a desktop a window is a thing people drag, and the drag that matters is the one that
+    /// crosses square: past it every layout in the project needs the other match, and nothing was
+    /// watching for it.
+    ///
+    /// Polled for the same reason <see cref="SafeAreaFitter"/> polls — Unity raises nothing
+    /// reliable — and it costs one comparison per frame, only writing when the answer changes.
+    /// </summary>
+    [DisallowMultipleComponent]
+    public sealed class CanvasMatchFitter : MonoBehaviour
+    {
+        CanvasScaler _scaler;
+        float _applied = -1f;
+
+        void Awake()
+        {
+            _scaler = GetComponent<CanvasScaler>();
+            Apply();
+        }
+
+        void OnEnable()
+        {
+            Apply();
+        }
+
+        void Update()
+        {
+            Apply();
+        }
+
+        void Apply()
+        {
+            if (_scaler == null)
+            {
+                _scaler = GetComponent<CanvasScaler>();
+                if (_scaler == null)
+                {
+                    return;
+                }
+            }
+
+            float match = UIKit.CanvasMatch;
+            if (Mathf.Approximately(match, _applied))
+            {
+                return;
+            }
+
+            _applied = match;
+            _scaler.matchWidthOrHeight = match;
+        }
+    }
+
+    /// <summary>
+    /// Caps how wide the band of interface gets, and centres it.
+    ///
+    /// Matching the canvas on height in a landscape window (see
+    /// <see cref="UIKit.LandscapeCanvasMatch"/>) buys back the 1920 units of height every layout
+    /// is written against, and pays for it in width: a 16:9 window reports about 3413 units
+    /// across. Left alone, every card that sizes itself off its parent would stretch to that,
+    /// and a dialogue card three and a half thousand units wide is not a wide card — it is
+    /// unreadable, because a line of text that long has no return sweep for the eye.
+    ///
+    /// So the content keeps the measure it was designed at and sits in the middle, and the extra
+    /// width shows what is behind it: the village, the wall, the map. That is the honest shape of
+    /// a portrait game in a wide window, and it is what a phone game does on a tablet.
+    ///
+    /// <b>Only ever narrows.</b> On a phone the safe area is already narrower than the cap and
+    /// this does nothing at all, which is the property that makes it safe to put on every canvas.
+    /// </summary>
+    [DisallowMultipleComponent]
+    public sealed class ContentWidthCap : MonoBehaviour
+    {
+        RectTransform _rect;
+        float _appliedWidth = -1f;
+        float _appliedCap = -1f;
+
+        /// <summary>
+        /// How far in each side was pulled, in canvas units, or zero when the cap is not biting.
+        ///
+        /// Read by <see cref="SafeAreaBleed"/>, which has to cancel this as well as the safe area:
+        /// a scrim that stops at the capped band leaves the window lit down both sides, which is
+        /// the exact failure that component was written to prevent.
+        /// </summary>
+        public float AppliedInset { get; private set; }
+
+        void Awake()
+        {
+            _rect = (RectTransform)transform;
+        }
+
+        void OnEnable()
+        {
+            _appliedWidth = -1f;
+        }
+
+        void LateUpdate()
+        {
+            Apply();
+        }
+
+        /// <summary>
+        /// Runs after <see cref="SafeAreaFitter"/> has had its say — hence LateUpdate — because
+        /// the two write the same anchors and the safe area is the outer constraint of the pair.
+        /// </summary>
+        void Apply()
+        {
+            if (_rect == null)
+            {
+                _rect = (RectTransform)transform;
+            }
+
+            var parent = _rect.parent as RectTransform;
+            if (parent == null)
+            {
+                return;
+            }
+
+            float available = parent.rect.width;
+            if (available <= 0f)
+            {
+                return;
+            }
+
+            float cap = UIKit.ReferenceWidth;
+            if (available <= cap)
+            {
+                // Narrower than the cap: the safe area's own anchors stand, untouched. This is
+                // every phone, and the branch that keeps this component invisible in portrait.
+                if (_appliedWidth >= 0f)
+                {
+                    _appliedWidth = -1f;
+                    AppliedInset = 0f;
+                    _rect.offsetMin = new Vector2(0f, _rect.offsetMin.y);
+                    _rect.offsetMax = new Vector2(0f, _rect.offsetMax.y);
+                    Rebuild();
+                }
+
+                return;
+            }
+
+            if (Mathf.Approximately(available, _appliedWidth) && Mathf.Approximately(cap, _appliedCap))
+            {
+                return;
+            }
+
+            _appliedWidth = available;
+            _appliedCap = cap;
+
+            float inset = (available - cap) * 0.5f;
+            AppliedInset = inset;
+            _rect.offsetMin = new Vector2(inset, _rect.offsetMin.y);
+            _rect.offsetMax = new Vector2(-inset, _rect.offsetMax.y);
+            Rebuild();
+        }
+
+        /// <summary>
+        /// Tells everything below to lay out again, because this just changed the width they were
+        /// laid out against.
+        ///
+        /// Without it the cap is a trap rather than a fix. The screens are built before this runs
+        /// — a canvas is composed, its children measure the parent, and only then does LateUpdate
+        /// narrow that parent — so every row, every scroll viewport and every chip keeps positions
+        /// computed for the uncapped width. Nothing looks obviously broken: the panels are drawn
+        /// where they were told to be, and a tap lands on the background behind them, which is
+        /// exactly how the e2e reported it — "Chip_hair_short_crop is covered by SafeArea/
+        /// Background". A layout that is silently one width behind is worse than one that is
+        /// visibly wrong.
+        /// </summary>
+        void Rebuild()
+        {
+            LayoutRebuilder.MarkLayoutForRebuild(_rect);
+        }
+    }
+
+    /// <summary>
     /// Cancels the inset of a <see cref="SafeAreaFitter"/> above it, so a graphic parented inside
     /// the safe area still covers the entire screen.
     ///
@@ -103,6 +284,7 @@ namespace SheepGate.UI
         int _appliedWidth;
         int _appliedHeight;
         float _appliedScale = -1f;
+        float _appliedCapInset = -1f;
 
         void Awake()
         {
@@ -137,8 +319,15 @@ namespace SheepGate.UI
             Canvas canvas = _rect.GetComponentInParent<Canvas>();
             float scale = canvas != null && canvas.scaleFactor > 0f ? canvas.scaleFactor : 1f;
 
+            // The content cap is the second thing standing between this graphic and the screen
+            // edge, and it moves independently of the safe area — a window resized wider changes
+            // this and nothing else, so it belongs in the comparison as well as in the arithmetic.
+            ContentWidthCap cap = _rect.GetComponentInParent<ContentWidthCap>();
+            float capInset = cap != null ? cap.AppliedInset : 0f;
+
             if (safe == _appliedArea && width == _appliedWidth && height == _appliedHeight &&
-                Mathf.Approximately(scale, _appliedScale))
+                Mathf.Approximately(scale, _appliedScale) &&
+                Mathf.Approximately(capInset, _appliedCapInset))
             {
                 return;
             }
@@ -147,6 +336,7 @@ namespace SheepGate.UI
             _appliedWidth = width;
             _appliedHeight = height;
             _appliedScale = scale;
+            _appliedCapInset = capInset;
 
             // Insets are in device pixels; the rect lives in canvas units, so they divide by the
             // scaler's factor before they can cancel anything.
@@ -157,8 +347,8 @@ namespace SheepGate.UI
 
             _rect.anchorMin = Vector2.zero;
             _rect.anchorMax = Vector2.one;
-            _rect.offsetMin = new Vector2(-left, -bottom);
-            _rect.offsetMax = new Vector2(right, top);
+            _rect.offsetMin = new Vector2(-left - capInset, -bottom);
+            _rect.offsetMax = new Vector2(right + capInset, top);
         }
     }
 }

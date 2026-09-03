@@ -1348,89 +1348,32 @@ namespace SheepGate.EditorTools
             return watchFlag;
         }
 
-        // New — the daily check-in's date math: streak advances, escalates at day 4, and resets
-        // (never below 1) on any gap, without ever removing talents already awarded.
+        // The first launch of a calendar day is noticed once and says how long the player was
+        // away. It pays nothing and resets nothing: the streak and the talents it paid are gone.
         static void CheckInSchedule()
         {
             var today = new DateTime(2026, 1, 10);
 
             GameState state = GameState.NewGame();
             DailyCheckIn.Result first = DailyCheckIn.Apply(state, today);
-            Check("check-in first day awards streak 1 / 1 talent",
-                first.Awarded && first.Streak == 1 && first.TalentsAwarded == 1 && state.talents == 1,
-                "streak=" + first.Streak + " awarded=" + first.TalentsAwarded + " talents=" + state.talents);
+            Check("the first launch of a run is noticed and was away zero days",
+                first.First && first.DaysAway == 0 && state.talents == 0,
+                "first=" + first.First + " away=" + first.DaysAway + " talents=" + state.talents);
 
             DailyCheckIn.Result sameDay = DailyCheckIn.Apply(state, today);
-            Check("check-in does not re-award the same day",
-                !sameDay.Awarded && state.talents == 1,
-                "awarded=" + sameDay.Awarded + " talents=" + state.talents);
+            Check("a second launch the same day is not noticed twice",
+                !sameDay.First && sameDay.DaysAway == 0,
+                "first=" + sameDay.First + " away=" + sameDay.DaysAway);
 
-            for (int i = 1; i <= 3; i++)
-            {
-                DailyCheckIn.Apply(state, today.AddDays(i));
-            }
-            Check("check-in reaches streak 4 on the fourth consecutive day",
-                state.checkInStreak == 4, "streak=" + state.checkInStreak);
-
-            DailyCheckIn.Result fourth = DailyCheckIn.Apply(state, today.AddDays(4));
-            Check("check-in pays 3 talents at streak 5",
-                fourth.Awarded && fourth.Streak == 5 && fourth.TalentsAwarded == 3,
-                "streak=" + fourth.Streak + " awarded=" + fourth.TalentsAwarded);
-
-            int talentsBeforeGap = state.talents;
             DailyCheckIn.Result afterGap = DailyCheckIn.Apply(state, today.AddDays(7));
-            Check("check-in resets the streak to 1 after a missed day, without removing earned talents",
-                afterGap.Awarded && afterGap.Streak == 1 && afterGap.TalentsAwarded == 1
-                    && state.talents == talentsBeforeGap + 1,
-                "streak=" + afterGap.Streak + " talents=" + state.talents + " (had " + talentsBeforeGap + ")");
+            Check("a launch after a week away says seven days, and costs nothing",
+                afterGap.First && afterGap.DaysAway == 7 && state.talents == 0 && state.checkInStreak == 0,
+                "first=" + afterGap.First + " away=" + afterGap.DaysAway + " talents=" + state.talents
+                + " streak=" + state.checkInStreak);
 
-            // The reward modal previews tomorrow as TalentsForStreak(streak + 1) - the same
-            // expression HUD.OnCheckInClicked hands it. That preview is the one number a player
-            // might come back for, and nothing else asserts the step where it changes, so both
-            // sides of the boundary are pinned here rather than left to the modal's caller.
-            int previewAfterStreak2 = DailyCheckIn.TalentsForStreak(2 + 1);
-            Check("check-in previews 1 talent for tomorrow while the streak is short",
-                previewAfterStreak2 == 1, "claiming at streak 2 previews " + previewAfterStreak2);
-
-            int previewAfterStreak3 = DailyCheckIn.TalentsForStreak(3 + 1);
-            Check("check-in previews 3 talents for tomorrow once the fourth day is next",
-                previewAfterStreak3 == 3, "claiming at streak 3 previews " + previewAfterStreak3);
-
-            // A price that moves is the failure mode worth guarding: the value looks arbitrary by
-            // design, so a re-roll on every rebuild of the sheet would not look like a bug to
-            // anyone reading the screen. Pinned across the real catalogue rather than one id.
-            bool everyPriceInRange = true;
-            string firstOutOfRange = null;
-            int pricedItems = 0;
-            foreach (CatalogItemDef priced in CharacterCatalog.Items)
-            {
-                if (priced == null || string.IsNullOrEmpty(priced.id))
-                {
-                    continue;
-                }
-
-                pricedItems++;
-                int value = TalentPrice.For(priced.id);
-                if (value < TalentPrice.Min || value > TalentPrice.Max)
-                {
-                    everyPriceInRange = false;
-                    if (firstOutOfRange == null) firstOutOfRange = priced.id + "=" + value;
-                }
-            }
-
-            Check("talent prices sit between 5 and 15 for every catalogue item",
-                everyPriceInRange && pricedItems > 0,
-                firstOutOfRange == null
-                    ? pricedItems + " item(s), all within range"
-                    : "first outside: " + firstOutOfRange);
-
-            // A golden value, not a call compared against itself - the latter passes for any
-            // function at all, including one seeded per process. This is the number FNV-1a gives
-            // for this id, so a switch back to string.GetHashCode (explicitly not stable between
-            // runs) fails here instead of silently repricing the catalogue on every launch.
-            int goldenPrice = TalentPrice.For("hair_short_crop");
-            Check("a talent price is a fixed function of the item id, not a per-run roll",
-                goldenPrice == 9, "hair_short_crop priced at " + goldenPrice + ", expected 9");
+            DailyCheckIn.Result nextDay = DailyCheckIn.Apply(state, today.AddDays(8));
+            Check("the next day is one day away",
+                nextDay.First && nextDay.DaysAway == 1, "away=" + nextDay.DaysAway);
         }
     }
 }

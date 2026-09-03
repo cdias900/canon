@@ -247,7 +247,7 @@ editing either edits both.
 | `docs/handoff.md` | State of the build and what is not finished. |
 | `docs/youversion-api.md` | The verified API surface, and the licence obligations. |
 | `tools/README.md` | **What every script in `tools/` is for**, in one screen: the Node half that turns the manifest into `verses.json` and checks nothing copied scripture, and the shell half that drives Unity — compile, validate, acceptance, e2e, and the simulator. |
-| `docs/superpowers/` | Archive of a plan and its spec (`daily-check-in`), both carried out — `DailyCheckIn.cs` and `CheckInRewardModal.cs` ship. Kept as history, not as a document to write new work against. The spec is in pt-BR and should not be: it was added *after* the pass that put every document in English (`e1fabdd`, hours after `17da494`), so it is a miss, not an exemption. |
+| `docs/superpowers/` | Archive of a plan and its spec (`daily-check-in`), carried out and then reversed: the streak and the talents it paid were removed on 2026-09-03 (rule 7 and §12), and `DailyCheckIn.cs` now only notices the first launch of a day so `WelcomeBackModal` can say nothing went backwards. Kept as history, not as a document to write new work against. The spec is in pt-BR and should not be: it was added *after* the pass that put every document in English (`e1fabdd`, hours after `17da494`), so it is a miss, not an exemption. |
 
 ## Conventions
 

@@ -268,10 +268,14 @@ namespace SheepGate.Core
         /// <summary>Local date of the last awarded check-in, "yyyy-MM-dd", or empty before the first one.</summary>
         public string lastCheckInDate = "";
 
-        /// <summary>Consecutive calendar days checked in. Resets to 1 (not 0) on any gap greater than one day.</summary>
+        /// <summary>
+        /// Legacy: the streak the check-in used to count. Nothing writes or reads it any more —
+        /// the streak was a debt in a game that forbids debts (rule 7) — and it stays only so a
+        /// save from that build round-trips without a migration.
+        /// </summary>
         public int checkInStreak;
 
-        /// <summary>Cosmetic-only currency awarded by the daily check-in. Never spent by anything in this build.</summary>
+        /// <summary>Legacy: the currency the streak paid. Never spent, no longer awarded, kept for the same reason.</summary>
         public int talents;
 
         public bool HasFlag(string flag)

@@ -37,13 +37,12 @@ namespace SheepGate.UI
     /// ==================================================================================
     /// THE ROW IS NOT IN THIS FILE
     /// ==================================================================================
-    /// A wardrobe row — art, name, description, unlock sentence, padlock, NOVO badge, worn ring and
-    /// talent price — is built by <see cref="WardrobeRow"/>, which character creation lists the same
-    /// pieces with. This file used to carry a second copy of all of it. Every rule below that talks
+    /// A wardrobe row — art, name, description, unlock sentence, padlock, NOVO badge and worn ring
+    /// — is built by <see cref="WardrobeRow"/>, which character creation lists the same pieces
+    /// with. This file used to carry a second copy of all of it. Every rule below that talks
     /// about how a row looks is therefore a rule <i>that class</i> keeps; what this file keeps is
-    /// the two flags it passes (<c>showNewBadge</c> and <c>showTalentPrice</c>, both true here and
-    /// both false in creation), the order the badges are read in, and where a refused tap is
-    /// answered. Change how a row is drawn in <see cref="WardrobeRow"/> and both screens move
+    /// the one flag it passes (<c>showNewBadge</c>, true here and false in creation), the order
+    /// the badges are read in, and where a refused tap is answered. Change how a row is drawn in <see cref="WardrobeRow"/> and both screens move
     /// together, which is the whole point of it being there.
     ///
     /// ==================================================================================
@@ -63,23 +62,10 @@ namespace SheepGate.UI
     ///   Four counts on four adjacent tabs read as a scoreboard to clear even though each one is
     ///   individually harmless. The dot answers "is there anything in here I have not seen", which
     ///   is the whole question, and looking spends it.
-    /// * <b>Rule 18 — nothing is bought with money.</b> This entry used to read "nothing is
-    ///   bought: no price, no currency, no timer, no unlock now", and that is no longer true: a
-    ///   locked row now carries a talent price. The rule it was protecting is intact, and the
-    ///   distinction is the whole point. CLAUDE.md's rule 18 forbids <i>selling the shortcut</i> —
-    ///   monetisation may be a new season or a cosmetic, never a resource, never a timer, never a
-    ///   shortcut past the work. Talents are earned by turning up, spend only on cosmetics, and buy
-    ///   no stone, no timber, no stage of wall and no hour of anyone's day. There is still no
-    ///   timer and no "unlock now", and no real money touches this sheet.
-    ///   <para>
-    ///   <b>Not finished, and knowingly so.</b> The price is displayed; nothing spends it yet.
-    ///   Until the purchase path lands, every locked row shows a number the player cannot pay,
-    ///   which is in tension with rule 7 above — a locked row is supposed to be an invitation, and
-    ///   an unpayable price is closer to a shopfront with the door locked. It is staged
-    ///   deliberately rather than shipped as the finished design. The unlock sentence is still
-    ///   present and still the brightest line on the row, so the route that <i>does</i> work is
-    ///   still the one the row leads with.
-    ///   </para>
+    /// * <b>Rule 18 — nothing is bought with money.</b> No price, no currency, no timer, no
+    ///   "unlock now". A locked row used to carry a talent price and the header a coin balance,
+    ///   staged for a cosmetics shop that never landed; both went with the streak that paid the
+    ///   talents (see <c>DailyCheckIn</c>).
     /// * <b>Rule 13 — the smell checklist.</b> No religious iconography anywhere in here; the only
     ///   sprites are the design system's lock, check and dot, and the character's own art layers.
     ///   The tab bar is also silent — see <see cref="BuildSegment"/>.
@@ -112,24 +98,11 @@ namespace SheepGate.UI
     /// ==================================================================================
     /// COLOUR, AND THE TWO MEANINGS GOLD IS ALLOWED
     /// ==================================================================================
-    /// <b>Gold carries two meanings here, and they are told apart by shape.</b> It used to carry
-    /// exactly one — "not yet seen" — and the talent price added the second, so the rule is
-    /// restated rather than quietly broken.
-    /// <list type="number">
-    /// <item><b>"Not yet seen"</b>, spent by the NOVO badge and the tab dot, both cleared by
-    /// looking. Always a filled shape with no glyph in it.</item>
-    /// <item><b>"A talent"</b>, spent by the coin on a locked row's price — the same coin the HUD
-    /// and the Materiais tab use for the same thing. Always the coin glyph, always beside a
-    /// number.</item>
-    /// </list>
-    /// The two never collide on one row: a locked item is never new (<see cref="Wardrobe.IsNew"/>
-    /// refuses a badge on one), so a NOVO badge and a price cannot appear together, and the tab dot
-    /// lives on the tab bar rather than in the list. What keeps this honest is that neither meaning
-    /// is carried by gold <i>alone</i> — one is a bare fill, the other is a coin with a quantity.
-    ///
-    /// Why the single-meaning rule was worth having: before it, gold carried three unrelated jobs
-    /// at once. Adding a second meaning is a real cost, paid here for the talent economy; a third
-    /// would put the sheet back where it started.
+    /// <b>Gold carries one meaning here: "not yet seen".</b> The NOVO badge and the tab dot,
+    /// both cleared by looking, always a filled shape with no glyph in it. It briefly carried a
+    /// second — a coin beside a talent price on locked rows and a balance in the header — and
+    /// that went with the talents themselves (see <c>DailyCheckIn</c>). One meaning is the rule
+    /// worth keeping: before it, gold carried three unrelated jobs at once.
     ///
     /// Equipped is therefore <b>clay</b>, not gold: the <c>Selected</c> ring and the check are
     /// <c>Brand.Primary</c>, so clay means "the current one" in both places it appears, the tab you
@@ -204,8 +177,7 @@ namespace SheepGate.UI
         {
             "backpack.material.stone",
             "backpack.material.timber",
-            "backpack.material.blocks",
-            "backpack.material.talents"
+            "backpack.material.blocks"
         };
 
         // ------------------------------------------------------------------ two bars, two levels
@@ -357,7 +329,7 @@ namespace SheepGate.UI
         };
 
         /// <summary>GameObject names of the three material readouts.</summary>
-        static readonly string[] MaterialObjectNames = { "Material_stone", "Material_timber", "Material_blocks", "Material_talents" };
+        static readonly string[] MaterialObjectNames = { "Material_stone", "Material_timber", "Material_blocks" };
 
         // ------------------------------------------------------------------ metrics
         // Design points throughout, converted once. The sheet is a bottom sheet: a generous strip
@@ -373,12 +345,6 @@ namespace SheepGate.UI
         static readonly float SheetPadding = DesignTokens.Space.S20;
         static readonly float HeaderHeight = DesignTokens.Space.TouchTarget;
 
-        /// <summary>
-        /// Width reserved in the header for the coin, its gap and four mono digits. Reserved rather
-        /// than measured so the title's inset is a constant — see <see cref="BuildHeader"/>.
-        /// </summary>
-        static readonly float BalanceWidth =
-            UIKit.IconSize + DesignTokens.Space.S4 + DesignTokens.Px(52f);
         static readonly float StageHeight = DesignTokens.Px(124f);
         static readonly float FigureBoxHeight = DesignTokens.Px(100f);
 
@@ -829,23 +795,8 @@ namespace SheepGate.UI
         }
 
         /// <summary>
-        /// The sheet's title, the talent balance, and the way out.
-        ///
-        /// <b>The balance is here because the prices are.</b> A locked row shows a coin and a
-        /// number, and a price with no balance anywhere near it can be read as the balance — "you
-        /// have 12" instead of "this costs 12". The Materiais tab does carry the count, but it is
-        /// one tab away from every row that quotes a price, which is exactly when the reader cannot
-        /// check. In the header it is on screen on all four tabs, beside the word that says whose
-        /// pocket it is.
-        ///
-        /// It is not a score. Rule 10 bars progress toward something — a fraction, a bar, a "next
-        /// unlock" — and a currency balance is a quantity the player holds, the same kind of number
-        /// as the stone and timber counts this sheet has always shown.
-        ///
-        /// The width is reserved rather than fitted. A <see cref="ContentSizeFitter"/> here would
-        /// make the title's right inset depend on a width that is zero for the first frame, and the
-        /// title would jump once as the count arrived. Four mono digits is more talents than this
-        /// economy can currently pay in a year of daily check-ins, so the reserve does not clip.
+        /// The sheet's title and the way out. The talent balance that sat between them went with
+        /// the talents; the title's inset now clears the close button and nothing else.
         /// </summary>
         void BuildHeader(RectTransform sheetRect)
         {
@@ -855,10 +806,7 @@ namespace SheepGate.UI
             Text title = UIKit.CreateText(header, "Title", Loc.T(TitleKey), DesignTokens.Type.Title,
                 DesignTokens.Ink.Primary, TextAnchor.MiddleLeft, DesignTokens.TypeRole.Title);
             UIKit.Stretch((RectTransform)title.transform, 0f,
-                          DesignTokens.Space.TouchTarget + DesignTokens.Space.TouchGap
-                              + BalanceWidth + DesignTokens.Space.TouchGap, 0f, 0f);
-
-            BuildBalance(header);
+                          DesignTokens.Space.TouchTarget + DesignTokens.Space.TouchGap, 0f, 0f);
 
             Button close = UIKit.CreateIconButton(header, "CloseButton", UiSpriteKeys.IconClose,
                 Loc.T(CloseKey), Close);
@@ -870,31 +818,6 @@ namespace SheepGate.UI
             closeRect.anchoredPosition = Vector2.zero;
         }
 
-        /// <summary>
-        /// The coin and the count, sitting between the title and the close button. Same coin, same
-        /// gold and same mono digits as every other talent figure in the game, so the number here
-        /// and the number on a price are visibly the same currency.
-        /// </summary>
-        void BuildBalance(RectTransform header)
-        {
-            RectTransform balance = UIKit.CreateRect("Balance", header);
-            UIKit.HorizontalGroup(balance.gameObject, DesignTokens.Space.S4, new RectOffset(),
-                TextAnchor.MiddleRight);
-
-            balance.anchorMin = new Vector2(1f, 0.5f);
-            balance.anchorMax = new Vector2(1f, 0.5f);
-            balance.pivot = new Vector2(1f, 0.5f);
-            balance.sizeDelta = new Vector2(BalanceWidth, DesignTokens.Space.TouchTarget);
-            balance.anchoredPosition =
-                new Vector2(-(DesignTokens.Space.TouchTarget + DesignTokens.Space.TouchGap), 0f);
-
-            UIKit.CreateIcon(balance, "Icon", UiSpriteKeys.IconCoin, DesignTokens.Brand.Secondary,
-                UIKit.IconSize);
-
-            _balanceCount = UIKit.CreateText(balance, "Count", string.Empty, DesignTokens.Type.Mono,
-                DesignTokens.Brand.Secondary, TextAnchor.MiddleRight, DesignTokens.TypeRole.Mono);
-            _balanceCount.horizontalOverflow = HorizontalWrapMode.Overflow;
-        }
 
         /// <summary>
         /// The character, and beside them their name and the line that answers a refused tap.
@@ -1330,11 +1253,8 @@ namespace SheepGate.UI
         /// <list type="number">
         /// <item><b>The badge read, and its order.</b> <see cref="Wardrobe.IsNew"/> is asked here,
         /// per item, while the badge is still there to read — see the comment on it below.</item>
-        /// <item><b>The two flags.</b> <c>showNewBadge: true</c> because this is the screen a badge
-        /// exists to announce on, and <c>showTalentPrice: true</c> because this is the screen a
-        /// price belongs on. Character creation passes neither, and the price is drawn UNDER the
-        /// unlock sentence rather than instead of it — that ordering is <c>WardrobeRow.Build</c>'s
-        /// to keep, and it keeps it.</item>
+        /// <item><b>The flag.</b> <c>showNewBadge: true</c> because this is the screen a badge
+        /// exists to announce on. Character creation passes false.</item>
         /// <item><b>The body the thumbnails are drawn on</b>, read once per tab off this player's
         /// own appearance rather than per row.</item>
         /// </list>
@@ -1378,7 +1298,7 @@ namespace SheepGate.UI
                 // silently, and one of them decides whether a price appears on the screen.
                 WardrobeRow.View row = WardrobeRow.Build(content, item, slot, RowMetrics,
                     bodyArtVariant, locked, showNewBadge: true, isNew: isNew, namePrefix: "Chip_",
-                    onTap: OnRowTapped, showTalentPrice: true);
+                    onTap: OnRowTapped);
 
                 if (row != null)
                 {
@@ -1674,7 +1594,7 @@ namespace SheepGate.UI
         /// row two did while stone, timber and blocks were the whole list.
         ///
         /// <b>The rows are meaningful.</b> Row one is what the valley gives you; row two is what
-        /// those two become, plus the talents a check-in pays. The 320 points below the grid stay
+        /// those two become. The 320 points below the grid stay
         /// empty on purpose: rule 10 forbids everything that would obviously fill them — a
         /// completion count, a "next unlock", a bar — and there is nothing else honest to put
         /// there. Calm and short beats padded.
@@ -1703,7 +1623,6 @@ namespace SheepGate.UI
 
             RectTransform second = BuildMaterialsRow(grid);
             BuildMaterialCard(second, 2);
-            BuildMaterialCard(second, 3);
         }
 
         /// <summary>One row of the material grid. Both rows carry the same name; both are handles.</summary>
@@ -2126,8 +2045,8 @@ namespace SheepGate.UI
         }
 
         /// <summary>
-        /// The header's talent count, read straight off <see cref="GameState"/> like the Materiais
-        /// grid below it, so the two readings of the same number cannot disagree.
+        /// Once the header's talent count. Nothing builds the count any more, so this returns at the
+        /// null check; kept so the refresh order of the sheet does not change.
         /// </summary>
         void RefreshBalance()
         {
@@ -2136,8 +2055,8 @@ namespace SheepGate.UI
                 return;
             }
 
-            int talents = _state != null ? Mathf.Max(0, _state.talents) : 0;
-            _balanceCount.text = talents.ToString(CultureInfo.InvariantCulture);
+            // There is no balance any more: talents are gone with the streak (DailyCheckIn). The
+            // field stays null and this returns above; kept so the refresh order does not change.
         }
 
         void RefreshMaterials()
@@ -2150,7 +2069,6 @@ namespace SheepGate.UI
             SetCount(0, _state != null ? Mathf.Max(0, _state.stone) : 0);
             SetCount(1, _state != null ? Mathf.Max(0, _state.timber) : 0);
             SetCount(2, _state != null ? Mathf.Max(0, _state.blocks) : 0);
-            SetCount(3, _state != null ? Mathf.Max(0, _state.talents) : 0);
         }
 
         void SetCount(int index, int value)

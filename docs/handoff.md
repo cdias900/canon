@@ -66,7 +66,7 @@ accident:
 | `node tools/validate-content.mjs` | **run against `991a0ba` while writing this: PASSED, 0 warnings.** 35 verses, 7 chapters per locale, 20 hardcoded-string sinks, 255 locale keys, 12 nodes queued for a human read | whether a sentence is *good*, and whether authored canonical speech overreaches — that is rule 4's human read |
 | `tools/acceptance.sh` | passes every criterion in both languages | it never calls `Compose()`, so it is a gate on rules and not evidence that anything is wired |
 | `tools/e2e.sh` | **749 steps, 9 of 9 stages, both locales, 0 failures** (`4d5681a`; the per-locale split, 387 pt-BR + 362 en, is recorded in `079aac4`) | the interaction layer — it spends a day through `ResourceSystem` rather than walking the player to the wall; and it runs the macOS player at exactly 1080×1920, where the canvas unit and the pixel are the same number |
-| `tools/tile-preview.sh` | new at `991a0ba` | anything that is not a procedural tile |
+| `tools/tile-preview.sh` | new at `991a0ba`; `characters` and the Unity 6000.5 Roslyn path at `e7f1b8c` | anything that is not a procedural tile or a character body; and it renders, it never judges — the tones and silhouettes still want a human eye |
 
 **`tools/e2e.sh` runs the locales serially now, and `--parallel` is opt-in** (`tools/e2e.sh:22`,
 `:138`). The harness hung four times — 30/08, 01/09 and twice on 02/09 — always a few steps past the

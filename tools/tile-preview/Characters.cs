@@ -49,8 +49,9 @@ public static class Characters
 
     static void Dressed(int variant, ArtFacing facing, ArtAnim anim, int frame, int tx, int ty, int scale)
     {
-        // The order the game layers them: body, legs, top, hair. First variant of each garment,
-        // so what differs between rows is only the body.
+        // The order the game layers them (CharacterAppearance: Body, Legs, Top, Accessory, Hair),
+        // minus the accessory — what is being judged is the body, and a band or a hood would only
+        // hide it. First variant of each garment, so what differs between rows is only the body.
         Blit(CharacterArt.Body(variant, facing, anim, frame), tx, ty, scale);
         Blit(CharacterArt.Legs(0, facing), tx, ty, scale);
         Blit(CharacterArt.Top(0, facing), tx, ty, scale);

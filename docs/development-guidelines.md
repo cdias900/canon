@@ -178,16 +178,19 @@ used to be a full build — Unity export, Xcode compile, install, launch, screen
 glance, for art that gets changed ten times in a row, which in practice means the art stopped being
 looked at.
 
-**Why its output can be trusted.** It compiles `ArtPalette.cs`, `PixelCanvas.cs`, `ValueNoise.cs`
-and `TileArt.cs` **from `Assets/`, not copies** (`tools/tile-preview.sh:62-68`), against a small
-`UnityEngine` stub, with the Roslyn that ships inside Unity. A preview harness with its own copy of
+**Why its output can be trusted.** It compiles `ArtPalette.cs`, `PixelCanvas.cs`, `ValueNoise.cs`,
+`TileArt.cs` and `CharacterArt.cs` **from `Assets/`, not copies** (the `ART` list in
+`tools/tile-preview.sh`), against a small `UnityEngine` stub, with the Roslyn that ships inside
+Unity — found at either of the two places Unity 6000.3 and 6000.5 keep it. A preview harness with its own copy of
 the drawing code drifts and then lies; this one breaks the build instead. It also never opens the
 project — no `-projectPath`, only the bundled `dotnet` and `csc.dll` — so unlike `unity-check.sh` it
 runs happily while the Editor holds the `Library` lock.
 
 Modes: `sheet` (every tile side by side), `zoom` (5x, for judging pixels), `field <density>` (a
-field of ruin tiles, which is how you tell scattered stone from wallpaper) and `check` (asserts
-every pixel is in the world palette and opaque). Output lands in `Logs/tile-preview/`, gitignored.
+field of ruin tiles, which is how you tell scattered stone from wallpaper), `characters` (the eight
+bodies — two builds, four skin tones — at 1x and at 4x, bare and dressed, on the game's own ground:
+the sheet for the one judgement no gate makes) and `check` (asserts every pixel is in the world
+palette and opaque). Output lands in `Logs/tile-preview/`, gitignored.
 
 **What it caught, which is the whole argument.** A rubble field that a full device build reported
 as fine was shown here to be a checkerboard of hard-edged squares — the tile shaded its whole 32px

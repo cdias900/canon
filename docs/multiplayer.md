@@ -4,9 +4,11 @@ The wall was never built alone. Nehemiah 3 is a list of more than forty groups a
 one took, and this game has been playing all of them with nobody in the seats. This is the design
 for putting people in them.
 
-**Status: specified, server started, no client.** What exists is this document, the schema, a running
-`tools/table-server.mjs` and its tests. What does not exist: any Unity screen, accounts, moderation
-tooling, or a deployment. Read §9 before estimating anything.
+**Status: specified, server and client running on one machine.** What exists is this document, the
+schema, `tools/table-server.mjs` with its tests, and the *Obra em grupo* screen in Unity — create or
+join by code, the seats, the feed, the composed lines, the trumpet with its two answers, and the
+group mission of §06 played through to its ending. What does not exist: accounts, moderation
+tooling, or a deployment anywhere but a developer's laptop. Read §9 before estimating anything.
 
 ---
 
@@ -65,6 +67,11 @@ It expires when the table's season ends.
 UUID generated on the device and kept in the save, shown under the name they typed at creation. What
 this cannot do is prove anybody is who they say: a lost save is a lost identity, and a shared device
 is a shared identity. Everything in §06 is designed around that being true.
+
+**The table is remembered on the device.** The code of the last table joined is kept beside the
+player id, and opening *Obra em grupo* rejoins it before showing anything else — so a person who
+comes back at the trumpet's hour finds their seat, not a code field. A code the server refuses (the
+season ended, the table is gone) is forgotten and the two doors are shown again.
 
 ---
 
@@ -133,6 +140,40 @@ discovery is destroyed by a lobby where you can watch each other decide.
 **A Página still arrives at turn 2, for everyone, at the same time.** It is not a reward for the
 seat that earned it and it is not divisible. Rule 19 governs: reading pays in understanding, and
 understanding is the one thing that scales to a whole table for free.
+
+**How it is played, in the order it happens.** The trumpet names an hour (§05). Until that hour,
+everyone answers *Eu vou* or *Não consigo hoje*, and the last answer counts. At the hour, the first
+request to arrive opens the raid on whoever said yes, in the order they said it, up to the seats the
+trumpet named; the sounder counts as coming. Nobody saying yes is recorded and the table moves on —
+it is not a defeat and nobody is told off. Each turn stays open **two minutes** from the moment it
+opens, or until every present seat has picked, whichever is first. A seat that has not picked when
+the clock runs out contributes nothing to that turn: nothing, not a penalty. There is no job runner
+— a turn the clock closed is resolved by the next request, *at the clock*, so a table nobody looked
+at for an hour has played out as many turns as the hour held.
+
+**The wall the table faces, as a first tuning.** The other side's resolve is the **sum** of what each
+present seat brings — the solo base, plus the solo penalties for a watch that did not stand the night
+before and for an invitation from outside that was accepted, *per seat* — so four seats face four
+walls' worth and one seat faces exactly the solo fight. Morale is one number for the whole table,
+pressed by the base pressure plus the same two penalties if *anyone* came unprepared. Move deltas
+are the ones in `contest.json`, one copy, read by the server from the same file the game reads; the
+torch is shown once per seat and is the weak version after that. What the server does **not** do
+that the solo contest does: count the courses still missing from the contested segment (it cannot
+see a wall), and scale *Hold the line* and *Call the others* by what the player built and whom they
+spoke to. Those are a second tuning pass, once real tables have been played.
+
+**The preparation is declared by the client.** Whether a watch stood and whether the invitation was
+accepted live in an offline save the server has never seen, so they travel with the answer to the
+trumpet. This is the one thing the client tells the server rather than the other way round, and it
+is a balance input, not a safety property: a client that lies about its watch gets an easier fight
+and nobody else pays for it (§04).
+
+**What a table's raid does to anybody's save: nothing.** Not the resolved flag that stops stage six
+being fought twice, not the unfinished work that a broken line costs in the solo game, not morale.
+The group mission is rendered by the table screen and resolved by the server, and the solo
+`MoraleContest` is never involved — because a table's raid happens whenever the trumpet says, to
+people at different stages of their own seasons, and a loss at a table that tore down a player's own
+wall would be exactly what §04 forbids.
 
 **Stage 8's `letters` is the second one**, and it is not in this slice. It is listed here because the
 design falls out the same way, and because `keep_working` — the move only a player who refused the
@@ -249,8 +290,8 @@ column anyone can select is not one.
 
 | | |
 |---|---|
-| Specified and running | This document · the schema · `tools/table-server.mjs` · its tests |
-| Not started | Every Unity screen; accounts; moderation tooling; deployment; the `letters` mission |
+| Specified and running | This document · the schema · `tools/table-server.mjs` · its tests · the *Obra em grupo* screen, the trumpet's answers and the §06 raid, played on the iPhone simulator against a local server |
+| Not started | Accounts; moderation tooling; deployment (the server has run only on a developer's machine); the `letters` mission; a second tuning pass on §06 once a real table has been played |
 | Breaks | *"No sign-up"* survives (device UUID). ***"Offline at runtime" does not*** — a table needs a network, and that is a real change to `MVP-SCOPE.md` §01 |
 
 **The single biggest risk is not technical.** It is that a table with nobody in it is worse than

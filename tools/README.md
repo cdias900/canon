@@ -265,11 +265,27 @@ Two rules still hold mechanically and are not a matter of judgement:
 
 ```bash
 node tools/table-server.mjs --port 8788 --db table.db   # :memory: by default
-node --test tools/table-server.test.mjs                  # 15 rules that cannot be wrong
+node --test tools/table-server.test.mjs                  # the rules that cannot be wrong
 ```
 
-The design is `docs/multiplayer.md`; this is the server it specifies. **No Unity client exists yet**
-— this is a foundation, not a feature a player can reach.
+The design is `docs/multiplayer.md`; this is the server it specifies. The Unity client is
+`TableService` (the calls) and `TablePanel` (the screen), reached from the HUD drawer **only when a
+URL is configured** — `-table-url http://127.0.0.1:8788` on the command line, or the
+`sheepgate.table.url` PlayerPrefs key on iOS, where the player gets no command line. Without one
+there is no button, no request, and the solo game is untouched. The device also keeps the code of
+the last table it joined (`sheepgate.table.code`) and rejoins it when the screen opens.
+
+The group mission (§06) is resolved here, not on the device: a trumpet names an hour, seats answer,
+the raid opens at the hour on whoever said yes, and each turn closes when every present seat has
+picked or two minutes have passed. Nothing is scheduled — a due trumpet is opened and a lapsed turn
+is resolved by the first request that arrives afterwards, at the time it was due. The tuning is read
+from `Assets/Resources/Data/contest.json`, the same file the game reads, so there is one copy of the
+numbers. To watch a raid on the simulator without waiting two hours, sound the trumpet by hand:
+
+```bash
+curl -s localhost:8788/trumpet -X POST \
+  -d '{"code":"ABCDEF","playerId":"<the device uuid>","atEpochMs":'$(( ($(date +%s) + 30) * 1000 ))'}'
+```
 
 It is here rather than in the game for the same reason `study-server.mjs` is: rules that a client
 enforces are rules that live in a text editor. Two of them are rule 17 — a minor never shares a

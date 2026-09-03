@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Text;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using UnityEngine;
 using UnityEngine.Networking;
 
@@ -55,6 +56,55 @@ namespace SheepGate.Core
             [JsonProperty("kind")] public string Kind;
             [JsonProperty("lineKey")] public string LineKey;
             [JsonProperty("body")] public string Body;
+
+            /// <summary>A held move carries only its turn: the server redacts the rest (rule 11).</summary>
+            [JsonProperty("turn")] public int Turn;
+
+            /// <summary>The rest of what happened, shaped per kind. Read, never trusted.</summary>
+            [JsonProperty("payload")] public JObject Payload;
+        }
+
+        [Serializable]
+        public sealed class RaidMove
+        {
+            [JsonProperty("id")] public string Id;
+            [JsonProperty("open")] public bool Open;
+        }
+
+        [Serializable]
+        public sealed class ResolvedTurn
+        {
+            [JsonProperty("turn")] public int Turn;
+            [JsonProperty("moves")] public Dictionary<string, string> Moves;
+            [JsonProperty("resolve")] public int Resolve;
+            [JsonProperty("morale")] public int Morale;
+        }
+
+        /// <summary>
+        /// The group mission as the server lets this player see it (docs/multiplayer.md §06): the
+        /// meters, whose turn it is, whether this seat has answered — and never what anybody else
+        /// answered until the turn has closed.
+        /// </summary>
+        [Serializable]
+        public sealed class RaidState
+        {
+            [JsonProperty("open")] public bool Open;
+            [JsonProperty("outcome")] public string Outcome;
+            [JsonProperty("turn")] public int Turn;
+            [JsonProperty("turnLimit")] public int TurnLimit;
+            [JsonProperty("pageTurn")] public int PageTurn;
+            [JsonProperty("pageVerse")] public string PageVerse;
+            [JsonProperty("deadline")] public long Deadline;
+            [JsonProperty("resolve")] public int Resolve;
+            [JsonProperty("resolveMax")] public int ResolveMax;
+            [JsonProperty("morale")] public int Morale;
+            [JsonProperty("moraleMax")] public int MoraleMax;
+            [JsonProperty("present")] public List<string> Present;
+            [JsonProperty("youArePresent")] public bool YouArePresent;
+            [JsonProperty("youCommitted")] public bool YouCommitted;
+            [JsonProperty("committedCount")] public int CommittedCount;
+            [JsonProperty("moves")] public List<RaidMove> Moves;
+            [JsonProperty("resolvedTurns")] public List<ResolvedTurn> ResolvedTurns;
         }
 
         [Serializable]
@@ -71,9 +121,11 @@ namespace SheepGate.Core
             [JsonProperty("table")] public TableInfo Table;
             [JsonProperty("seats")] public List<Seat> Seats;
             [JsonProperty("events")] public List<Event> Events;
+            [JsonProperty("raid")] public RaidState Raid;
             [JsonProperty("error")] public string Error;
             [JsonProperty("code")] public string Code;
             [JsonProperty("seat")] public string Seat;
+            [JsonProperty("trumpetId")] public long TrumpetId;
         }
 
         // ------------------------------------------------------------------ identity
@@ -186,11 +238,43 @@ namespace SheepGate.Core
             }, done);
         }
 
-        public static void SoundTrumpet(string code, long atEpochMs, int seats, Action<Snapshot> done)
+        /// <summary>
+        /// Sounds the trumpet, and declares what this seat brings to the hour it names.
+        ///
+        /// The two preparation facts live in an offline save the server has never seen, so they
+        /// are declared rather than looked up. They tune the fight and decide nothing about who may
+        /// play it — see the header of the group-mission section in tools/table-server.mjs.
+        /// </summary>
+        public static void SoundTrumpet(string code, long atEpochMs, int seats, bool watchPosted,
+                                        bool acceptedInvite, Action<Snapshot> done)
         {
             Post("/trumpet", new Dictionary<string, object>
             {
-                { "code", code }, { "playerId", PlayerId }, { "atEpochMs", atEpochMs }, { "seats", seats }
+                { "code", code }, { "playerId", PlayerId }, { "atEpochMs", atEpochMs }, { "seats", seats },
+                { "watchPosted", watchPosted }, { "acceptedInvite", acceptedInvite }
+            }, done);
+        }
+
+        /// <summary>"Eu vou" or "Não consigo hoje". The last answer before the hour is the one that counts.</summary>
+        public static void AnswerTrumpet(string code, long trumpetId, bool coming, bool watchPosted,
+                                         bool acceptedInvite, Action<Snapshot> done)
+        {
+            Post("/answer", new Dictionary<string, object>
+            {
+                { "code", code }, { "playerId", PlayerId }, { "trumpetId", trumpetId }, { "coming", coming },
+                { "watchPosted", watchPosted }, { "acceptedInvite", acceptedInvite }
+            }, done);
+        }
+
+        /// <summary>
+        /// A move, handed to the server and not applied here. Nothing changes on this screen until
+        /// the turn closes and the server says what everybody did — that delay is rule 11, not lag.
+        /// </summary>
+        public static void CommitMove(string code, int turn, string moveId, Action<Snapshot> done)
+        {
+            Post("/commit", new Dictionary<string, object>
+            {
+                { "code", code }, { "playerId", PlayerId }, { "turn", turn }, { "move", moveId }
             }, done);
         }
 
@@ -202,7 +286,11 @@ namespace SheepGate.Core
                 return;
             }
 
-            Instance.StartCoroutine(Instance.Get("/feed?code=" + UnityWebRequest.EscapeURL(code), done));
+            // The player id travels with the read so the answer can say whether THIS seat has
+            // already answered the open turn — the one per-player fact the raid state carries.
+            Instance.StartCoroutine(Instance.Get(
+                "/feed?code=" + UnityWebRequest.EscapeURL(code) + "&playerId=" + UnityWebRequest.EscapeURL(PlayerId),
+                done));
         }
 
         static void Post(string path, Dictionary<string, object> body, Action<Snapshot> done)

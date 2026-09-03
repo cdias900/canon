@@ -1,0 +1,7 @@
+# The table server image copies two files by name (see tools/table-server.Dockerfile). Everything
+# else is excluded here so the build context is not a multi-gigabyte Unity project — and so that
+# the licensed verses.json can never reach an image by accident.
+*
+!tools/table-server.mjs
+!tools/table-admin.mjs
+!Assets/Resources/Data/contest.json

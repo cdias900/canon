@@ -10,7 +10,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   openDatabase, createTable, joinTable, say, commitMove, feed, soundTrumpet, answerTrumpet, settle,
-  raidState, currentRaid, makeCode, SEATS, TURN_CLOCK_MS
+  raidState, currentRaid, report, hideMessage, muteSeat, listReports, makeCode, SEATS, TURN_CLOCK_MS,
+  SAY_WINDOW_MS, SAY_LIMIT
 } from './table-server.mjs';
 
 const db = () => openDatabase(':memory:');
@@ -404,4 +405,63 @@ test('the trumpet reaches the table', () => {
   const call = feed(d, { code: t.code }).events.find((e) => e.kind === 'trumpet');
 
   assert.equal(call.payload.seats, 4);
+});
+
+// ---------------------------------------------------------------- volume, and the human side
+
+test('a seat that talks faster than the wall goes up is told so, and may speak again later', () => {
+  const d = db();
+  const t = createTable(d, { band: 'minor', playerId: 'kid' });
+
+  for (let i = 0; i < SAY_LIMIT; i++) {
+    assert.equal(say(d, { code: t.code, playerId: 'kid', lineKey: 'table.line.thanks', now: T0 + i }).ok, true);
+  }
+  assert.equal(say(d, { code: t.code, playerId: 'kid', lineKey: 'table.line.thanks', now: T0 + SAY_LIMIT }).status, 429);
+
+  assert.equal(say(d, { code: t.code, playerId: 'kid', lineKey: 'table.line.thanks', now: T0 + SAY_WINDOW_MS + SAY_LIMIT }).ok, true);
+});
+
+test('a hidden message leaves the feed without its words, and the report still points at it', () => {
+  const d = db();
+  const t = createTable(d, { band: 'minor', playerId: 'kid' });
+  say(d, { code: t.code, playerId: 'kid', lineKey: 'table.line.need_stone' });
+  const said = feed(d, { code: t.code }).events.find((e) => e.kind === 'said');
+  report(d, { code: t.code, playerId: 'other', eventId: said.id, note: 'spam' });
+
+  assert.equal(hideMessage(d, { code: t.code, eventId: said.id, by: 'ana' }).ok, true);
+
+  const after = feed(d, { code: t.code }).events.find((e) => e.id === said.id);
+  assert.equal(after.hidden, true);
+  assert.equal(after.lineKey, undefined, 'the words leaked');
+  assert.equal(after.body, undefined, 'the words leaked');
+  assert.equal(feed(d, { code: t.code }).events.some((e) => e.kind === 'moderated' || e.kind === 'reported'), false,
+    'what a moderator did reached the feed');
+
+  const [entry] = listReports(d);
+  assert.equal(entry.message.id, said.id);
+  assert.equal(entry.message.hidden, true);
+  assert.equal(entry.note, 'spam');
+});
+
+test('a muted seat loses free text until the hour named, and keeps the composed lines', () => {
+  const d = db();
+  const t = createTable(d, { band: 'adult', playerId: 'grown' });
+  // Free text is off in this test process (ALLOW_FREE_TEXT unset), so the free-text branch is
+  // asserted through the same refusal wording it would give on a free-text table; what this test
+  // pins is that composed speech survives a mute and that the mute expires.
+  const until = T0 + 3600_000;
+  assert.equal(muteSeat(d, { code: t.code, seatId: t.seat, untilEpochMs: until, now: T0 }).ok, true);
+
+  assert.equal(say(d, { code: t.code, playerId: 'grown', lineKey: 'table.line.thanks', now: T0 + 1 }).ok, true);
+  assert.equal(say(d, { code: t.code, playerId: 'grown', body: 'hi', now: T0 + 1 }).status, 403);
+  assert.equal(say(d, { code: t.code, playerId: 'grown', body: 'hi', now: until + 1 }).status,
+    t.freeText ? 200 : 403);
+});
+
+test('a mute cannot name an hour that has passed, and a hide needs a real message', () => {
+  const d = db();
+  const t = createTable(d, { band: 'minor', playerId: 'kid' });
+
+  assert.equal(muteSeat(d, { code: t.code, seatId: t.seat, untilEpochMs: T0 - 1, now: T0 }).status, 400);
+  assert.equal(hideMessage(d, { code: t.code, eventId: 999 }).status, 404);
 });

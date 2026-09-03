@@ -481,10 +481,10 @@ namespace SheepGate.UI
 
             if (!raid.Open)
             {
-                // The ending stays on screen until the next trumpet replaces it — the feed carries
-                // the turns, and this is the one line that says how it went.
-                UIKit.CreateText(rect, "Outcome", Loc.T("table.raid.outcome." + (raid.Outcome ?? "limit")),
-                    DesignTokens.Type.Body, DesignTokens.Ink.Primary, TextAnchor.UpperLeft);
+                // Nothing here: the ending is a feed line, and it is the newest one, so it is the
+                // first thing under the seats. The first version also drew it in this row, and the
+                // phone showed the same sentence twice with the seats between them — and the card
+                // off both ends of the screen.
                 _pageShown = false;
                 return;
             }
@@ -605,8 +605,9 @@ namespace SheepGate.UI
 
             Column((RectTransform)host, DesignTokens.Space.S4);
 
-            // Fewer lines while the call or the raid is taking the room above.
-            int limit = _busy ? 4 : 6;
+            // Four, not six. A resolved turn is two lines on a phone, and six of them under the
+            // seats and over the vocabulary put the card off both ends of the screen.
+            const int limit = 4;
             int shown = 0;
             for (int i = snapshot.Events.Count - 1; i >= 0 && shown < limit; i--)
             {

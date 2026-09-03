@@ -45,7 +45,7 @@ iOS and macOS are what has actually been played. Known gap, not a scope change.
 | Render | 2D URP | Needed for the day/night light. |
 | Serialisation | `Newtonsoft.Json` | `JsonUtility` reads neither dictionaries nor polymorphism. Do not use it. |
 | Content | JSON in `Resources/Data/` | A ScriptableObject needs the editor to author; JSON is editable by agent and by human outside Unity. |
-| Backend | None at runtime | Verses are baked at build time (§09). Zero network during play. |
+| Backend | None at runtime, **for the solo game** | Verses are baked at build time (§09). Zero network during play. The multiplayer table (`docs/multiplayer.md`) is the one exception and it is opt-in by configuration: with no `-table-url` the feature does not exist and this row holds exactly as written. |
 | Resolution | Portrait 1080×1920, PPU 32 | Orthographic camera, `CameraRig.CloseSize` 7.5. |
 
 > **NON-NEGOTIABLE, INHERITED FROM THE PROJECT**
@@ -498,9 +498,11 @@ accessory. Six synthesised sounds, no audio assets.
 
 ## 12 · Out of scope
 
-- Multiplayer, expeditions, seats — **the schema anticipates it, and the server for it now exists**
-  (`docs/multiplayer.md`, `tools/table-server.mjs`). **No client does**: nothing a player can reach
-  in this build is multiplayer, and §01's *no network at runtime* still describes what ships
+- Multiplayer, expeditions, seats — **out of the MVP as shipped, and built beside it**: the server,
+  the *Obra em grupo* screen and the group raid exist (`docs/multiplayer.md`,
+  `tools/table-server.mjs`) and have run against a local server. They are **opt-in by
+  configuration**: with no `-table-url` there is no button, no request and no network, so §01's
+  *no network at runtime* still describes what ships, and criterion 12 still holds
 - The village as a separate base with its own construction
 - A shop, spendable talents, currency, any purchase
 - A daily streak, push notifications

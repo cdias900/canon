@@ -25,6 +25,11 @@ tools/tile-preview.sh        render the procedural tile art to a PNG without Uni
 tools/study-server.mjs       the study endpoint, run by hand during development. The game only
                              calls it when a URL is configured, so the player is offline by
                              default; the model key lives here and never in the client (rule 16)
+tools/table-server.mjs       the multiplayer table (docs/multiplayer.md): seats, the trumpet, the
+                             group raid. Off unless a URL is configured, like the study endpoint
+tools/table-server.test.mjs  the rules that cannot be wrong, run with `node --test`
+tools/table-admin.mjs        the moderator's side: the reported messages, hide one, mute a seat
+tools/table-server.Dockerfile / .compose.yml   the server as a container with a volume for its db
 ```
 
 `e2e.sh` deliberately does not say how many stages it plays, and neither does the runner. Coverage
@@ -264,9 +269,15 @@ Two rules still hold mechanically and are not a matter of judgement:
 ## `table-server.mjs` — multiplayer, the part that runs
 
 ```bash
-node tools/table-server.mjs --port 8788 --db table.db   # :memory: by default
+node tools/table-server.mjs --port 8788 --db table.db   # :memory: by default; PORT / TABLE_DB in the env also work
 node --test tools/table-server.test.mjs                  # the rules that cannot be wrong
+node tools/table-admin.mjs --db table.db reports         # what people flagged; then hide <code> <id> / mute <code> <seat> <hours>
+docker build -f tools/table-server.Dockerfile -t table-server . && docker run -p 8788:8788 -v table-data:/data table-server
 ```
+
+Before starting one by hand, check nothing is already on the port — a server left over from an
+earlier session answers `/health` as if the new one had started, and the new one dies quietly in
+its own log with `EADDRINUSE`: `lsof -nP -iTCP:8788 -sTCP:LISTEN`.
 
 The design is `docs/multiplayer.md`; this is the server it specifies. The Unity client is
 `TableService` (the calls) and `TablePanel` (the screen), reached from the HUD drawer **only when a

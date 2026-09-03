@@ -219,9 +219,19 @@ age protects nobody**: the thirteen-year-old who wants free text types `18`. Any
 turns on has to be defensible for the youngest person who could plausibly be behind an adult
 profile, and that is a judgement for the person on the team whose job it is.
 
-What ships with the switch, because it cannot ship later: length cap, a `POST /report` that records
-a message for a human, and per-player rate limiting. When the switch flips, moderation is a staffing
-question, not a code question.
+What ships with the switch, because it cannot ship later: a length cap, a per-seat volume limit
+(twelve lines a minute, composed or free — a bound on noise, not a judgement), a `POST /report` that
+records a message for a human, and **the human's side of it**: `tools/table-admin.mjs`, run on the
+host against the database file, which lists the reported messages and can **hide** one (it leaves
+the feed without its words; the log keeps it and the report still points at it) or **mute** a seat
+until a named hour (free text off; the composed vocabulary stays, because those lines cannot carry
+what a mute is for, and "Preciso de pedra" is work, not talk). Every action is an append-only
+`moderated` event in the same log as the game, so the audit trail is the same trail. There is no
+admin route and no admin credential: whoever can read the file is the moderator.
+
+**Rule 15 bounds what a moderator sees.** `reports` is the only read verb. There is no "this seat's
+messages" and no "dump the table" — that would be the leader dashboard the rule forbids, with a
+different job title. When the switch flips, moderation is a staffing question, not a code question.
 
 **Minor and adult tables never mix**, switch or no switch. It is a database `CHECK`, per rule 17,
 and §08 shows it.
@@ -290,8 +300,8 @@ column anyone can select is not one.
 
 | | |
 |---|---|
-| Specified and running | This document · the schema · `tools/table-server.mjs` · its tests · the *Obra em grupo* screen, the trumpet's answers and the §06 raid, played on the iPhone simulator against a local server |
-| Not started | Accounts; moderation tooling; deployment (the server has run only on a developer's machine); the `letters` mission; a second tuning pass on §06 once a real table has been played |
+| Specified and running | This document · the schema · `tools/table-server.mjs` · its tests · the *Obra em grupo* screen, the trumpet's answers and the §06 raid, played on the iPhone simulator against a local server · the moderator's tool of §07 · a container image with a volume for the database (§11), built and run on a developer's machine |
+| Not started | Accounts; **deployment** — the image exists, nothing runs outside a laptop, and choosing where is a cost decision (§11); the `letters` mission; a second tuning pass on §06 once a real table has been played |
 | Breaks | *"No sign-up"* survives (device UUID). ***"Offline at runtime" does not*** — a table needs a network, and that is a real change to `MVP-SCOPE.md` §01 |
 
 **The single biggest risk is not technical.** It is that a table with nobody in it is worse than
@@ -306,3 +316,35 @@ is the first thing to test.
 
 You do not queue with strangers. You get a code from somebody you know, you take a stretch of wall
 next to theirs, and when the horn sounds you both show up.
+
+---
+
+## 11 · Running it somewhere
+
+The server is one Node process and one SQLite file. That shape decides the hosting: it wants **one
+machine with a disk**, not a fleet behind a load balancer — SQLite does not share a file across
+instances, and a table of six people does not need it to. The container is built and tested:
+
+```bash
+docker build -f tools/table-server.Dockerfile -t table-server .
+docker run -d --restart unless-stopped -p 8788:8788 -v table-data:/data table-server
+```
+
+Only two files go into the image — the server and the tuning it reads — and `.dockerignore` makes
+sure of it. `verses.json` is never copied: it carries the NVI, which is the reason this repository
+is private, and an image is a copy in every registry it touches.
+
+**Where** is a cost decision and is not taken here. Two routes fit the shape; both are a handful of
+commands once an account exists:
+
+- **A small VM** — e.g. GCE `e2-micro` (`gcloud compute instances create-with-container`, the
+  volume on the boot disk). Free tier covers one; the disk is the database.
+- **Fly.io with a volume** (`fly launch`, `fly volumes create table-data`, mount at `/data`). One
+  machine, one region, the volume is the database.
+
+Whichever it is, the client needs the URL — `-table-url` on desktop, the `sheepgate.table.url`
+preference on iOS — and **TLS in front**: both routes above give an HTTPS hostname; a bare `http://`
+on a phone is one App Transport Security exception away from not working and should not be shipped.
+
+Not decided by this section, and open: whether free text is ever switched on (§07, Pedro +
+cybersecurity), and who reads the reports.

@@ -49,8 +49,10 @@ const flag = (name, fallback) => {
   return i >= 0 && args[i + 1] ? args[i + 1] : fallback;
 };
 
-const PORT = Number(flag('--port', 8788));
-const DB_PATH = flag('--db', ':memory:');
+// Flags first, then the environment, then the development default: the container sets PORT and
+// TABLE_DB and passes them back as flags, so both spellings name the same thing.
+const PORT = Number(flag('--port', process.env.PORT ?? 8788));
+const DB_PATH = flag('--db', process.env.TABLE_DB ?? ':memory:');
 
 /**
  * Free text and private tables, off unless the environment says otherwise.
@@ -65,6 +67,14 @@ const ALLOW_FREE_TEXT = process.env.ALLOW_FREE_TEXT === '1';
 
 /** Longest a free line may be. Not moderation — a bound, so one request cannot be a wall of text. */
 const MAX_FREE_TEXT = 240;
+
+/**
+ * How much one seat may say in one window, composed or free. Not moderation either — a bound on
+ * volume, so that one person cannot turn the feed into a wall of one voice, whichever vocabulary
+ * the table speaks. Twelve lines a minute is more than a building site needs.
+ */
+export const SAY_WINDOW_MS = 60_000;
+export const SAY_LIMIT = 12;
 
 /** Seats a table holds. Six is the number of residents the game names and draws. */
 export const SEATS = ['hananias', 'salum', 'baruque', 'meremote', 'zacur', 'malquias'];
@@ -254,7 +264,7 @@ export function joinTable(db, { code, playerId, playerName, band, seatId = null 
  * here, which is the whole point: the protection cannot be turned off by the thing being protected
  * against.
  */
-export function say(db, { code, playerId, lineKey = null, body = null }) {
+export function say(db, { code, playerId, lineKey = null, body = null, now = Date.now() }) {
   const table = db.prepare('SELECT * FROM tables WHERE code = ?').get(code);
   if (!table) {
     return { error: 'no table with that code', status: 404 };
@@ -267,11 +277,18 @@ export function say(db, { code, playerId, lineKey = null, body = null }) {
     return { error: 'you are not at this table', status: 403 };
   }
 
+  const recent = db.prepare(
+    "SELECT COUNT(*) AS n FROM events WHERE table_id = ? AND seat_id = ? AND kind = 'said' AND at > ?"
+  ).get(table.id, seat.seat_id, now - SAY_WINDOW_MS).n;
+  if (recent >= SAY_LIMIT) {
+    return { error: 'you are talking faster than the wall goes up', status: 429 };
+  }
+
   if (lineKey) {
     if (!COMPOSED_LINES.includes(lineKey)) {
       return { error: 'not a line this game says', status: 400 };
     }
-    record(db, table.id, seat.seat_id, 'said', { lineKey });
+    record(db, table.id, seat.seat_id, 'said', { lineKey }, now);
     return { ok: true, kind: 'composed' };
   }
 
@@ -279,8 +296,13 @@ export function say(db, { code, playerId, lineKey = null, body = null }) {
     if (table.free_text !== 1) {
       return { error: 'this table speaks in the game\'s own words', status: 403 };
     }
+    // A muted seat keeps the composed vocabulary — those lines cannot carry what a mute is for —
+    // and loses free text until the hour a person named. See moderation below.
+    if (isMuted(db, table.id, seat.seat_id, now)) {
+      return { error: 'this seat speaks in the game\'s own words for now', status: 403 };
+    }
     const text = String(body).slice(0, MAX_FREE_TEXT);
-    record(db, table.id, seat.seat_id, 'said', { body: text });
+    record(db, table.id, seat.seat_id, 'said', { body: text }, now);
     return { ok: true, kind: 'free' };
   }
 
@@ -314,7 +336,7 @@ export function soundTrumpet(db, {
   // the call, the same two facts answerTrumpet() takes from everyone else.
   record(db, table.id, seat.seat_id, 'trumpet', {
     at: atEpochMs, reason, seats, watchPosted: watchPosted !== false, acceptedInvite: acceptedInvite === true
-  });
+  }, now);
   const trumpet = db.prepare('SELECT last_insert_rowid() AS id').get();
   return { ok: true, trumpetId: trumpet.id, at: atEpochMs, seats };
 }
@@ -350,7 +372,7 @@ export function commitMove(db, { code, playerId, turn, move, now = Date.now() })
   ).get(table.id, raid.openedId, seat.seat_id, turn);
   if (existing) return { error: 'that turn is already answered', status: 409 };
 
-  record(db, table.id, seat.seat_id, 'committed', { turn, move });
+  record(db, table.id, seat.seat_id, 'committed', { turn, move }, now);
 
   // The last pick closes the turn at once rather than at the clock: nobody waits two minutes for
   // a decision everyone has already made.
@@ -369,20 +391,33 @@ export function feed(db, { code, since = 0, playerId = null, now = Date.now() })
     'SELECT * FROM events WHERE table_id = ? AND id > ? ORDER BY id'
   ).all(table.id, since);
 
+  const hidden = hiddenEventIds(db, table.id);
+
   const events = rows.map((row) => {
     const payload = row.payload ? JSON.parse(row.payload) : null;
 
-    // The one redaction, and rule 11 is why: a committed move is public that it HAPPENED and
+    // Two redactions. Rule 11 is the first: a committed move is public that it HAPPENED and
     // private in WHAT it was, until the turn resolves.
     if (row.kind === 'committed') {
       return { id: row.id, at: row.at, seat: row.seat_id, kind: row.kind, turn: payload?.turn };
+    }
+
+    // The second is a person's decision: a line somebody hid stays in the log — it happened, and
+    // the report that named it still points at it — and leaves the feed without its words.
+    if (row.kind === 'said' && hidden.has(row.id)) {
+      return { id: row.id, at: row.at, seat: row.seat_id, kind: row.kind, hidden: true };
+    }
+
+    // What a moderator did is theirs, not the table's: never in the feed.
+    if (row.kind === 'moderated' || row.kind === 'reported') {
+      return null;
     }
 
     return {
       id: row.id, at: row.at, seat: row.seat_id, kind: row.kind,
       lineKey: row.line_key, body: row.body, payload
     };
-  });
+  }).filter(Boolean);
 
   const seats = db.prepare('SELECT seat_id, player_name, player_id FROM seats WHERE table_id = ?')
     .all(table.id)
@@ -400,11 +435,16 @@ export function report(db, { code, playerId, eventId, note = null }) {
   return { ok: true };
 }
 
-function record(db, tableId, seatId, kind, payload) {
+/**
+ * One line in the log. `at` is the caller's clock when the caller has one: every rule that reads
+ * time back out of the log — the say window, the trumpet's hour, the turn clock — has to see the
+ * same instant the request was judged by, or a test cannot pin it and a replay cannot trust it.
+ */
+function record(db, tableId, seatId, kind, payload, at = Date.now()) {
   db.prepare(
     'INSERT INTO events (table_id, at, seat_id, kind, line_key, body, payload) VALUES (?, ?, ?, ?, ?, ?, ?)'
   ).run(
-    tableId, Date.now(), seatId, kind,
+    tableId, at, seatId, kind,
     payload?.lineKey ?? null,
     payload?.body ?? null,
     JSON.stringify(payload ?? {})
@@ -594,7 +634,7 @@ export function answerTrumpet(db, {
 
   record(db, table.id, seat.seat_id, 'answered', {
     trumpetId: trumpet.id, coming: coming === true, watchPosted: watchPosted !== false, acceptedInvite: acceptedInvite === true
-  });
+  }, now);
   return { ok: true, coming: coming === true };
 }
 
@@ -794,6 +834,88 @@ export function raidState(db, tableId, playerId = null, now = Date.now()) {
       .map((m) => ({ id: m.id, open: isMoveOpen(config, m.id, raid.turn) })),
     resolvedTurns: raid.resolvedTurns
   };
+}
+
+// ---------------------------------------------------------------- moderation
+//
+// The human side of POST /report. Nothing here is reachable over HTTP: it runs on the host, from
+// tools/table-admin.mjs, against the database file, so there is no admin route and no admin
+// credential to leak. Every decision is an append-only `moderated` event, for the same reason
+// everything else is — the log is the audit trail, and a moderator's actions belong in it.
+//
+// Rule 15 shapes what is readable: a moderator sees the messages people REPORTED, and nothing
+// else. There is no "show me this seat's history" and no "dump the table's chat" — that would be
+// the leader dashboard the rule forbids, with a different job title.
+
+/** The message somebody flagged leaves the feed. The event stays; the report still points at it. */
+export function hideMessage(db, { code, eventId, by = 'moderator', note = null }) {
+  const table = db.prepare('SELECT * FROM tables WHERE code = ?').get(code);
+  if (!table) return { error: 'no table with that code', status: 404 };
+
+  const target = db.prepare("SELECT * FROM events WHERE table_id = ? AND id = ? AND kind = 'said'")
+    .get(table.id, eventId);
+  if (!target) return { error: 'no such message at this table', status: 404 };
+
+  record(db, table.id, null, 'moderated', { action: 'hidden', eventId: target.id, by, note });
+  return { ok: true, eventId: target.id };
+}
+
+/**
+ * A seat loses free text until an hour a person named. Composed lines stay: they are the safe
+ * vocabulary by construction, and taking them away would silence somebody at a building site
+ * where "Preciso de pedra" is work, not talk.
+ */
+export function muteSeat(db, { code, seatId, untilEpochMs, by = 'moderator', note = null, now = Date.now() }) {
+  const table = db.prepare('SELECT * FROM tables WHERE code = ?').get(code);
+  if (!table) return { error: 'no table with that code', status: 404 };
+  if (!SEATS.includes(seatId)) return { error: 'no such seat', status: 404 };
+  if (!Number.isFinite(untilEpochMs) || untilEpochMs <= now) {
+    return { error: 'a mute names an hour that has not passed', status: 400 };
+  }
+
+  record(db, table.id, seatId, 'moderated', { action: 'muted', seat: seatId, until: untilEpochMs, by, note }, now);
+  return { ok: true, seat: seatId, until: untilEpochMs };
+}
+
+function hiddenEventIds(db, tableId) {
+  const rows = db.prepare(
+    "SELECT payload FROM events WHERE table_id = ? AND kind = 'moderated' AND json_extract(payload, '$.action') = 'hidden'"
+  ).all(tableId);
+  return new Set(rows.map((r) => JSON.parse(r.payload).eventId));
+}
+
+function isMuted(db, tableId, seatId, now) {
+  const row = db.prepare(
+    "SELECT MAX(json_extract(payload, '$.until')) AS until FROM events " +
+    "WHERE table_id = ? AND seat_id = ? AND kind = 'moderated' AND json_extract(payload, '$.action') = 'muted'"
+  ).get(tableId, seatId);
+  return row && row.until != null && row.until > now;
+}
+
+/**
+ * What a moderator may read: the reports, each with the message it points at. Newest first, and
+ * saying whether the message has already been hidden, so the same report is not acted on twice.
+ */
+export function listReports(db, { limit = 50 } = {}) {
+  const reports = db.prepare(
+    "SELECT e.*, t.code FROM events e JOIN tables t ON t.id = e.table_id " +
+    "WHERE e.kind = 'reported' ORDER BY e.id DESC LIMIT ?"
+  ).all(limit);
+
+  return reports.map((r) => {
+    const payload = JSON.parse(r.payload);
+    const target = payload.eventId != null
+      ? db.prepare('SELECT * FROM events WHERE table_id = ? AND id = ?').get(r.table_id, payload.eventId)
+      : null;
+    const hidden = target ? hiddenEventIds(db, r.table_id).has(target.id) : false;
+    return {
+      reportId: r.id, at: r.at, code: r.code, by: payload.by ?? null, note: payload.note ?? null,
+      message: target ? {
+        id: target.id, at: target.at, seat: target.seat_id, kind: target.kind,
+        lineKey: target.line_key, body: target.body, hidden
+      } : null
+    };
+  });
 }
 
 // ---------------------------------------------------------------- http

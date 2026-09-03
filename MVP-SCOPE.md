@@ -329,7 +329,28 @@ mouths, so rule 4's human read is not optional there. Both are in the curation q
 
 ### Stage 3 — `preparation`
 
-An ordinary working day: no contest, no cutscene, no reveal.
+A working day with one beat from the text: **the Tekoites** (`NEH.3.5`, on `salum_d3`). Their nobles
+would not put their necks to the work, and Salum asks for an hour on their stretch. Taking it costs
+one unit of today's work (`spend_work` on `salum_d3_help`) and scores the shepherd; the Tekoites
+return the hour on the player's own stretch the next morning, after the night has resolved, and the
+morning report says so with the number. Keeping the hour scores the zealot. The choice, not the
+conversation, is what scores.
+
+### Stage 5 — `the_work_begins`
+
+Sambalate first speaks, and **the carriers** (on `meremote_d5`; the verse the beat comes from is
+not in the manifest, so it is authored text). The path to the wall is choked with fallen stone;
+clearing it with them costs one unit of work today and that night's crew builds double — the
+morning report shows the doubled count and says why. The steward scores the clearing, the zealot
+the refusal.
+
+### Stage 7 — `prayer_and_guard`
+
+From the night of this stage the crew works with the other hand on the weapon (`NEH.4.17`,
+`DayCycle.HalfAndHalfStage`): a night unit for every two people instead of every three, and the
+morning report says so. Zacur (`zacur_d7`) reports the upper road empty and asks why post a watch;
+doubting him scores the prophet, believing him scores nothing and costs nothing beyond whatever
+the player then decides at the split.
 
 > **A migrated save never sees this stage.** Days 1 and 2 keep their numbers — those stages are the
 > same stages, unedited. **Day 3 maps to stage 6**, because the anchor is the beat and not the
@@ -429,15 +450,17 @@ turn limit      = 8   // overflow = the enemy withdraws, a technical draw
 ## 08 · Vocation scoring
 
 Six vocations, accumulated in silence. At the **terminal stage** the highest is revealed; ties break
-by the order in `vocations.json`.
+by the order in `vocations.json`. **Where a conversation branches, the branch scores and the
+conversation does not** — talking to everyone is the scribe's habit and is scored once as such;
+a node with choices carries no vocation of its own.
 
 | Vocation | Actions that score |
 |---|---|
-| `zelote` | Work the exposed segment · refuse the invitation outright · open a contest with Hold the line |
-| `escriba` | Open the chapter reader · speak to all 6 NPCs · re-read a dialogue |
-| `pastor` | Use Call the others · speak to Hananias and Salum on both days · donate rubble |
-| `exilado` | Use the Patrol 3+ times · catch the fish · walk to the map edge |
-| `profeta` | Believe Meremote and not Zacur · close A Página without skipping |
+| `zelote` | Work the exposed segment · refuse the invitation outright · open a contest with Hold the line · keep your hour on your own stretch (stages 3, 5) · stay on your stretch rather than go and look (stages 5, 6, 7) |
+| `escriba` | Open the chapter reader · speak to all 6 NPCs · re-read a dialogue · ask for the account (stage 7) · read the fifth letter and its signature (stage 8) |
+| `pastor` | Use Call the others · speak to Hananias and Salum on both days · donate rubble · give an hour to the Tekoites (stage 3) |
+| `exilado` | Use the Patrol 3+ times · catch the fish · walk to the map edge · go down to the plain (stage 2) · keep the letters for after sundown (stage 8) |
+| `profeta` | Believe Meremote and not Zacur · close A Página without skipping · go up and listen (stages 5, 6) · doubt the empty road (stage 7) |
 | `mordomo` | End **every night the run actually played** with capacity fully spent · the same for rubble left lying. Two separate awards, worth 3 each, checked once on the season's **last night** — which is the stage before the terminal one, because the terminal stage never resolves a night. It used to name days 1 and 2 by hand: correct only while the season had two nights, and in a longer one it handed the vocation out on the second night and asked nothing of the rest. |
 
 ---

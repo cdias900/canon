@@ -863,6 +863,11 @@ function compareDialogue(locale, source, target) {
       errors.push(locale + ": dialogue.json node \"" + id + "\" has different grants from " + SOURCE_LOCALE + ".");
     }
 
+    // The hour a node costs is a rule, not a word: a translation must not price a beat differently.
+    if ((a.spend_work ?? 0) !== (b.spend_work ?? 0)) {
+      errors.push(locale + ": dialogue.json node \"" + id + "\" has a different spend_work from " + SOURCE_LOCALE + ".");
+    }
+
     const aLines = a.lines ?? [];
     const bLines = b.lines ?? [];
     if (aLines.length !== bLines.length) {

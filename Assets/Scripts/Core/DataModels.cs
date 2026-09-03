@@ -99,6 +99,14 @@ namespace SheepGate.Core
         [JsonProperty("lines")] public DialogueLine[] lines;
         [JsonProperty("grants")] public Grants grants;
 
+        /// <summary>
+        /// Work capacity this node costs the day once it has been read to the end: an hour given
+        /// to somebody else's stretch. Zero for almost every node. Applied by the resident who
+        /// speaks it (NpcActor), because capacity is the world's to move and never the dialogue
+        /// layer's; the locale parity check holds it equal across languages like a grant.
+        /// </summary>
+        [JsonProperty("spend_work")] public int spend_work;
+
         /// <summary>Branches offered after the last line. Null or empty on a straight-through node.</summary>
         [JsonProperty("choices")] public DialogueChoice[] choices;
 

@@ -414,6 +414,12 @@ namespace SheepGate.Core
         public const string VocationRevealed = "vocation_revealed";
         public const string ReachedMapEdge = "reached_map_edge";
 
+        /// <summary>Gave an hour to the Tekoites' stretch (stage 3); they return it on the next morning.</summary>
+        public const string TekoaHelped = "tekoa_helped";
+
+        /// <summary>Cleared the carriers' path (stage 5); that night's crew builds double.</summary>
+        public const string PathCleared = "path_cleared";
+
         /// <summary>
         /// A watch was posted on the night of this stage. Equals <see cref="WatchPostedD1"/> and
         /// <see cref="WatchPostedD2"/> exactly for days 1 and 2, which is deliberate and is what

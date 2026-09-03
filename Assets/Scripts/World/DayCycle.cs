@@ -160,6 +160,30 @@ namespace SheepGate.World
         public const int WorkersPerNightWorkUnit = 3;
 
         /// <summary>
+        /// From this stage on, the night crew works with the other hand on the weapon (NEH.4.17)
+        /// and lands a unit for every two people rather than every three: the whole city is on the
+        /// wall from that day, and a crew that is already there builds more of it. Content, not
+        /// calendar — it is the stage whose narration cites the rule — and a literal here because
+        /// one line reads it.
+        /// </summary>
+        public const int HalfAndHalfStage = 7;
+
+        /// <summary>Workers per night unit once every hand is on the wall. See <see cref="HalfAndHalfStage"/>.</summary>
+        public const int WorkersPerNightWorkUnitArmed = 2;
+
+        /// <summary>Counter set every night: 1 when that night's crew built double on a cleared path.</summary>
+        public const string NightPathClearedCounter = "night_path_cleared";
+
+        /// <summary>Counter set every night: the units the Tekoites returned on the player's stretch that morning.</summary>
+        public const string NightTekoaReturnedCounter = "night_tekoa_returned";
+
+        /// <summary>Marks the Tekoites' hour as returned, so it is returned once.</summary>
+        private const string TekoaReturnedKey = "tekoa_returned";
+
+        /// <summary>Marks the cleared path as spent, so it doubles one night and not every night after.</summary>
+        private const string PathClearedSpentKey = "path_cleared_spent";
+
+        /// <summary>
         /// Counter written every night with the work units the night crew actually landed on the
         /// wall. Set, never accumulated: it describes last night and nothing else.
         /// Must match SheepGate.UI.MorningReportUI.NightWorkCounter.
@@ -667,10 +691,25 @@ namespace SheepGate.World
             return watchers >= WatchThreshold(totalPeople);
         }
 
-        /// <summary>Work units a night crew of this size produces.</summary>
+        /// <summary>Work units a night crew of this size produces, before the guard changed the count.</summary>
         public static int NightWorkUnits(int workers)
         {
-            return workers <= 0 ? 0 : workers / WorkersPerNightWorkUnit;
+            return NightWorkUnits(workers, 1);
+        }
+
+        /// <summary>
+        /// Work units a night crew of this size produces on the night of this day: one for every
+        /// three people until <see cref="HalfAndHalfStage"/>, one for every two from it.
+        /// </summary>
+        public static int NightWorkUnits(int workers, int day)
+        {
+            if (workers <= 0)
+            {
+                return 0;
+            }
+
+            int perUnit = day >= HalfAndHalfStage ? WorkersPerNightWorkUnitArmed : WorkersPerNightWorkUnit;
+            return workers / perUnit;
         }
 
         /// <summary>Crew the fallback split divides, when no screen supplied one.</summary>
@@ -781,11 +820,49 @@ namespace SheepGate.World
             // The other half of the split, and the reason the choice is a dilemma rather than a
             // formality: the people left on the work build while everyone else is on the wall.
             // Recorded so the morning can tell the player what their split actually bought.
-            LastNightWorkApplied = ApplyNightWork(wall, NightWorkUnits(LastWorkers), LastNightDamagedSegment);
+            int nightUnits = NightWorkUnits(LastWorkers, day);
+
+            // The carriers' path, cleared that afternoon for an hour of the player's own work: the
+            // crew reaches the wall without tripping and lands double, on this one night.
+            bool pathCleared = state.HasFlag(GameFlags.PathCleared) && state.Counter(PathClearedSpentKey) == 0;
+            if (pathCleared)
+            {
+                state.counters[PathClearedSpentKey] = 1;
+                nightUnits *= 2;
+            }
+
+            LastNightWorkApplied = ApplyNightWork(wall, nightUnits, LastNightDamagedSegment);
             SetCounter(state, NightWorkCounter, LastNightWorkApplied);
             SetCounter(state, NightDamageCounter, LastNightDamagedSegment != null ? 1 : 0);
+            SetCounter(state, NightPathClearedCounter, pathCleared ? 1 : 0);
+            SetCounter(state, NightTekoaReturnedCounter, ReturnTheTekoitesHour(state, wall));
 
             ScoreSteward(state, day);
+        }
+
+        /// <summary>
+        /// The hour given to the Tekoites' stretch comes back on the player's own, the next
+        /// morning, once. Applied after the night's damage on purpose: it is tomorrow's stone, and
+        /// stone laid in the morning is not stone an unwatched night can knock over. Returns the
+        /// units that landed, 0 on every other night.
+        /// </summary>
+        private static int ReturnTheTekoitesHour(GameState state, WallSystem wall)
+        {
+            if (wall == null || !state.HasFlag(GameFlags.TekoaHelped) || state.Counter(TekoaReturnedKey) != 0)
+            {
+                return 0;
+            }
+
+            state.counters[TekoaReturnedKey] = 1;
+
+            string yours = wall.PrimaryExposedSegmentId;
+            if (string.IsNullOrEmpty(yours) || wall.IsComplete(yours))
+            {
+                return 0;
+            }
+
+            const int hour = 1;
+            return wall.ApplyWork(yours, hour) ? hour : 0;
         }
 
         /// <summary>

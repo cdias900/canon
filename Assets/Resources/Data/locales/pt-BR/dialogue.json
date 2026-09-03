@@ -420,15 +420,18 @@
       }
     ],
     "grants": {
-      "vocation": {
-        "exilado": 1
-      }
+      "vocation": {}
     },
     "choices": [
       {
         "id": "accept",
         "text": "Eu desço. Quero ouvir o que eles têm.",
-        "next": "malquias_d2_accept"
+        "next": "malquias_d2_accept",
+        "grants": {
+          "vocation": {
+            "exilado": 2
+          }
+        }
       },
       {
         "id": "refuse",
@@ -581,12 +584,40 @@
       },
       {
         "text": "As minhas duas estão medindo o trecho com corda. Quando acabarem eu te digo quanto falta de verdade, não quanto parece."
+      },
+      {
+        "text": "Os de Tecoa também vieram. O povo deles, digo: os nobres de lá não puseram o pescoço no trabalho, e o trecho deles está com metade dos braços."
+      },
+      {
+        "frame": "Ficou anotado assim, com o nome da cidade e sem o nome de quem faltou:",
+        "verse": "NEH.3.5"
       }
     ],
     "grants": {
       "vocation": {}
     },
-    "reliable": true
+    "reliable": true,
+    "choices": [
+      {
+        "id": "help",
+        "text": "Eu dou uma hora no trecho deles.",
+        "next": "salum_d3_help",
+        "grants": {
+          "vocation": {
+            "pastor": 2
+          }
+        }
+      },
+      {
+        "id": "own",
+        "text": "Cada um no seu trecho. O meu ainda tem buraco.",
+        "grants": {
+          "vocation": {
+            "zelote": 1
+          }
+        }
+      }
+    ]
   },
   "baruque_d3": {
     "npc": "baruque",
@@ -1009,20 +1040,28 @@
       }
     ],
     "grants": {
-      "vocation": {
-        "zelote": 1
-      }
+      "vocation": {}
     },
     "reliable": true,
     "choices": [
       {
         "id": "listen",
         "text": "Sobe comigo. Quero ouvir o que eles estão gritando.",
-        "next": "sanballat_d5"
+        "next": "sanballat_d5",
+        "grants": {
+          "vocation": {
+            "profeta": 1
+          }
+        }
       },
       {
         "id": "leave",
-        "text": "Não quero ouvir. Me dá pedra."
+        "text": "Não quero ouvir. Me dá pedra.",
+        "grants": {
+          "vocation": {
+            "zelote": 1
+          }
+        }
       }
     ]
   },
@@ -1158,11 +1197,21 @@
       {
         "id": "look",
         "text": "Me mostra a estrada de cima.",
-        "next": "sanballat_d6"
+        "next": "sanballat_d6",
+        "grants": {
+          "vocation": {
+            "profeta": 1
+          }
+        }
       },
       {
         "id": "leave",
-        "text": "Fico no meu trecho. Vai para o seu."
+        "text": "Fico no meu trecho. Vai para o seu.",
+        "grants": {
+          "vocation": {
+            "zelote": 1
+          }
+        }
       }
     ]
   },
@@ -1232,20 +1281,29 @@
       }
     ],
     "grants": {
-      "vocation": {
-        "mordomo": 2
-      }
+      "vocation": {}
     },
     "reliable": true,
     "choices": [
       {
         "id": "account",
         "text": "Me mostra a conta do dia inteiro.",
-        "next": "guard_d7"
+        "next": "guard_d7",
+        "grants": {
+          "vocation": {
+            "mordomo": 2,
+            "escriba": 1
+          }
+        }
       },
       {
         "id": "leave",
-        "text": "Depois eu vejo. Tenho fiada para fechar."
+        "text": "Depois eu vejo. Tenho fiada para fechar.",
+        "grants": {
+          "vocation": {
+            "zelote": 1
+          }
+        }
       }
     ]
   },
@@ -1312,20 +1370,28 @@
       }
     ],
     "grants": {
-      "vocation": {
-        "exilado": 1
-      }
+      "vocation": {}
     },
     "reliable": true,
     "choices": [
       {
         "id": "read",
         "text": "Lê a quinta em voz alta. Quero ouvir do jeito que a cidade ouviu.",
-        "next": "letters_d8"
+        "next": "letters_d8",
+        "grants": {
+          "vocation": {
+            "escriba": 1
+          }
+        }
       },
       {
         "id": "leave",
-        "text": "Guarda as cinco. Eu leio depois do sol descer."
+        "text": "Guarda as cinco. Eu leio depois do sol descer.",
+        "grants": {
+          "vocation": {
+            "exilado": 1
+          }
+        }
       }
     ]
   },
@@ -1351,7 +1417,12 @@
       {
         "id": "signature",
         "text": "Ver quem assina embaixo.",
-        "next": "sanballat_d8"
+        "next": "sanballat_d8",
+        "grants": {
+          "vocation": {
+            "escriba": 1
+          }
+        }
       },
       {
         "id": "leave",
@@ -1589,12 +1660,36 @@
       },
       {
         "text": "O barulho todo vem de cima, da crista. Eu prefiro barulho de cima: barulho de cima eu consigo ver de onde vem."
+      },
+      {
+        "text": "O que não está limpo é o caminho até o muro. Tem mais pedra caída do que braço para tirar, e os carregadores estão no fim das forças. À noite a gente tropeça no entulho antes de chegar na fiada."
       }
     ],
     "grants": {
       "vocation": {}
     },
-    "reliable": true
+    "reliable": true,
+    "choices": [
+      {
+        "id": "clear",
+        "text": "Eu limpo o caminho com eles hoje.",
+        "next": "meremote_d5_clear",
+        "grants": {
+          "vocation": {
+            "mordomo": 2
+          }
+        }
+      },
+      {
+        "id": "lay",
+        "text": "Eu assento o que é meu. Cada um carrega o seu.",
+        "grants": {
+          "vocation": {
+            "zelote": 1
+          }
+        }
+      }
+    ]
   },
   "malquias_d5": {
     "npc": "malquias",
@@ -1647,5 +1742,75 @@
       }
     },
     "reliable": true
+  },
+  "salum_d3_help": {
+    "npc": "salum",
+    "day": 3,
+    "lines": [
+      {
+        "text": "Uma hora sua é uma fiada a menos no seu trecho hoje. Não é pouco."
+      },
+      {
+        "text": "Eles devolvem, do jeito deles. Amanhã cedo tem gente de Tecoa no seu trecho, com pedra na mão. Eu mesmo vou lembrar a eles."
+      }
+    ],
+    "grants": {
+      "vocation": {},
+      "set_flag": "tekoa_helped"
+    },
+    "spend_work": 1,
+    "reliable": true
+  },
+  "meremote_d5_clear": {
+    "npc": "meremote",
+    "day": 5,
+    "lines": [
+      {
+        "text": "Uma fiada a menos no seu hoje. Em troca, quem trabalha de noite chega no muro sem tropeçar."
+      },
+      {
+        "text": "Caminho limpo rende o dobro no escuro. Amanhã cedo você confere a conta."
+      }
+    ],
+    "grants": {
+      "vocation": {},
+      "set_flag": "path_cleared"
+    },
+    "spend_work": 1,
+    "reliable": true
+  },
+  "zacur_d7": {
+    "npc": "zacur",
+    "day": 7,
+    "lines": [
+      {
+        "text": "A estrada de cima está vazia desde ontem. Passei lá duas vezes. Eles foram embora."
+      },
+      {
+        "text": "Hoje à noite dava para pôr todo mundo na obra. Guarda para quê, se não tem ninguém para ver?"
+      }
+    ],
+    "grants": {
+      "vocation": {}
+    },
+    "reliable": false,
+    "choices": [
+      {
+        "id": "believe",
+        "text": "Se foram, foram. Hoje a noite é de obra.",
+        "grants": {
+          "vocation": {}
+        }
+      },
+      {
+        "id": "doubt",
+        "text": "Vazio de dia não é vazio de noite. Eu subo mesmo assim.",
+        "grants": {
+          "vocation": {
+            "profeta": 2
+          }
+        }
+      }
+    ]
   }
 }

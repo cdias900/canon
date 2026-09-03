@@ -41,6 +41,15 @@ namespace SheepGate.UI
         /// <summary>People the wall needed for the watch to count, or 0 when unknown.</summary>
         public int watchThreshold;
 
+        /// <summary>True when last night's crew built double on the path the player cleared.</summary>
+        public bool pathCleared;
+
+        /// <summary>Units the Tekoites returned on the player's stretch this morning, 0 on every other morning.</summary>
+        public int tekoaReturned;
+
+        /// <summary>True from the morning after the guard stage: every hand on the wall, the night counts differently.</summary>
+        public bool armedNight;
+
         /// <summary>
         /// Courses still missing on the segment the season's gate hangs on, when this morning is
         /// the dedication's day and the doors cannot be hung yet. Zero on every other morning.
@@ -67,6 +76,9 @@ namespace SheepGate.UI
             summary.workers = Mathf.Max(0, state.workAssigned);
             summary.watchers = Mathf.Max(0, state.watchAssigned);
             summary.gateCoursesLeft = GateCoursesLeft(morningDay);
+            summary.pathCleared = state.Counter(DayCycle.NightPathClearedCounter) > 0;
+            summary.tekoaReturned = Mathf.Max(0, state.Counter(DayCycle.NightTekoaReturnedCounter));
+            summary.armedNight = morningDay - 1 >= DayCycle.HalfAndHalfStage;
             summary.workDone = Mathf.Max(0, state.Counter(MorningReportUI.NightWorkCounter));
             summary.workRecorded = HasCounter(state, MorningReportUI.NightWorkCounter);
             summary.watchThreshold = DayCycle.WatchThreshold(summary.workers + summary.watchers);
@@ -478,6 +490,25 @@ namespace SheepGate.UI
                           built ? DesignTokens.Ambient.Growth : DesignTokens.Ink.Muted,
                           built ? Loc.Plural("morning.work", summary.workDone) : Loc.T("morning.work.none"),
                           DesignTokens.Ink.Primary);
+
+                // What changed the count, said right under it. Each is a fact about a decision
+                // the player made the day before, or about the day the whole city went armed.
+                if (summary.pathCleared)
+                {
+                    BuildStep(steps, "Step_PathCleared", UiSpriteKeys.IconCheck, DesignTokens.Ambient.Growth,
+                              Loc.T("morning.path_cleared"), DesignTokens.Ink.Secondary);
+                }
+                else if (summary.armedNight && built)
+                {
+                    BuildStep(steps, "Step_Armed", UiSpriteKeys.IconDot, DesignTokens.Ink.Muted,
+                              Loc.T("morning.armed_night"), DesignTokens.Ink.Secondary);
+                }
+            }
+
+            if (summary.tekoaReturned > 0)
+            {
+                BuildStep(steps, "Step_Tekoa", UiSpriteKeys.IconCheck, DesignTokens.Ambient.Growth,
+                          Loc.Plural("morning.tekoa_returned", summary.tekoaReturned), DesignTokens.Ink.Primary);
             }
 
             // The last day, when the doors cannot be hung yet. Sky, a dot and a count: news of

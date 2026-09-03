@@ -420,15 +420,18 @@
       }
     ],
     "grants": {
-      "vocation": {
-        "exilado": 1
-      }
+      "vocation": {}
     },
     "choices": [
       {
         "id": "accept",
         "text": "I'll go down. I want to hear what they have.",
-        "next": "malquias_d2_accept"
+        "next": "malquias_d2_accept",
+        "grants": {
+          "vocation": {
+            "exilado": 2
+          }
+        }
       },
       {
         "id": "refuse",
@@ -581,12 +584,40 @@
       },
       {
         "text": "My two are measuring the stretch with a cord. When they've finished I'll tell you how much is really left, not how much it looks like."
+      },
+      {
+        "text": "The Tekoites came too. Their people, I mean: their nobles would not put their necks to the work, and their stretch has half the arms it needs."
+      },
+      {
+        "frame": "It was set down like this, with the town's name and not the name of who stayed away:",
+        "verse": "NEH.3.5"
       }
     ],
     "grants": {
       "vocation": {}
     },
-    "reliable": true
+    "reliable": true,
+    "choices": [
+      {
+        "id": "help",
+        "text": "I'll give an hour on their stretch.",
+        "next": "salum_d3_help",
+        "grants": {
+          "vocation": {
+            "pastor": 2
+          }
+        }
+      },
+      {
+        "id": "own",
+        "text": "Each to their own stretch. Mine still has a hole in it.",
+        "grants": {
+          "vocation": {
+            "zelote": 1
+          }
+        }
+      }
+    ]
   },
   "baruque_d3": {
     "npc": "baruque",
@@ -1009,20 +1040,28 @@
       }
     ],
     "grants": {
-      "vocation": {
-        "zelote": 1
-      }
+      "vocation": {}
     },
     "reliable": true,
     "choices": [
       {
         "id": "listen",
         "text": "Come up with me. I want to hear what they're shouting.",
-        "next": "sanballat_d5"
+        "next": "sanballat_d5",
+        "grants": {
+          "vocation": {
+            "profeta": 1
+          }
+        }
       },
       {
         "id": "leave",
-        "text": "I don't want to hear it. Hand me a stone."
+        "text": "I don't want to hear it. Hand me a stone.",
+        "grants": {
+          "vocation": {
+            "zelote": 1
+          }
+        }
       }
     ]
   },
@@ -1158,11 +1197,21 @@
       {
         "id": "look",
         "text": "Show me the upper road.",
-        "next": "sanballat_d6"
+        "next": "sanballat_d6",
+        "grants": {
+          "vocation": {
+            "profeta": 1
+          }
+        }
       },
       {
         "id": "leave",
-        "text": "I'll stay on my stretch. Get to yours."
+        "text": "I'll stay on my stretch. Get to yours.",
+        "grants": {
+          "vocation": {
+            "zelote": 1
+          }
+        }
       }
     ]
   },
@@ -1232,20 +1281,29 @@
       }
     ],
     "grants": {
-      "vocation": {
-        "mordomo": 2
-      }
+      "vocation": {}
     },
     "reliable": true,
     "choices": [
       {
         "id": "account",
         "text": "Show me the whole day's arithmetic.",
-        "next": "guard_d7"
+        "next": "guard_d7",
+        "grants": {
+          "vocation": {
+            "mordomo": 2,
+            "escriba": 1
+          }
+        }
       },
       {
         "id": "leave",
-        "text": "I'll look later. I have a course to close."
+        "text": "I'll look later. I have a course to close.",
+        "grants": {
+          "vocation": {
+            "zelote": 1
+          }
+        }
       }
     ]
   },
@@ -1312,20 +1370,28 @@
       }
     ],
     "grants": {
-      "vocation": {
-        "exilado": 1
-      }
+      "vocation": {}
     },
     "reliable": true,
     "choices": [
       {
         "id": "read",
         "text": "Read the fifth one aloud. I want it the way the city got it.",
-        "next": "letters_d8"
+        "next": "letters_d8",
+        "grants": {
+          "vocation": {
+            "escriba": 1
+          }
+        }
       },
       {
         "id": "leave",
-        "text": "Keep all five. I will read them after sundown."
+        "text": "Keep all five. I will read them after sundown.",
+        "grants": {
+          "vocation": {
+            "exilado": 1
+          }
+        }
       }
     ]
   },
@@ -1351,7 +1417,12 @@
       {
         "id": "signature",
         "text": "See who signs it at the bottom.",
-        "next": "sanballat_d8"
+        "next": "sanballat_d8",
+        "grants": {
+          "vocation": {
+            "escriba": 1
+          }
+        }
       },
       {
         "id": "leave",
@@ -1589,12 +1660,36 @@
       },
       {
         "text": "All the noise is from up top, off the ridge. I prefer noise from up top: noise from up top I can see the source of."
+      },
+      {
+        "text": "What isn't clear is the way up to the wall. There's more fallen stone than arms to shift it, and the carriers are at the end of their strength. At night we trip over rubble before we reach the course."
       }
     ],
     "grants": {
       "vocation": {}
     },
-    "reliable": true
+    "reliable": true,
+    "choices": [
+      {
+        "id": "clear",
+        "text": "I'll clear the way with them today.",
+        "next": "meremote_d5_clear",
+        "grants": {
+          "vocation": {
+            "mordomo": 2
+          }
+        }
+      },
+      {
+        "id": "lay",
+        "text": "I'll lay what's mine. Each carries their own.",
+        "grants": {
+          "vocation": {
+            "zelote": 1
+          }
+        }
+      }
+    ]
   },
   "malquias_d5": {
     "npc": "malquias",
@@ -1647,5 +1742,75 @@
       }
     },
     "reliable": true
+  },
+  "salum_d3_help": {
+    "npc": "salum",
+    "day": 3,
+    "lines": [
+      {
+        "text": "An hour of yours is one course fewer on your stretch today. That's not nothing."
+      },
+      {
+        "text": "They pay it back, their way. Tomorrow morning there'll be Tekoites on your stretch with stone in hand. I'll remind them myself."
+      }
+    ],
+    "grants": {
+      "vocation": {},
+      "set_flag": "tekoa_helped"
+    },
+    "spend_work": 1,
+    "reliable": true
+  },
+  "meremote_d5_clear": {
+    "npc": "meremote",
+    "day": 5,
+    "lines": [
+      {
+        "text": "One course fewer on yours today. In return, whoever works tonight reaches the wall without tripping."
+      },
+      {
+        "text": "A clear path pays double in the dark. Check the count tomorrow morning."
+      }
+    ],
+    "grants": {
+      "vocation": {},
+      "set_flag": "path_cleared"
+    },
+    "spend_work": 1,
+    "reliable": true
+  },
+  "zacur_d7": {
+    "npc": "zacur",
+    "day": 7,
+    "lines": [
+      {
+        "text": "The upper road has been empty since yesterday. I went past twice. They've gone."
+      },
+      {
+        "text": "Tonight we could put everyone on the work. What's a watch for, if there's nobody to see?"
+      }
+    ],
+    "grants": {
+      "vocation": {}
+    },
+    "reliable": false,
+    "choices": [
+      {
+        "id": "believe",
+        "text": "If they've gone, they've gone. Tonight is for the work.",
+        "grants": {
+          "vocation": {}
+        }
+      },
+      {
+        "id": "doubt",
+        "text": "Empty by day isn't empty by night. I'm going up anyway.",
+        "grants": {
+          "vocation": {
+            "profeta": 2
+          }
+        }
+      }
+    ]
   }
 }

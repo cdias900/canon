@@ -431,6 +431,42 @@ namespace SheepGate.World
             {
                 TakeDonatedStone();
             }
+
+            SpendWorkTheNodeNames(nodeId);
+        }
+
+        /// <summary>
+        /// The hour a node costs, read off the node rather than off a list of ids here: the two
+        /// beats that spend one — helping the Tekoites' stretch, clearing the carriers' path — are
+        /// content, and a third one must not need an edit in this file. Once per node per run, so
+        /// hearing it again costs nothing; never below zero, and never enough to end the day on
+        /// its own, because a beat that ended the day would take the split away from the player.
+        /// </summary>
+        private void SpendWorkTheNodeNames(string nodeId)
+        {
+            DialogueNode node = DialogueData.GetNode(nodeId);
+            if (node == null || node.spend_work <= 0)
+            {
+                return;
+            }
+
+            GameState state = WorldRuntime.State;
+            if (state == null || DialogueData.TimesSeen(state, nodeId) > 1)
+            {
+                return;
+            }
+
+            ResourceSystem resources = ResourceSystem.Find();
+            if (resources == null)
+            {
+                return;
+            }
+
+            int units = Mathf.Min(node.spend_work, Mathf.Max(0, resources.Capacity - 1));
+            if (units > 0 && resources.Spend(units))
+            {
+                Debug.Log("[World] \"" + nodeId + "\" cost " + units + " unit(s) of today's work.");
+            }
         }
 
         /// <summary>

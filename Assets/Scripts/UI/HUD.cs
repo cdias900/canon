@@ -490,6 +490,7 @@ namespace SheepGate.UI
             RectTransform column = BuildTopColumn(_drawer, TopMargin + PlateHeight + ColumnSpacing);
             BuildReadoutCard(column);
             BuildFrameControls(column);
+            BuildTableRow(column);
 
             _drawer.gameObject.SetActive(false);
         }
@@ -785,6 +786,29 @@ namespace SheepGate.UI
 
             _patrolButton = BuildPlatedButton(row, "PatrolButton", Loc.T("hud.patrol"),
                                               OnPatrolClicked, out _patrolPlate);
+        }
+
+        /// <summary>
+        /// Group work, on a row of its own.
+        ///
+        /// It was on the top row for one build and that row is designed for exactly two controls in
+        /// two corners with the slack between them. A third turned "Obra em grupo" into two wrapped
+        /// lines and pushed Ronda off the right edge — visible in the first screenshot taken of it,
+        /// and the reason this is here instead.
+        ///
+        /// Only when the build has an endpoint: TablePanel.Available is false without a -table-url,
+        /// which is every build that ships today, and a door onto nothing is worse than no door.
+        /// </summary>
+        void BuildTableRow(RectTransform parent)
+        {
+            if (!TablePanel.Available)
+            {
+                return;
+            }
+
+            Image plate;
+            BuildPlatedButton(parent, "TableButton", Loc.T("table.title"),
+                              () => TablePanel.Show(), out plate);
         }
 
         /// <summary>

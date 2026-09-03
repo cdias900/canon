@@ -355,10 +355,11 @@ complete it — the story closing the wall, not the player spending anything.
 - The vocation reveal, and the end. This is the `terminal` stage: it has no tomorrow, and it holds
   the day open for good.
 
-> **Stages 4, 5 and 7 are not specified here.** They exist in the table, they carry dialogue and
-> rewards, and their beats are ordinary — a rest with a gathering, a working day, a working day. What
-> they say has not been audited against a passage line by line, and this document will not pretend
-> otherwise.
+> **Stages 4, 5 and 7 have been read, and their beats are ordinary** — a rest with a gathering, a
+> working day, a working day. The residents who speak on them are the six of Nehemiah 3, whom the
+> text names and never quotes, so rule 4 lets them speak freely; nothing they say contradicts the
+> passage. `guard_d7` is the dense one: it cites `NEH.4.9`, `4.14`, `4.16` and `4.20` in nine lines,
+> and its narration is what needed fixing rather than any authored speech.
 
 ---
 
@@ -607,8 +608,6 @@ removed rather than wired.
 - **The English has had no native pass.**
 - **Android has never had an APK installed**, and **iOS has never run on a physical device.** Both
   are inside the §00 definition of done. Both need hardware, not code.
-- **Stages 4, 5 and 7 have not been audited line by line** against their passages. They play; nobody
-  has read them against the text.
 - **The buildable wall is a straight run** along the north of a circular city. Nehemiah 3 assigns each
   group a stretch, so it reads correctly, but a true arc would need `WallSystem`, the contest and the
   patrol camera to change together. **Deferred by decision.**

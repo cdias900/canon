@@ -1130,7 +1130,42 @@ namespace SheepGate.E2E
             Record("the season names a vocation", state != null && state.HasFlag(GameFlags.VocationRevealed),
                 state == null ? "no game state" : "vocation_revealed=" + state.HasFlag(GameFlags.VocationRevealed));
 
+            // The name on the screen, not only the flag. The screenshot above lands during the
+            // entrance fade and is often blank, so the text is read rather than looked at, and it
+            // has to be one of the six authored names rather than the fallback.
+            string revealed = TextOf("Name");
+            Record("the reveal shows an authored vocation name", IsAuthoredVocationName(revealed),
+                "Name=" + Quote(revealed));
+
             yield return Tap("Close", "closing the reveal");
+
+            // The ending: the wall with the names on it, the six vocations, the chapter after.
+            yield return WaitForObject("SeasonEndClose", "the ending after the reveal");
+            yield return Capture(stage.day, "season-end");
+            CheckNoMissingStrings();
+            Record("the ending offers the chapter after the season and a new work",
+                Find("ReadOn") != null && Find("SeasonEndRestart") != null,
+                "ReadOn=" + (Find("ReadOn") != null) + " restart=" + (Find("SeasonEndRestart") != null));
+            yield return Tap("SeasonEndClose", "closing the ending");
+        }
+
+        /// <summary>True when the text is one of the six display names vocations.json authors for this locale.</summary>
+        static bool IsAuthoredVocationName(string text)
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                return false;
+            }
+
+            foreach (VocationDef vocation in GameData.Vocations ?? Array.Empty<VocationDef>())
+            {
+                if (vocation != null && !string.IsNullOrEmpty(vocation.display) && vocation.display == text)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>

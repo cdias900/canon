@@ -103,12 +103,25 @@ namespace SheepGate.Vocation
             int current;
             state.vocationScores.TryGetValue(vocationId, out current);
             state.vocationScores[vocationId] = current + points;
+
+            // When the points landed, for the tie-break in Pick. A serial rather than a clock:
+            // it survives a save and never depends on the device's date.
+            state.Bump(AwardSerialKey);
+            state.counters[LastAwardKeyPrefix + vocationId] = state.Counter(AwardSerialKey);
         }
 
+        /// <summary>Counter of every award the run has made, in order. The tie-break's clock.</summary>
+        public const string AwardSerialKey = "vocation_award_serial";
+
+        /// <summary>Counter prefix: the serial of the last award each vocation received.</summary>
+        public const string LastAwardKeyPrefix = "vocation_last_award_";
+
         /// <summary>
-        /// Names the vocation with the highest score. Ties break by the order of vocations.json,
-        /// which is why the comparison is strictly greater: the first definition to hold the top
-        /// score keeps it. Returns null only when there is no content to choose from.
+        /// Names the vocation with the highest score. A tie goes to the one the player leaned
+        /// toward most recently — the last award is the freshest evidence of who they are — and
+        /// only a tie with no awards at all falls back to the order of vocations.json. It used to
+        /// break every tie by that order, which named the zealot for a run that had done exactly
+        /// as much of everything else. Returns null only when there is no content to choose from.
         ///
         /// Reporting is one-shot: the first call raises vocation_revealed with the full score map
         /// and raises the flag; later calls return the same id in silence.
@@ -152,6 +165,13 @@ namespace SheepGate.Vocation
         /// the recorded scores when no definitions loaded, so a content failure still names
         /// something instead of leaving the closing stage without an ending.
         /// </summary>
+        /// <summary>Serial of the last award this vocation received, 0 when it never received one.</summary>
+        static int LastAward(string vocationId)
+        {
+            GameState state = ResolveState();
+            return state != null ? state.Counter(LastAwardKeyPrefix + vocationId) : 0;
+        }
+
         static string Pick(IDictionary<string, int> scores)
         {
             string best = null;
@@ -172,7 +192,8 @@ namespace SheepGate.Vocation
                     score = 0;
                 }
 
-                if (score > bestScore)
+                if (score > bestScore
+                    || (score == bestScore && best != null && LastAward(definition.id) > LastAward(best)))
                 {
                     bestScore = score;
                     best = definition.id;

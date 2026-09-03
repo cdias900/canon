@@ -608,10 +608,16 @@ namespace SheepGate.UI
             // Below the menu button rather than under the top of the screen: the button stays where
             // it is when the drawer opens, and a card sliding out from underneath it would cover
             // the only way to close it again.
-            RectTransform column = BuildTopColumn(_drawer, TopMargin + PlateHeight + ColumnSpacing);
+            // Under whichever is lower: the corner buttons, or the two plates stacked at the top
+            // centre. The wall plate made the stack the taller of the two, and a drawer that opened
+            // over it covered the one readout the drawer does not repeat in the same shape.
+            float underButtons = TopMargin + PlateHeight + ColumnSpacing;
+            float underPlates = TopMargin + WorkPlateHeight + ColumnSpacing + WallPlateHeight + ColumnSpacing;
+            RectTransform column = BuildTopColumn(_drawer, Mathf.Max(underButtons, underPlates));
             BuildReadoutCard(column);
             BuildFrameControls(column);
             BuildTableRow(column);
+            BuildSeasonEndRow(column);
 
             _drawer.gameObject.SetActive(false);
         }
@@ -943,6 +949,32 @@ namespace SheepGate.UI
         /// The plate never takes a tap. Only the button inside it does, which is what keeps a
         /// finger that lands beside the label from counting as a press.
         /// </summary>
+        /// <summary>The ending, for a run that has had one. Hidden until the vocation is named.</summary>
+        RectTransform _seasonEndPlate;
+
+        void BuildSeasonEndRow(RectTransform parent)
+        {
+            Image plate;
+            BuildPlatedButton(parent, "SeasonEndButton", Loc.T("hud.season_end"),
+                              () => { CloseMenu(); SeasonEndPanel.Show(null); }, out plate);
+            _seasonEndPlate = (RectTransform)plate.transform;
+            _seasonEndPlate.gameObject.SetActive(false);
+        }
+
+        void ApplySeasonEndRow(GameState state)
+        {
+            if (_seasonEndPlate == null)
+            {
+                return;
+            }
+
+            bool ended = state != null && state.HasFlag(GameFlags.VocationRevealed);
+            if (_seasonEndPlate.gameObject.activeSelf != ended)
+            {
+                _seasonEndPlate.gameObject.SetActive(ended);
+            }
+        }
+
         Button BuildPlatedButton(Transform parent, string name, string label, Action onClick, out Image plate)
         {
             plate = UIKit.CreateCard(parent, name + "Plate", UIKit.CardStyle.Glass);
@@ -1149,6 +1181,7 @@ namespace SheepGate.UI
                 Apply(state);
                 ApplyBackpackBadge(state);
                 ApplyCheckInAvailability(state);
+                ApplySeasonEndRow(state);
             }
         }
 

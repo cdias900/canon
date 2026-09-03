@@ -371,6 +371,7 @@ namespace SheepGate.World
                 if (stage.reveals_vocation)
                 {
                     yield return RunRevealBeat();
+                    yield return RunSeasonEndBeat();
                 }
 
                 MarkStagePlayedOut(stage);
@@ -715,6 +716,26 @@ namespace SheepGate.World
             }
 
             while (!revealClosed)
+            {
+                yield return null;
+            }
+        }
+
+        /// <summary>
+        /// The screen after the name: the whole wall with who repaired it, the six vocations, the
+        /// chapter after the season and the way to a new work. Reached again later from the HUD.
+        /// </summary>
+        private IEnumerator RunSeasonEndBeat()
+        {
+            bool closed = false;
+            SeasonEndPanel ending = SeasonEndPanel.Show(delegate { closed = true; });
+            if (ending == null)
+            {
+                Debug.LogWarning("[World] The ending panel could not open; the season ends on the reveal.");
+                closed = true;
+            }
+
+            while (!closed)
             {
                 yield return null;
             }

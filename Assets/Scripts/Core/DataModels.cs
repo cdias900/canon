@@ -26,6 +26,13 @@ namespace SheepGate.Core
 
         [JsonProperty("spawn")] public GridPos spawn;
         [JsonProperty("palette")] public string palette;
+
+        /// <summary>
+        /// The wall segment this builder repaired, for the record the ending draws — the one
+        /// thing Nehemiah 3 does with every name it lists. Empty means the name goes on no
+        /// stretch. Never the player's segment: that one carries the player's own name.
+        /// </summary>
+        [JsonProperty("segment")] public string segment;
     }
 
     /// <summary>

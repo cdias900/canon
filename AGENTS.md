@@ -179,6 +179,9 @@ exist. Always an internal reader; an external channel is a secondary, optional b
   24 + 24 + 16 + 12 + 16 + 8 = 100, so a player who does everything reaches the top. The days
   signal used to be full on the third morning (a literal 2 from the three-day build); it now
   reads the season's length from the stage table.
+- **Sharing the wall.** The ending draws the whole wall with the names on it and is meant to be
+  screenshotted; a share button needs a native share sheet, and the project has no plugin for one.
+  Whether to add one (and which) is open. The reading never goes out that way in any case.
 - **Jesus / the Holy Spirit as a guide** — deferred. The typological reading is legitimate; it comes
   back as an easter egg in a season that earns it, never as generated speech.
 - **The curation read is done; two citations it identified are not.** The human read rule 4 requires

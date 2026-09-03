@@ -6,7 +6,8 @@
       "x": 12,
       "y": 9
     },
-    "palette": "npc_a"
+    "palette": "npc_a",
+    "segment": "seg_03"
   },
   {
     "id": "salum",
@@ -15,7 +16,8 @@
       "x": 11,
       "y": 12
     },
-    "palette": "npc_b"
+    "palette": "npc_b",
+    "segment": "seg_03"
   },
   {
     "id": "baruque",
@@ -24,7 +26,8 @@
       "x": 25,
       "y": 5
     },
-    "palette": "npc_c"
+    "palette": "npc_c",
+    "segment": "seg_04"
   },
   {
     "id": "meremote",
@@ -33,7 +36,8 @@
       "x": 17,
       "y": 13
     },
-    "palette": "npc_d"
+    "palette": "npc_d",
+    "segment": "seg_01"
   },
   {
     "id": "zacur",
@@ -42,7 +46,8 @@
       "x": 28,
       "y": 10
     },
-    "palette": "npc_e"
+    "palette": "npc_e",
+    "segment": "seg_01"
   },
   {
     "id": "malquias",
@@ -51,6 +56,7 @@
       "x": 21,
       "y": 21
     },
-    "palette": "npc_f"
+    "palette": "npc_f",
+    "segment": "seg_04"
   }
 ]

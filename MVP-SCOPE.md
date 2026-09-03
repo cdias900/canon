@@ -380,8 +380,16 @@ complete it — the story closing the wall, not the player spending anything.
   (`DayCycle.RefillThePiles`), and the morning report says how many courses are left. Delayed,
   never cancelled (rule 7). It used to hand the segment sixty-four units of work nobody laid.
 - **Saber mais** opens `NEH.12`. Second `deep_read` door.
-- The vocation reveal, and the end. This is the `terminal` stage: it has no tomorrow, and it holds
-  the day open for good — from the moment the gate is earned.
+- The vocation reveal. Ties break by the most recent award, and only a run with no awards at all
+  falls back to the order of `vocations.json`.
+- **The ending** (`SeasonEndPanel`), after the reveal and again from the HUD's drawer: the whole
+  wall with who repaired each stretch — the player's name on `seg_02`, the six residents on theirs
+  (`segment` in `npcs.json`), the reference `NEH.3` under it — the season's three numbers, the six
+  vocations as names with this run's marked, a secondary way into `NEH.6` that pays nothing (its
+  deep read is `ungamed_read`), and **Começar outra obra**. No share button: there is no native
+  share plugin in the project, so the card is drawn to be screenshotted and the plugin stays open.
+- This is the `terminal` stage: it has no tomorrow, and it holds the day open for good — from the
+  moment the gate is earned.
 
 > **Stages 4, 5 and 7 have been read, and their beats are ordinary** — a rest with a gathering, a
 > working day, a working day. The residents who speak on them are the six of Nehemiah 3, whom the
@@ -450,7 +458,7 @@ turn limit      = 8   // overflow = the enemy withdraws, a technical draw
 ## 08 · Vocation scoring
 
 Six vocations, accumulated in silence. At the **terminal stage** the highest is revealed; ties break
-by the order in `vocations.json`. **Where a conversation branches, the branch scores and the
+by the most recent award, and by the order in `vocations.json` only when nothing was ever awarded. **Where a conversation branches, the branch scores and the
 conversation does not** — talking to everyone is the scribe's habit and is scored once as such;
 a node with choices carries no vocation of its own.
 

@@ -110,7 +110,8 @@
       }
     ],
     "canonical_speaker": true,
-    "needs_curation": true
+    "needs_curation": true,
+    "curated_in": "6d9d0ac"
   },
   "hananias_d1": {
     "npc": "hananias",
@@ -796,7 +797,8 @@
       }
     ],
     "canonical_speaker": true,
-    "needs_curation": true
+    "needs_curation": true,
+    "curated_in": "079aac4"
   },
   "hananias_d4": {
     "npc": "hananias",
@@ -960,7 +962,8 @@
       }
     ],
     "canonical_speaker": true,
-    "needs_curation": true
+    "needs_curation": true,
+    "curated_in": "079aac4"
   },
   "hananias_d5": {
     "npc": "hananias",
@@ -1065,6 +1068,7 @@
     ],
     "canonical_speaker": true,
     "needs_curation": true,
+    "curated_in": "079aac4",
     "choices": [
       {
         "id": "count",
@@ -1096,7 +1100,8 @@
       }
     ],
     "canonical_speaker": true,
-    "needs_curation": true
+    "needs_curation": true,
+    "curated_in": "079aac4"
   },
   "meremote_d6": {
     "npc": "meremote",
@@ -1372,7 +1377,8 @@
       }
     ],
     "canonical_speaker": true,
-    "needs_curation": true
+    "needs_curation": true,
+    "curated_in": "079aac4"
   },
   "hananias_d8": {
     "npc": "hananias",

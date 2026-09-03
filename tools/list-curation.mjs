@@ -31,6 +31,14 @@ const LOCALES_DIR = resolve(ROOT, 'Assets/Resources/Data/locales');
 
 const failures = [];
 
+// Read and unread are counted apart because they are different questions. needs_curation says a
+// node CARRIES authored canonical speech, which never stops being true; curated_in says a person
+// has weighed it against the passage, which is the thing that gets done. Before this field the
+// tool could only report the first, so six nodes that had been read in full still printed as a
+// backlog, and the only record of the read was in git log.
+let read = 0;
+let unread = 0;
+
 if (!existsSync(LOCALES_DIR)) {
   fail(`No locales directory at ${relative(ROOT, LOCALES_DIR)}.`);
   report();
@@ -67,6 +75,7 @@ for (const locale of locales) {
       if (node.canonical_speaker === true && node.needs_curation !== true) unflagged += 1;
       if (!node.needs_curation) continue;
       queue.push({ id, node, file });
+      if (node.curated_in) read += 1; else unread += 1;
     }
   }
 
@@ -85,7 +94,10 @@ for (const locale of locales) {
     }
 
     nodes += 1;
-    console.log(`\n${id}  (speaker: ${node.npc || '(none)'}${file === 'dialogue.json' ? '' : `, in ${file}`})`);
+    const mark = node.curated_in ? `read in ${node.curated_in}` : 'NOT READ';
+    console.log(
+      `\n${id}  (speaker: ${node.npc || '(none)'}${file === 'dialogue.json' ? '' : `, in ${file}`})  [${mark}]`
+    );
 
     for (const line of node.lines ?? []) {
       if (line.verse) {
@@ -118,9 +130,16 @@ if (failures.length > 0) {
   console.log(
     nodes === 0
       ? '\nNothing awaiting curation.'
-      : `\n${lines} spoken line(s) across ${nodes} node(s) in ${locales.length} locale(s) awaiting a\n` +
-        'read against the text. Narration is listed for context only: describing what a figure did\n' +
-        'is not the same as deciding what he said, and only the second needs a judgement.'
+      : `\n${lines} spoken line(s) across ${nodes} node(s) in ${locales.length} locale(s) carry\n` +
+        `authored canonical speech. ${read} have been read against the text; ${unread} have not.\n` +
+        'Narration is listed for context only: describing what a figure did is not the same as\n' +
+        'deciding what he said, and only the second needs a judgement.\n' +
+        (unread === 0
+          ? '\nNothing is awaiting a read. A node stays listed after it is read because the queue is a\n' +
+            'record of what carries canonical speech, not a backlog: the next person to change one of\n' +
+            'these lines needs to know it is one of these lines. curated_in names the commit that\n' +
+            'read it, so a line edited after that commit is a line whose read is stale.'
+          : `\n${unread} node(s) above are marked NOT READ. Rule 4 is not satisfied for those.`)
   );
 }
 

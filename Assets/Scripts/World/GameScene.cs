@@ -88,6 +88,12 @@ namespace SheepGate.World
             // 7. Camera rig.
             Rig = SetUpCamera(builder, Player);
 
+            // 7b. What the player sees when the wall grows: the course toasts, the look at a
+            // finished segment, and the ruin outside thinning with the courses. After the rig,
+            // because the look needs it; after the wall, because it listens to it.
+            WallBeats beats = systemsObject.AddComponent<WallBeats>();
+            beats.Configure(wall, dayCycle, builder, Rig);
+
             // 8. Systems owned by other modules that the world expects to find in the scene.
             EnsureDialogueSystem(systemsObject);
             EnsureContestSystem(systemsObject);

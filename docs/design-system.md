@@ -111,7 +111,11 @@ if it looks right.
 8. **Quantities are mono and tabular**, with the resource's label beside them.
 9. **One gold call-to-action per screen, at most.**
 10. **No confetti, no loud sound on reward.** The reward is that the world changed.
-11. **The world's stage is derived from wall percentage**, never set by content by hand.
+11. **The world's stage is derived from wall percentage**, never set by content by hand. Implemented
+    as the ruin outside the city: `WallBeats` hands the wall's fraction to
+    `TilemapBuilder.ApplyWallProgress` on every course, and the fallen stone thins from all of it to
+    30% at a finished wall — the city is rebuilt from its own rubble. The same fraction is on the
+    HUD as a four-segment silhouette with the player's segment taller.
 12. **A row that has to print a sentence is full width.** The authored source specifies
     `InventoryItem` as *Grid 2 col mobile* and points one component at *resource · gear · lore*.
     That holds for a card carrying a label and a number. It does not hold for a locked wardrobe

@@ -247,8 +247,61 @@ namespace SheepGate.World
             _skirtColumns = SkirtDepth(CameraRig.PatrolSize * MaxCoveredAspect, ContentBounds.center.x, Width);
             _skirtRows = SkirtDepth(CameraRig.PatrolSize, ContentBounds.center.y, Height);
 
-            _fallenWall = VoidScatter.Build(VoidMask(), Width, Height, _skirtColumns, _skirtRows);
+            _fallenWall = VoidScatter.Build(VoidMask(), Width, Height, _skirtColumns, _skirtRows, _ruinScale);
             PaintTiles();
+        }
+
+        /// <summary>
+        /// Share of the fallen wall still lying outside once every course is standing. Not zero:
+        /// a city that has just been rebuilt is not a lawn, and a field that emptied entirely would
+        /// take the boundary of the world with it — the stone is what says where the map ends.
+        /// </summary>
+        public const float RuinLeftAtFullWall = 0.3f;
+
+        private float _ruinScale = 1f;
+
+        /// <summary>
+        /// The world's stage, derived from the wall (design system rule 11): the ruin outside the
+        /// city thins as the courses go up, from all of it at bare ground to
+        /// <see cref="RuinLeftAtFullWall"/> at a finished wall. Only the cells outside the city are
+        /// repainted; nothing the player walks on changes, and nothing here is set by content.
+        /// Cheap enough to call on every course: the map is a few hundred cells and the tiles are
+        /// cached by variant.
+        /// </summary>
+        public void ApplyWallProgress(float fraction)
+        {
+            float scale = Mathf.Lerp(1f, RuinLeftAtFullWall, Mathf.Clamp01(fraction));
+            if (Mathf.Approximately(scale, _ruinScale) || Tilemap == null || _kinds == null)
+            {
+                return;
+            }
+
+            _ruinScale = scale;
+            _fallenWall = VoidScatter.Build(VoidMask(), Width, Height, _skirtColumns, _skirtRows, _ruinScale);
+            PaintOutside();
+        }
+
+        /// <summary>Repaints the void inside the rectangle and the skirt around it, and nothing else.</summary>
+        private void PaintOutside()
+        {
+            for (int y = 0; y < Height; y++)
+            {
+                for (int x = 0; x < Width; x++)
+                {
+                    if (_kinds[x, y] != CellKind.Void)
+                    {
+                        continue;
+                    }
+
+                    Tile tile = OutsideTileFor(x, y, false);
+                    if (tile != null)
+                    {
+                        Tilemap.SetTile(new Vector3Int(x, y, 0), tile);
+                    }
+                }
+            }
+
+            PaintSkirt();
         }
 
         /// <summary>

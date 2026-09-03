@@ -44,6 +44,7 @@ namespace SheepGate.World
             public WallSegmentState State;
             public readonly List<SpriteRenderer> Renderers = new List<SpriteRenderer>();
             public WallSegmentInteractable Interactable;
+            public Transform Root;
         }
 
         private readonly Dictionary<string, SegmentRuntime> _segments = new Dictionary<string, SegmentRuntime>();
@@ -70,6 +71,26 @@ namespace SheepGate.World
 
                 return total;
             }
+        }
+
+        /// <summary>How much of the wall stands, 0 to 1. Zero for a wall with no segments.</summary>
+        public float Fraction
+        {
+            get { return TotalStages > 0 ? Mathf.Clamp01(CompletedStages / (float)TotalStages) : 0f; }
+        }
+
+        /// <summary>Where a segment stands in the world, for a camera that wants to look at it.</summary>
+        public bool TryGetWorldPosition(string id, out Vector3 position)
+        {
+            SegmentRuntime segment;
+            if (_segments.TryGetValue(id ?? string.Empty, out segment) && segment.Root != null)
+            {
+                position = segment.Root.position;
+                return true;
+            }
+
+            position = Vector3.zero;
+            return false;
         }
 
         /// <summary>Ids of the segments flagged as exposed in wall_segments.json.</summary>
@@ -205,6 +226,7 @@ namespace SheepGate.World
 
             GameObject segmentObject = new GameObject("Wall_" + segment.Def.id);
             segmentObject.transform.SetParent(parent, false);
+            segment.Root = segmentObject.transform;
             segmentObject.transform.position = _tilemap != null
                 ? _tilemap.CellToWorldCenter(centerX, rowY)
                 : new Vector3(centerX + 0.5f, rowY + 0.5f, 0f);

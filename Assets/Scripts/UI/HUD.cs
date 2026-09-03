@@ -119,6 +119,16 @@ namespace SheepGate.UI
         /// <summary>Breathing room either side of the reading inside its plate.</summary>
         static readonly float WorkPlatePaddingX = DesignTokens.Space.S12;
 
+        /// <summary>The wall plate sits under the work plate and is a little wider: four bars need room.</summary>
+        static readonly float WallPlateWidth = DesignTokens.Px(196f);
+        static readonly float WallPlateHeight = DesignTokens.Space.S32;
+
+        /// <summary>Height of one segment's bar in the on-screen wall. Rule 1: never under six design px.</summary>
+        static readonly float WallBarHeight = DesignTokens.Px(8f);
+
+        /// <summary>The player's own segment is drawn taller, which is the one thing that marks it.</summary>
+        static readonly float WallBarHeightYours = DesignTokens.Px(14f);
+
         /// <summary>
         /// Height of the badge that says how many wardrobe items the player has not looked at yet.
         /// Its width follows its content, so a two digit count is a wider pill rather than a
@@ -154,6 +164,11 @@ namespace SheepGate.UI
         Text _dayText;
         Text _workText;
         Text _screenWorkText;
+
+        /// <summary>The wall on the screen: one fill per segment, in the order the table declares them.</summary>
+        RectTransform[] _screenWallFills;
+        string[] _screenWallIds;
+        Text _screenWallFraction;
         Text _rubbleText;
         Text _talentsText;
         ProgressBar _wallProgress;
@@ -316,6 +331,7 @@ namespace SheepGate.UI
             BuildCheckInButton(root);
             BuildHelpButton(root);
             BuildWorkReadout(root);
+            BuildWallReadout(root);
             BuildPatrolReturn(root);
 
             // Built last so it draws over the drawer it opens: the button stays put and stays
@@ -416,6 +432,111 @@ namespace SheepGate.UI
             plateRect.pivot = new Vector2(0.5f, 1f);
             plateRect.sizeDelta = new Vector2(WorkPlateWidth, WorkPlateHeight);
             plateRect.anchoredPosition = new Vector2(0f, -TopMargin);
+        }
+
+        /// <summary>
+        /// The wall, on the screen, under the work.
+        ///
+        /// <b>Why a second readout came back out.</b> The wall stands on the north row of the map
+        /// and the close view is fifteen cells tall; for most of a day the thing the season is
+        /// about is off screen, and its only readout was a bar in the drawer. A player who never
+        /// opened the drawer had no way to see the work grow. This is the drawer's bar, shrunk to
+        /// a silhouette: one bar per segment in the order the wall runs, the player's own segment
+        /// taller than the neighbours', and the fraction beside them — label, bar and fraction,
+        /// which is the only shape the design system lets progress take. Nothing here is a
+        /// control; taps fall through to the ground as they do on the work plate.
+        /// </summary>
+        void BuildWallReadout(RectTransform root)
+        {
+            Image plate = UIKit.CreateCard(root, "WallPlate", UIKit.CardStyle.Glass);
+            plate.raycastTarget = false;
+            var plateRect = (RectTransform)plate.transform;
+
+            UIKit.HorizontalGroup(plate.gameObject, DesignTokens.Space.S8,
+                                  new RectOffset(Mathf.RoundToInt(WorkPlatePaddingX), Mathf.RoundToInt(WorkPlatePaddingX), 0, 0),
+                                  TextAnchor.MiddleLeft);
+
+            Text label = UIKit.CreateText(plateRect, "WallLabel", Loc.T("hud.wall"),
+                DesignTokens.Type.Mono, DesignTokens.Ink.Secondary, TextAnchor.MiddleLeft,
+                DesignTokens.TypeRole.Mono);
+            label.horizontalOverflow = HorizontalWrapMode.Overflow;
+            UIKit.Layout(label).flexibleWidth = 0f;
+
+            RectTransform bars = UIKit.CreateRect("WallOnScreen", plateRect);
+            UIKit.HorizontalGroup(bars.gameObject, DesignTokens.Space.S4, new RectOffset(), TextAnchor.MiddleLeft);
+            LayoutElement barsLayout = UIKit.Layout(bars);
+            barsLayout.flexibleWidth = 1f;
+            barsLayout.minHeight = WallBarHeightYours;
+            barsLayout.preferredHeight = WallBarHeightYours;
+
+            WallSegmentDef[] defs = GameData.WallSegments ?? new WallSegmentDef[0];
+            _screenWallFills = new RectTransform[defs.Length];
+            _screenWallIds = new string[defs.Length];
+
+            for (int i = 0; i < defs.Length; i++)
+            {
+                WallSegmentDef def = defs[i];
+                bool yours = def != null && def.exposed;
+                _screenWallIds[i] = def != null ? def.id : null;
+
+                Image track = UIKit.CreatePanel(bars, "Segment_" + (def != null ? def.id : i.ToString()),
+                                                DesignTokens.Surface.Card, UiSpriteKeys.BarTrack);
+                track.raycastTarget = false;
+                LayoutElement trackLayout = UIKit.Layout(track);
+                trackLayout.flexibleWidth = 1f;
+                trackLayout.minHeight = yours ? WallBarHeightYours : WallBarHeight;
+                trackLayout.preferredHeight = yours ? WallBarHeightYours : WallBarHeight;
+
+                Image fill = UIKit.CreatePanel(track.transform, "Fill", DesignTokens.Brand.Primary, UiSpriteKeys.BarFill);
+                fill.raycastTarget = false;
+                var fillRect = (RectTransform)fill.transform;
+                fillRect.anchorMin = Vector2.zero;
+                fillRect.anchorMax = new Vector2(0f, 1f);
+                fillRect.offsetMin = Vector2.zero;
+                fillRect.offsetMax = Vector2.zero;
+                _screenWallFills[i] = fillRect;
+            }
+
+            _screenWallFraction = UIKit.CreateText(plateRect, "WallFraction", string.Empty,
+                DesignTokens.Type.Mono, UIKit.InkFor(UIKit.CardStyle.Glass), TextAnchor.MiddleRight,
+                DesignTokens.TypeRole.Mono);
+            _screenWallFraction.horizontalOverflow = HorizontalWrapMode.Overflow;
+            UIKit.Layout(_screenWallFraction).flexibleWidth = 0f;
+
+            plateRect.anchorMin = new Vector2(0.5f, 1f);
+            plateRect.anchorMax = new Vector2(0.5f, 1f);
+            plateRect.pivot = new Vector2(0.5f, 1f);
+            plateRect.sizeDelta = new Vector2(WallPlateWidth, WallPlateHeight);
+            plateRect.anchoredPosition = new Vector2(0f, -(TopMargin + WorkPlateHeight + ColumnSpacing));
+        }
+
+        /// <summary>Redraws the on-screen wall from the save, segment by segment.</summary>
+        void ApplyScreenWall(GameState state, int completed, int total)
+        {
+            if (_screenWallFraction != null)
+            {
+                _screenWallFraction.text = Loc.T("common.fraction", completed, total);
+            }
+
+            if (_screenWallFills == null || state == null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < _screenWallFills.Length; i++)
+            {
+                RectTransform fill = _screenWallFills[i];
+                if (fill == null)
+                {
+                    continue;
+                }
+
+                WallSegmentState segment = state.Segment(_screenWallIds[i]);
+                int stage = segment != null ? Mathf.Clamp(segment.stage, 0, WallSystem.StagesPerSegment) : 0;
+                fill.anchorMax = new Vector2(stage / (float)WallSystem.StagesPerSegment, 1f);
+                fill.offsetMin = Vector2.zero;
+                fill.offsetMax = Vector2.zero;
+            }
         }
 
         /// <summary>
@@ -1080,6 +1201,8 @@ namespace SheepGate.UI
             {
                 _wallProgress.SetValue(wallStages, wallTotal);
             }
+
+            ApplyScreenWall(state, wallStages, wallTotal);
         }
 
         /// <summary>

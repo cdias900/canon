@@ -104,6 +104,21 @@ namespace SheepGate.World
         /// </summary>
         public static bool[,] Build(bool[,] isVoid, int width, int height, int skirtX, int skirtY)
         {
+            return Build(isVoid, width, height, skirtX, skirtY, 1f);
+        }
+
+        /// <summary>
+        /// The same grid at a fraction of its density. This is how the world's stage follows the
+        /// wall (design system rule 11): the city is rebuilt out of its own ruins, so as the courses
+        /// go up the stone lying outside thins. The threshold is scaled and nothing else, and the
+        /// hash under it is untouched, so the cells that carry stone at a lower scale are always a
+        /// subset of the cells that carried it at a higher one — stone is only ever picked up,
+        /// never put back — and the field stays deterministic, identical on every device and in
+        /// both locales.
+        /// </summary>
+        public static bool[,] Build(bool[,] isVoid, int width, int height, int skirtX, int skirtY, float densityScale)
+        {
+            float scale = densityScale < 0f ? 0f : densityScale;
             int padX = skirtX < 0 ? 0 : skirtX;
             int padY = skirtY < 0 ? 0 : skirtY;
             int columns = (width < 0 ? 0 : width) + 2 * padX;
@@ -133,7 +148,7 @@ namespace SheepGate.World
                         continue;
                     }
 
-                    ruin[x + padX, y + padY] = Unit(x, y, DrawSalt) < Density(drawn, x, y);
+                    ruin[x + padX, y + padY] = Unit(x, y, DrawSalt) < Density(drawn, x, y) * scale;
                 }
             }
 

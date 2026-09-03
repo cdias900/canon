@@ -584,13 +584,16 @@ the version abbreviation and its copyright notice (`ChapterReaderUI.BuildColopho
 
 > **The harness carries more than the fourteen, and the prefix says which is which.** Numbered
 > criteria come from this section; `L1`–`L3` are the localization checks that arrived with the
-> content split, and **`S1`–`S4` are the season's own**: that the stage table holds together and is
+> content split, and **`S1`–`S5` are the season's own**: that the stage table holds together and is
 > reachable, that **a save written by the three-day build comes forward without losing anything** —
 > the one change that could quietly destroy a run somebody already played — that a move a flag
 > unlocks is shut without it, and **`S4`, that the gate is earned**: a bare `seg_02` does not count,
 > the mat stays alive on the last day, a night there refills the piles without moving the date, and
 > the morning carries the courses left. The e2e run lays its capacity on `seg_02` day by day and
-> asserts at the dedication that the whole cost came from its own work.
+> asserts at the dedication that the whole cost came from its own work. **`S5`** is the night keeping
+> the day's promises: the cleared path doubling one night's crew, the Tekoites' hour landing on the
+> player's segment the morning after, the armed night's count, and none of it twice — the only place
+> those beats execute, because the e2e never talks to a resident after the first day.
 >
 > **Every check that used to name a day now reads the season.** The old shape — day 3 for the
 > contest, night 1 for the watch, `NEH.4` for the reader — passed happily on a season where six of

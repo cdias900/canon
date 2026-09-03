@@ -94,6 +94,7 @@ namespace SheepGate.EditorTools
                     ContestRules();
                     FlagGatedMovesAreShut(sourceDialogue);
                     TheGateIsEarned();
+                    TheNightKeepsTheDaysPromises();
                     TheOpeningIsNotAMenu();
                     VocationResolution();
                     NightDiffers();
@@ -833,6 +834,87 @@ namespace SheepGate.EditorTools
             Check("S4 the gate is earned, never handed over", faults.Count == 0,
                 faults.Count == 0
                     ? "\"" + gate + "\" waits at course 0 with the mat alive and the piles refilled by a night, and counts once it stands"
+                    : string.Join("; ", faults));
+
+            UnityEngine.Object.DestroyImmediate(cycleHost);
+            UnityEngine.Object.DestroyImmediate(wall.gameObject);
+        }
+
+        /// S5 — what a day's choice promised, the night delivers, with the number the morning
+        /// prints. Three promises: the hour given to the Tekoites (stage 3) comes back on the
+        /// player's own segment the next morning, once; the cleared path (stage 5) doubles that
+        /// night's crew, once; and from the guard stage every two people land a unit instead of
+        /// every three. None of these run in the end-to-end harness, which never talks to a
+        /// resident after the first day, so this is the only place they execute.
+        /// </summary>
+        static void TheNightKeepsTheDaysPromises()
+        {
+            GameState state;
+            WallSystem wall = NewWallSystem(out state);
+            var cycleHost = new GameObject("HarnessNightCycle");
+            var cycle = cycleHost.AddComponent<DayCycle>();
+            cycle.enabled = false;
+            ServiceLocator.Register(cycle);
+            ServiceLocator.Register(wall);
+
+            var faults = new List<string>();
+            string yours = wall.PrimaryExposedSegmentId;
+
+            // Half the crew on the work, before the guard: 6 / 3 = 2, doubled by the path.
+            int plain = DayCycle.NightWorkUnits(6, DayCycle.HalfAndHalfStage - 1);
+            int armed = DayCycle.NightWorkUnits(6, DayCycle.HalfAndHalfStage);
+            if (plain != 2 || armed != 3)
+            {
+                faults.Add("six workers make " + plain + " unit(s) before the guard and " + armed + " from it, expected 2 and 3");
+            }
+
+            state.day = 5;
+            state.SetFlag(GameFlags.PathCleared);
+            state.SetFlag(GameFlags.TekoaHelped);
+            cycle.EndDay(6, 6);
+
+            int built = state.Counter(DayCycle.NightWorkCounter);
+            if (built != plain * 2)
+            {
+                faults.Add("the cleared path made the night land " + built + " unit(s), expected " + plain * 2);
+            }
+
+            if (state.Counter(DayCycle.NightPathClearedCounter) != 1)
+            {
+                faults.Add("the morning was not told the path was cleared");
+            }
+
+            if (state.Counter(DayCycle.NightTekoaReturnedCounter) != 1)
+            {
+                faults.Add("the Tekoites returned " + state.Counter(DayCycle.NightTekoaReturnedCounter) + " unit(s), expected 1");
+            }
+
+            WallSegmentState mine = state.Segment(yours);
+            int onYours = mine != null ? mine.workInStage + mine.stage : 0;
+            if (onYours < 1)
+            {
+                faults.Add("nothing landed on \"" + yours + "\" the morning after the Tekoites' hour");
+            }
+
+            NightSummary morning = NightSummary.FromState(state, state.day);
+            if (!morning.pathCleared || morning.tekoaReturned != 1)
+            {
+                faults.Add("the summary reads pathCleared=" + morning.pathCleared + " tekoa=" + morning.tekoaReturned);
+            }
+
+            // Both promises are kept once. The next night is an ordinary one.
+            cycle.EndDay(6, 6);
+            if (state.Counter(DayCycle.NightWorkCounter) != plain || state.Counter(DayCycle.NightPathClearedCounter) != 0
+                || state.Counter(DayCycle.NightTekoaReturnedCounter) != 0)
+            {
+                faults.Add("the second night still carried the promises: work=" + state.Counter(DayCycle.NightWorkCounter)
+                    + " path=" + state.Counter(DayCycle.NightPathClearedCounter)
+                    + " tekoa=" + state.Counter(DayCycle.NightTekoaReturnedCounter));
+            }
+
+            Check("S5 the night keeps the day's promises", faults.Count == 0,
+                faults.Count == 0
+                    ? "cleared path doubled 2 to 4, the Tekoites' hour landed on \"" + yours + "\", the armed night lands 3, and none of it twice"
                     : string.Join("; ", faults));
 
             UnityEngine.Object.DestroyImmediate(cycleHost);

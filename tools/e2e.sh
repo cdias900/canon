@@ -180,9 +180,17 @@ run_locale() {
     echo "=== ${locale} ==="
     sed -n 's/^\[E2E\] //p' "${log}" 2>/dev/null
     if [[ ${status} -ne 0 ]]; then
-      if [[ ${status} -ge 128 ]]; then
-        echo "KILLED (${locale}) — no exit after ${PLAYER_TIMEOUT}s. The runner never reported, which"
-        echo "usually means -e2e did not reach it at all. Full log: ${log}"
+      if [[ ${status} -eq 3 && -f "${OUT}/stall-${locale}.txt" ]]; then
+        # The runner's own stall detector got there first and left a diagnosis. Printing it here
+        # is the whole point of it existing: every silent hang this harness ever had was a KILLED
+        # line and nothing else, which is what made four investigations start from zero.
+        echo "STALLED (${locale}) — the run stopped and the detector said why:"
+        echo
+        sed 's/^/  /' "${OUT}/stall-${locale}.txt"
+        echo "  Full log: ${log}"
+      elif [[ ${status} -ge 128 ]]; then
+        echo "KILLED (${locale}) — no exit after ${PLAYER_TIMEOUT}s, and the stall detector did not"
+        echo "report either, which means the process died without running its own threads. Full log: ${log}"
       else
         echo "FAILED (${locale}, exit ${status}) — full log: ${log}"
       fi

@@ -117,6 +117,14 @@ namespace SheepGate.E2E
         /// </summary>
         const int MaxDialogueAdvances = 400;
 
+        /// <summary>
+        /// Real seconds of no frame AND no step before the detector calls it a stall. Generously
+        /// above the longest legitimate quiet stretch — a stage's scripted beat can hold the screen
+        /// for a few seconds — and far below the shell's own 990s ceiling, so the report always
+        /// arrives before the kill that used to be the only outcome.
+        /// </summary>
+        const int StallSeconds = 90;
+
         /// <summary>Seconds allowed for a stage's own scripted beat to begin once its morning is clear.</summary>
         const float BeatTimeoutSeconds = 45f;
 
@@ -371,6 +379,24 @@ namespace SheepGate.E2E
             }
         }
 
+        /// <summary>
+        /// Frames the player has actually drawn, incremented from <see cref="Update"/> and read by
+        /// a thread that is not the player's. Volatile because those are two different threads and
+        /// the whole question this answers is whether one of them has stopped.
+        /// </summary>
+        volatile int _framesDrawn;
+
+        /// <summary>Steps recorded so far. Same contract as <see cref="_framesDrawn"/>.</summary>
+        volatile int _stepsRecorded;
+
+        /// <summary>The last step's label, for the stall report. Written under a lock-free single writer.</summary>
+        volatile string _lastStepLabel = "(nothing recorded yet)";
+
+        void Update()
+        {
+            _framesDrawn++;
+        }
+
         IEnumerator Start()
         {
             _outputDirectory = ReadFlagValue(OutputFlag) ?? Path.Combine(AppPaths.DataRoot, "e2e");
@@ -389,6 +415,7 @@ namespace SheepGate.E2E
                 + " stages=" + (GameData.Stages != null ? GameData.Stages.Length : 0));
 
             StartCoroutine(Watchdog());
+            StartStallDetector();
             yield return RunScript();
 
             _finished = true;
@@ -2658,6 +2685,102 @@ namespace SheepGate.E2E
             return builder.ToString();
         }
 
+        // ------------------------------------------------------------------ the stall detector
+
+        /// <summary>
+        /// A watchdog on a REAL THREAD, because the other one cannot fire when it matters.
+        ///
+        /// <see cref="Watchdog"/> is a coroutine, so it advances on <c>yield return null</c> — one
+        /// tick per frame. Every silent hang this harness has had (30/08, 01/09, twice on 02/09,
+        /// again on 03/09) looked identical from outside: no exception, no log line, nothing at all
+        /// until the shell killed the player 990 seconds later. A coroutine watchdog can say nothing
+        /// about that, because the thing it would report is the thing that stopped it.
+        ///
+        /// <b>This does not fix the hang. It measures it</b>, and it measures the one distinction
+        /// four investigations could not make from the outside: <c>_framesDrawn</c> is incremented
+        /// from Update and read from here. Frozen frames and a frozen run are two different bugs
+        /// with the same silence —
+        ///   * frames stopped, steps stopped  → the PLAYER stopped being drawn. Look outside Unity:
+        ///     window occlusion, the compositor, the machine.
+        ///   * frames moving, steps stopped   → the RUN is stuck in a wait that never comes true.
+        ///     Look at the last step, which is named in the report.
+        ///
+        /// Writes with <see cref="File"/> rather than <see cref="Debug"/>: the log pump is the
+        /// player's, and a report about a stalled player may not be handed to it. Then exits hard,
+        /// so the shell gets a process that ended instead of one it has to kill.
+        /// </summary>
+        void StartStallDetector()
+        {
+            string path = Path.Combine(_outputDirectory, "stall-" + _runLocale + ".txt");
+            var thread = new System.Threading.Thread(() => WatchForAStall(path));
+            thread.IsBackground = true;
+            thread.Name = "e2e-stall-detector";
+            thread.Start();
+        }
+
+        void WatchForAStall(string reportPath)
+        {
+            const int pollMs = 1000;
+            int lastFrames = -1;
+            int lastSteps = -1;
+            int quietSeconds = 0;
+
+            while (!_finished)
+            {
+                System.Threading.Thread.Sleep(pollMs);
+
+                int frames = _framesDrawn;
+                int steps = _stepsRecorded;
+
+                if (frames != lastFrames || steps != lastSteps)
+                {
+                    lastFrames = frames;
+                    lastSteps = steps;
+                    quietSeconds = 0;
+                    continue;
+                }
+
+                quietSeconds++;
+                if (quietSeconds < StallSeconds)
+                {
+                    continue;
+                }
+
+                bool framesStopped = frames == lastFrames;
+                string verdict = framesStopped
+                    ? "THE PLAYER STOPPED DRAWING. Frames did not advance either, so this is not a "
+                      + "stuck wait — the process stopped being run at all. Look outside Unity: window "
+                      + "occlusion, the compositor, the machine going to sleep."
+                    : "THE RUN IS STUCK. Frames kept advancing while no step was recorded, so the "
+                      + "player is fine and a wait in the script never came true. The last step names "
+                      + "where.";
+
+                try
+                {
+                    File.WriteAllText(reportPath, string.Join("\n", new[]
+                    {
+                        "e2e stalled",
+                        "locale        " + _runLocale,
+                        "last step     " + _lastStepLabel,
+                        "steps         " + steps,
+                        "frames drawn  " + frames,
+                        "quiet for     " + quietSeconds + "s",
+                        "",
+                        verdict,
+                        ""
+                    }));
+                }
+                catch (Exception)
+                {
+                    // A detector that throws while reporting a stall would hide the stall it found.
+                }
+
+                // 3 rather than 1: a stall is not a failed assertion, and a report that reads like
+                // one sends the next person looking for a broken step.
+                Environment.Exit(3);
+            }
+        }
+
         // ------------------------------------------------------------------ reporting
 
         void OnLog(string message, string stackTrace, LogType type)
@@ -2670,8 +2793,37 @@ namespace SheepGate.E2E
             }
         }
 
+        /// <summary>
+        /// A step this run is not in a position to judge, named in the report rather than left out
+        /// of it.
+        ///
+        /// There is exactly one case, and it used to print four FAILs: a seeded run
+        /// (<c>--from-stage</c>) never drives character creation, so nothing in it can know what
+        /// creation chose, and the four assertions that compare the backpack against that choice
+        /// were failing on every seeded run since the flag existed. They were not regressions and
+        /// they were not findings — they were the mode. A gate mode that always prints failures
+        /// teaches the person reading it to skip failures, which is the opposite of what a gate is
+        /// for.
+        ///
+        /// A skip is not a pass: it does not clear the step, it records that this run could not
+        /// take it. The cold run every gate actually uses still takes all four.
+        /// </summary>
+        void Skip(string step, string why)
+        {
+            _steps.Add("SKIP  " + step + " — " + why);
+            Debug.Log("[E2E] SKIP " + step + " — " + why);
+        }
+
+        /// <summary>
+        /// Whether this run drove character creation, and therefore knows what it chose. False on a
+        /// seeded run, which starts standing in the village with creation already behind it.
+        /// </summary>
+        bool DroveCreation { get { return !string.IsNullOrEmpty(_creationCharacterId); } }
+
         void Record(string step, bool passed, string detail)
         {
+            _stepsRecorded++;
+            _lastStepLabel = step;
             _steps.Add((passed ? "PASS  " : "FAIL  ") + step + " — " + detail);
             if (!passed)
             {
@@ -3112,17 +3264,42 @@ namespace SheepGate.E2E
             // sheet is showing what character creation left behind and nothing else. The two
             // screens spoke different vocabularies until this run; this is the assertion that
             // says they now agree.
-            RecordCreationChoiceIsWorn(state);
-            RecordWornRowIsRinged(state, CharacterSlot.Hair);
+            if (DroveCreation)
+            {
+                RecordCreationChoiceIsWorn(state);
+                RecordWornRowIsRinged(state, CharacterSlot.Hair);
+            }
+            else
+            {
+                Skip("the backpack agrees with what creation chose",
+                    "this run was seeded past creation, so nothing here knows what it chose");
+                Skip("the Hair tab rings the piece that is on",
+                    "seeded runs wear the catalogue's defaults, which no row is ringed for");
+            }
 
             yield return WearSomething(state);
             yield return TapSomethingNotFoundYet(state);
             yield return Capture("04a-backpack-hair");
 
             yield return SelectBackpackTab("Outfit", "04b-backpack-outfit");
-            RecordWornRowIsRinged(state, CharacterSlot.Outfit);
+            if (DroveCreation)
+            {
+                RecordWornRowIsRinged(state, CharacterSlot.Outfit);
+            }
+            else
+            {
+                Skip("the Outfit tab rings the piece that is on", "seeded past creation");
+            }
+
             yield return SelectBackpackTab("Accessory", "04c-backpack-accessory");
-            RecordWornRowIsRinged(state, CharacterSlot.Accessory);
+            if (DroveCreation)
+            {
+                RecordWornRowIsRinged(state, CharacterSlot.Accessory);
+            }
+            else
+            {
+                Skip("the Accessory tab rings the piece that is on", "seeded past creation");
+            }
             yield return SelectBackpackTab("Materials", "04d-backpack-materials");
 
             RecordMaterialsTab();

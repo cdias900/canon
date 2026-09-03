@@ -1,6 +1,6 @@
 # Handoff
 
-State of the build at `991a0ba`, and the things that are not obvious from reading the code.
+State of the build at `fa4b715`, and the things that are not obvious from reading the code.
 
 Start with `README.md` for how to run it and `docs/architecture-contract.md` for the interfaces.
 This file is the part that would otherwise have to be rediscovered — and the part most likely to
@@ -25,7 +25,7 @@ exists in C#; they all live in `Assets/Resources/Data/locales/<locale>/` and are
 | Desktop | `Builds/mac/SheepGate.app` — runnable |
 | iOS simulator | `tools/ios-sim.sh` — builds, installs, boots and plays, on iPhone 17 Pro / Pro Max |
 | iOS device | `Builds/ios/Unity-iPhone.xcodeproj` — valid project, **never run on a device** |
-| Android | Build target exists (`BuildScript.BuildAndroid`); **no APK has ever been installed**. |
+| Android | `tools/android-emu.sh` — IL2CPP/ARM64 APK built and played on an arm64 emulator on 03/09/2026; **no physical device yet**. |
 
 **The opening**: region shot with the other cities shut → push-in to the ruined circular city → a
 neighbour crosses the square and speaks → you follow him into his house → character creation → you
@@ -82,6 +82,42 @@ coroutines do not run when frames do not; `-nographics` removes the renderer and
 a screenshot; different window sizes per locale still nests the smaller window inside the larger.
 
 ## What landed since the last handoff
+
+**The engagement wave of 2026-09-03** — nine commits from `87bd338` to `fa4b715`, each behind the
+validator, the compile, the acceptance harness and, in three batches, the end-to-end run in both
+locales. What changed, in the order it matters:
+
+- **The day is four courses** (`GameState.DefaultWorkCapacityMax`, schema 4). Capacity was twelve,
+  the material a morning makes is four blocks, and from day 2 the day never ended by itself again;
+  the mat, written as optional, was the only way to tomorrow. The night crew is its own number now,
+  `DayCycle.CrewSize = 12`. A dry course on day 1 costs a block's worth of stone. The player's
+  stretch, `seg_02`, costs 20 units. The steward's second habit counts piles left in the village.
+- **The gate is earned** (`StageDirector.GateIsEarned`). The dedication used to hand `seg_02`
+  sixty-four units nobody laid. Now the last stage takes its hold only once the segment stands;
+  until then it is a working day that repeats its date with the piles refilled
+  (`DayCycle.RefillThePiles`), and the morning says how many courses are left. Harness `S4`; the
+  e2e lays its capacity on the gate segment day by day and asserts the whole cost was its own.
+- **The wall is on the screen** — a four-bar silhouette under the work plate, the player's bar
+  taller — and `WallBeats` answers every course with a toast, a finished segment with a look, and
+  design-system rule 11 with the ruin outside thinning as the courses go up.
+- **Stages 3, 5 and 7 have a beat with a number in the morning** (the Tekoites, the carriers,
+  the armed night), a node may cost an hour (`spend_work`), and where a conversation branches the
+  branch scores, not the conversation.
+- **There is an ending**: `SeasonEndPanel`, after the reveal and from the HUD's drawer — the wall
+  with who repaired each stretch (`segment` in `npcs.json`), the season's numbers, the six
+  vocations with this run's marked, `NEH.6` behind a button that pays nothing (`ungamed_read`),
+  and a new work. Ties in the vocation go to the most recent award.
+- **The streak is gone**, with the talents it paid and every price in the wardrobe;
+  `WelcomeBackModal` says nothing went backwards after a day away. The opening is fourteen cards,
+  not twenty-four. The day's question is asked at dusk with a hook into tomorrow. The raid speaks
+  eight lines; the stone is three stones. Each stage's piece unlocks on the stage that names it.
+  The page's skip no longer sits on the turn counter.
+
+What that wave did **not** do, and why, is in `MVP-SCOPE.md` §06 and the session notes it came
+from: no share button (no native plugin), no contest "tells" beyond the extra lines (the contest's
+pressure model is unchanged), no haptics, and no playtest — nobody in the persona has played this
+build, and every finding above came from code and a harness that never chose a branch.
+
 
 **The backpack is two levels.** Three sections along the top — Perfil, Itens, Aparência — and, under
 Aparência only, three wardrobe slots along the bottom: Cabelo, Roupa, Extras. Five content panels
@@ -197,59 +233,16 @@ found by counting, not by reading.**
 
 This is the section that matters. It is ordered by what would embarrass the product first.
 
-### `EngagementMeter` ships a baseline that its own comment calls a lie — and zeroing it alone breaks the scale
+### Two items this section used to open with are settled
 
-`EngagementMeter.TestBaseline = 62` (`Assets/Scripts/Core/EngagementMeter.cs:41`). Its own docstring
-says it "is a test value and it is a lie", that it exists so the bar could be looked at with
-something in it while the screen was being built, and that **it has to go to zero before this
-ships**: a meter that starts most of the way full tells a new player they have already done most of
-something, which is untrue and is the exact shape of a progress bar nobody trusts.
-
-**It is not a one-line fix, and the file's own comment is wrong about why.** Line 25 asserts "The
-caps sum to `Ceiling`". They do not. The six contributors are `TalkedCap` 12, `WorkCap` 12,
-`DaysCap` 8, `ReadCap` 6, `DeepReadCap` 8, `TrialCap` 4 (`:44-49`) — **50**, against
-`Ceiling = 100` (`:30`). The meter only reaches 100 today because the 62 is added on top
-(`:74`, `Mathf.Clamp(TestBaseline + earned, 0, Ceiling)`). Set the baseline to 0 on its own and a
-player who has done **everything the meter measures** tops out at 50/100. Doing it honestly means
-doubling the six caps, which preserves every relative weight and leaves the code's stated invariant
-true for the first time. The docstring at `:25` needs correcting in the same change.
-
-Rule 10 is not at risk here — no branch reads this number and it names no archetype — but rule 19 is
-the reason the caps are what they are, so **do not close the gap by inflating the reading
-contributors.** `ReadCap` + `DeepReadCap` = 14 of 50 today, and doubling preserves that share.
-
-### `ChapterReaderUI` will hand out a `deep_read` for a chapter that fits on one screen
-
-`deep_read` is the north-star metric, so this gets the space.
-
-**The `NEH.3.1` problem recorded in earlier notes is fixed, and the fix is real.** `StudyDesk`
-authors `study_share` against `NEH.3.1` and `SuggestFor` adds it on **both** branches
-(`StudyDesk.cs:140`, `:193-202`), so every player who opens Perfil is offered it. `NEH.3` **is** in
-the manifest's `chapters` list (`tools/verses.manifest.json`, added by `a2cc8a8`), and both
-`locales/pt-BR/verses.json` and `locales/en/verses.json` ship it with 32 verses. The card opens a
-real chapter. (`is_placeholder` is a single document-level flag, `false` in both locales and read
-once at `ScriptureService.cs:162` — it is not a per-chapter key, so do not go looking for it inside
-the chapter object.) Anything claiming otherwise is describing
-the tree before `a2cc8a8`.
-
-**What survives is the mechanism, and it is a live trap.** `ChapterReaderUI.CurrentScrollFraction`
-returns `1f` whenever `contentHeight <= viewportHeight + 1f` (`:578-582`) — deliberately, and the
-reasoning is sound as far as it goes: a chapter that fits on screen has nothing left to scroll to.
-But `Update` fires `deep_read` on `_visibleSeconds >= DeepReadSeconds` (20s, `:34`) **and**
-`_maxScrollFraction >= DeepReadScrollFraction` (0.60, `:37`), so for any chapter shorter than the
-viewport the second condition is satisfied before the player has done anything, and the event is
-20 seconds of an open panel — indistinguishable in telemetry from a real read, with
-`placeholder: false` attached (`:613`).
-
-No packaged chapter is that short **today**: the shortest is `NEH.1` at 11 verses, and the seven packaged
-chapters run `NEH.1` 11, `NEH.2` 20, `NEH.3` 32, `NEH.4` 23, `NEH.6` 19, `NEH.12` 47, `JHN.21` 25
-(counted out of `locales/en/verses.json`). So this is not currently firing. It becomes a false reading
-the moment anyone points a study card, a "Saber mais" or a future season at a short chapter, and
-nothing in the build would say so. **The gap is that there is no assertion anywhere that a
-`deep_read` required scrolling.** Options, in the order they are cheap: require
-`contentHeight > viewportHeight` before the fraction may reach 1; or carry a `scrolled: bool` on the
-event so a no-scroll read is at least separable in the data. This is a product decision about what
-`deep_read` is allowed to mean, so it is Pedro's.
+The engagement meter's 62 baseline and the 50-of-100 caps were fixed in `fece0c5` (caps 24 / 24 /
+16 / 12 / 16 / 8, no baseline), and its days signal now reads the season's length instead of a
+literal 2. The `deep_read` on a chapter that fits one screen was settled on 2026-09-03 as a dwell
+that grows with the text — `ChapterReaderUI.DeepReadSecondsFor`, 1.5 s a verse with the old 20 s as
+a floor — and in the same pass every door the game draws (A Página, a quotation's "Saber mais", the
+gate's record, the ending's invitation) opens the reader as *the game asking*, so `unprompted_read`
+counts only the profile's study card; before that every caller passed false and the event was a
+copy of `chapter_opened`. Both are written up as taken-and-revisable in `AGENTS.md`.
 
 ### The `e2e` palette assertion does not reach a single world tile
 
@@ -306,7 +299,7 @@ stage. The same beats now sit at stages 6 and 9, behind five stages of content n
 on a device.
 
 **The invitation chain is the one worth knowing held**, because it is the path nothing else covers:
-accepting spent the day to `0/12`, the village went to dusk and the split correctly did **not** open;
+accepting spent the day to `0/12` (twelve then; the day is four courses now), the village went to dusk and the split correctly did **not** open;
 twelve idle seconds did not shake it loose; relaunching mid-beat put the hold back (`NpcActor.Start`
 re-deriving it); Malquias's return line released it and the split opened by itself, offering no way
 back because capacity was zero.

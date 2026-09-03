@@ -47,8 +47,8 @@ namespace SheepGate.UI
         /// <summary>Id this screen occupies in the modal stack.</summary>
         public const string ModalId = "end_day";
 
-        /// <summary>Crew size used when the run does not tell us one.</summary>
-        public const int DefaultCrew = 12;
+        /// <summary>The crew the split divides. Read from the day cycle, which owns the number.</summary>
+        public const int DefaultCrew = DayCycle.CrewSize;
 
         /// <summary>
         /// Smallest number of people that may be left on either side of the split.
@@ -601,15 +601,14 @@ namespace SheepGate.UI
             return new RectOffset(x, x, y, y);
         }
 
+        /// <summary>
+        /// The crew is a fixed number and not the day's work capacity. It used to be read off
+        /// <c>workCapacityMax</c>, which was twelve by coincidence; the day is four courses now and
+        /// a split over four people would have put the watch threshold at two.
+        /// </summary>
         static int ResolveCrewSize()
         {
-            GameState state = TryGetState();
-            if (state != null && state.workCapacityMax >= 2)
-            {
-                return state.workCapacityMax;
-            }
-
-            return DefaultCrew;
+            return DayCycle.CrewSize;
         }
 
         /// <summary>Last night's split is the starting point; a fresh run starts even.</summary>

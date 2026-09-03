@@ -227,7 +227,7 @@ namespace SheepGate.Core
 
             if (state.workCapacityMax < 1)
             {
-                state.workCapacityMax = 12;
+                state.workCapacityMax = GameState.DefaultWorkCapacityMax;
             }
 
             if (state.workCapacity < 0)
@@ -348,7 +348,31 @@ namespace SheepGate.Core
                 MigrateToNineStageSeason(state);
             }
 
+            if (from < 4)
+            {
+                MigrateToTheShortDay(state);
+            }
+
             state.schemaVersion = GameState.CurrentSchemaVersion;
+        }
+
+        /// <summary>
+        /// Moves a save written for the twelve-course day onto the four-course one.
+        ///
+        /// Only the ceiling and today's remainder change. Nothing the player holds moves: stone,
+        /// timber, blocks and every course already standing are untouched, so rule 7 holds by
+        /// construction. The remainder is clamped rather than reset because a save taken with two
+        /// units left still has two units left; one taken with eight has four, which is the whole
+        /// of the new day, and the extra four were never courses anyone could have laid — the
+        /// material for them did not exist, which is the reason the ceiling moved.
+        /// </summary>
+        static void MigrateToTheShortDay(GameState state)
+        {
+            state.workCapacityMax = GameState.DefaultWorkCapacityMax;
+            if (state.workCapacity > state.workCapacityMax)
+            {
+                state.workCapacity = state.workCapacityMax;
+            }
         }
 
         // What the three-day season's last day was numbered. Not DayCycle.FinalDay: that follows

@@ -239,7 +239,7 @@ standalone screen, so that route keeps working; nothing routes to it.
 | `GameState` | Central serialisable state: day, resources, segments, morale, flags, vocation counters, equipped items, player cell. Single source of truth. |
 | `PlayerController` · `GridPathfinder` | Tap the ground → path → move. Tap an interactable → approach and `Interact()`. A* on the tilemap grid. |
 | `WallSystem` | Courses per segment, consumes work, swaps sprite, raises completion. `DamageSegment` clears in-progress work only. |
-| `ResourceSystem` | Rubble split into stone, timber and crafted blocks, plus daily work capacity. **Capacity is the day's clock.** |
+| `ResourceSystem` | Rubble split into stone, timber and crafted blocks, plus daily work capacity. **Capacity is the day's clock**, and it is **four courses** — what one morning's piles make (five of stone, four of timber, a block each, one stone pile to spare for a donation). A dry course on day 1 costs a block's worth of stone. The night crew is a separate number, `DayCycle.CrewSize` = 12; the two used to share one field and the day never ended by itself after the first. |
 | `DayCycle` | **The day ends by itself.** Light tracks capacity spent; when it hits zero the village goes to dusk and the split panel opens on its own. `DuskWaits` holds the night for whatever has the screen. A stage with `night_threat: false` still plays its whole night — that flag switches off the damage and nothing else. |
 | `DialogueSystem` | Line queue, typewriter reveal, resolves `verse`, applies `grants`. |
 | `ScriptureService` | In-memory index of the locale's `verses.json`. Never hits the network. |

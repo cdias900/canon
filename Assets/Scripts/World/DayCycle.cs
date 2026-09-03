@@ -191,7 +191,16 @@ namespace SheepGate.World
 
         private const string LightTypeName = "UnityEngine.Rendering.Universal.Light2D";
         private const float LightSearchInterval = 2f;
-        private const int FallbackCrew = 12;
+
+        /// <summary>
+        /// The people a night divides between the work and the watch. A fixed number, and no
+        /// longer the day's work capacity: the two used to share <c>workCapacityMax</c>, which was
+        /// only ever a coincidence of both being twelve. The day is four courses now
+        /// (<see cref="GameState.DefaultWorkCapacityMax"/>), and a crew of four would have made the
+        /// watch threshold two and the night crew's work zero. The split panel and the fallback
+        /// split both read this and nothing else.
+        /// </summary>
+        public const int CrewSize = 12;
 
         private static readonly string[] PanelOpenMethods = { "Open", "Show", "Compose", "Present" };
         private static readonly string[] ReportOpenMethods = { "Show", "Open", "Compose", "Present" };
@@ -674,16 +683,10 @@ namespace SheepGate.World
             return workers <= 0 ? 0 : workers / WorkersPerNightWorkUnit;
         }
 
-        /// <summary>Crew the run implies, used only when no screen supplied a split.</summary>
+        /// <summary>Crew the fallback split divides, when no screen supplied one.</summary>
         private static int ResolveCrewSize()
         {
-            GameState state = WorldRuntime.State;
-            if (state != null && state.workCapacityMax >= 2)
-            {
-                return state.workCapacityMax;
-            }
-
-            return FallbackCrew;
+            return CrewSize;
         }
 
         /// <summary>Resolves the night on the chosen split and advances to the next morning.</summary>
@@ -917,7 +920,7 @@ namespace SheepGate.World
         /// <summary>Counter written by a night the player ended with their whole capacity spent.</summary>
         private const string StewardCapacityPrefix = "steward_capacity_qualified_d";
 
-        /// <summary>Counter written by a night the player ended with no rubble left lying around.</summary>
+        /// <summary>Counter written by a night the player ended with no pile left lying in the village.</summary>
         private const string StewardRubblePrefix = "steward_rubble_qualified_d";
 
         /// <summary>
@@ -945,7 +948,12 @@ namespace SheepGate.World
                 SetCounter(state, StewardCapacityPrefix + day, 1);
             }
 
-            if (state.rubble <= 0)
+            // The village, not the hands. This used to test state.rubble, which is the stone the
+            // player is carrying: with a spare pile in the village every day and a block costing
+            // three, that number ended almost every night at three, and half the steward was
+            // unreachable by anyone who did exactly what the vocation describes — cleared the
+            // ruins. What the vocation names is entulho left lying, so that is what is counted.
+            if (NoPileLeftInTheVillage())
             {
                 SetCounter(state, StewardRubblePrefix + day, 1);
             }
@@ -967,6 +975,27 @@ namespace SheepGate.World
             {
                 WorldRuntime.AwardOnce("steward_rubble_awarded", WorldRuntime.VocationSteward, 3);
             }
+        }
+
+        /// <summary>
+        /// True when every pile that could be picked up today has been. A pile whose day has not
+        /// come does not count against the player, and neither does a scene with no piles at all —
+        /// the acceptance harness resolves nights without composing a village, and an empty
+        /// village is a cleared one.
+        /// </summary>
+        private static bool NoPileLeftInTheVillage()
+        {
+            RubblePile[] piles = FindObjectsByType<RubblePile>(FindObjectsSortMode.None);
+            for (int i = 0; i < piles.Length; i++)
+            {
+                RubblePile pile = piles[i];
+                if (pile != null && pile.IsAvailable)
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         /// <summary>

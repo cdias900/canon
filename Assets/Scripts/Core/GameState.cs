@@ -93,10 +93,22 @@ namespace SheepGate.Core
         /// <summary>
         /// The shape this build writes. 1 was rubble-only; 2 is stone/timber/blocks; 3 is the
         /// nine-stage season, in which <see cref="day"/> stopped meaning "one of three" and started
-        /// meaning "one of nine". Bump it in the same change that adds a migration to SaveSystem,
-        /// never on its own.
+        /// meaning "one of nine"; 4 is the short day, in which <see cref="workCapacityMax"/> stopped
+        /// being the size of the crew and became the courses one person lays before dusk. Bump it
+        /// in the same change that adds a migration to SaveSystem, never on its own.
         /// </summary>
-        public const int CurrentSchemaVersion = 3;
+        public const int CurrentSchemaVersion = 4;
+
+        /// <summary>
+        /// Courses a day holds, and therefore the day's clock: the light reaches dusk when this
+        /// many work units have been spent. Four, because four is what one morning's material makes
+        /// — four timber piles, a block each — so a day that gathered everything ends on its own
+        /// with nothing left over. It was twelve, which was also the size of the night crew, and
+        /// the two numbers had nothing to do with each other: with twelve the material ran out at
+        /// four and the day never ended by itself again after the first one. The crew is
+        /// <c>DayCycle.CrewSize</c> now, and it is still twelve.
+        /// </summary>
+        public const int DefaultWorkCapacityMax = 4;
 
         /// <summary>
         /// Which stage of the season the run is on, and it IS the stage number: there is no second
@@ -171,7 +183,7 @@ namespace SheepGate.Core
         public int blocks;
 
         public int workCapacity;                              // resets each morning
-        public int workCapacityMax = 12;
+        public int workCapacityMax = DefaultWorkCapacityMax;
         public int morale = 100;
         public AppearanceState appearance = new AppearanceState();
         public string playerName = "";

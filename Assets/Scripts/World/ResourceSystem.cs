@@ -25,7 +25,7 @@ namespace SheepGate.World
     /// </summary>
     public class ResourceSystem : MonoBehaviour
     {
-        public const int FallbackCapacityMax = 12;
+        public const int FallbackCapacityMax = GameState.DefaultWorkCapacityMax;
         private const string CapacityDayKey = "capacity_initialized_day";
 
         /// <summary>

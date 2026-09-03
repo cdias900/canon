@@ -480,9 +480,12 @@ namespace SheepGate.World
     /// are always spent before any are made, so a dedicated mixing yard can take the job later
     /// without a line changing here.
     ///
-    /// <b>Until timber is in the village, the wall takes stone one for one</b>, exactly as it did
-    /// before blocks existed. That is the day-1 pacing rule: the recipe is introduced one half at a
-    /// time, so the first day's course is laid dry. When timber arrives is
+    /// <b>Until timber is in the village, the wall takes dry stone</b>, a block's worth of it per
+    /// course (<see cref="ResourceSystem.StonePerBlock"/>). That is the day-1 pacing rule: the
+    /// recipe is introduced one half at a time, so the first day's course is laid dry. It used to
+    /// take stone one for one, which left eleven stones in the player's hands at the end of a
+    /// four-course day and carried them into every day after; a course is three stones whether or
+    /// not there is a beam between them. When timber arrives is
     /// <see cref="RubblePile.TimberFirstDay"/> and it is read from there rather than spelled again
     /// here, so re-timing the material re-times the wall with it, in one edit instead of two.
     ///
@@ -556,7 +559,7 @@ namespace SheepGate.World
             int blocksOnHand = resources.Blocks;
             int material = blocksRequired
                 ? blocksOnHand + CraftableBlocks(resources)
-                : resources.Stone;
+                : resources.Stone / ResourceSystem.StonePerBlock;
 
             int remaining = _wall.RemainingInStage(SegmentId);
             int affordable = Mathf.Min(resources.Capacity, material);
@@ -602,7 +605,8 @@ namespace SheepGate.World
             // The day ends by itself the moment capacity reaches zero, with no confirmation and no
             // way back, so the last warning a player can act on is the one before it. Announced at
             // one remaining rather than at zero: at zero the split is already opening over the top
-            // of the message, and there is nothing left to decide.
+            // of the message, and there is nothing left to decide. One remaining is one course,
+            // not one stone — the copy behind LastUnitKey says so.
             if (resources.Capacity == 1)
             {
                 Toast.Show(Loc.T(LastUnitKey));
@@ -676,7 +680,7 @@ namespace SheepGate.World
         {
             if (!blocksRequired)
             {
-                return resources.TryConsumeStone(units);
+                return resources.TryConsumeStone(units * ResourceSystem.StonePerBlock);
             }
 
             int shortfall = units - blocksOnHand;

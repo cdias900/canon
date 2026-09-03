@@ -204,6 +204,24 @@ a form:
 `CharacterCreation.unity` stays registered and `CharacterCreationScreen.Compose()` still builds the
 standalone screen, so that route keeps working; nothing routes to it.
 
+> **The returning player gets a screen; the new one still does not.** `TitleScreen` opens over the
+> composed world at every launch. With no character in the save it is a wordmark that fades on its
+> own after 1.4s and hands the screen to the cutscene above — **the rule is about the first
+> impression, and a new player's first impression is unchanged.** With a character it also carries
+> the figure the player built, the name they chose, the stage the season stopped on, and one button.
+>
+> It is a modal rather than a scene, and that is what makes it cheap: everything the day must not do
+> while it is up — the light falling, dusk resolving, the split opening by itself — is already held
+> off by `ModalRoot.IsOpen` through `DayCycle.DuskWaits`, and the village is composed and waiting
+> behind the card, so **Jogar closes a panel** rather than loading anything.
+>
+> **There is one save and Jogar resumes it.** Boot has always loaded the last state; this screen
+> does not choose between states, because there has only ever been one. What it adds is the pause
+> and the bearings before that state starts moving again.
+>
+> Shown **once per launch, not once per compose**: the language toggle reloads the scene, and
+> without that latch changing language would put the player back on a screen they had dismissed.
+
 > **Two cameras, one map**
 > The default view is close, portrait, following the character. A HUD button switches to the
 > **Patrol**: the camera pulls back and the player drags horizontally. It is the only view that shows
@@ -513,6 +531,7 @@ the version abbreviation and its copyright notice (`ChapterReaderUI.BuildColopho
 | 12 | Runs offline start to finish, in aeroplane mode. |
 | 13 | The day ends by itself when capacity hits zero; no HUD button ends it; no night resolves with a panel open. |
 | 14 | The translation copyright is displayed in-game. |
+| 15 | A run with no character is never offered a launch screen to press through (§04). |
 
 > **The harness carries more than the fourteen, and the prefix says which is which.** Numbered
 > criteria come from this section; `L1`–`L3` are the localization checks that arrived with the
@@ -561,6 +580,10 @@ report, the quiz, both contests, A Página, the reader and the vocation reveal �
 | iOS simulator | `tools/ios-sim.sh` — builds, installs, boots and plays |
 | iOS device | `Builds/ios/` — valid project, **never run on a device** |
 | Android | Build target exists; **never installed** |
+
+The launch screen is covered from both sides: criterion 15 asserts the predicate, and `e2e.sh`'s
+cold run asserts the behaviour — a Play button on the opening fails the step that requires a splash
+with nothing to press.
 
 **Closed since the three-day build:** the old **day-3 gap on a phone** — the trial, A Página, the
 gate closing with the player's name, the **Saber mais** that opens `NEH.4`, the vocation reveal — was

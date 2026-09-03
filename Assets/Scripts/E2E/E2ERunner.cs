@@ -152,7 +152,7 @@ namespace SheepGate.E2E
         /// </summary>
         static readonly string[] ModalExitButtons =
         {
-            "Continue", "Option_0", "Confirm", "CloseButton", "Close"
+            "Continue", "Option_0", "Confirm", "CloseButton", "Close", "Play"
         };
 
         /// <summary>
@@ -411,9 +411,68 @@ namespace SheepGate.E2E
 
         // ------------------------------------------------------------------ the script
 
+        /// <summary>
+        /// The launch screen, which is in front of everything else on every run and is two
+        /// different screens depending on what the save holds.
+        ///
+        /// On a cold run there is no character, so it is a wordmark that fades on its own: the run
+        /// waits it out rather than tapping, because a splash with nothing to press is exactly what
+        /// a new player gets and hurrying it would prove something no player experiences. On a
+        /// seeded run — <c>--from-stage</c> — the save has a character, so it is the returning
+        /// player's screen and there is a button; the run presses it, which is the only automated
+        /// coverage that screen has.
+        ///
+        /// Waited for rather than assumed present: TitleScreen shows once per LAUNCH, and a run
+        /// that reloads the scene (the language toggle does) will not see it a second time.
+        /// </summary>
+        IEnumerator ClearTheTitleScreen(int startStage)
+        {
+            const float appearSeconds = 2f;
+            float deadline = Time.realtimeSinceStartup + appearSeconds;
+
+            while (Time.realtimeSinceStartup < deadline && !ModalRoot.IsOpen)
+            {
+                yield return null;
+            }
+
+            if (!ModalRoot.IsOpen)
+            {
+                Record("the launch screen appeared", false,
+                    "nothing modal was on screen within " + appearSeconds + "s of the first frame");
+                yield break;
+            }
+
+            GameObject play = Find("Play");
+            if (play != null)
+            {
+                Record("the launch screen offers the run its save back", true, "Play is on screen");
+                yield return TapObject(play, "press Play on the launch screen");
+            }
+            else
+            {
+                Record("the launch screen is a splash on a cold run", startStage <= 1,
+                    startStage <= 1
+                        ? "no Play button, as a run with no character should have"
+                        : "a seeded run reached stage " + startStage + " with no character to show");
+            }
+
+            // Either path ends the same way: the screen fades itself out, and nothing else may
+            // start until it has, because everything behind it is held by ModalRoot being open.
+            float clearBy = Time.realtimeSinceStartup + 5f;
+            while (ModalRoot.IsOpen && Time.realtimeSinceStartup < clearBy)
+            {
+                yield return null;
+            }
+
+            Record("the launch screen handed the game over", !ModalRoot.IsOpen,
+                ModalRoot.IsOpen ? "it was still on screen 5s later" : "the world has the screen");
+        }
+
         IEnumerator RunScript()
         {
             int startStage = StartStage;
+
+            yield return ClearTheTitleScreen(startStage);
 
             // 1-3. The opening: the first thing a player sees, then the one screen that asks them
             // for something. Creation is DRIVEN IN FULL rather than skipped past with QuickStart,

@@ -253,5 +253,8 @@
   "world.speaker.sanballat": "Sanballat",
   "world.speaker.tobiah": "Tobiah",
   "scripture.unavailable": "⟨text unavailable — {0}⟩",
-  "language.toggle_hint": "Language"
+  "language.toggle_hint": "Language",
+  "title.wordmark": "A Cidade Quebrada",
+  "title.chapter": "The Sheep Gate",
+  "title.play": "Play"
 }

@@ -114,6 +114,17 @@ namespace SheepGate.World
             // lines rather than with the opening's for the rest of the season.
             IntroCutscene.RestoreGathering(Root, builder, state.day);
 
+            // 11b. The launch screen, over the top of everything the last eleven steps built.
+            //
+            // After the cutscene is attached rather than before, and that order is the whole
+            // design: a run that has not seen the opening gets a wordmark that fades on its own
+            // and then the city, because MVP-SCOPE §04 says the opening is a cutscene and not a
+            // menu. A run that already has a character gets the figure, the name and the button.
+            // Either way the world underneath is already composed, so the button costs nothing —
+            // it closes a panel — and everything the day must not do meanwhile is already held by
+            // ModalRoot.IsOpen through DayCycle.DuskWaits.
+            SheepGate.UI.TitleScreen.ShowOnce(state);
+
             // 12. Silent map-edge observation (exile vocation, never displayed).
             MapEdgeWatcher watcher = rootObject.AddComponent<MapEdgeWatcher>();
             watcher.Configure(builder, Player);

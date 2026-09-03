@@ -92,6 +92,7 @@ namespace SheepGate.EditorTools
                     SaveRoundTrip();
                     ContestRules();
                     FlagGatedMovesAreShut(sourceDialogue);
+                    TheOpeningIsNotAMenu();
                     VocationResolution();
                     NightDiffers();
                     DaylightClock();
@@ -852,6 +853,39 @@ namespace SheepGate.EditorTools
             bool offered = contest.IsMoveAvailable(moveId);
             UnityEngine.Object.DestroyImmediate(contest.gameObject);
             return offered;
+        }
+
+        /// <summary>
+        /// 15 — a run with no character is never offered a launch screen to press through.
+        ///
+        /// §04 decides that the opening is a cutscene and not a menu: the first thing a NEW player
+        /// sees has to be a city rather than a form. The launch screen added for returning players
+        /// is the obvious way to break that rule by accident — one condition inverted and every new
+        /// player meets a Play button before they meet the game.
+        ///
+        /// Asserted on the predicate rather than by composing the screen, and that is a real limit
+        /// worth stating: this proves TitleScreen.HasCharacter answers correctly for a fresh state
+        /// and for a named one. It does not prove GameScene calls it, which is what the e2e's cold
+        /// run covers — a Play button on the opening would fail there, in the step that asserts a
+        /// cold run gets a splash and no button.
+        /// </summary>
+        static void TheOpeningIsNotAMenu()
+        {
+            GameState fresh = GameState.NewGame();
+            bool freshOffered = SheepGate.UI.TitleScreen.HasCharacter(fresh);
+
+            GameState named = GameState.NewGame();
+            named.playerName = "Hanani";
+            bool namedOffered = SheepGate.UI.TitleScreen.HasCharacter(named);
+
+            var faults = new List<string>();
+            if (freshOffered) faults.Add("a new run would be shown the returning player's screen");
+            if (!namedOffered) faults.Add("a run with a name would not be shown its own character");
+
+            Check("15 the opening is a cutscene and not a menu", faults.Count == 0,
+                faults.Count == 0
+                    ? "no character -> splash only; named -> figure and Play"
+                    : string.Join("; ", faults.ToArray()));
         }
 
         /// <summary>The first stage that fights the named contest, or null if none does.</summary>

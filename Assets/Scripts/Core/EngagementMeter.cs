@@ -22,7 +22,11 @@ namespace SheepGate.Core
     /// much of this you have done", not "how much you have read".
     ///
     /// Each signal has its own cap, which is what stops any one of them from filling the bar alone.
-    /// The caps sum to <see cref="Ceiling"/>.
+    /// The caps sum to <see cref="Ceiling"/> — and that sentence was false for as long as it stood
+    /// here: they summed to 50 against a ceiling of 100, so a player who did every single thing
+    /// this meter counts watched it stop halfway. It went unnoticed because a test baseline of 62
+    /// was being ADDED to the total, carrying the bar past the top and hiding the shortfall behind
+    /// a clamp. Both are fixed together: fixing either one alone makes the meter worse than it was.
     /// </summary>
     public static class EngagementMeter
     {
@@ -30,23 +34,26 @@ namespace SheepGate.Core
         public const int Ceiling = 100;
 
         /// <summary>
-        /// Where the meter starts before the run has done anything.
+        /// The six contributors, and what each is worth at its own ceiling.
         ///
-        /// <b>This is a test value and it is a lie.</b> It exists so the bar can be looked at with
-        /// something in it while the screen is being built, which was asked for explicitly. It has
-        /// to go to zero before this ships: a meter that starts most of the way full tells a new
-        /// player they have already done most of something, which is both untrue and the exact
-        /// shape of a progress bar nobody trusts.
+        /// <b>Doubled from the values this shipped with, and the doubling is the point.</b> They
+        /// were 12 / 12 / 8 / 6 / 8 / 4, which sums to 50 — half the scale they are drawn against.
+        /// Every ratio between the signals is preserved: talking and building still weigh most and
+        /// weigh the same as each other, the trial still weighs least, and reading is still the
+        /// same share of the whole. What changes is that a player who does everything this counts
+        /// now reaches the top instead of stopping halfway, which is the only honest reading of a
+        /// bar drawn out of a hundred.
+        ///
+        /// The alternative was dropping <see cref="Ceiling"/> to 50. Not taken: the number is shown
+        /// as a fraction of a hundred, and a meter that tops out at 50/100 reads as a broken meter
+        /// rather than as a full one.
         /// </summary>
-        public const int TestBaseline = 62;
-
-        // The six contributors, and what each one is worth at its own ceiling.
-        const int TalkedCap = 12;
-        const int WorkCap = 12;
-        const int DaysCap = 8;
-        const int ReadCap = 6;
-        const int DeepReadCap = 8;
-        const int TrialCap = 4;
+        const int TalkedCap = 24;
+        const int WorkCap = 24;
+        const int DaysCap = 16;
+        const int ReadCap = 12;
+        const int DeepReadCap = 16;
+        const int TrialCap = 8;
 
         /// <summary>Distinct residents worth counting before the conversation signal is full.</summary>
         const int TalkedTarget = 6;
@@ -57,9 +64,11 @@ namespace SheepGate.Core
         /// <summary>The meter, clamped to the scale.</summary>
         public static int Value(GameState state)
         {
+            // Nothing to read means nothing done, not a number to look at. This used to answer 62
+            // here, and 62 + earned below, so the bar described a run nobody had played.
             if (state == null)
             {
-                return Mathf.Clamp(TestBaseline, 0, Ceiling);
+                return 0;
             }
 
             int earned = 0;
@@ -71,7 +80,7 @@ namespace SheepGate.Core
             earned += state.HasFlag(GameFlags.DeepRead) ? DeepReadCap : 0;
             earned += state.HasFlag(GameFlags.ContestResolved) ? TrialCap : 0;
 
-            return Mathf.Clamp(TestBaseline + earned, 0, Ceiling);
+            return Mathf.Clamp(earned, 0, Ceiling);
         }
 
         /// <summary>One signal's share, straight-line to its own cap and never past it.</summary>

@@ -182,6 +182,13 @@ namespace SheepGate.Core
         /// decided. read_ahead, offday_read and ungamed_read are season-scale and out of POC scope.
         /// </summary>
         public const string UnpromptedRead = "unprompted_read";
+
+        /// <summary>
+        /// A deep read of a chapter the game attached nothing to — opened from the ending's
+        /// invitation, with no move, page or record behind it. Reported beside deep_read, never
+        /// instead of it.
+        /// </summary>
+        public const string UngamedRead = "ungamed_read";
         public const string RevealShown = "reveal_shown";
         public const string NodeCompleted = "node_completed";
         public const string VocationRevealed = "vocation_revealed";

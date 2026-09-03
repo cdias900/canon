@@ -30,8 +30,31 @@ namespace SheepGate.Scripture
         /// <summary>Id this screen occupies in the modal stack.</summary>
         public const string ModalId = "chapter_reader";
 
-        /// <summary>Accumulated visible seconds required before deep_read may fire.</summary>
+        /// <summary>Floor on the visible seconds required before deep_read may fire.</summary>
         public const float DeepReadSeconds = 20f;
+
+        /// <summary>
+        /// Seconds of dwell a chapter earns per verse. The floor alone let a chapter that fits on
+        /// one screen award the north-star event after twenty seconds of sitting there, because a
+        /// content shorter than the viewport reads as fully scrolled. The dwell now grows with the
+        /// text: NEH.4 at 23 verses asks about 35 seconds, NEH.12 at 47 asks about 70. Reading pace
+        /// at 13 is nearer two seconds a verse, so this is still a floor, not a proof of reading.
+        /// Taken as a product decision on 2026-09-03 and revisable in one constant.
+        /// </summary>
+        public const float DeepReadSecondsPerVerse = 1.5f;
+
+        /// <summary>The dwell a chapter of this many verses asks for.</summary>
+        public static float DeepReadSecondsFor(int verseCount)
+        {
+            return Mathf.Max(DeepReadSeconds, verseCount * DeepReadSecondsPerVerse);
+        }
+
+        /// <summary>
+        /// Trigger of a reader opened from the season's ending, where the game attached nothing to
+        /// the chapter: no move, no page, no record. A deep read there is the one the product
+        /// wants most, and it is reported under its own name.
+        /// </summary>
+        public const string UngamedTrigger = "season_end";
 
         /// <summary>Fraction of the chapter that must have been brought into view.</summary>
         public const float DeepReadScrollFraction = 0.60f;
@@ -129,6 +152,7 @@ namespace SheepGate.Scripture
 
         /// <summary>True when the game opened the reader rather than the player choosing to.</summary>
         bool _gameAsked;
+        float _deepReadSeconds = DeepReadSeconds;
         bool _placeholderBuild;
 
         ScrollRect _scroll;
@@ -165,10 +189,15 @@ namespace SheepGate.Scripture
 
         // ------------------------------------------------------------------ opening
 
-        /// <summary>Opens the reader on a chapter reference such as NEH.4.</summary>
+        /// <summary>
+        /// Opens the reader on a chapter reference such as NEH.4, from a door the game put in front
+        /// of the player: this is the overload the dialogue bridge reaches by reflection, and a
+        /// "Saber mais" under a quotation the game just showed is the game asking. Counted as
+        /// chapter_opened, never as unprompted_read.
+        /// </summary>
         public static ChapterReaderUI Open(string chapterRef)
         {
-            return Open(chapterRef, DefaultTrigger);
+            return Open(chapterRef, DefaultTrigger, true);
         }
 
         /// <summary>
@@ -255,6 +284,7 @@ namespace SheepGate.Scripture
 
             ChapterEntry chapter = ScriptureService.GetChapter(chapterKey);
             _placeholderBuild = SafeIsPlaceholderBuild();
+            _deepReadSeconds = DeepReadSecondsFor(chapter != null && chapter.verses != null ? chapter.verses.Length : 0);
 
             GameState state = TryGetState();
             _deepReadFired = FiredChapters.Contains(chapterKey) ||
@@ -535,7 +565,7 @@ namespace SheepGate.Scripture
             }
 
             if (!_deepReadFired &&
-                _visibleSeconds >= DeepReadSeconds &&
+                _visibleSeconds >= _deepReadSeconds &&
                 _maxScrollFraction >= DeepReadScrollFraction)
             {
                 FireDeepRead();
@@ -612,6 +642,16 @@ namespace SheepGate.Scripture
                 { "scroll_pct", scrollPercent },
                 { "placeholder", _placeholderBuild }
             });
+
+            if (_trigger == UngamedTrigger)
+            {
+                Telemetry.Track(TelemetryEvents.UngamedRead, new Dictionary<string, object>
+                {
+                    { "ref", _chapterKey },
+                    { "seconds", seconds }
+                });
+            }
+
             Telemetry.Flush();
         }
 
@@ -624,10 +664,12 @@ namespace SheepGate.Scripture
                 { "placeholder", _placeholderBuild }
             });
 
-            // Desire, not compliance. Every reader entry in the POC today is a button the player
-            // chose to press and could have ignored, so every open is unprompted; the flag exists
-            // so that the day some path opens the reader on the game's initiative, the funnel can
-            // still tell the two apart instead of counting them together.
+            // Desire, not compliance. A door the game put on screen at a moment it chose — A
+            // Página, the "Saber mais" under a quotation, the record at the gate — is the game
+            // asking, and opening it is compliance with a prompt however gently the prompt was
+            // worded. The one door the player has to go looking for is the study card in the
+            // profile, and that is the only open that counts here. Until this distinction was
+            // drawn every caller passed false and unprompted_read duplicated chapter_opened.
             if (!_gameAsked)
             {
                 Telemetry.Track(TelemetryEvents.UnpromptedRead, new Dictionary<string, object>

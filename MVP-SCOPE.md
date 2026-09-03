@@ -244,7 +244,7 @@ standalone screen, so that route keeps working; nothing routes to it.
 | `DialogueSystem` | Line queue, typewriter reveal, resolves `verse`, applies `grants`. |
 | `ScriptureService` | In-memory index of the locale's `verses.json`. Never hits the network. |
 | `ScriptureVisibility` | Decides whether `ref_display` is shown. One-way: hidden until the reveal, never re-hidden. |
-| `ChapterReaderUI` | Scrollable panel with the whole chapter. Fires `deep_read` past 20s **and** 60% scroll. |
+| `ChapterReaderUI` | Scrollable panel with the whole chapter. Fires `deep_read` past a dwell of 1.5 s per verse (floor 20 s) **and** 60% scroll. |
 | `MoraleContest` | Turn machine for any stage that names a `contest`. Two exist. See §07. |
 | `StageDirector` | Everything a stage asks for beyond an ordinary working day: the contest, A Página, the gathering, the wall finishing, the gate closing, the vocation. **Driven entirely by `stages.json` — it counts nothing.** A beat holds the day open only while it runs and then gives the hold back, so the stage still ends through the one end-of-day path every other stage uses. The `terminal` stage is the single exception: once its gate segment is standing it takes `HoldFinalDay` and never releases it, because it has no tomorrow; before that it is a working day that repeats its date. |
 | `VocationTracker` | Accumulates silently. **No public score getter.** Reveals at the terminal stage. |
@@ -474,8 +474,9 @@ so a real backend can arrive later without touching the call sites.
 | `session_start` | Retention baseline. |
 | `verse_shown` | Exposure to the text. |
 | `chapter_opened` | `trigger` distinguishes "Saber mais" from a game prompt. |
-| `deep_read` | **The north-star metric.** 20s and 60% scroll. |
-| `unprompted_read` | Opened **without** the game asking. The signal that matters most under rule 12. |
+| `deep_read` | **The north-star metric.** 1.5 s a verse (floor 20 s) and 60% scroll. |
+| `unprompted_read` | Opened **without** the game asking — today, only the study card in the profile; A Página, a quotation's "Saber mais" and the gate's record are the game asking. The signal that matters most under rule 12. |
+| `ungamed_read` | A deep read from the ending's invitation, where no move, page or record was attached to the chapter. |
 | `reveal_shown` | The moment the penny drops. |
 | `node_completed` | Work progress. |
 | `vocation_revealed` | Real distribution of behaviour. |

@@ -313,7 +313,7 @@ namespace SheepGate.UI
         /// </summary>
         void OnKnowMoreClicked()
         {
-            ChapterReaderUI reader = ChapterReaderUI.Open(_chapterRef, OpenTrigger);
+            ChapterReaderUI reader = ChapterReaderUI.Open(_chapterRef, OpenTrigger, true);
             if (reader == null)
             {
                 Debug.LogWarning("[GateClosedPanel] The chapter reader could not open on " + _chapterRef + ".");

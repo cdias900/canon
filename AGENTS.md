@@ -167,25 +167,18 @@ exist. Always an internal reader; an external channel is a secondary, optional b
   equivalence and passes; NTLH or NVT would pass better at 13, and the `deep_read` conversion rate
   depends on it. A product decision, not a licence one, and swapping is one line in
   `tools/verses.manifest.json`. Decides: Pedro.
-- **What may a `deep_read` mean, when the chapter fits on one screen?** `ChapterReaderUI` treats a
-  scroll fraction of 1.0 as "read to the end", and `CurrentScrollFraction` returns exactly that when
-  the content is shorter than the viewport — so a short chapter awards the north-star event after 20
-  seconds of nothing but sitting there. The instance that made this urgent is gone: `NEH.3` now ships
-  (32 verses, both locales, added by `a2cc8a8`), so the study card opens real text rather than a
-  one-line placeholder. The **mechanism** is still there for any chapter short enough, and it decides
-  what the product's one measurement is allowed to count. Options are a minimum dwell that scales
-  with length, a floor on verses, or accepting that a short chapter genuinely is read in 20 seconds.
-  Decides: Pedro.
-- **The engagement meter's baseline is a lie, and zeroing it alone makes the meter worse.**
-  `EngagementMeter.TestBaseline` is `62` (`Assets/Scripts/Core/EngagementMeter.cs:41`) and its own
-  comment says it "has to go to zero before this ships": a bar that opens 62% full tells a new player
-  they have already done most of something they have not touched. But the six contributors cap at
-  12 + 12 + 8 + 6 + 8 + 4 = **50** (`EngagementMeter.cs:44-49`) against a `Ceiling` of `100`
-  (`:30`), so setting the baseline to zero on its own gives a player who does everything the meter
-  counts a bar that stops at 50/100. Two honest exits, and they read differently on screen: double
-  the six caps, which preserves every ratio between the signals and every relative weight, or drop
-  `Ceiling` to 50. Note that the class comment at `:25` asserts "The caps sum to `Ceiling`" and is
-  wrong by a factor of two — that drift is why this went unnoticed. Decides: Pedro.
+- **What a `deep_read` means when the chapter fits on one screen — taken, revisable.** The dwell
+  now scales with the text: `ChapterReaderUI.DeepReadSecondsFor` asks 1.5 s per verse with the old
+  20 s as a floor (NEH.4 ≈ 35 s, NEH.12 ≈ 70 s), and the 60% scroll rule is unchanged. Taken on
+  2026-09-03 as one constant; Pedro can move it. In the same pass the doors were sorted: A Página,
+  the "Saber mais" under a quotation and the record at the gate now open the reader with
+  `gameAsked = true`, so `unprompted_read` counts only the study card in the profile — until then
+  every caller passed false and the event duplicated `chapter_opened`. A deep read from the ending's
+  invitation is also reported as `ungamed_read`.
+- **The engagement meter — settled in `fece0c5`.** The 62 baseline is gone and the six caps are
+  24 + 24 + 16 + 12 + 16 + 8 = 100, so a player who does everything reaches the top. The days
+  signal used to be full on the third morning (a literal 2 from the three-day build); it now
+  reads the season's length from the stage table.
 - **Jesus / the Holy Spirit as a guide** — deferred. The typological reading is legitimate; it comes
   back as an easter egg in a season that earns it, never as generated speech.
 - **The curation read is done; two citations it identified are not.** The human read rule 4 requires

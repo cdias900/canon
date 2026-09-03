@@ -482,7 +482,7 @@ namespace SheepGate.Contest
             }
 
             // The reader owns its own telemetry and its own scoring; this only hands it the id.
-            ChapterReaderUI.Open(chapterRef, TelemetryContext);
+            ChapterReaderUI.Open(chapterRef, TelemetryContext, true);
         }
 
         // ------------------------------------------------------------------ closing

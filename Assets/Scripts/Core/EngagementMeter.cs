@@ -75,12 +75,35 @@ namespace SheepGate.Core
 
             earned += Portion(state.Counter("npcs_talked"), TalkedTarget, TalkedCap);
             earned += Portion(WallStages(state), WorkTarget, WorkCap);
-            earned += Portion(state.day - 1, 2, DaysCap);
+            earned += Portion(state.day - 1, DaysTarget(), DaysCap);
             earned += state.HasFlag(GameFlags.ChapterOpened) ? ReadCap : 0;
             earned += state.HasFlag(GameFlags.DeepRead) ? DeepReadCap : 0;
             earned += state.HasFlag(GameFlags.ContestResolved) ? TrialCap : 0;
 
             return Mathf.Clamp(earned, 0, Ceiling);
+        }
+
+        /// <summary>
+        /// Mornings the season has, read from the stage table. The target used to be a literal 2
+        /// from the three-day build, so the signal was full on the third morning of a nine-stage
+        /// season and the bar stopped reporting days at all.
+        /// </summary>
+        static int DaysTarget()
+        {
+            StageDef[] stages = GameData.Stages;
+            int last = 0;
+            if (stages != null)
+            {
+                for (int i = 0; i < stages.Length; i++)
+                {
+                    if (stages[i] != null && stages[i].day > last)
+                    {
+                        last = stages[i].day;
+                    }
+                }
+            }
+
+            return Mathf.Max(2, last - 1);
         }
 
         /// <summary>One signal's share, straight-line to its own cap and never past it.</summary>

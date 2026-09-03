@@ -443,19 +443,35 @@ test('a hidden message leaves the feed without its words, and the report still p
   assert.equal(entry.note, 'spam');
 });
 
+/**
+ * An adult table WITH free text, whatever this process's environment says. Written straight into
+ * the schema, the way the constraint test does, because the mute is the one moderation action that
+ * only matters when free text is on — and a test that ran against a table without it would be
+ * asserting the wrong refusal and covering nothing.
+ */
+function adultTableWithFreeText(d, playerId) {
+  d.prepare('INSERT INTO tables (id, code, band, season_id, created_at, free_text) VALUES (?,?,?,?,?,?)')
+    .run('free', 'FREE22', 'adult', 's', T0, 1);
+  for (const seat of SEATS) {
+    d.prepare('INSERT INTO seats (table_id, seat_id, band) VALUES (?, ?, ?)').run('free', seat, 'adult');
+  }
+  return joinTable(d, { code: 'FREE22', playerId, playerName: 'Ana', band: 'adult' });
+}
+
 test('a muted seat loses free text until the hour named, and keeps the composed lines', () => {
   const d = db();
-  const t = createTable(d, { band: 'adult', playerId: 'grown' });
-  // Free text is off in this test process (ALLOW_FREE_TEXT unset), so the free-text branch is
-  // asserted through the same refusal wording it would give on a free-text table; what this test
-  // pins is that composed speech survives a mute and that the mute expires.
-  const until = T0 + 3600_000;
-  assert.equal(muteSeat(d, { code: t.code, seatId: t.seat, untilEpochMs: until, now: T0 }).ok, true);
+  const joined = adultTableWithFreeText(d, 'grown');
+  assert.equal(say(d, { code: 'FREE22', playerId: 'grown', body: 'before', now: T0 }).ok, true, 'free text is on at this table');
 
-  assert.equal(say(d, { code: t.code, playerId: 'grown', lineKey: 'table.line.thanks', now: T0 + 1 }).ok, true);
-  assert.equal(say(d, { code: t.code, playerId: 'grown', body: 'hi', now: T0 + 1 }).status, 403);
-  assert.equal(say(d, { code: t.code, playerId: 'grown', body: 'hi', now: until + 1 }).status,
-    t.freeText ? 200 : 403);
+  const until = T0 + 3600_000;
+  assert.equal(muteSeat(d, { code: 'FREE22', seatId: joined.seat, untilEpochMs: until, now: T0 }).ok, true);
+
+  const refused = say(d, { code: 'FREE22', playerId: 'grown', body: 'hi', now: T0 + 1 });
+  assert.equal(refused.status, 403);
+  assert.match(refused.error, /for now/, 'the mute refusal, not the table refusal');
+
+  assert.equal(say(d, { code: 'FREE22', playerId: 'grown', lineKey: 'table.line.thanks', now: T0 + 1 }).ok, true);
+  assert.equal(say(d, { code: 'FREE22', playerId: 'grown', body: 'hi again', now: until + 1 }).ok, true);
 });
 
 test('a mute cannot name an hour that has passed, and a hide needs a real message', () => {

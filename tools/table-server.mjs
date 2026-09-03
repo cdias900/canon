@@ -19,9 +19,10 @@
 // ==================================================================================
 // WHAT IS DELIBERATELY NOT HERE
 // ==================================================================================
-// Accounts, sessions, moderation tooling, deployment. A player is a device-generated UUID (see
-// docs/multiplayer.md §03) and this endpoint cannot prove anybody is who they say. Every design
-// decision above assumes that is true rather than pretending otherwise.
+// Accounts and sessions. A player is a device-generated UUID (see docs/multiplayer.md §03) and this
+// endpoint cannot prove anybody is who they say. Every design decision above assumes that is true
+// rather than pretending otherwise. (Moderation is below, run from tools/table-admin.mjs against the
+// database file; the container is tools/table-server.Dockerfile. Where it runs is not decided here.)
 //
 // Usage:
 //   node tools/table-server.mjs [--port 8788] [--db path]

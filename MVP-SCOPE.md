@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Engine** | Unity 6 LTS · 2D URP |
-| **Target** | iOS · macOS · (Android target kept, never installed) |
+| **Target** | iOS · macOS · Android (emulator since 03/09/2026; no physical device of any platform yet) |
 | **Mode** | Single player |
 | **Login** | None |
 | **Length** | 9 stages · one season, `the_summons` → `the_dedication` |
@@ -32,8 +32,10 @@ asking, it has done its job — it answered no, and answered cheaply.
 > only way into the reader. A build that opens one and not the other has answered the question by
 > half.
 
-Android keeps its build target and stays in this definition, but **no APK has ever been installed**.
-iOS and macOS are what has actually been played. Known gap, not a scope change.
+Android keeps its build target and stays in this definition. **An APK was first built and played on
+03/09/2026**, on an arm64 emulator (`tools/android-emu.sh`), through the opening, creation and the
+village; iOS and macOS had been played since the start. **No physical device of any platform has run
+the game** — that half of the definition needs hardware, not code.
 
 ---
 
@@ -584,7 +586,7 @@ report, the quiz, both contests, A Página, the reader and the vocation reveal �
 | Desktop | `Builds/mac/` — runnable |
 | iOS simulator | `tools/ios-sim.sh` — builds, installs, boots and plays |
 | iOS device | `Builds/ios/` — valid project, **never run on a device** |
-| Android | Build target exists; **never installed** |
+| Android | `tools/android-emu.sh` — builds the APK (IL2CPP, ARM64), boots an arm64 emulator, installs, launches; played to the village on 03/09/2026. **Never on a device** |
 
 The launch screen is covered from both sides: criterion 15 asserts the predicate, and `e2e.sh`'s
 cold run asserts the behaviour — a Play button on the opening fails the step that requires a splash
@@ -610,8 +612,9 @@ removed rather than wired.
   case in the queue rather than the easiest. Rule 4 requires it. `node tools/list-curation.mjs`
   prints the queue.
 - **The English has had no native pass.**
-- **Android has never had an APK installed**, and **iOS has never run on a physical device.** Both
-  are inside the §00 definition of done. Both need hardware, not code.
+- **No physical device has run the game** — iOS never, and Android only on an emulator (the first
+  APK was built and played on 03/09/2026). Both halves are inside the §00 definition of done, and
+  both need hardware, not code.
 - **The buildable wall is a straight run** along the north of a circular city. Nehemiah 3 assigns each
   group a stretch, so it reads correctly, but a true arc would need `WallSystem`, the contest and the
   patrol camera to change together. **Deferred by decision.**

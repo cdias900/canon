@@ -306,3 +306,6 @@ The summary:
   `osascript ... click at`** (reports success, does nothing), **never anything that moves the pointer**,
   read the screen with `xcrun simctl io booted screenshot`, and **there is no finding a button by
   name** — tap a point, screenshot, look.
+- **Testing on Android is `tools/android-emu.sh`**, the same verbs on an arm64 emulator, with taps in
+  **pixels** (1080×2400) rather than points. No command line reaches the player there, so neither the
+  e2e runner nor `-table-url` can be driven on Android: it is tap-and-look for the solo game.

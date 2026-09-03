@@ -7,6 +7,7 @@ using SheepGate.Core;
 using SheepGate.Economy;
 using SheepGate.Player;
 using SheepGate.Scripture;
+using SheepGate.UI;
 using SheepGate.Vocation;
 using SheepGate.World;
 using UnityEditor;
@@ -92,6 +93,7 @@ namespace SheepGate.EditorTools
                     SaveRoundTrip();
                     ContestRules();
                     FlagGatedMovesAreShut(sourceDialogue);
+                    TheGateIsEarned();
                     TheOpeningIsNotAMenu();
                     VocationResolution();
                     NightDiffers();
@@ -725,6 +727,116 @@ namespace SheepGate.EditorTools
 
             if (harsh != null) UnityEngine.Object.DestroyImmediate(harsh.gameObject);
             if (kind != null) UnityEngine.Object.DestroyImmediate(kind.gameObject);
+        }
+
+        /// <summary>
+        /// S4 — the gate is earned, never handed over. The last stage takes its hold only once the
+        /// segment it hangs the doors on is standing; until then the last day is a working day —
+        /// the mat works, a night on it puts every pile back without moving the date — and the
+        /// morning says how many courses are left. The negative half lives here on purpose: the
+        /// end-to-end run earns the gate and can only prove the happy path, and the failure this
+        /// guards against — a season that ends on a wall the player never built — is invisible on
+        /// screen, because the ending looks identical either way.
+        /// </summary>
+        static void TheGateIsEarned()
+        {
+            StageDef terminal = null;
+            foreach (StageDef stage in GameData.Stages ?? new StageDef[0])
+            {
+                if (stage != null && stage.terminal) { terminal = stage; break; }
+            }
+
+            if (terminal == null || !terminal.closes_gate || string.IsNullOrEmpty(terminal.gate_segment))
+            {
+                Check("S4 the season declares a gate to earn", false,
+                    terminal == null ? "no stage declares terminal"
+                        : "the terminal stage closes no gate or names no segment");
+                return;
+            }
+
+            GameState state;
+            WallSystem wall = NewWallSystem(out state);
+            state.day = terminal.day;
+
+            var cycleHost = new GameObject("HarnessGateCycle");
+            var cycle = cycleHost.AddComponent<DayCycle>();
+            cycle.enabled = false;
+            ServiceLocator.Register(cycle);
+            ServiceLocator.Register(wall);
+
+            var faults = new List<string>();
+            string gate = terminal.gate_segment;
+
+            if (!wall.Contains(gate))
+            {
+                faults.Add("the wall has no segment \"" + gate + "\"");
+            }
+
+            if (StageDirector.GateIsEarned(terminal))
+            {
+                faults.Add("a bare segment counts as earned");
+            }
+
+            int left = StageDirector.GateCoursesLeft(terminal);
+            if (left != WallSystem.StagesPerSegment)
+            {
+                faults.Add("a bare segment reports " + left + " course(s) left, expected " + WallSystem.StagesPerSegment);
+            }
+
+            if (!cycle.CanRest)
+            {
+                faults.Add("the mat is dead on the last day before the gate is earned");
+            }
+
+            // A night on the last day: the date stays, the piles come back.
+            state.counters[RubblePile.StoneTakenPrefix + "0"] = state.day;
+            state.counters[RubblePile.TimberTakenPrefix + "2"] = state.day;
+            cycle.EndDay(6, 6);
+            if (state.day != terminal.day)
+            {
+                faults.Add("a night on the last day moved the date to " + state.day);
+            }
+
+            if (state.Counter(RubblePile.StoneTakenPrefix + "0") != 0 || state.Counter(RubblePile.TimberTakenPrefix + "2") != 0)
+            {
+                faults.Add("the piles stayed empty after a night on the last day");
+            }
+
+            if (state.Counter(DayCycle.ExtraMorningsCounter) != 1)
+            {
+                faults.Add("the extra morning was not counted (" + state.Counter(DayCycle.ExtraMorningsCounter) + ")");
+            }
+
+            NightSummary morning = NightSummary.FromState(state, state.day);
+            if (morning.gateCoursesLeft != WallSystem.StagesPerSegment)
+            {
+                faults.Add("the morning report carries " + morning.gateCoursesLeft + " course(s) left, expected " + WallSystem.StagesPerSegment);
+            }
+
+            for (int i = 0; i < 500 && !wall.IsComplete(gate); i++) wall.ApplyWork(gate, 1);
+            if (!StageDirector.GateIsEarned(terminal))
+            {
+                faults.Add("a standing segment does not count as earned");
+            }
+
+            if (StageDirector.GateCoursesLeft(terminal) != 0)
+            {
+                faults.Add("a standing segment still reports courses left");
+            }
+
+            cycle.HoldDusk(DayCycle.HoldFinalDay);
+            if (cycle.CanRest)
+            {
+                faults.Add("the mat still works while the dedication holds the day");
+            }
+
+            Check("S4 the gate is earned, never handed over", faults.Count == 0,
+                faults.Count == 0
+                    ? "\"" + gate + "\" waits at course 0 with the mat alive and the piles refilled by a night, and counts once it stands"
+                    : string.Join("; ", faults));
+
+            UnityEngine.Object.DestroyImmediate(cycleHost);
+            UnityEngine.Object.DestroyImmediate(wall.gameObject);
         }
 
         /// <summary>

@@ -715,6 +715,15 @@ namespace SheepGate.E2E
             StageDef terminal = null;
             int played = 0;
 
+            // A run seeded onto the dedication's day laid nothing, and the last stage now waits
+            // for its gate segment to stand. Hand the seeded run the courses it skipped, in the
+            // scene rather than in the seed: GameData is not loaded when the seed is written, and
+            // the director watches the live wall, so work applied here starts the beat.
+            if (startStage > 1)
+            {
+                GiveASeededRunItsGate(startStage);
+            }
+
             // Counted before anything is played, so the tally below is a promise made in advance
             // rather than a description of whatever happened to run.
             int expected = 0;
@@ -754,6 +763,29 @@ namespace SheepGate.E2E
                 terminal != null
                     ? "stage \"" + terminal.id + "\" (day " + terminal.day + ") declared terminal and was played"
                     : "no stage declaring terminal was ever reached");
+        }
+
+        /// <summary>
+        /// Completes the gate segment for a run seeded onto the stage that closes it. Not a gate:
+        /// the record the ending writes about earned work already says so for any seeded run.
+        /// </summary>
+        static void GiveASeededRunItsGate(int startStage)
+        {
+            StageDef stage = GameData.Stage(startStage);
+            if (stage == null || !stage.terminal || !stage.closes_gate)
+            {
+                return;
+            }
+
+            WallSystem wall = UnityEngine.Object.FindFirstObjectByType<WallSystem>();
+            string gate = GateSegmentId();
+            if (wall == null || string.IsNullOrEmpty(gate) || !wall.Contains(gate) || wall.IsComplete(gate))
+            {
+                return;
+            }
+
+            wall.ApplyWork(gate, wall.RemainingUnits(gate));
+            Debug.LogWarning("[E2E] Seeded on the dedication's day: \"" + gate + "\" was handed its courses, which no played run gets.");
         }
 
         /// <summary>
@@ -1068,6 +1100,16 @@ namespace SheepGate.E2E
                 wall != null && wall.CompletedStages == wall.TotalStages,
                 wall == null ? "no WallSystem in the scene"
                     : wall.CompletedStages + " of " + wall.TotalStages + " course(s) standing");
+
+            // The doors hang on work this run laid, not on courses the ending handed over. The
+            // night crew serves the sheltered segments first and only reaches this one when
+            // nothing else is unfinished, so on a season where the wall is finished by stage 8
+            // the whole cost of the gate segment has to have come from the day's capacity.
+            int gateCost = wall != null && !string.IsNullOrEmpty(gateSegment) ? wall.TotalCost(gateSegment) : 0;
+            Record("the gate was earned by the run's own work",
+                gateCost > 0 && _gateWorkLaid >= gateCost && (StartStage <= 1),
+                StartStage > 1 ? "seeded from stage " + StartStage + ", so the work was not this run's"
+                    : "laid " + _gateWorkLaid + " unit(s) against a cost of " + gateCost);
 
             yield return OpenTheReaderAndComeBack("KnowMore", "the record's chapter", stage, "gate-reader",
                 delegate(string chapterRef)
@@ -1444,6 +1486,13 @@ namespace SheepGate.E2E
         /// <see cref="PlayADayToItsEnd"/> asserts the shape of the loop on the opening stage and
         /// stops at the morning after it. This is the same loop with nothing to prove about it, run
         /// for the only reason that the stage after it cannot be reached without it.
+        ///
+        /// <b>The work goes on the gate segment first.</b> The dedication no longer hands the
+        /// player their segment: the last stage waits until it is standing, and a run that only
+        /// spent its capacity would reach day 9 with a segment at course zero and a season that
+        /// never ends. So each day lays what it can on the segment the table names, the way a
+        /// player who understood the assignment would, and spends the rest. The total laid is kept
+        /// so the ending can assert that the gate was earned by this run's own hands.
         /// </summary>
         IEnumerator SpendTheDay(StageDef stage)
         {
@@ -1462,10 +1511,41 @@ namespace SheepGate.E2E
 
             int startingDay = state.day;
 
+            LayTheDayOnTheGate(resources, state);
             resources.Spend(state.workCapacity);
             yield return WaitForTheSplit(cycle, dayName);
             yield return Tap("Confirm", "the split on " + dayName);
             yield return WaitUntil(() => state.day > startingDay && !cycle.IsResolving, "the morning after " + dayName);
+        }
+
+        /// <summary>Work units this run has laid on the gate segment with its own capacity.</summary>
+        int _gateWorkLaid;
+
+        /// <summary>
+        /// Lays as much of today's capacity as the gate segment can still take, through the wall
+        /// system directly. Pathing to the wall and tapping it is the interaction layer's business
+        /// and is proved elsewhere; what this proves is that a season's worth of ordinary days is
+        /// enough to earn the gate.
+        /// </summary>
+        void LayTheDayOnTheGate(ResourceSystem resources, GameState state)
+        {
+            WallSystem wall = UnityEngine.Object.FindFirstObjectByType<WallSystem>();
+            string gate = GateSegmentId();
+            if (wall == null || string.IsNullOrEmpty(gate) || !wall.Contains(gate))
+            {
+                return;
+            }
+
+            int units = Mathf.Min(state.workCapacity, wall.RemainingUnits(gate));
+            if (units <= 0)
+            {
+                return;
+            }
+
+            if (wall.ApplyWork(gate, units) && resources.Spend(units))
+            {
+                _gateWorkLaid += units;
+            }
         }
 
         /// <summary>

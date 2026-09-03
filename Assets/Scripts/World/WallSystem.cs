@@ -320,6 +320,45 @@ namespace SheepGate.World
             return Mathf.Max(0, CostOf(segment, segment.State.stage) - segment.State.workInStage);
         }
 
+        /// <summary>Work units still needed to finish the whole segment, every course included.</summary>
+        public int RemainingUnits(string id)
+        {
+            SegmentRuntime segment;
+            if (!_segments.TryGetValue(id ?? string.Empty, out segment))
+            {
+                return 0;
+            }
+
+            int remaining = 0;
+            for (int stage = Mathf.Max(0, segment.State.stage); stage < StagesPerSegment; stage++)
+            {
+                int cost = CostOf(segment, stage);
+                remaining += stage == segment.State.stage
+                    ? Mathf.Max(0, cost - segment.State.workInStage)
+                    : Mathf.Max(0, cost);
+            }
+
+            return remaining;
+        }
+
+        /// <summary>Work units the whole segment costs from bare ground, as wall_segments.json prices it.</summary>
+        public int TotalCost(string id)
+        {
+            SegmentRuntime segment;
+            if (!_segments.TryGetValue(id ?? string.Empty, out segment))
+            {
+                return 0;
+            }
+
+            int total = 0;
+            for (int stage = 0; stage < StagesPerSegment; stage++)
+            {
+                total += Mathf.Max(0, CostOf(segment, stage));
+            }
+
+            return total;
+        }
+
         /// <summary>Applies work units to a segment. Returns false when the segment is already complete.</summary>
         public bool ApplyWork(string id, int units)
         {

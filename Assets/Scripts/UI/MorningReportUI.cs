@@ -42,6 +42,14 @@ namespace SheepGate.UI
         public int watchThreshold;
 
         /// <summary>
+        /// Courses still missing on the segment the season's gate hangs on, when this morning is
+        /// the dedication's day and the doors cannot be hung yet. Zero on every other morning.
+        /// The one number this screen adds on the last day, so a day that repeats never repeats
+        /// in silence.
+        /// </summary>
+        public int gateCoursesLeft;
+
+        /// <summary>
         /// Reads the morning off the run. Only facts already written into the state are used: the
         /// watch flag is read, never inferred, so this screen can never contradict the system that
         /// actually resolved the night.
@@ -58,6 +66,7 @@ namespace SheepGate.UI
 
             summary.workers = Mathf.Max(0, state.workAssigned);
             summary.watchers = Mathf.Max(0, state.watchAssigned);
+            summary.gateCoursesLeft = GateCoursesLeft(morningDay);
             summary.workDone = Mathf.Max(0, state.Counter(MorningReportUI.NightWorkCounter));
             summary.workRecorded = HasCounter(state, MorningReportUI.NightWorkCounter);
             summary.watchThreshold = DayCycle.WatchThreshold(summary.workers + summary.watchers);
@@ -108,6 +117,21 @@ namespace SheepGate.UI
         static bool HasCounter(GameState state, string key)
         {
             return state != null && state.counters != null && state.counters.ContainsKey(key);
+        }
+
+        /// <summary>
+        /// Courses the gate segment still needs on the morning of the stage that closes it. The
+        /// director owns the rule of what "earned" means; this only asks it.
+        /// </summary>
+        static int GateCoursesLeft(int morningDay)
+        {
+            StageDef stage = GameData.Stage(morningDay);
+            if (stage == null || !stage.terminal || !stage.closes_gate)
+            {
+                return 0;
+            }
+
+            return StageDirector.GateCoursesLeft(stage);
         }
     }
 
@@ -454,6 +478,14 @@ namespace SheepGate.UI
                           built ? DesignTokens.Ambient.Growth : DesignTokens.Ink.Muted,
                           built ? Loc.Plural("morning.work", summary.workDone) : Loc.T("morning.work.none"),
                           DesignTokens.Ink.Primary);
+            }
+
+            // The last day, when the doors cannot be hung yet. Sky, a dot and a count: news of
+            // what is left, in the design system's information colour, and never a verdict.
+            if (summary.gateCoursesLeft > 0)
+            {
+                BuildStep(steps, "Step_Gate", UiSpriteKeys.IconDot, DesignTokens.Ambient.Sky,
+                          Loc.Plural("morning.gate_waits", summary.gateCoursesLeft), DesignTokens.Ink.Primary);
             }
 
             bool moved = summary.damagedSegments > 0;

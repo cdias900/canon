@@ -398,17 +398,20 @@ namespace SheepGate.World
         /// conversation, so without it a player who never went back to the resident would have had
         /// no way to reach tomorrow at all.
         ///
-        /// The terminal stage refuses both: it ends on its own beat and has no night to divide
-        /// anyone over. It is refused from the stage's own declaration rather than from the presence
-        /// of <see cref="HoldFinalDay"/>, which is what stops the mat going dead for the whole of
-        /// any stage a director happens to hold — the hold is a symptom of the last stage, not its
-        /// definition, and reading the symptom made every directed stage look like the last one.
+        /// The dedication refuses both: it ends on its own beat and has no night to divide anyone
+        /// over. That is read from <see cref="HoldFinalDay"/> being held and from nothing else, and
+        /// the reason is the gate: the last stage only takes that hold once the player's own
+        /// segment is standing (<see cref="StageDirector"/>), and until then the last day is a
+        /// working day like the others, with a night, a split and a morning after it on the same
+        /// date. Refusing on the stage's declaration would leave that player with no way to reach
+        /// the morning that refills the piles. The hold is the one name no other beat may take, so
+        /// reading it cannot mistake a raid for the ending.
         /// </summary>
         public bool CanRest
         {
             get
             {
-                if (IsResolving || CurrentStageIsTerminal())
+                if (IsResolving || IsFinalDayHeld)
                 {
                     return false;
                 }
@@ -419,23 +422,10 @@ namespace SheepGate.World
             }
         }
 
-        /// <summary>
-        /// True when the stage the run is standing in is the one with no tomorrow.
-        ///
-        /// A blank fallback stage answers false: a stage table that failed to load must not end the
-        /// season on whatever day the player happens to be on, and GameData has already said loudly
-        /// that the table is missing.
-        /// </summary>
-        private static bool CurrentStageIsTerminal()
+        /// <summary>True while the dedication is holding the last day open for good.</summary>
+        public bool IsFinalDayHeld
         {
-            GameState state = WorldRuntime.State;
-            if (state == null)
-            {
-                return false;
-            }
-
-            StageDef stage = GameData.Stage(state.day);
-            return stage != null && stage.terminal;
+            get { return _duskHolds.Contains(HoldFinalDay); }
         }
 
         /// <summary>
@@ -1064,13 +1054,15 @@ namespace SheepGate.World
             }
             else
             {
-                // Not a warning any more. The terminal stage holds the evening and never gets here
-                // in an ordinary run, so this line is now a diagnostic about a night resolved on a
-                // stage that has no tomorrow — worth reading in a log, not worth colouring red in a
-                // build that is otherwise fine. Whatever brought it here, the counter never moves
-                // past the season: the calendar can stall, it can never overrun the stage table.
+                // A night on the last day: the gate was not earned yet, so the dedication waited
+                // and the day ended like any other. The calendar never moves past the season, but
+                // the morning has to be a real one — the piles come back, because a day with no
+                // material would be a day the player cannot finish their segment in, and rule 7
+                // says absence delays and never strands.
+                RefillThePiles(state);
                 Debug.Log("[World] A night resolved on the last stage of the season; the day counter stays at "
-                          + finalDay + ".");
+                          + finalDay + " and the village has its piles back (extra morning "
+                          + state.Counter(ExtraMorningsCounter) + ").");
             }
 
             ResourceSystem resources = ResourceSystem.Find();
@@ -1080,6 +1072,40 @@ namespace SheepGate.World
             }
 
             WorldRuntime.SaveNow();
+        }
+
+        /// <summary>Counter of mornings the last day has had beyond its first, for the log and the harness.</summary>
+        public const string ExtraMorningsCounter = "extra_mornings";
+
+        /// <summary>
+        /// Puts every pile back in the village without moving the date. Piles record the day they
+        /// were emptied and compare it with today, so on a repeated day they would stay empty for
+        /// ever; clearing the records is what makes the repeated morning a morning. Nothing the
+        /// player holds is touched.
+        /// </summary>
+        public static void RefillThePiles(GameState state)
+        {
+            if (state == null || state.counters == null)
+            {
+                return;
+            }
+
+            List<string> taken = new List<string>();
+            foreach (KeyValuePair<string, int> pair in state.counters)
+            {
+                if (pair.Key.StartsWith(RubblePile.StoneTakenPrefix, StringComparison.Ordinal)
+                    || pair.Key.StartsWith(RubblePile.TimberTakenPrefix, StringComparison.Ordinal))
+                {
+                    taken.Add(pair.Key);
+                }
+            }
+
+            for (int i = 0; i < taken.Count; i++)
+            {
+                state.counters.Remove(taken[i]);
+            }
+
+            state.Bump(ExtraMorningsCounter);
         }
 
         private void RaiseMorning()

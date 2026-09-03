@@ -30,6 +30,16 @@ namespace SheepGate.World
     /// silently stopped the calendar wherever the director first ran and made every stage after it
     /// unreachable — a season that ended early and logged nothing about why.
     ///
+    /// <b>The gate is earned, never handed over.</b> The terminal stage takes its hold and plays
+    /// its beat only once the segment it hangs the doors on is standing — the one segment
+    /// <c>finishes_wall</c> spares, and the one the player was given on the first morning. Until
+    /// then the last day is a working day: it has a night, the calendar stays where it is, the
+    /// piles come back with the morning (<see cref="DayCycle.RefillThePiles"/>), and the report
+    /// says how many courses are left. It used to close the gate with sixty-four units of work
+    /// nobody laid, which made the whole season's building optional and the ending a cutscene
+    /// that happened to the player. Rule 7 is kept the only way it can be here: the dedication is
+    /// delayed, never cancelled, and nothing already standing is touched.
+    ///
     /// <b>Re-entry is per stage and it is persisted.</b> The director listens to
     /// <see cref="DayCycle.MorningStarted"/> and also checks on its own Start, so a save resumed
     /// straight into a directed stage still gets its beat. A stage whose beat has already played out
@@ -58,7 +68,8 @@ namespace SheepGate.World
         /// <summary>
         /// Work units handed to a segment so it finishes. Deliberately more than the four courses
         /// can cost: the leftover is discarded by <see cref="WallSystem.ApplyWork"/>, and this is
-        /// the story closing the wall rather than the player spending anything.
+        /// the story closing the neighbours' stretches rather than the player spending anything.
+        /// Never applied to the gate segment; see <see cref="GateIsEarned"/>.
         /// </summary>
         private const int WorkUnitsToFinishASegment = 64;
 
@@ -81,6 +92,7 @@ namespace SheepGate.World
 
         private bool _beatRunning;
         private bool _outcomeReceived;
+        private bool _waitingForTheGate;
 
         private void Start()
         {
@@ -140,6 +152,12 @@ namespace SheepGate.World
 
             if (stage.terminal)
             {
+                if (!GateIsEarned(stage))
+                {
+                    WaitForTheGate(stage);
+                    return;
+                }
+
                 HoldTheLastDayOpen(stage);
             }
 
@@ -163,6 +181,116 @@ namespace SheepGate.World
 
             _beatRunning = true;
             StartCoroutine(RunStage(stage));
+        }
+
+        /// <summary>
+        /// Whether the segment this stage hangs its doors on is standing. A stage that closes no
+        /// gate has nothing to earn and answers true. Read from the scene's wall when there is one
+        /// and from the save otherwise, so the answer is the same whether the question is asked
+        /// mid-run or from a harness that composed no village.
+        /// </summary>
+        public static bool GateIsEarned(StageDef stage)
+        {
+            if (stage == null || !stage.closes_gate)
+            {
+                return true;
+            }
+
+            string segmentId = !string.IsNullOrEmpty(stage.gate_segment) ? stage.gate_segment : SeasonGateSegmentId();
+            if (string.IsNullOrEmpty(segmentId))
+            {
+                return true;
+            }
+
+            WallSystem wall = FindWallSystem();
+            if (wall != null && wall.Contains(segmentId))
+            {
+                return wall.IsComplete(segmentId);
+            }
+
+            GameState state = WorldRuntime.State;
+            WallSegmentState segment = state != null ? state.Segment(segmentId) : null;
+            return segment != null && segment.stage >= WallSystem.StagesPerSegment;
+        }
+
+        /// <summary>
+        /// Courses still missing on the gate segment, for the morning report and the toast. Zero
+        /// when the stage closes no gate or the segment is standing.
+        /// </summary>
+        public static int GateCoursesLeft(StageDef stage)
+        {
+            if (stage == null || !stage.closes_gate)
+            {
+                return 0;
+            }
+
+            string segmentId = !string.IsNullOrEmpty(stage.gate_segment) ? stage.gate_segment : SeasonGateSegmentId();
+            if (string.IsNullOrEmpty(segmentId))
+            {
+                return 0;
+            }
+
+            WallSystem wall = FindWallSystem();
+            if (wall != null && wall.Contains(segmentId))
+            {
+                return Mathf.Max(0, WallSystem.StagesPerSegment - wall.StageOf(segmentId));
+            }
+
+            GameState state = WorldRuntime.State;
+            WallSegmentState segment = state != null ? state.Segment(segmentId) : null;
+            return segment == null ? 0 : Mathf.Max(0, WallSystem.StagesPerSegment - segment.stage);
+        }
+
+        /// <summary>
+        /// Lets the last day run as a working day and starts the dedication the moment the gate
+        /// segment stands. Said once per morning on screen with the number of courses left, so the
+        /// wait is never a day that silently refuses to end.
+        /// </summary>
+        private void WaitForTheGate(StageDef stage)
+        {
+            int left = GateCoursesLeft(stage);
+            Debug.Log("[World] Stage \"" + stage.id + "\" waits for its gate segment: " + left
+                      + " course(s) left. The day runs as a working day.");
+
+            if (_waitingForTheGate)
+            {
+                return;
+            }
+
+            if (!isActiveAndEnabled)
+            {
+                Debug.LogWarning("[World] StageDirector is inactive; stage \"" + stage.id + "\" cannot wait for its gate.");
+                return;
+            }
+
+            _waitingForTheGate = true;
+            StartCoroutine(WatchTheGate(stage));
+        }
+
+        private IEnumerator WatchTheGate(StageDef stage)
+        {
+            try
+            {
+                yield return WaitForQuietWorld();
+
+                int left = GateCoursesLeft(stage);
+                if (left > 0)
+                {
+                    Toast.Show(Loc.Plural("toast.gate.waits", left));
+                }
+
+                while (!GateIsEarned(stage))
+                {
+                    yield return null;
+                }
+            }
+            finally
+            {
+                _waitingForTheGate = false;
+            }
+
+            Debug.Log("[World] The gate segment of stage \"" + stage.id + "\" is standing; the dedication can begin.");
+            TryStartBeat(stage.day);
         }
 
         /// <summary>
@@ -593,8 +721,9 @@ namespace SheepGate.World
         }
 
         /// <summary>
-        /// Finishes the segment the stage hangs its doors on. Work is only ever added, so a course
-        /// that was already standing cannot regress here.
+        /// Confirms the segment the stage hangs its doors on is standing. It adds no work: the
+        /// beat only starts once <see cref="GateIsEarned"/> answered yes, so a segment short of a
+        /// course here is a defect to log, never something to paper over with courses nobody laid.
         /// </summary>
         private void CloseTheGate()
         {
@@ -608,17 +737,14 @@ namespace SheepGate.World
             WallSystem wall = FindWallSystem();
             if (wall != null && wall.Contains(segmentId))
             {
-                if (wall.IsComplete(segmentId))
+                if (!wall.IsComplete(segmentId))
                 {
-                    Debug.Log("[World] Segment \"" + segmentId + "\" was already finished before the doors were hung.");
-                    return;
+                    Debug.LogError("[World] The doors are being hung on \"" + segmentId + "\" at course "
+                                   + wall.StageOf(segmentId) + "; the gate is meant to be earned before this beat runs.");
                 }
 
-                wall.ApplyWork(segmentId, WorkUnitsToFinishASegment);
                 return;
             }
-
-            Debug.LogWarning("[World] No WallSystem holds \"" + segmentId + "\"; closing the gate in the save only.");
 
             GameState state = WorldRuntime.State;
             WallSegmentState segment = state != null ? state.Segment(segmentId) : null;
@@ -630,9 +756,8 @@ namespace SheepGate.World
 
             if (segment.stage < WallSystem.StagesPerSegment)
             {
-                segment.stage = WallSystem.StagesPerSegment;
-                segment.workInStage = 0;
-                segment.damaged = false;
+                Debug.LogError("[World] The doors are being hung on \"" + segmentId + "\" at course "
+                               + segment.stage + " in the save; the gate is meant to be earned before this beat runs.");
             }
         }
 
@@ -817,8 +942,8 @@ namespace SheepGate.World
         /// Nothing is taken from the player: the season ends on the dedication, and a night after it
         /// would resolve nothing. The hold is never released, which is the point — this is the stage
         /// that does not have a tomorrow to divide people over. It is taken from the stage's own
-        /// <c>terminal</c> declaration and from nowhere else, so it can no longer stop the calendar
-        /// on whichever stage happened to be directed first.
+        /// <c>terminal</c> declaration, once its gate is earned, and from nowhere else, so it can
+        /// no longer stop the calendar on whichever stage happened to be directed first.
         /// </summary>
         private static void HoldTheLastDayOpen(StageDef stage)
         {

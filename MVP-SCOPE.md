@@ -246,7 +246,7 @@ standalone screen, so that route keeps working; nothing routes to it.
 | `ScriptureVisibility` | Decides whether `ref_display` is shown. One-way: hidden until the reveal, never re-hidden. |
 | `ChapterReaderUI` | Scrollable panel with the whole chapter. Fires `deep_read` past 20s **and** 60% scroll. |
 | `MoraleContest` | Turn machine for any stage that names a `contest`. Two exist. See §07. |
-| `StageDirector` | Everything a stage asks for beyond an ordinary working day: the contest, A Página, the gathering, the wall finishing, the gate closing, the vocation. **Driven entirely by `stages.json` — it counts nothing.** A beat holds the day open only while it runs and then gives the hold back, so the stage still ends through the one end-of-day path every other stage uses. The `terminal` stage is the single exception: it takes `HoldFinalDay` and never releases it, because it has no tomorrow. |
+| `StageDirector` | Everything a stage asks for beyond an ordinary working day: the contest, A Página, the gathering, the wall finishing, the gate closing, the vocation. **Driven entirely by `stages.json` — it counts nothing.** A beat holds the day open only while it runs and then gives the hold back, so the stage still ends through the one end-of-day path every other stage uses. The `terminal` stage is the single exception: once its gate segment is standing it takes `HoldFinalDay` and never releases it, because it has no tomorrow; before that it is a working day that repeats its date. |
 | `VocationTracker` | Accumulates silently. **No public score getter.** Reveals at the terminal stage. |
 | `DailyQuiz` | One question a stage. Check-in counts whether right or wrong. Listens to `MorningStarted` **and** `DuskBegan`, because stage 1 opens in a cutscene and has no morning. |
 | `Wardrobe` · `CharacterCatalog` · `UnlockEvaluator` | Items, presets, and the world-state conditions that unlock them. Never a score condition. |
@@ -353,9 +353,14 @@ complete it — the story closing the wall, not the player spending anything.
 ### Stage 9 — `the_dedication`, the gate
 
 - The gate closes with the player's name on it (`seg_02`), the record plate drawn from `NEH.3`.
+- **The gate is earned.** `seg_02` is the one segment `finishes_wall` spares, and the dedication
+  starts only once it is standing — `StageDirector.GateIsEarned`. Until then the last day is a
+  working day: the mat works, a night on it keeps the date and puts every pile back
+  (`DayCycle.RefillThePiles`), and the morning report says how many courses are left. Delayed,
+  never cancelled (rule 7). It used to hand the segment sixty-four units of work nobody laid.
 - **Saber mais** opens `NEH.12`. Second `deep_read` door.
 - The vocation reveal, and the end. This is the `terminal` stage: it has no tomorrow, and it holds
-  the day open for good.
+  the day open for good — from the moment the gate is earned.
 
 > **Stages 4, 5 and 7 have been read, and their beats are ordinary** — a rest with a gathering, a
 > working day, a working day. The residents who speak on them are the six of Nehemiah 3, whom the
@@ -542,10 +547,13 @@ the version abbreviation and its copyright notice (`ChapterReaderUI.BuildColopho
 
 > **The harness carries more than the fourteen, and the prefix says which is which.** Numbered
 > criteria come from this section; `L1`–`L3` are the localization checks that arrived with the
-> content split, and **`S1`–`S3` are the season's own**: that the stage table holds together and is
+> content split, and **`S1`–`S4` are the season's own**: that the stage table holds together and is
 > reachable, that **a save written by the three-day build comes forward without losing anything** —
-> the one change that could quietly destroy a run somebody already played — and that a move a flag
-> unlocks is shut without it.
+> the one change that could quietly destroy a run somebody already played — that a move a flag
+> unlocks is shut without it, and **`S4`, that the gate is earned**: a bare `seg_02` does not count,
+> the mat stays alive on the last day, a night there refills the piles without moving the date, and
+> the morning carries the courses left. The e2e run lays its capacity on `seg_02` day by day and
+> asserts at the dedication that the whole cost came from its own work.
 >
 > **Every check that used to name a day now reads the season.** The old shape — day 3 for the
 > contest, night 1 for the watch, `NEH.4` for the reader — passed happily on a season where six of

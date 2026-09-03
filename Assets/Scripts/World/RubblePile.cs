@@ -82,10 +82,10 @@ namespace SheepGate.World
         /// Unchanged, and it must stay unchanged: it is the prefix of a save key. See the class
         /// note for why renaming it would refill piles a run had already emptied.
         /// </summary>
-        private const string StoneTakenPrefix = "rubble_taken_";
+        public const string StoneTakenPrefix = "rubble_taken_";
 
         /// <summary>Timber's own key space, so a stone pile and a timber pile can share an index.</summary>
-        private const string TimberTakenPrefix = "timber_taken_";
+        public const string TimberTakenPrefix = "timber_taken_";
 
         /// <summary>
         /// There is no timber prop in the art library — see <c>SheepGate.Art.ArtKeys</c>, which has

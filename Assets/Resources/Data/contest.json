@@ -43,9 +43,9 @@
     "trumpet": false,
     "enemy_line_prefix": "contest.log.mockery",
     "moves": [
+      { "id": "keep_counting", "resolve_delta": -10, "morale_delta": 4,  "unlocked_by_page": false, "unlocked_by_flag": null },
       { "id": "hold_line",     "resolve_delta": -8,  "morale_delta": 0,  "unlocked_by_page": false, "unlocked_by_flag": null },
-      { "id": "call_others",   "resolve_delta": 0,   "morale_delta": 12, "unlocked_by_page": false, "unlocked_by_flag": null },
-      { "id": "keep_counting", "resolve_delta": -10, "morale_delta": 4,  "unlocked_by_page": false, "unlocked_by_flag": null }
+      { "id": "call_others",   "resolve_delta": 0,   "morale_delta": 12, "unlocked_by_page": false, "unlocked_by_flag": null }
     ]
   },
   "famine": {
@@ -59,10 +59,10 @@
     "trumpet": false,
     "enemy_line_prefix": "contest.log.famine",
     "moves": [
-      { "id": "keep_building", "resolve_delta": -3,  "morale_delta": 0,  "unlocked_by_page": false, "unlocked_by_flag": null, "costs_work": 0 },
-      { "id": "call_others",   "resolve_delta": 0,   "morale_delta": 12, "unlocked_by_page": false, "unlocked_by_flag": null, "costs_work": 0 },
       { "id": "give_back",     "resolve_delta": -18, "morale_delta": 6,  "unlocked_by_page": false, "unlocked_by_flag": null, "costs_work": 1 },
-      { "id": "refuse_ration", "resolve_delta": -12, "morale_delta": 8,  "unlocked_by_page": false, "unlocked_by_flag": null, "costs_work": 1 }
+      { "id": "refuse_ration", "resolve_delta": -12, "morale_delta": 8,  "unlocked_by_page": false, "unlocked_by_flag": null, "costs_work": 1 },
+      { "id": "keep_building", "resolve_delta": -3,  "morale_delta": 0,  "unlocked_by_page": false, "unlocked_by_flag": null, "costs_work": 0 },
+      { "id": "call_others",   "resolve_delta": 0,   "morale_delta": 12, "unlocked_by_page": false, "unlocked_by_flag": null, "costs_work": 0 }
     ]
   }
 }

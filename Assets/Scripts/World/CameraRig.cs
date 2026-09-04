@@ -30,6 +30,12 @@ namespace SheepGate.World
     {
         public const float CloseSize = 7.5f;
         public const float PatrolSize = 20f;
+
+        /// <summary>
+        /// Fraction of the half view height the follow camera may look past the content's top and
+        /// bottom edges. One means the player can be centred anywhere on the city, edge included.
+        /// </summary>
+        public const float FollowSlack = 1f;
         public const float FollowSmoothTime = 0.22f;
         public const float ZoomSmoothTime = 0.35f;
         public const float CameraZ = -10f;
@@ -293,8 +299,15 @@ namespace SheepGate.World
             float maxX = bounds.max.x - halfWidth;
             position.x = minX <= maxX ? Mathf.Clamp(position.x, minX, maxX) : bounds.center.x;
 
-            float minY = bounds.min.y + halfHeight;
-            float maxY = bounds.max.y - halfHeight;
+            // Vertical slack for the follow view only. The wall runs three cells below the top of
+            // the content, so a clamp flush with it pins the row the player is building under the
+            // top plates and the courses change out of sight; with half a screen of slack the
+            // player can stand at the wall and be centred on it. The skirt is drawn deep enough
+            // for the patrol view, so what the slack shows is terrain, never the void. Patrol keeps
+            // the flush clamp: it frames the city, and slack there would let a drag frame the sky.
+            float slackY = IsPatrolView ? 0f : halfHeight * FollowSlack;
+            float minY = bounds.min.y + halfHeight - slackY;
+            float maxY = bounds.max.y - halfHeight + slackY;
             position.y = minY <= maxY ? Mathf.Clamp(position.y, minY, maxY) : bounds.center.y;
 
             return position;

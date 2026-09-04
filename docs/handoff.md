@@ -26,6 +26,7 @@ exists in C#; they all live in `Assets/Resources/Data/locales/<locale>/` and are
 | iOS simulator | `tools/ios-sim.sh` — builds, installs, boots and plays, on iPhone 17 Pro / Pro Max |
 | iOS device | `Builds/ios/Unity-iPhone.xcodeproj` — valid project, **never run on a device** |
 | Android | `tools/android-emu.sh` — IL2CPP/ARM64 APK built and played on an arm64 emulator on 03/09/2026; **no physical device yet**. |
+| iPhone (device) | `tools/ios-device.sh` — installed and launched on an iPhone 16 Pro over USB on 04/09/2026, signed with a personal team via `IOS_TEAM=`; the committed `appleDeveloperTeamID` is not on this Mac's Xcode account. |
 
 **The opening**: region shot with the other cities shut → push-in to the ruined circular city → a
 neighbour crosses the square and speaks → you follow him into his house → character creation → you

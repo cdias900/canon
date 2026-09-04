@@ -24,6 +24,8 @@
 #   tools/ios-device.sh log             stream the game's own log lines from the device
 #
 #   --device "<name or udid>"           which iPhone (default: the one connected device)
+#   IOS_TEAM=<team id>                  sign with this team instead of ProjectSettings' — for a
+#                                       Mac whose Xcode account is not on the committed team
 #
 # FIRST RUN, on the phone itself: Settings > General > VPN & Device Management > trust the
 # developer certificate. An untrusted certificate installs fine and then refuses to launch, and the
@@ -74,17 +76,21 @@ resolve_device() {
   # number of words ("iPhone 17 Pro Max (iPhone18,2)"), so any positional field lands somewhere
   # different depending on which phone is plugged in — on this one, $(NF-3) is the string "17".
   local uuid='[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}'
+  # "connected" is what devicectl printed when this was written; Xcode 26 prints
+  # "available (paired)" for the same phone on the same cable. Either word means usable.
+  # Anchored so "unavailable" — an iPad the Mac remembers but cannot reach — does not count.
+  local usable='(^|[^a-z])(connected|available)'
   if [[ -n "${DEVICE}" ]]; then
     xcrun devicectl list devices 2>/dev/null \
-      | grep -E "connected" | grep -F "${DEVICE}" | grep -oE "${uuid}" | head -1
+      | grep -E "${usable}" | grep -F "${DEVICE}" | grep -oE "${uuid}" | head -1
     return
   fi
   local found
-  found="$(xcrun devicectl list devices 2>/dev/null | grep -E 'connected' | grep -oE "${uuid}")"
+  found="$(xcrun devicectl list devices 2>/dev/null | grep -E "${usable}" | grep -oE "${uuid}")"
   local count; count="$(echo "${found}" | grep -c . || true)"
   if [[ "${count}" -gt 1 ]]; then
     echo "More than one device is connected. Name one with --device." >&2
-    xcrun devicectl list devices 2>/dev/null | awk '/connected/' >&2
+    xcrun devicectl list devices 2>/dev/null | awk "/${usable}/" >&2
     exit 1
   fi
   echo "${found}"
@@ -104,7 +110,7 @@ do_build() {
   fi
 
   local team
-  team="$(awk '/appleDeveloperTeamID:/ {print $2}' "${ROOT}/ProjectSettings/ProjectSettings.asset")"
+  team="${IOS_TEAM:-$(awk '/appleDeveloperTeamID:/ {print $2}' "${ROOT}/ProjectSettings/ProjectSettings.asset")}"
   if [[ -z "${team}" ]]; then
     echo "No signing team in ProjectSettings." >&2
     echo "  Set appleDeveloperTeamID and appleEnableAutomaticSigning: 1, or in the Unity editor:" >&2

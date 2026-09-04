@@ -23,6 +23,18 @@ namespace SheepGate.EditorTools
 
         static void Run(BuildTarget target, BuildTargetGroup group, string outputPath)
         {
+            Run(target, group, outputPath, BuildOptions.Development);
+        }
+
+        /// <summary>
+        /// The Mac player the e2e drives, the simulator and the emulator builds stay Development:
+        /// the console they draw on a LogError is how a defect on those gets seen at all. The device
+        /// build is what a person plays, and a debugging overlay across the bottom of their screen
+        /// is a worse experience than the defect it reports; that build runs without it and the
+        /// same errors go to the device log instead.
+        /// </summary>
+        static void Run(BuildTarget target, BuildTargetGroup group, string outputPath, BuildOptions buildOptions)
+        {
             ProjectSetup.Apply();
 
             string[] scenes = ScenePaths();
@@ -45,7 +57,7 @@ namespace SheepGate.EditorTools
                 locationPathName = outputPath,
                 target = target,
                 targetGroup = group,
-                options = BuildOptions.Development
+                options = buildOptions
             };
 
             BuildReport report = BuildPipeline.BuildPlayer(options);
@@ -82,7 +94,7 @@ namespace SheepGate.EditorTools
         /// </summary>
         public static void BuildIOS()
         {
-            Run(BuildTarget.iOS, BuildTargetGroup.iOS, "Builds/ios");
+            Run(BuildTarget.iOS, BuildTargetGroup.iOS, "Builds/ios", BuildOptions.None);
         }
 
         /// <summary>

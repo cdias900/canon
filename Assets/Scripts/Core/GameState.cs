@@ -415,6 +415,9 @@ namespace SheepGate.Core
         public const string ChapterOpened = "chapter_opened";
         public const string DeepRead = "deep_read";
         public const string ContestResolved = "contest_resolved";
+
+        /// <summary>The first day's nudge — the help's first step, said once on hand-over — has been shown.</summary>
+        public const string HelpNudged = "help_nudged";
         public const string VocationRevealed = "vocation_revealed";
         public const string ReachedMapEdge = "reached_map_edge";
 
@@ -470,6 +473,23 @@ namespace SheepGate.Core
         public static string NightWorkCounter(int day)
         {
             return "night_work_d" + day;
+        }
+
+        /// <summary>
+        /// Counter: one field of a contest in progress, keyed by contest id. Written after every
+        /// turn the player survives and cleared when the fight ends, so a run reopened mid-fight
+        /// resumes at the turn it stopped on instead of the first. <paramref name="field"/> is
+        /// one of turns, morale, resolve, watch_shown, first_move, enemy_line.
+        /// </summary>
+        public static string ContestProgressCounter(string contestId, string field)
+        {
+            return "contest_progress_" + field + "_" + contestId;
+        }
+
+        /// <summary>Flag: this costed move was already spent in the contest in progress.</summary>
+        public static string ContestProgressUsedFlag(string contestId, string moveId)
+        {
+            return "contest_progress_used_" + contestId + "_" + moveId;
         }
 
         /// <summary>Counter: how this contest ended, as <c>1 + ContestOutcome</c>, so zero means never fought.</summary>

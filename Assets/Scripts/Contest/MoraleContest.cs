@@ -199,6 +199,9 @@ namespace SheepGate.Contest
 
         string _pendingMoveId;
 
+        /// <summary>Turns already survived by the fight this Begin resumed, or zero for a fresh one.</summary>
+        int _resumeFromTurn;
+
         public bool IsRunning { get { return _running; } }
 
         /// <summary>
@@ -378,6 +381,13 @@ namespace SheepGate.Contest
             _costedMovesUsed.Clear();
             _enemyLineIndex = 0;
             _pendingMoveId = null;
+
+            // A fight the run was in the middle of when the app went away picks up at the turn it
+            // stopped on. The state carries it turn by turn (RecordProgress) precisely so that
+            // closing the phone in turn five does not mean fighting turns one to four again —
+            // the morale spent there was a yesterday already survived, and rule 7 says it stays.
+            _resumeFromTurn = RestoreProgress(state);
+
             HasFinished = false;
             _running = true;
 
@@ -398,6 +408,11 @@ namespace SheepGate.Contest
             }
 
             RaiseChanged();
+            if (_resumeFromTurn > 0)
+            {
+                Report(Loc.T("contest.log.resumed"));
+            }
+
             _loop = StartCoroutine(RunLoop());
         }
 
@@ -619,7 +634,7 @@ namespace SheepGate.Contest
 
         IEnumerator RunLoop()
         {
-            for (int turn = 1; turn <= _turnLimit; turn++)
+            for (int turn = _resumeFromTurn + 1; turn <= _turnLimit; turn++)
             {
                 _turn = turn;
                 RaiseTurnStarted(turn);
@@ -671,6 +686,8 @@ namespace SheepGate.Contest
                     Finish(ContestOutcome.PlayerBroke);
                     yield break;
                 }
+
+                RecordProgress(turn);
 
                 yield return new WaitForSecondsRealtime(TurnBeatSeconds);
             }
@@ -907,6 +924,7 @@ namespace SheepGate.Contest
 
             if (state != null)
             {
+                ClearProgress(state, ContestId);
                 state.morale = Mathf.Clamp(_morale, 0, _moraleMax);
 
                 // Keyed, and always through the helper rather than a hand-spelled string: the save
@@ -1297,6 +1315,200 @@ namespace SheepGate.Contest
                 }
 
                 return null;
+            }
+        }
+
+        // ------------------------------------------------------------------ progress across a kill
+
+        /// <summary>What a fight in progress writes into the state after every survived turn.</summary>
+        public struct Progress
+        {
+            public int turns;
+            public int morale;
+            public int resolve;
+            public int enemyLine;
+            public bool watchShown;
+            public bool firstMove;
+            public List<string> usedMoves;
+        }
+
+        const string ProgressTurns = "turns";
+        const string ProgressMorale = "morale";
+        const string ProgressResolve = "resolve";
+        const string ProgressEnemyLine = "enemy_line";
+        const string ProgressWatchShown = "watch_shown";
+        const string ProgressFirstMove = "first_move";
+
+        static readonly string[] ProgressFields =
+        {
+            ProgressTurns, ProgressMorale, ProgressResolve, ProgressEnemyLine, ProgressWatchShown, ProgressFirstMove
+        };
+
+        /// <summary>Writes a fight's progress into the state's counters and flags. Data only; no save.</summary>
+        public static void WriteProgress(GameState state, string contestId, Progress progress)
+        {
+            if (state == null || string.IsNullOrEmpty(contestId))
+            {
+                return;
+            }
+
+            ClearProgress(state, contestId);
+            if (progress.turns <= 0)
+            {
+                return;
+            }
+
+            state.counters[GameFlags.ContestProgressCounter(contestId, ProgressTurns)] = progress.turns;
+            state.counters[GameFlags.ContestProgressCounter(contestId, ProgressMorale)] = progress.morale;
+            state.counters[GameFlags.ContestProgressCounter(contestId, ProgressResolve)] = progress.resolve;
+            state.counters[GameFlags.ContestProgressCounter(contestId, ProgressEnemyLine)] = progress.enemyLine;
+            state.counters[GameFlags.ContestProgressCounter(contestId, ProgressWatchShown)] = progress.watchShown ? 1 : 0;
+            state.counters[GameFlags.ContestProgressCounter(contestId, ProgressFirstMove)] = progress.firstMove ? 1 : 0;
+
+            if (progress.usedMoves != null)
+            {
+                foreach (string moveId in progress.usedMoves)
+                {
+                    if (!string.IsNullOrEmpty(moveId))
+                    {
+                        state.SetFlag(GameFlags.ContestProgressUsedFlag(contestId, moveId));
+                    }
+                }
+            }
+        }
+
+        /// <summary>Reads a fight's progress back. False when the state carries none for this contest.</summary>
+        public static bool TryReadProgress(GameState state, string contestId, out Progress progress)
+        {
+            progress = new Progress { usedMoves = new List<string>() };
+            if (state == null || string.IsNullOrEmpty(contestId))
+            {
+                return false;
+            }
+
+            progress.turns = state.Counter(GameFlags.ContestProgressCounter(contestId, ProgressTurns));
+            if (progress.turns <= 0)
+            {
+                return false;
+            }
+
+            progress.morale = state.Counter(GameFlags.ContestProgressCounter(contestId, ProgressMorale));
+            progress.resolve = state.Counter(GameFlags.ContestProgressCounter(contestId, ProgressResolve));
+            progress.enemyLine = state.Counter(GameFlags.ContestProgressCounter(contestId, ProgressEnemyLine));
+            progress.watchShown = state.Counter(GameFlags.ContestProgressCounter(contestId, ProgressWatchShown)) > 0;
+            progress.firstMove = state.Counter(GameFlags.ContestProgressCounter(contestId, ProgressFirstMove)) > 0;
+
+            string prefix = GameFlags.ContestProgressUsedFlag(contestId, string.Empty);
+            if (state.flags != null)
+            {
+                foreach (string flag in state.flags)
+                {
+                    if (flag != null && flag.StartsWith(prefix, StringComparison.Ordinal))
+                    {
+                        progress.usedMoves.Add(flag.Substring(prefix.Length));
+                    }
+                }
+            }
+
+            return true;
+        }
+
+        /// <summary>Removes every trace of a fight's progress. Called when the fight ends, and before a write.</summary>
+        public static void ClearProgress(GameState state, string contestId)
+        {
+            if (state == null || string.IsNullOrEmpty(contestId))
+            {
+                return;
+            }
+
+            if (state.counters != null)
+            {
+                foreach (string field in ProgressFields)
+                {
+                    state.counters.Remove(GameFlags.ContestProgressCounter(contestId, field));
+                }
+            }
+
+            if (state.flags != null)
+            {
+                string prefix = GameFlags.ContestProgressUsedFlag(contestId, string.Empty);
+                var stale = new List<string>();
+                foreach (string flag in state.flags)
+                {
+                    if (flag != null && flag.StartsWith(prefix, StringComparison.Ordinal))
+                    {
+                        stale.Add(flag);
+                    }
+                }
+
+                foreach (string flag in stale)
+                {
+                    state.flags.Remove(flag);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Puts the fight back where the state says it stopped. Returns the turns already
+        /// survived, or zero when there is nothing to resume — including a snapshot that somehow
+        /// reached the turn limit, which is cleared rather than trusted.
+        /// </summary>
+        int RestoreProgress(GameState state)
+        {
+            Progress progress;
+            if (!TryReadProgress(state, ContestId, out progress))
+            {
+                return 0;
+            }
+
+            if (progress.turns >= _turnLimit)
+            {
+                ClearProgress(state, ContestId);
+                return 0;
+            }
+
+            _morale = Mathf.Clamp(progress.morale, 1, _moraleMax);
+            _enemyResolve = Mathf.Clamp(progress.resolve, 1, _enemyResolveMax);
+            _enemyLineIndex = Mathf.Max(0, progress.enemyLine);
+            _watchShown = progress.watchShown;
+            _firstMovePlayed = progress.firstMove;
+            foreach (string moveId in progress.usedMoves)
+            {
+                _costedMovesUsed.Add(moveId);
+            }
+
+            Debug.Log("[Contest] Resuming '" + ContestId + "' after turn " + progress.turns + ".");
+            return progress.turns;
+        }
+
+        /// <summary>Writes this turn's survived state and flushes it, so a kill between turns loses nothing.</summary>
+        void RecordProgress(int turn)
+        {
+            GameState state = State;
+            if (state == null || string.IsNullOrEmpty(ContestId))
+            {
+                return;
+            }
+
+            var progress = new Progress
+            {
+                turns = turn,
+                morale = _morale,
+                resolve = _enemyResolve,
+                enemyLine = _enemyLineIndex,
+                watchShown = _watchShown,
+                firstMove = _firstMovePlayed,
+                usedMoves = new List<string>(_costedMovesUsed)
+            };
+            WriteProgress(state, ContestId, progress);
+
+            try
+            {
+                SaveSystem.Save(state);
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning("[Contest] Could not save the fight's progress: " + exception.Message);
             }
         }
 

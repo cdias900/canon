@@ -352,6 +352,15 @@ namespace SheepGate.World
             _player.InputEnabled = true;
             IsPlaying = false;
 
+            // The first thing to do, said once, now that the village is theirs. After the save
+            // above so the flag it sets is written with the hand-over rather than on the next
+            // action.
+            SheepGate.UI.HelpPanel.NudgeOnce(state);
+            if (state != null)
+            {
+                WorldRuntime.SaveNow();
+            }
+
             Action finished = Finished;
             if (finished != null)
             {

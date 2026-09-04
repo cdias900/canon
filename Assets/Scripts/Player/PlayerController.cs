@@ -244,6 +244,15 @@ namespace SheepGate.Player
             state.playerCellY = cell.y;
         }
 
+        /// <summary>
+        /// Records the cell the player is standing on right now, for a save taken between
+        /// arrivals — the app going to the background mid-walk. Arrival still records as before.
+        /// </summary>
+        public void RecordCurrentCell()
+        {
+            RecordCell(GridPathfinder.WorldToGrid(transform.position));
+        }
+
         public void TeleportToCell(Vector2Int cell)
         {
             Teleport(GridPathfinder.GridToWorld(cell));

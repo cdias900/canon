@@ -62,6 +62,7 @@ namespace SheepGate.World
             ResourceSystem resources = systemsObject.AddComponent<ResourceSystem>();
             WallSystem wall = systemsObject.AddComponent<WallSystem>();
             DayCycle dayCycle = systemsObject.AddComponent<DayCycle>();
+            systemsObject.AddComponent<PauseSave>();
             SafeRegister(resources);
             SafeRegister(wall);
             SafeRegister(dayCycle);

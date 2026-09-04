@@ -83,6 +83,19 @@ a screenshot; different window sizes per locale still nests the smaller window i
 
 ## What landed since the last handoff
 
+### Saving on the way out, a fight that survives a kill, and the first day's nudge
+
+Three answers to "does it save, and does the player know what to do". Every save was taken
+after an action and none on the way out, so a walk was a cell behind when the phone locked and
+a contest killed in turn five reopened in turn one (seen on the simulator: 88/100 × 38/48 came
+back as 100 × 48). `PauseSave` on the systems object saves on pause and quit with the cell under
+the player's feet; `MoraleContest` writes its turn, morale, resolve, enemy line and spent moves
+into the state after every survived turn and resumes there on the next `Begin`, saying so in the
+log — criterion 19. The help's first undone step is now said once over the village at the
+intro's hand-over (`HelpPanel.NudgeOnce`, a six-second toast, `help_nudged` flag), because
+everything the help knows was behind the "?" and a first-day player found the loop by trial.
+And `help.step.trial` stopped saying "the third day": the tests are days 5 to 8 now.
+
 ### The map states each stop's objective
 
 The progression map's detail card carries an **OBJETIVO** line per stop, authored per stage in

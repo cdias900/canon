@@ -536,6 +536,16 @@ namespace SheepGate.E2E
             // Canvas.enabled and leaves the GameObject active, so "the object is there" is true
             // through the whole cutscene and would screenshot a fade.
             yield return AdvanceDialogueUntil(IsHudVisible, "the HUD");
+
+            // The first day's nudge: the help's first undone step, said once over the village at
+            // hand-over. Read off the toast while it holds, against the same lookup the nudge used.
+            {
+                GameState nudged = TryGetState();
+                string expectedNudge = nudged != null ? Loc.T(HelpPanel.NextStepKey(nudged)) : null;
+                Record("the first day says what to do first", !string.IsNullOrEmpty(expectedNudge) && Toast.Showing == expectedNudge,
+                    "toast=" + Quote(Toast.Showing) + " expected=" + Quote(expectedNudge));
+            }
+
             yield return Capture(1, "hud");
 
             // The readouts moved into the drawer, so reading one means opening it first.

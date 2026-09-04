@@ -193,6 +193,45 @@ namespace SheepGate.UI
             UIKit.Layout(line).flexibleWidth = 1f;
         }
 
+        /// <summary>How long the first day's nudge stays on screen: long enough to read twice.</summary>
+        public const float NudgeHoldSeconds = 6f;
+
+        /// <summary>The key of the first step this run has not done, or null when all are done.</summary>
+        public static string NextStepKey(GameState state)
+        {
+            if (state == null)
+            {
+                return null;
+            }
+
+            int current = CurrentStep(state);
+            return current < Steps.Length ? Steps[current].Key : null;
+        }
+
+        /// <summary>
+        /// Says the first undone step once, as a line over the village, the moment the first day
+        /// is handed to the player. Everything this panel knows is behind the "?" and a player who
+        /// never opens it finds the loop by trial; one sentence at hand-over is the smallest push
+        /// that closes that gap. Once per run, never blocking, and only on the first day — later
+        /// days have the morning report and the map's objective.
+        /// </summary>
+        public static void NudgeOnce(GameState state)
+        {
+            if (state == null || state.day != 1 || state.HasFlag(GameFlags.HelpNudged))
+            {
+                return;
+            }
+
+            string key = NextStepKey(state);
+            state.SetFlag(GameFlags.HelpNudged);
+            if (string.IsNullOrEmpty(key))
+            {
+                return;
+            }
+
+            Toast.Show(Loc.T(key), NudgeHoldSeconds);
+        }
+
         /// <summary>Index of the first step not yet done, or the length of the list when all are.</summary>
         static int CurrentStep(GameState state)
         {

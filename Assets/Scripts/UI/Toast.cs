@@ -97,6 +97,16 @@ namespace SheepGate.UI
         /// </summary>
         public static void Show(string message)
         {
+            Show(message, DesignTokens.Motion.ToastHold);
+        }
+
+        /// <summary>
+        /// The same line, held for as long as the caller says. The design system's hold is tuned
+        /// for a one-clause answer to a tap; a sentence that tells a first-day player what to do
+        /// needs to stay while they read it.
+        /// </summary>
+        public static void Show(string message, float holdSeconds)
+        {
             if (string.IsNullOrEmpty(message))
             {
                 return;
@@ -108,7 +118,7 @@ namespace SheepGate.UI
                 return;
             }
 
-            toast.Display(message);
+            toast.Display(message, holdSeconds);
         }
 
         /// <summary>Takes the toast off screen at once. Used when a modal or a conversation opens.</summary>
@@ -182,7 +192,7 @@ namespace SheepGate.UI
             _group.interactable = false;
         }
 
-        void Display(string message)
+        void Display(string message, float holdSeconds)
         {
             _line.text = message;
 
@@ -210,7 +220,7 @@ namespace SheepGate.UI
                                           Mathf.Max(MinimumHeight, height + 2f * PaddingY));
 
             StopRun();
-            _run = StartCoroutine(Cycle());
+            _run = StartCoroutine(Cycle(holdSeconds));
         }
 
         void StopRun()
@@ -222,14 +232,14 @@ namespace SheepGate.UI
             }
         }
 
-        System.Collections.IEnumerator Cycle()
+        System.Collections.IEnumerator Cycle(float holdSeconds)
         {
             // The fades are the design system's own toast durations, and they keep running under
             // reduced motion: rule says parallax, pulse and shake stop, fades do not. A line that
             // appeared and vanished instantly would read as a glitch, which is the opposite of
             // what reduced motion is for.
             yield return FadeTo(1f, DesignTokens.Motion.ToastIn);
-            yield return new WaitForSeconds(DesignTokens.Motion.ToastHold);
+            yield return new WaitForSeconds(Mathf.Max(0f, holdSeconds));
             yield return FadeTo(0f, DesignTokens.Motion.ToastOut);
 
             _run = null;

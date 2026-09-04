@@ -261,7 +261,7 @@ standalone screen, so that route keeps working; nothing routes to it.
 
 | System | Responsibility |
 |---|---|
-| `GameState` | Central serialisable state: day, resources, segments, morale, flags, vocation counters, equipped items, player cell. Single source of truth. |
+| `GameState` | Central serialisable state: day, resources, segments, morale, flags, vocation counters, equipped items, player cell. Single source of truth. **Saved after every action** (conversation, pile, course, well, end of day, beat, contest end, quiz, deep read) **and on pause/quit** (`PauseSave`, with the cell under the player's feet). A contest in progress lives in the counters turn by turn and resumes at its turn (criterion 19). |
 | `PlayerController` · `GridPathfinder` | Tap the ground → path → move. Tap an interactable → approach and `Interact()`. A* on the tilemap grid. |
 | `WallSystem` | Courses per segment, consumes work, swaps sprite, raises completion. `DamageSegment` clears in-progress work only. |
 | `ResourceSystem` | Rubble split into stone, timber and crafted blocks, plus daily work capacity. **Capacity is the day's clock**, and it is **four courses** — what one morning's piles make (five of stone, four of timber, a block each, one stone pile to spare for a donation). A dry course on day 1 costs a block's worth of stone. The night crew is a separate number, `DayCycle.CrewSize` = 12; the two used to share one field and the day never ended by itself after the first. |
@@ -669,6 +669,7 @@ the version abbreviation and its copyright notice (`ChapterReaderUI.BuildColopho
 | 15 | A run with no character is never offered a launch screen to press through (§04). |
 | 17 | A costed move is shut below its price, spends exactly its price, and is offered once per fight. |
 | 16 | The vigil costs the night's work and returns a page that resolves; it changes nothing else — same damage as the ordinary night beside the same watch, and with no watch a vigil still loses the wall on a threat night. |
+| 19 | A fight in progress survives the app being killed: the contest writes its turn, morale, resolve and spent moves into the state after every survived turn, a Begin on that state opens at that turn, and the end clears it. The app also saves on pause and quit, with the cell under the player's feet. |
 | 18 | The codex names every gate of `gates.json` with a verse that resolves in both languages and strings in both, and marks exactly one as the player's: the one on the terminal stage's segment. The e2e opens it from the drawer on the full-battery stages, counts the cards, reads a reference before the reveal, and takes its Saber mais into `NEH.3`. |
 
 > **The harness carries more than the fourteen, and the prefix says which is which.** Numbered

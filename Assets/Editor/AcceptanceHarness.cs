@@ -101,6 +101,7 @@ namespace SheepGate.EditorTools
                     TheVigilCostsTheNight();
                     ACostedMoveCostsTheDay();
                     TheCodexNamesEveryGate();
+                    AFightSurvivesAKill();
                     DaylightClock();
                     CheckInSchedule();
                 }
@@ -1704,6 +1705,101 @@ namespace SheepGate.EditorTools
         }
 
         /// <summary>A fight on this stage with a day of the given capacity behind it.</summary>
+        /// <summary>
+        /// 19 — a fight in progress survives the app being killed. The contest writes its turn,
+        /// morale, resolve and spent moves into the state after every survived turn; a Begin on a
+        /// state that carries them opens at that turn, and a finished fight leaves nothing behind.
+        /// Data-level: the write/read pair round-trips, Begin restores it, and a snapshot at the
+        /// turn limit is cleared rather than trusted.
+        /// </summary>
+        static void AFightSurvivesAKill()
+        {
+            StageDef fought = null;
+            foreach (StageDef stage in GameData.Stages ?? Array.Empty<StageDef>())
+            {
+                if (stage != null && !string.IsNullOrEmpty(stage.contest)) { fought = stage; break; }
+            }
+
+            if (fought == null)
+            {
+                Check("19 a fight survives a kill", false, "no stage declares a contest");
+                return;
+            }
+
+            var faults = new List<string>();
+            string id = fought.contest;
+            ContestConfig config;
+            GameData.Contests.TryGetValue(id, out config);
+            int limit = config != null && config.turn_limit > 0 ? config.turn_limit : 8;
+
+            // Round trip.
+            GameState state = GameState.NewGame();
+            state.day = fought.day;
+            var written = new MoraleContest.Progress
+            {
+                turns = 3, morale = 70, resolve = 30, enemyLine = 3, watchShown = true, firstMove = true,
+                usedMoves = new List<string> { "give_back" }
+            };
+            MoraleContest.WriteProgress(state, id, written);
+            MoraleContest.Progress read;
+            if (!MoraleContest.TryReadProgress(state, id, out read))
+            {
+                faults.Add("progress written for " + id + " reads back as none");
+            }
+            else if (read.turns != 3 || read.morale != 70 || read.resolve != 30 || read.enemyLine != 3
+                     || !read.watchShown || !read.firstMove || read.usedMoves.Count != 1 || read.usedMoves[0] != "give_back")
+            {
+                faults.Add("progress read back differs: turns=" + read.turns + " morale=" + read.morale
+                           + " resolve=" + read.resolve + " used=" + string.Join(",", read.usedMoves));
+            }
+
+            // Begin restores it.
+            ServiceLocator.Clear();
+            ServiceLocator.Register(state);
+            var host = new GameObject("HarnessResume");
+            host.AddComponent<WallSystem>().Build(null);
+            ServiceLocator.Register(host.AddComponent<ResourceSystem>());
+            var contest = host.AddComponent<MoraleContest>();
+            contest.Begin(id);
+            if (contest.Morale != 70) faults.Add("Begin opened with morale " + contest.Morale + ", snapshot said 70");
+            if (contest.EnemyResolve != 30) faults.Add("Begin opened with resolve " + contest.EnemyResolve + ", snapshot said 30");
+            if (config != null && config.moves != null)
+            {
+                foreach (ContestMoveDef move in config.moves)
+                {
+                    if (move != null && move.id == "give_back" && contest.IsMoveAvailable("give_back"))
+                    {
+                        faults.Add("the spent costed move is offered again after the resume");
+                    }
+                }
+            }
+            UnityEngine.Object.DestroyImmediate(host);
+
+            // Cleared when nothing is left to resume.
+            MoraleContest.ClearProgress(state, id);
+            if (MoraleContest.TryReadProgress(state, id, out read)) faults.Add("ClearProgress left progress behind");
+            foreach (string flag in state.flags)
+            {
+                if (flag.StartsWith("contest_progress_", StringComparison.Ordinal)) faults.Add("ClearProgress left flag " + flag);
+            }
+
+            // A snapshot at the limit is not resumed.
+            written.turns = limit;
+            MoraleContest.WriteProgress(state, id, written);
+            var host2 = new GameObject("HarnessResumeAtLimit");
+            host2.AddComponent<WallSystem>().Build(null);
+            ServiceLocator.Register(host2.AddComponent<ResourceSystem>());
+            var contest2 = host2.AddComponent<MoraleContest>();
+            contest2.Begin(id);
+            if (contest2.Morale != contest2.MoraleMax) faults.Add("a snapshot at the turn limit was resumed (morale " + contest2.Morale + ")");
+            if (MoraleContest.TryReadProgress(state, id, out read)) faults.Add("a snapshot at the turn limit was kept");
+            UnityEngine.Object.DestroyImmediate(host2);
+            ServiceLocator.Clear();
+
+            Check("19 a fight survives a kill", faults.Count == 0,
+                "contest " + id + (faults.Count > 0 ? " — [" + string.Join("; ", faults) + "]" : ", progress round-trips, Begin resumes it, the end clears it"));
+        }
+
         static MoraleContest BuildContestWithADay(StageDef stage, string hostName, int capacity)
         {
             GameState state = GameState.NewGame();

@@ -201,8 +201,9 @@ exist. Always an internal reader; an external channel is a secondary, optional b
   on NVI while serving BLT and WEB — the state `docs/youversion-api.md` §2 describes. **NVI was
   enabled for the app on 04/09/2026 and serves since**: `NEH.5`, `NEH.8` and `NEH.4.12` were
   fetched that day, and the famine and the reading of the Law are in the season. The `tobiah_d6`
-  frame that wants `NEH.4.12` is now a content edit, not a fetch — and that node carries
-  `curated_in`, so editing it reopens its read.
+  frame that wanted `NEH.4.12` now shows it — the node quotes `4.11` (the enemies' intention) and
+  then `4.12` (the warning that came in ten times), each under its own frame — and the node's
+  `curated_in` names the commit that read it again. `sanballat_d8` still cites nothing.
   `a943723` then taught the queue to say so: each read node carries `curated_in` with the commit
   that read it, and `node tools/list-curation.mjs` reports nothing waiting. `needs_curation` is
   **not** cleared on purpose — the queue is a record of what carries authored canonical speech,

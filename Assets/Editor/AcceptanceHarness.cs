@@ -100,6 +100,7 @@ namespace SheepGate.EditorTools
                     NightDiffers();
                     TheVigilCostsTheNight();
                     ACostedMoveCostsTheDay();
+                    TheCodexNamesEveryGate();
                     DaylightClock();
                     CheckInSchedule();
                 }
@@ -286,6 +287,16 @@ namespace SheepGate.EditorTools
                 foreach (StageDef stage in GameData.Stages)
                 {
                     AddChapterOf(chapters, stage != null ? stage.vigil_verse : null);
+                }
+            }
+
+            // Every gate card in the codex carries Saber mais into its verse's chapter, from the
+            // first hour of a run, so those chapters are doors like any citation's.
+            if (GameData.Gates != null)
+            {
+                foreach (GateDef gate in GameData.Gates)
+                {
+                    AddChapterOf(chapters, gate != null ? gate.verse : null);
                 }
             }
 
@@ -1533,6 +1544,87 @@ namespace SheepGate.EditorTools
         // that said it cost the day and did not would be the discount rule 18 forbids in another
         // coat. Driven through ApplyPlayerMove by reflection, the way the harness already reaches
         // what the fight keeps private, because the turn loop is a coroutine the editor never runs.
+        /// <summary>
+        /// 18 — the codex names every gate of the chapter with a verse that resolves, in both
+        /// languages, and marks exactly one of them as the player's: the one whose segment the
+        /// terminal stage closes.
+        ///
+        /// Data-level on purpose. The panel is a list read off gates.json, and what can go wrong
+        /// with it is content: a verse the corpus does not carry (the card shows the missing
+        /// marker), a gate without its strings in one locale (a bare id on screen), or a segment
+        /// that names nothing the wall builds (the mark lands nowhere). The e2e opens the real
+        /// panel and counts the cards; this proves what the cards would say.
+        /// </summary>
+        static void TheCodexNamesEveryGate()
+        {
+            GateDef[] gates = GameData.Gates;
+            if (gates == null || gates.Length == 0)
+            {
+                Check("18 the codex names every gate", false, "gates.json is missing or empty");
+                return;
+            }
+
+            var faults = new List<string>();
+            var ids = new HashSet<string>(StringComparer.Ordinal);
+            var segments = new HashSet<string>(StringComparer.Ordinal);
+            foreach (WallSegmentDef segment in GameData.WallSegments ?? Array.Empty<WallSegmentDef>())
+            {
+                if (segment != null && !string.IsNullOrEmpty(segment.id)) segments.Add(segment.id);
+            }
+
+            string playersSegment = null;
+            foreach (StageDef stage in GameData.Stages ?? Array.Empty<StageDef>())
+            {
+                if (stage != null && stage.terminal && !string.IsNullOrEmpty(stage.gate_segment))
+                {
+                    playersSegment = stage.gate_segment;
+                    break;
+                }
+            }
+
+            int marked = 0;
+            foreach (GateDef gate in gates)
+            {
+                if (gate == null || string.IsNullOrEmpty(gate.id))
+                {
+                    faults.Add("a gate row has no id");
+                    continue;
+                }
+
+                if (!ids.Add(gate.id)) faults.Add(gate.id + " is listed twice");
+                if (string.IsNullOrEmpty(gate.display)) faults.Add(gate.id + " has no display in this locale");
+                if (string.IsNullOrEmpty(gate.builders)) faults.Add(gate.id + " has no builders line in this locale");
+
+                if (string.IsNullOrEmpty(gate.verse))
+                {
+                    faults.Add(gate.id + " names no verse");
+                }
+                else if (!ScriptureService.TryGetVerse(gate.verse.Trim(), out _))
+                {
+                    faults.Add(gate.id + ": " + gate.verse + " does not resolve");
+                }
+
+                if (!string.IsNullOrEmpty(gate.segment))
+                {
+                    if (!segments.Contains(gate.segment)) faults.Add(gate.id + " names segment " + gate.segment + ", which the wall does not build");
+                    if (gate.segment == playersSegment) marked++;
+                }
+            }
+
+            if (string.IsNullOrEmpty(playersSegment))
+            {
+                faults.Add("no terminal stage names a gate_segment, so no gate can be the player's");
+            }
+            else if (marked != 1)
+            {
+                faults.Add(marked + " gate(s) carry the terminal stage's segment " + playersSegment + "; exactly one should");
+            }
+
+            Check("18 the codex names every gate", faults.Count == 0,
+                gates.Length + " gate(s), the player's on " + (playersSegment ?? "nothing") +
+                (faults.Count > 0 ? " — [" + string.Join("; ", faults) + "]" : ""));
+        }
+
         static void ACostedMoveCostsTheDay()
         {
             var costed = new List<KeyValuePair<string, ContestMoveDef>>();

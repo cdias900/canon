@@ -467,6 +467,38 @@ namespace SheepGate.Core
         [JsonProperty("description")] public string description;
     }
 
+    /// <summary>
+    /// One of the ten gates of Nehemiah 3, from gates.json. Structure only: the verse it is read
+    /// from and, for the one gate the season builds, the wall segment that stands for it. The two
+    /// player-facing strings are merged in from the locale copy.
+    /// </summary>
+    public class GateDef
+    {
+        [JsonProperty("id")] public string id;
+
+        /// <summary>The verse of NEH.3 that names this gate. Rendered as a citation, never typed.</summary>
+        [JsonProperty("verse")] public string verse;
+
+        /// <summary>
+        /// The wall segment this gate is, when the season builds it; null for the nine it does not.
+        /// The player's own gate is the one whose segment the terminal stage's <c>gate_segment</c>
+        /// names, so the codex marks it without spelling a segment id anywhere in code.
+        /// </summary>
+        [JsonProperty("segment")] public string segment;
+
+        [JsonIgnore] public string display;
+
+        /// <summary>Who raised it, in our own words — narration about the names, never a quotation.</summary>
+        [JsonIgnore] public string builders;
+    }
+
+    /// <summary>Player-facing half of a gate, from locales/&lt;locale&gt;/gates.json.</summary>
+    public class GateStrings
+    {
+        [JsonProperty("display")] public string display;
+        [JsonProperty("builders")] public string builders;
+    }
+
     /// <summary>Player-facing half of a vocation, from locales/&lt;locale&gt;/vocations.json.</summary>
     public class VocationStrings
     {

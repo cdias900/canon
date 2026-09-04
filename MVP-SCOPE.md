@@ -167,6 +167,19 @@ Four segments, four **courses** each. `seg_02` is the exposed one.
 > of the nine days in `stages.json`. The code cannot rename either without a migration, so this
 > document says **course** for the wall and **stage** for the season, and never the reverse.
 
+### `gates.json` — the ten gates, structure, shared
+
+```json
+[ { "id": "sheep", "verse": "NEH.3.1", "segment": "seg_02" } ]
+```
+
+One row per gate of Nehemiah 3, in the chapter's order; `verse` is the citation the codex card
+carries and `segment` is the wall segment that stands for it — `seg_02` for the Sheep Gate, `null`
+for the nine the season does not build. The player-facing half lives in
+`locales/<locale>/gates.json` as `{ "<id>": { "display", "builders" } }`; the builders line is
+narration in our words about the names the verse records, never a quotation (rule 2, and the
+validator's overlap check holds it to that).
+
 ### `stages.json` — the season, structure, shared
 
 ```json
@@ -257,6 +270,7 @@ standalone screen, so that route keeps working; nothing routes to it.
 | `ScriptureService` | In-memory index of the locale's `verses.json`. Never hits the network. |
 | `ScriptureVisibility` | Decides whether `ref_display` is shown. One-way: hidden until the reveal, never re-hidden. |
 | `ChapterReaderUI` | Scrollable panel with the whole chapter. Fires `deep_read` past a dwell of 1.5 s per verse (floor 20 s) **and** 60% scroll. |
+| `CodexPanel` | The ten gates of `gates.json` as a scrolling sheet from the drawer, references shown from the start (§04). Data-driven: a gate is a row, the player's is whichever row carries the terminal stage's segment. |
 | `MoraleContest` | Turn machine for any stage that names a `contest`. Four exist. See §07. A move may carry `costs_work`: it spends the day's capacity, once per fight, and is shut below its price. |
 | `StageDirector` | Everything a stage asks for beyond an ordinary working day: the contest, A Página, the gathering, the wall finishing, the gate closing, the vocation. **Driven entirely by `stages.json` — it counts nothing.** A beat holds the day open only while it runs and then gives the hold back, so the stage still ends through the one end-of-day path every other stage uses. The `terminal` stage is the single exception: once its gate segment is standing it takes `HoldFinalDay` and never releases it, because it has no tomorrow; before that it is a working day that repeats its date. |
 | `VocationTracker` | Accumulates silently. **No public score getter.** Reveals at the terminal stage. |
@@ -444,6 +458,14 @@ complete it — the story closing the wall, not the player spending anything.
   vocations as names with this run's marked, a secondary way into `NEH.6` that pays nothing (its
   deep read is `ungamed_read`), and **Começar outra obra**. No share button: there is no native
   share plugin in the project, so the card is drawn to be screenshotted and the plugin stays open.
+- **The codex of the gates** (`CodexPanel`), from the HUD's drawer on every day of the run: the ten
+  gates of `NEH.3` as cards — name, who raised it, the verse that records it, **Saber mais** into
+  the chapter — with the player's own marked, read off the terminal stage's `gate_segment`. **It is
+  the one surface where the reference is never deferred.** Rule 12 hides chapter and verse under a
+  quotation because the deferral belongs to the fiction; the design names the codex, with the store
+  and the title, as where the product is honest about what it is, and asks for *every gate with its
+  reference from the first hour*. Nothing is denied, nothing is highlighted: the dialogue still does
+  not point at it.
 - This is the `terminal` stage: it has no tomorrow, and it holds the day open for good — from the
   moment the gate is earned.
 
@@ -615,7 +637,7 @@ accessory. Eight synthesised sounds (three of them the stone, so a day of course
 - A daily streak, push notifications
 - Sign-up, accounts, cloud, sync
 - LLM calls at runtime — all dialogue is authored in `dialogue.json`
-- The other 9 gates, any other season. **All four threats of the design are in** — mockery, the raid, the famine, the letters
+- Building the other 9 gates, any other season. **All ten gates are named** — the codex carries each with its verse from the first hour (§04) — and **all four threats of the design are in**: mockery, the raid, the famine, the letters
 - Jesus or the Holy Spirit as a guide — **deferred by decision, not discarded**
 
 ---
@@ -646,6 +668,7 @@ the version abbreviation and its copyright notice (`ChapterReaderUI.BuildColopho
 | 15 | A run with no character is never offered a launch screen to press through (§04). |
 | 17 | A costed move is shut below its price, spends exactly its price, and is offered once per fight. |
 | 16 | The vigil costs the night's work and returns a page that resolves; it changes nothing else — same damage as the ordinary night beside the same watch, and with no watch a vigil still loses the wall on a threat night. |
+| 18 | The codex names every gate of `gates.json` with a verse that resolves in both languages and strings in both, and marks exactly one as the player's: the one on the terminal stage's segment. The e2e opens it from the drawer on the full-battery stages, counts the cards, reads a reference before the reveal, and takes its Saber mais into `NEH.3`. |
 
 > **The harness carries more than the fourteen, and the prefix says which is which.** Numbered
 > criteria come from this section; `L1`–`L3` are the localization checks that arrived with the

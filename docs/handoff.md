@@ -83,6 +83,21 @@ a screenshot; different window sizes per locale still nests the smaller window i
 
 ## What landed since the last handoff
 
+### The codex of the gates — the design's "every gate with its reference from the first hour"
+
+`gates.json` (structure) and `locales/<locale>/gates.json` (name and a builders line in our words)
+carry the ten gates of `NEH.3`; the nine verses the table lacked were copied out of the chapter
+already in `verses.json`, same API, same version, no call spent. `CodexPanel` opens from a new row
+of the HUD's drawer on every day, lists the ten as scroll cards with Saber mais into the chapter,
+and marks the player's gate by the terminal stage's `gate_segment`. **Its references show from the
+first hour** — the design keeps rule 12's deferral inside the fiction and names the codex as one of
+the surfaces that is honest about what the product is; MVP-SCOPE §04 has the reasoning. Criterion
+18 checks the table in both languages; the e2e opens the panel on the full-battery stages and reads
+a reference on stage 1, before any reveal. Two data fixes rode along after a look at the iPhone
+simulator: the mockery's and the famine's chapter moves — *seguir contando*, *abrir mão*, *recusar
+a ração* — were third and fourth in their lists, under the fold on a phone, and are now first; the
+e2e sorts moves by delta so it never noticed.
+
 ### The famine and the reading — the two beats the corpus was holding back
 
 NVI was enabled for the app's key on 04/09/2026 and `NEH.5`, `NEH.8` and `NEH.4.12` were fetched

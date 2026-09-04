@@ -1,0 +1,12 @@
+[
+  { "id": "sheep",      "verse": "NEH.3.1",  "segment": "seg_02" },
+  { "id": "fish",       "verse": "NEH.3.3",  "segment": null },
+  { "id": "old",        "verse": "NEH.3.6",  "segment": null },
+  { "id": "valley",     "verse": "NEH.3.13", "segment": null },
+  { "id": "dung",       "verse": "NEH.3.14", "segment": null },
+  { "id": "fountain",   "verse": "NEH.3.15", "segment": null },
+  { "id": "water",      "verse": "NEH.3.26", "segment": null },
+  { "id": "horse",      "verse": "NEH.3.28", "segment": null },
+  { "id": "east",       "verse": "NEH.3.29", "segment": null },
+  { "id": "inspection", "verse": "NEH.3.31", "segment": null }
+]

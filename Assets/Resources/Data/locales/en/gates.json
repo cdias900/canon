@@ -1,0 +1,42 @@
+{
+  "sheep": {
+    "display": "The Sheep Gate",
+    "builders": "Eliashib the high priest, with the priests of his house. The first one standing, and the only one the record calls sanctified."
+  },
+  "fish": {
+    "display": "The Fish Gate",
+    "builders": "The family of Hassenaah. Beams, doors, bolts and bars, all on their account."
+  },
+  "old": {
+    "display": "The Old Gate",
+    "builders": "Two men, Joiada and Meshullam, each remembered by his father's name."
+  },
+  "valley": {
+    "display": "The Valley Gate",
+    "builders": "Hanun and the people of Zanoah. Beyond the gate, a long stretch of wall, measured in cubits, up to the next one."
+  },
+  "dung": {
+    "display": "The Dung Gate",
+    "builders": "Malchijah, who ruled a district and still took the gate with the humblest name."
+  },
+  "fountain": {
+    "display": "The Spring Gate",
+    "builders": "Shallun, ruler of Mizpah. He roofed the gate, then followed the wall of the pool down to the stairs from David's city."
+  },
+  "water": {
+    "display": "The Water Gate",
+    "builders": "The temple servants who lived on the hill of Ophel, working across from it, on the sunrise side."
+  },
+  "horse": {
+    "display": "The Horse Gate",
+    "builders": "The priests, each on the piece of wall in front of his own house."
+  },
+  "east": {
+    "display": "The East Gate",
+    "builders": "Shemaiah, the keeper of this gate, mended the stretch beside Zadok, who repaired the wall in front of his home."
+  },
+  "inspection": {
+    "display": "The Gate of Hammiphkad",
+    "builders": "Malchijah, one of the goldsmiths, up to the room above the corner. The merchants and the temple servants kept house nearby."
+  }
+}

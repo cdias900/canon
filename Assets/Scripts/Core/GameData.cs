@@ -40,6 +40,9 @@ namespace SheepGate.Core
 
         public static WallSegmentDef[] WallSegments { get; private set; } = Array.Empty<WallSegmentDef>();
 
+        /// <summary>The ten gates of Nehemiah 3, in the chapter's order, for the codex.</summary>
+        public static GateDef[] Gates { get; private set; } = Array.Empty<GateDef>();
+
         /// <summary>
         /// The season, in order, one entry per stage. Read <see cref="Stage"/> rather than indexing
         /// this: the day is 1-based and the array is not, and getting that wrong is off by one
@@ -102,6 +105,7 @@ namespace SheepGate.Core
             Stages = LoadArray<StageDef>(ResourceFolder + "stages");
             Contests = LoadDictionary<ContestConfig>(ResourceFolder + "contest");
             Vocations = LoadArray<VocationDef>(ResourceFolder + "vocations");
+            Gates = LoadArray<GateDef>(ResourceFolder + "gates");
             Quiz = LoadArray<QuizQuestion>(ResourceFolder + "quiz");
             Map = LoadObject(ResourceFolder + "map", EmptyMap());
 
@@ -110,6 +114,7 @@ namespace SheepGate.Core
             MergeNpcNames(localeFolder);
             MergeContestStrings(localeFolder);
             MergeVocationStrings(localeFolder);
+            MergeGateStrings(localeFolder);
             MergeQuizStrings(localeFolder);
 
             // Last, because two of the checks read Dialogue and Contests, which the lines above
@@ -277,6 +282,30 @@ namespace SheepGate.Core
                     {
                         LogMissingString("contest", move.id);
                     }
+                }
+            }
+        }
+
+        static void MergeGateStrings(string localeFolder)
+        {
+            var strings = LoadDictionary<GateStrings>(localeFolder + "gates");
+            for (int i = 0; i < Gates.Length; i++)
+            {
+                GateDef gate = Gates[i];
+                if (gate == null || string.IsNullOrEmpty(gate.id))
+                {
+                    continue;
+                }
+
+                GateStrings entry;
+                if (strings.TryGetValue(gate.id, out entry) && entry != null)
+                {
+                    gate.display = entry.display;
+                    gate.builders = entry.builders;
+                }
+                else
+                {
+                    LogMissingString("gates", gate.id);
                 }
             }
         }

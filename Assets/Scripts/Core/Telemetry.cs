@@ -209,5 +209,8 @@ namespace SheepGate.Core
         /// "vigil" trigger: it is the one exposure in the build the player pays for up front.
         /// </summary>
         public const string VigilKept = "vigil_kept";
+
+        /// <summary>The codex of the gates was opened from the drawer. Carries how many gates it listed.</summary>
+        public const string CodexOpened = "codex_opened";
     }
 }

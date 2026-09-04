@@ -543,6 +543,11 @@ namespace SheepGate.E2E
             yield return Capture(1, "hud-menu");
             CheckHud();
 
+            // 4b. The codex of the gates, in the first hour of the run — the hour the design names
+            // when it asks for every gate with its reference. The other two openings are on the
+            // full-battery stages later in the season.
+            yield return OpenTheCodexFromTheDrawer(GameData.Stage(1));
+
             // 5. The whole-screen sweep. Cheap, and it catches every missing string at once.
             CheckNoMissingStrings();
 
@@ -821,6 +826,7 @@ namespace SheepGate.E2E
                 if (full)
                 {
                     yield return CheckHudThroughTheDrawer();
+                    yield return OpenTheCodexFromTheDrawer(stage);
                     CheckNoMissingStrings();
                 }
 
@@ -2571,6 +2577,66 @@ namespace SheepGate.E2E
             {
                 yield return Tap("MenuButton", "the HUD menu button, putting the drawer back");
             }
+        }
+
+        /// <summary>
+        /// The codex of the gates, from the drawer: every gate the table lists is a card, the
+        /// player's is marked, the first card's Saber mais opens the chapter its verse lives in,
+        /// and the panel closes by its own control. Runs on the full-battery stages, so the first
+        /// hour of the run is one of them — which is when the design says the codex must exist.
+        /// </summary>
+        IEnumerator OpenTheCodexFromTheDrawer(StageDef stage)
+        {
+            yield return OpenHudMenu();
+            yield return Tap("CodexButton", "the codex row of the drawer");
+            yield return WaitForObject("CodexClose", "the codex of the gates");
+            Record("the codex opens as a modal on stage " + stage.day, ModalRoot.TopId == CodexPanel.ModalId,
+                "top " + DescribeTopModal());
+
+            GateDef[] gates = GameData.Gates ?? Array.Empty<GateDef>();
+            int cards = 0;
+            foreach (GateDef gate in gates)
+            {
+                if (gate != null && !string.IsNullOrEmpty(gate.id) && Find("Gate_" + gate.id) != null) cards++;
+            }
+            Record("the codex lists every gate of the table", gates.Length > 0 && cards == gates.Length,
+                cards + " card(s) for " + gates.Length + " gate(s)");
+
+            Record("the codex marks the player's gate", Find("CodexYours") != null,
+                Find("CodexYours") != null ? "one card carries the mark" : "no card carries CodexYours");
+
+            // The first gate of the table, by name: the controls are named per gate so that
+            // "the first card" is the first row of gates.json and not whichever object a scene
+            // search happens to return first.
+            GateDef first = gates.Length > 0 ? gates[0] : null;
+            string firstId = first != null && !string.IsNullOrEmpty(first.id) ? first.id : "";
+
+            // The one place the reference is honest from the first hour, by the design's own words;
+            // the opening runs this before any reveal, so this is where a regression to rule 12's
+            // in-fiction deferral would show.
+            string firstReference = TextOf("GateReference_" + firstId);
+            Record("the codex shows its references from the first hour (stage " + stage.day + ", "
+                + (ScriptureVisibility.ReferencesVisible() ? "after" : "before") + " the reveal)",
+                !string.IsNullOrEmpty(firstReference), "first card shows " + Quote(firstReference));
+
+            yield return Capture(stage.day, "codex");
+
+            // The first card is taller than the fold at every size the run plays at, so its footer
+            // is scrolled to before it is tapped — the same way the wardrobe reaches its rows.
+            yield return ScrollIntoView(Find("CodexReadMore_" + firstId));
+
+            string expected = first != null && !string.IsNullOrEmpty(first.verse)
+                ? ScriptureService.ChapterRefOf(first.verse.Trim())
+                : null;
+            yield return OpenTheReaderAndComeBack("CodexReadMore_" + firstId, "the first gate's Saber mais", stage,
+                "codex-reader", chapter => Record("the codex's Saber mais opens the gate's own chapter",
+                    !string.IsNullOrEmpty(expected) && chapter == expected,
+                    "expected " + (expected ?? "nothing") + ", opened " + (chapter ?? "nothing")));
+
+            yield return Tap("CodexClose", "closing the codex");
+            yield return WaitUntil(() => ModalRoot.TopId != CodexPanel.ModalId, "the codex to close");
+            Record("the codex closes by its own control", ModalRoot.TopId != CodexPanel.ModalId,
+                "top " + DescribeTopModal());
         }
 
         /// <summary>The HUD reads from the same locale table the rest of the run does.</summary>

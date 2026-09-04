@@ -612,6 +612,7 @@ namespace SheepGate.UI
             BuildReadoutCard(column);
             BuildFrameControls(column);
             BuildTableRow(column);
+            BuildCodexRow(column);
             BuildSeasonEndRow(column);
 
             _drawer.gameObject.SetActive(false);
@@ -872,6 +873,21 @@ namespace SheepGate.UI
         /// The plate never takes a tap. Only the button inside it does, which is what keeps a
         /// finger that lands beside the label from counting as a press.
         /// </summary>
+        /// <summary>
+        /// The codex of the ten gates, from the first hour. The design asks that every gate have
+        /// its entry and its reference before the player has built anything, and the drawer is the
+        /// one place a player looks on purpose; the backpack's tabs are already at the count where
+        /// a fifth cost three labels. Always shown, and its references are shown from the start:
+        /// the design keeps the deferral inside the fiction and names the codex as one of the
+        /// places the product is honest about what it is.
+        /// </summary>
+        void BuildCodexRow(RectTransform parent)
+        {
+            Image plate;
+            BuildPlatedButton(parent, "CodexButton", Loc.T("hud.codex"),
+                              () => { CloseMenu(); CodexPanel.Show(); }, out plate);
+        }
+
         /// <summary>The ending, for a run that has had one. Hidden until the vocation is named.</summary>
         RectTransform _seasonEndPlate;
 

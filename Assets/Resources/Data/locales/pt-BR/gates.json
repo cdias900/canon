@@ -1,0 +1,42 @@
+{
+  "sheep": {
+    "display": "Porta das Ovelhas",
+    "builders": "Eliasibe, o sumo sacerdote, com os sacerdotes da casa dele. A primeira a ficar de pé, e a única que o registro chama de consagrada."
+  },
+  "fish": {
+    "display": "Porta dos Peixes",
+    "builders": "A família de Hassenaá. Batentes, folhas, ferrolhos e trancas, tudo por conta deles."
+  },
+  "old": {
+    "display": "Porta Jesana",
+    "builders": "Dois homens, Joiada e Mesulão, cada um lembrado pelo nome do pai."
+  },
+  "valley": {
+    "display": "Porta do Vale",
+    "builders": "Hanum e o povo de Zanoa. Além da porta, um trecho de muro comprido, medido em côvados, até a porta seguinte."
+  },
+  "dung": {
+    "display": "Porta do Esterco",
+    "builders": "Malquias, que governava um distrito e mesmo assim ficou com a porta de nome mais humilde."
+  },
+  "fountain": {
+    "display": "Porta da Fonte",
+    "builders": "Salum, governador de Mispá. Cobriu a porta e seguiu pelo muro do tanque, junto ao jardim real, até a escadaria da cidade velha."
+  },
+  "water": {
+    "display": "Porta das Águas",
+    "builders": "Os servidores do templo que moravam na colina de Ofel, trabalhando de frente para ela, do lado do nascente."
+  },
+  "horse": {
+    "display": "Porta dos Cavalos",
+    "builders": "Os sacerdotes, cada um no pedaço de muro diante da própria casa."
+  },
+  "east": {
+    "display": "Porta Leste",
+    "builders": "Semaías, o guarda desta porta, consertou o trecho ao lado de Zadoque, que reparou o muro diante de casa."
+  },
+  "inspection": {
+    "display": "Porta da Inspeção",
+    "builders": "Malquias, um dos ourives, até a sala em cima da esquina. Os comerciantes e os servos do templo ficavam ali perto."
+  }
+}

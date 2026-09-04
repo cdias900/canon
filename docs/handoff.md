@@ -83,6 +83,19 @@ a screenshot; different window sizes per locale still nests the smaller window i
 
 ## What landed since the last handoff
 
+### The map states each stop's objective
+
+The progression map's detail card carries an **OBJETIVO** line per stop, authored per stage in
+`world.progress_map.objective.<day>` (the two keys that had sat unused in `ui.json` since the map
+was drawn are now nine, one per stage, written out as literals in `WorldMapView.DayObjectiveKeys`
+for the reason the title keys are). It shows for locked stops too — what a day asks is the one
+thing the map can say about a stop nobody has reached — while the diary stays reached-only. The
+lines are the stage's ask in the fiction and nothing more: no reading as a goal (rules 19, 20), no
+prayer (rule 13), no reference (rule 12). The card grew from 256 to 344 design points to hold
+them beside a five-line diary on a phone — measured on the iPhone simulator, where 312 left
+half a line under a four-line diary and stage 7 writes five. The e2e asserts the objective on stop 1 and that it
+changes on stop 2.
+
 ### The codex of the gates — the design's "every gate with its reference from the first hour"
 
 `gates.json` (structure) and `locales/<locale>/gates.json` (name and a builders line in our words)

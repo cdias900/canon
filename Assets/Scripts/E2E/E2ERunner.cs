@@ -2098,6 +2098,9 @@ namespace SheepGate.E2E
                 TextOf("SelectedNodeTitle") == Loc.T("world.progress_map.day.1.title"),
                 "selected title=\"" + (TextOf("SelectedNodeTitle") ?? "missing") +
                 "\" legacy card=" + (Find("MapNode1Card") != null));
+            Record("the progression map states the stop's objective",
+                TextOf("SelectedObjective") == Loc.T("world.progress_map.objective.1"),
+                "objective=\"" + (TextOf("SelectedObjective") ?? "missing") + "\"");
             Record("the progression map makes the current position explicit",
                 Find("CurrentLocationRing") != null && Find("CurrentLocationLabel") != null,
                 "ring=" + (Find("CurrentLocationRing") != null) +
@@ -2110,6 +2113,10 @@ namespace SheepGate.E2E
                 Record("selecting a map annotation updates the one detail card",
                     TextOf("SelectedNodeTitle") == Loc.T("world.progress_map.day.2.title"),
                     "selected title=\"" + (TextOf("SelectedNodeTitle") ?? "missing") + "\"");
+                Record("the objective changes with the stop",
+                    TextOf("SelectedObjective") == Loc.T("world.progress_map.objective.2")
+                    && TextOf("SelectedObjective") != Loc.T("world.progress_map.objective.1"),
+                    "objective=\"" + (TextOf("SelectedObjective") ?? "missing") + "\"");
 
                 yield return FocusOnStage(viewport, 0);
                 yield return Tap("MapNode1Marker", "the current progression annotation");

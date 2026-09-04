@@ -38,7 +38,11 @@ namespace SheepGate.World
 
         static readonly float ScreenInset = DesignTokens.Space.S8;
         static readonly float HeaderHeight = DesignTokens.Px(112f);
-        static readonly float StatusHeight = DesignTokens.Px(256f);
+        // 256 held the title, the piece and a diary of up to five lines with nothing to spare on a
+        // phone; the objective's two lines are what the extra is for. Measured on an iPhone 17
+        // Pro: at 312 a four-line diary under the objective left about half a line, and stage 7
+        // writes five. The map viewport gives up the same amount, which it can afford.
+        static readonly float StatusHeight = DesignTokens.Px(344f);
         static readonly float ControlsHeight = UIKit.ButtonMinHeight;
         static readonly float RewardIconSize = DesignTokens.Px(38f);
 
@@ -90,6 +94,24 @@ namespace SheepGate.World
             "world.progress_map.day.9.title"
         };
 
+        /// <summary>
+        /// One objective per stage, written out — the same reason as the titles. What the stop asks
+        /// of the player in the fiction: the day's work, its choice, its threat. Never a reading
+        /// (rules 19 and 20), never a prayer (rule 13), never a reference (rule 12).
+        /// </summary>
+        static readonly string[] DayObjectiveKeys =
+        {
+            "world.progress_map.objective.1",
+            "world.progress_map.objective.2",
+            "world.progress_map.objective.3",
+            "world.progress_map.objective.4",
+            "world.progress_map.objective.5",
+            "world.progress_map.objective.6",
+            "world.progress_map.objective.7",
+            "world.progress_map.objective.8",
+            "world.progress_map.objective.9"
+        };
+
         static WorldMapView _current;
 
         Canvas _canvas;
@@ -109,6 +131,7 @@ namespace SheepGate.World
 
         Text _detailState;
         Text _detailTitle;
+        Text _detailObjective;
         Text _detailItemName;
         Text _detailItemState;
         Text _detailDiary;
@@ -550,6 +573,14 @@ namespace SheepGate.World
                 _detailTitle.text = Loc.T(DayTitleKeys[index]);
             }
 
+            // Shown for every stop, reached or not: the title already foreshadows each day, and
+            // what a day asks is the one thing the map can say about a stop nobody has reached.
+            // The diary below stays reached-only, because it is what the day wrote.
+            if (_detailObjective != null)
+            {
+                _detailObjective.text = Loc.T(DayObjectiveKeys[Mathf.Clamp(index, 0, DayObjectiveKeys.Length - 1)]);
+            }
+
             // The featured item comes from the stage table, which is the file that decides what a
             // stage is about. A stage may feature any catalogue entry whether or not that entry
             // happens to open here — it is a signpost, not a grant — and a stage that names an item
@@ -781,6 +812,15 @@ namespace SheepGate.World
                 DesignTokens.Type.Title, DesignTokens.Ink.OnScroll, TextAnchor.MiddleLeft,
                 DesignTokens.TypeRole.Title);
             _detailTitle.raycastTarget = false;
+
+            Text objectiveHeading = UIKit.CreateText(card, "SelectedObjectiveHeading",
+                Loc.T("world.progress_map.objective.heading"), DesignTokens.Type.Minimum,
+                DesignTokens.Ink.OnScrollMuted, TextAnchor.MiddleLeft, DesignTokens.TypeRole.BodyStrong);
+            objectiveHeading.raycastTarget = false;
+
+            _detailObjective = UIKit.CreateText(card, "SelectedObjective", string.Empty,
+                DesignTokens.Type.Minimum, DesignTokens.Ink.OnScroll, TextAnchor.UpperLeft);
+            _detailObjective.raycastTarget = false;
 
             RectTransform rewardRow = UIKit.CreateRect("SelectedReward", card);
             UIKit.HorizontalGroup(rewardRow.gameObject, DesignTokens.Space.S8, new RectOffset(),

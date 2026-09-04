@@ -332,12 +332,13 @@ covered by playing it.**
 
 ### Text work that no script can close
 
-- **The curation read is part done, and the rest is queued.** Six nodes have been read against the
-  passage **in both locales**, in two passes (`6d9d0ac`, then `079aac4`, each touching `en` and
-  `pt-BR` dialogue together). `node tools/list-curation.mjs` still reports **26 spoken lines across
-  12 nodes in 2 locales** waiting. A translation of a canonical figure's speech is newly authored
-  speech in that language, so rule 4's human read applies to the `en` side on its own terms — it is
-  not carried by having read the `pt-BR`.
+- **The curation read is done, in both locales.** Twelve nodes carry canonical speech; all twelve
+  were read against the passage in two passes (`6d9d0ac`, then `079aac4`, each touching `en` and
+  `pt-BR` together), and `curated_in` on each node names the commit (`a943723` taught the queue to
+  say so). `node tools/list-curation.mjs` reports nothing waiting. A translation of a canonical
+  figure's speech is newly authored speech in that language, so the `en` side was read on its own
+  terms, not carried by the `pt-BR`. **What remains is a rule, not a task:** a line edited after its
+  `curated_in` commit has a stale read, and nothing flags it automatically.
 - **The English text has had no native pass.** It reads correctly and keeps the register, but it was
   written by the same agent that wrote the code.
 

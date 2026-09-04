@@ -310,7 +310,10 @@ category where writing dialogue is legitimate: the Bible names them and does not
 **Two adversaries also speak** — `sanballat` (stages 5, 6 and 8) and `tobiah` (stage 6). They are a
 different case from the six, and a harder one: **the text does quote them** (`NEH.2.19`, `NEH.4.1-3`,
 `NEH.6.1-9`). Every line they say is authored against a passage that already puts words in their
-mouths, so rule 4's human read is not optional there. Both are in the curation queue, unread.
+mouths, so rule 4's human read is not optional there. **Both have been read**, in both locales,
+against the passages that quote them (`079aac4`); `curated_in` on each node names the commit, and
+`node tools/list-curation.mjs` reports nothing waiting. A line edited after that commit is a line
+whose read is stale — the queue is a record, not a backlog.
 
 ### Stage 1 — `the_summons`
 
@@ -655,11 +658,12 @@ removed rather than wired.
 
 ### Not done
 
-- **The curation queue has never been read.** `intro_gathering` (the governor) awaits a human read
-  against the passage, in **both** languages, and the season added five more nodes behind it —
-  including `sanballat` and `tobiah`, who **are quoted in the text**, which makes them the hardest
-  case in the queue rather than the easiest. Rule 4 requires it. `node tools/list-curation.mjs`
-  prints the queue.
+- **The curation queue is read, and the read is dated.** All twelve nodes that carry canonical
+  speech — the governor's `intro_gathering` and `gathering_d4`, `sanballat_d5/d6/d8`, `tobiah_d6`,
+  in both locales — were read against the passage in `6d9d0ac` and `079aac4`, and each node
+  records the commit in `curated_in`. `node tools/list-curation.mjs` prints nothing waiting.
+  What rule 4 still asks for is discipline, not work: **a line edited after its `curated_in`
+  commit has a stale read**, and the queue will not say so on its own.
 - **The English has had no native pass.**
 - **No physical device has run the game** — iOS never, and Android only on an emulator (the first
   APK was built and played on 03/09/2026). Both halves are inside the §00 definition of done, and

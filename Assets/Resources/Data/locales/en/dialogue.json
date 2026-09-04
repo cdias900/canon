@@ -583,7 +583,8 @@
         "grants": {
           "vocation": {
             "zelote": 1
-          }
+          },
+          "set_flag": "tekoa_kept"
         }
       }
     ]
@@ -1655,7 +1656,8 @@
         "grants": {
           "vocation": {
             "zelote": 1
-          }
+          },
+          "set_flag": "path_own"
         }
       }
     ]
@@ -1768,7 +1770,8 @@
         "id": "believe",
         "text": "If they've gone, they've gone. Tonight is for the work.",
         "grants": {
-          "vocation": {}
+          "vocation": {},
+          "set_flag": "road_believed"
         }
       },
       {
@@ -1777,7 +1780,8 @@
         "grants": {
           "vocation": {
             "profeta": 2
-          }
+          },
+          "set_flag": "road_doubted"
         }
       }
     ]

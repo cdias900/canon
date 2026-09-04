@@ -833,6 +833,7 @@ namespace SheepGate.World
 
             LastNightWorkApplied = ApplyNightWork(wall, nightUnits, LastNightDamagedSegment);
             SetCounter(state, NightWorkCounter, LastNightWorkApplied);
+            SetCounter(state, GameFlags.NightWorkCounter(day), LastNightWorkApplied);
             SetCounter(state, NightDamageCounter, LastNightDamagedSegment != null ? 1 : 0);
             SetCounter(state, NightPathClearedCounter, pathCleared ? 1 : 0);
             SetCounter(state, NightTekoaReturnedCounter, ReturnTheTekoitesHour(state, wall));

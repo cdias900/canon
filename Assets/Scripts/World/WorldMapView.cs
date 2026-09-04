@@ -38,7 +38,7 @@ namespace SheepGate.World
 
         static readonly float ScreenInset = DesignTokens.Space.S8;
         static readonly float HeaderHeight = DesignTokens.Px(112f);
-        static readonly float StatusHeight = DesignTokens.Px(150f);
+        static readonly float StatusHeight = DesignTokens.Px(256f);
         static readonly float ControlsHeight = UIKit.ButtonMinHeight;
         static readonly float RewardIconSize = DesignTokens.Px(38f);
 
@@ -111,6 +111,7 @@ namespace SheepGate.World
         Text _detailTitle;
         Text _detailItemName;
         Text _detailItemState;
+        Text _detailDiary;
         Image _detailRewardImage;
         bool _inputLocked;
 
@@ -581,6 +582,102 @@ namespace SheepGate.World
             {
                 _detailItemState.text = detail;
             }
+
+            if (_detailDiary != null)
+            {
+                _detailDiary.text = DiaryFor(_state, _selectedDay, nodeState);
+            }
+        }
+
+        /// <summary>
+        /// The day, told back from what it wrote: courses laid, the night, the choice made, the
+        /// contest's ending, the gate. One sentence per fact, and only facts the run recorded — a
+        /// choice never made leaves no line, and a day not reached says so and nothing else.
+        /// </summary>
+        static string DiaryFor(GameState state, int day, JourneyNodeState nodeState)
+        {
+            if (state == null || nodeState == JourneyNodeState.Locked)
+            {
+                return Loc.T("world.progress_map.diary.locked");
+            }
+
+            var lines = new List<string>();
+            StageDef stage = GameData.Stage(day);
+
+            int laid = state.Counter(GameFlags.LaidCounter(day));
+            if (laid > 0)
+            {
+                lines.Add(Loc.Plural("world.progress_map.diary.laid", laid));
+            }
+
+            // Choices, by the flags the branches raise. Day-bound through the stage that hosts
+            // the conversation, so a flag reads on the stop it belongs to and nowhere else.
+            if (day == 2)
+            {
+                if (state.HasFlag(GameFlags.AcceptedInvite)) lines.Add(Loc.T("world.progress_map.diary.invite.accepted"));
+                else if (state.HasFlag(GameFlags.RefusedInvite)) lines.Add(Loc.T("world.progress_map.diary.invite.refused"));
+                if (state.HasFlag("donated_rubble")) lines.Add(Loc.T("world.progress_map.diary.donated"));
+            }
+            else if (day == 3)
+            {
+                if (state.HasFlag(GameFlags.TekoaHelped)) lines.Add(Loc.T("world.progress_map.diary.tekoa.helped"));
+                else if (state.HasFlag(GameFlags.TekoaKept)) lines.Add(Loc.T("world.progress_map.diary.tekoa.kept"));
+            }
+            else if (day == 5)
+            {
+                if (state.HasFlag(GameFlags.PathCleared)) lines.Add(Loc.T("world.progress_map.diary.path.cleared"));
+                else if (state.HasFlag(GameFlags.PathOwn)) lines.Add(Loc.T("world.progress_map.diary.path.own"));
+            }
+            else if (day == DayCycle.HalfAndHalfStage)
+            {
+                if (state.HasFlag(GameFlags.RoadDoubted)) lines.Add(Loc.T("world.progress_map.diary.road.doubted"));
+                else if (state.HasFlag(GameFlags.RoadBelieved)) lines.Add(Loc.T("world.progress_map.diary.road.believed"));
+            }
+
+            if (stage != null && !string.IsNullOrEmpty(stage.contest))
+            {
+                int outcome = state.Counter(GameFlags.ContestOutcomeCounter(stage.contest)) - 1;
+                if (outcome == (int)SheepGate.Contest.ContestOutcome.EnemyWithdrew) lines.Add(Loc.T("world.progress_map.diary.contest.withdrew"));
+                else if (outcome == (int)SheepGate.Contest.ContestOutcome.PlayerBroke) lines.Add(Loc.T("world.progress_map.diary.contest.broke"));
+                else if (outcome == (int)SheepGate.Contest.ContestOutcome.TurnLimit) lines.Add(Loc.T("world.progress_map.diary.contest.limit"));
+            }
+
+            // The night that ended this day, once it has: the work counter is only ever written
+            // by a resolved night, so its presence is the record that the night happened.
+            if (state.counters != null && state.counters.ContainsKey(GameFlags.NightWorkCounter(day)))
+            {
+                lines.Add(Loc.T(state.HasFlag(GameFlags.WatchPostedForDay(day))
+                    ? "world.progress_map.diary.night.watched"
+                    : "world.progress_map.diary.night.unwatched"));
+                int nightWork = state.Counter(GameFlags.NightWorkCounter(day));
+                if (nightWork > 0)
+                {
+                    lines.Add(Loc.Plural("world.progress_map.diary.night_work", nightWork));
+                }
+            }
+
+            if (stage != null && stage.terminal && stage.closes_gate)
+            {
+                if (state.HasFlag(GameFlags.VocationRevealed))
+                {
+                    lines.Add(Loc.T("world.progress_map.diary.gate.closed"));
+                }
+                else
+                {
+                    int left = StageDirector.GateCoursesLeft(stage);
+                    if (left > 0)
+                    {
+                        lines.Add(Loc.Plural("toast.gate.waits", left));
+                    }
+                }
+            }
+
+            if (lines.Count == 0)
+            {
+                return Loc.T("world.progress_map.diary.nothing_yet");
+            }
+
+            return string.Join("\n", lines.ToArray());
         }
 
         /// <summary>
@@ -720,6 +817,14 @@ namespace SheepGate.World
             _detailItemState = UIKit.CreateText(rewardWords, "SelectedItemState", string.Empty,
                 DesignTokens.Type.Minimum, DesignTokens.Ink.OnScrollMuted, TextAnchor.MiddleLeft);
             _detailItemState.raycastTarget = false;
+
+            // The diary: what that day actually was in this run — what the player laid, what the
+            // night did, what they chose, how a contest ended, and on the last day whether the
+            // gate is still waiting. Read off counters and flags the day wrote; nothing here is
+            // authored per stage, so a stop the run has not reached says only that.
+            _detailDiary = UIKit.CreateText(card, "SelectedDiary", string.Empty,
+                DesignTokens.Type.Minimum, DesignTokens.Ink.OnScroll, TextAnchor.UpperLeft);
+            _detailDiary.raycastTarget = false;
 
             RectTransform rule = UIKit.CreateRect("Rule", card);
             Image ruleImage = rule.gameObject.AddComponent<Image>();

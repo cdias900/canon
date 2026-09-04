@@ -1580,6 +1580,7 @@ namespace SheepGate.E2E
             if (wall.ApplyWork(gate, units) && resources.Spend(units))
             {
                 _gateWorkLaid += units;
+                state.Bump(GameFlags.LaidCounter(state.day), units);
             }
         }
 

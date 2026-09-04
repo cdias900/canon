@@ -827,6 +827,7 @@ namespace SheepGate.Contest
                 if (!string.IsNullOrEmpty(ContestId))
                 {
                     state.SetFlag(GameFlags.ContestResolvedFor(ContestId));
+                    state.counters[GameFlags.ContestOutcomeCounter(ContestId)] = 1 + (int)outcome;
                 }
 
                 // The flat flag stays written as well. It costs one byte, it is what any caller

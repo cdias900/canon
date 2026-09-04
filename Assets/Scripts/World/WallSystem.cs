@@ -662,6 +662,7 @@ namespace SheepGate.World
             }
 
             _wall.ApplyWork(SegmentId, units);
+            RecordLaid(units);
 
             // The day ends by itself the moment capacity reaches zero, with no confirmation and no
             // way back, so the last warning a player can act on is the one before it. Announced at
@@ -681,6 +682,16 @@ namespace SheepGate.World
                     state.counters[ExposedWorkDayKey] = state.day;
                     WorldRuntime.AddVocation(WorldRuntime.VocationZealot, 2);
                 }
+            }
+        }
+
+        /// <summary>The day's diary: what the player's own hands laid today, for the map to tell back.</summary>
+        private static void RecordLaid(int units)
+        {
+            GameState state = WorldRuntime.State;
+            if (state != null && units > 0)
+            {
+                state.Bump(GameFlags.LaidCounter(state.day), units);
             }
         }
 

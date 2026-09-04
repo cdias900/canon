@@ -450,6 +450,34 @@ namespace SheepGate.Core
             return "contest_resolved_" + contestId;
         }
 
+        /// <summary>Counter: work units the player laid with their own hands on this day. The map's diary reads it.</summary>
+        public static string LaidCounter(int day)
+        {
+            return "laid_d" + day;
+        }
+
+        /// <summary>Counter: work units the night crew landed on the night that ended this day.</summary>
+        public static string NightWorkCounter(int day)
+        {
+            return "night_work_d" + day;
+        }
+
+        /// <summary>Counter: how this contest ended, as <c>1 + ContestOutcome</c>, so zero means never fought.</summary>
+        public static string ContestOutcomeCounter(string contestId)
+        {
+            return "contest_outcome_" + contestId;
+        }
+
+        /// <summary>Gave the hour to the Tekoites' stretch, or kept it (stage 3). One of the two is raised by the choice.</summary>
+        public const string TekoaKept = "tekoa_kept";
+
+        /// <summary>Laid one's own courses rather than clearing the carriers' path (stage 5).</summary>
+        public const string PathOwn = "path_own";
+
+        /// <summary>Doubted, or believed, the report of an empty road (stage 7).</summary>
+        public const string RoadDoubted = "road_doubted";
+        public const string RoadBelieved = "road_believed";
+
         /// <summary>
         /// Counter key, not a flag: how many times this stage has been played to its end. Keyed by
         /// stage id rather than by day so it survives the day a stage moves in the running order.

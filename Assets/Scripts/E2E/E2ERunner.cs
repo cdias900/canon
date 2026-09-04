@@ -1549,9 +1549,140 @@ namespace SheepGate.E2E
             LayTheDayOnTheGate(resources, state);
             resources.Spend(state.workCapacity);
             yield return WaitForTheSplit(cycle, dayName);
+
+            if (IsTheVigilNight(stage))
+            {
+                yield return KeepTheVigil(stage);
+            }
+
             yield return Tap("Confirm", "the split on " + dayName);
             yield return WaitUntil(() => state.day > startingDay && !cycle.IsResolving, "the morning after " + dayName);
         }
+
+        /// <summary>The stage whose night this run spends in vigil, or 0 until it has.</summary>
+        int _vigilNight;
+
+        /// <summary>
+        /// The night before the Page: the one night of the season whose vigil returns the enemy's
+        /// own intent, on the eve of the contest that intent becomes. Chosen off the stage table
+        /// rather than by number, so a renumbered season keeps proving the same thing.
+        /// </summary>
+        static bool IsTheVigilNight(StageDef stage)
+        {
+            if (stage == null || !DayCycle.VigilOffers(stage.day))
+            {
+                return false;
+            }
+
+            StageDef[] stages = GameData.Stages;
+            if (stages == null)
+            {
+                return false;
+            }
+
+            foreach (StageDef candidate in stages)
+            {
+                if (candidate != null && candidate.reveals_page)
+                {
+                    return candidate.day == stage.day + 1;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Switches the vigil on at the split and proves the screen said its price before the
+        /// player paid it. The morning is where the return is asserted, in ClearTheMorning.
+        /// </summary>
+        IEnumerator KeepTheVigil(StageDef stage)
+        {
+            string dayName = "stage " + stage.day;
+
+            Record("the split on " + dayName + " offers a vigil", Find("VigilToggle") != null,
+                Find("VigilToggle") != null ? "VigilToggle is on the split" : "no VigilToggle on a night the table offers one");
+
+            if (Find("VigilToggle") == null)
+            {
+                yield break;
+            }
+
+            yield return Tap("VigilToggle", "the vigil on " + dayName);
+
+            EndDayPanel split = EndDayPanel.Current;
+            Record("the vigil is switched on", split != null && split.VigilSelected,
+                split == null ? "the split is gone" : "VigilSelected=" + split.VigilSelected);
+
+            // The price, next to the number it applies to: the work hint stops promising work.
+            string hint = TextOf("WorkHint");
+            string plain = hint != null ? Loc.Plural("end_day.work_hint", ParseLeadingCount(hint)) : null;
+            Record("the split says what the vigil costs",
+                !string.IsNullOrEmpty(hint) && hint != plain,
+                hint == null ? "no WorkHint on the split" : "hint reads \"" + hint + "\"");
+
+            yield return Capture(stage.day, "vigil");
+            CheckNoMissingStrings();
+            _vigilNight = stage.day;
+        }
+
+        /// <summary>The number a plural hint opens with, or 1 when it opens with a word.</summary>
+        static int ParseLeadingCount(string text)
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                return 1;
+            }
+
+            int end = 0;
+            while (end < text.Length && char.IsDigit(text[end]))
+            {
+                end++;
+            }
+
+            int value;
+            return end > 0 && int.TryParse(text.Substring(0, end), out value) ? value : 1;
+        }
+
+        /// <summary>
+        /// What the vigil bought, read off the morning it lands on: the night wrote its counters,
+        /// the report carries the page with the exact text verses.json holds for it, the reference
+        /// is gated like every other quotation, and the chapter opens from beside it.
+        /// </summary>
+        IEnumerator VerifyTheVigilsPage(StageDef stage)
+        {
+            int night = stage.day - 1;
+            string reference = DayCycle.VigilVerseFor(night);
+            GameState state = TryGetState();
+
+            Record("the vigil cost the night's work on stage " + night,
+                state != null && state.HasFlag(GameFlags.VigilKeptForDay(night))
+                && state.Counter(DayCycle.NightVigilCounter) == 1
+                && state.Counter(MorningReportUI.NightWorkCounter) == 0,
+                state == null ? "no state" : "flag=" + state.HasFlag(GameFlags.VigilKeptForDay(night))
+                    + " night_vigil=" + state.Counter(DayCycle.NightVigilCounter)
+                    + " night_work_done=" + state.Counter(MorningReportUI.NightWorkCounter));
+
+            string page = TextOf("VigilVerse");
+            VerseEntry verse = !string.IsNullOrEmpty(reference) ? ScriptureService.GetVerse(reference) : null;
+            Record("the morning shows the page the vigil read",
+                page != null && verse != null && !string.IsNullOrEmpty(verse.text) && page == verse.text,
+                page == null ? "no VigilVerse on the morning"
+                    : verse == null ? reference + " does not resolve"
+                    : "card reads \"" + page + "\"");
+
+            string label = TextOf("VigilReference");
+            bool visible = ScriptureVisibility.ReferencesVisible();
+            Record("the vigil's reference is gated like every quotation",
+                label != null && (visible ? label.Length > 0 : label.Length == 0),
+                label == null ? "no VigilReference on the card"
+                    : "references " + (visible ? "visible" : "hidden") + ", label reads \"" + label + "\"");
+
+            Record("the vigil's page opens its chapter", Find("VigilReadMore") != null,
+                Find("VigilReadMore") != null ? "VigilReadMore is beside the reference" : "no way into the chapter from the card");
+
+            yield return Capture(stage.day, "vigil-page");
+        }
+
 
         /// <summary>Work units this run has laid on the gate segment with its own capacity.</summary>
         int _gateWorkLaid;
@@ -1650,6 +1781,8 @@ namespace SheepGate.E2E
         {
             string dayName = "stage " + stage.day;
             bool captured = false;
+            bool vigilOwed = _vigilNight > 0 && _vigilNight == stage.day - 1;
+            bool vigilSeen = false;
 
             for (int panel = 0; panel < MorningPanelCap && ModalRoot.IsOpen; panel++)
             {
@@ -1658,6 +1791,14 @@ namespace SheepGate.E2E
                     yield return Capture(stage.day, "morning");
                     CheckNoMissingStrings();
                     captured = true;
+                }
+
+                // The morning's panels arrive in no promised order, so the page is looked for on
+                // every one of them rather than assumed to be the first.
+                if (vigilOwed && !vigilSeen && Find("VigilVerse") != null)
+                {
+                    vigilSeen = true;
+                    yield return VerifyTheVigilsPage(stage);
                 }
 
                 GameObject action = FindModalExit();
@@ -1674,6 +1815,12 @@ namespace SheepGate.E2E
 
             Record("the morning of " + dayName + " is clear", !ModalRoot.IsOpen,
                 ModalRoot.IsOpen ? "still on " + DescribeTopModal() : "nothing is holding the day");
+
+            if (vigilOwed)
+            {
+                Record("the morning after the vigil carried its page", vigilSeen,
+                    vigilSeen ? "the card was on the morning of " + dayName : "no VigilVerse on any panel of the morning");
+            }
         }
 
         /// <summary>The first exit this run knows on whatever panel is up, or null when it knows none.</summary>

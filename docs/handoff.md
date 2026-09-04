@@ -83,6 +83,22 @@ a screenshot; different window sizes per locale still nests the smaller window i
 
 ## What landed since the last handoff
 
+### The vigil — rule 8's information half, on the split
+
+The design's *rule of prayer* had no code behind it: prayer returns information, never force, and
+costs the night. The split panel now carries a **vigil** toggle on every night whose stage declares a
+`vigil_verse` (eight of the nine; the terminal stage has no night). Switched on, the crew off the wall
+stays up over the page instead of building — `DayCycle` lands zero night work, leaves the cleared path
+unspent, writes `vigil_kept_d<n>` and the `night_vigil` counter, and raises `vigil_kept`. The morning
+report then shows the stage's verse on a parchment card, italic, with the reference gated by
+`ScriptureVisibility` like every quotation and **Saber mais** beside it opening the chapter with the
+game asking (`trigger: vigil`). The watch is untouched by design: it is the other half of `NEH.4.9`,
+so a vigil with no watch still loses the wall, and the split says so under the toggle before the
+player commits. Deliberately not a prayer button (rule 13) and deliberately not a power: the whole
+return is text, and text pays in understanding (rule 19). Criterion 16 in the harness proves the
+three assertions per night; the e2e keeps the vigil on the eve of the Page and reads the card the
+next morning, in both languages.
+
 **The engagement wave of 2026-09-03** — nine commits from `87bd338` to `fa4b715`, each behind the
 validator, the compile, the acceptance harness and, in three batches, the end-to-end run in both
 locales. What changed, in the order it matters:

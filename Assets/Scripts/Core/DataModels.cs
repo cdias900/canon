@@ -410,6 +410,17 @@ namespace SheepGate.Core
         [JsonProperty("reward_item")] public string reward_item;
 
         /// <summary>
+        /// What the vigil returns on this stage's night, as a reference into verses.json, or null
+        /// on a night that offers none (the terminal stage has no night at all). The vigil is rule
+        /// 8's information half: whoever is not on the wall stays up over the page instead of
+        /// building, so the night's work is the price and this verse is what it buys. The verse is
+        /// always ABOUT what the next stage brings — the enemy's intent before the raid, the letters'
+        /// intent before the letters — and never a number; rule 19 stays intact by construction.
+        /// Resolved through ScriptureService, so rule 2 holds: the text is fetched, never typed.
+        /// </summary>
+        [JsonProperty("vigil_verse")] public string vigil_verse;
+
+        /// <summary>
         /// Where this stage's node sits on the progression map. Two entries, normalised 0..1 against
         /// the map image with a bottom-left origin. Asserted to be length 2 at load, because the
         /// map view indexes [0] and [1] without looking.

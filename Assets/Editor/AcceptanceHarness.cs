@@ -98,6 +98,7 @@ namespace SheepGate.EditorTools
                     TheOpeningIsNotAMenu();
                     VocationResolution();
                     NightDiffers();
+                    TheVigilCostsTheNight();
                     DaylightClock();
                     CheckInSchedule();
                 }
@@ -277,6 +278,16 @@ namespace SheepGate.EditorTools
                 }
             }
 
+            // The page a vigil returns opens its chapter from the morning report, so it is a door
+            // like any citation's and its chapter has to be there to open.
+            if (GameData.Stages != null)
+            {
+                foreach (StageDef stage in GameData.Stages)
+                {
+                    AddChapterOf(chapters, stage != null ? stage.vigil_verse : null);
+                }
+            }
+
             var gateRefs = new List<string>();
             AddDirectorChapter(chapters, gateRefs, "GateChapterRef");
             AddDirectorChapter(chapters, gateRefs, "GateRecordRef");
@@ -407,6 +418,18 @@ namespace SheepGate.EditorTools
                 if (!string.IsNullOrEmpty(stage.cutscene_node) && !GameData.Dialogue.ContainsKey(stage.cutscene_node))
                 {
                     faults.Add(stage.id + " names gathering \"" + stage.cutscene_node + "\", which this locale does not carry");
+                }
+
+                VerseEntry vigilPage;
+                if (!string.IsNullOrEmpty(stage.vigil_verse) &&
+                    (!ScriptureService.TryGetVerse(stage.vigil_verse.Trim(), out vigilPage) || vigilPage == null || string.IsNullOrEmpty(vigilPage.text)))
+                {
+                    faults.Add(stage.id + " offers a vigil on \"" + stage.vigil_verse + "\", which verses.json does not carry");
+                }
+
+                if (stage.terminal && !string.IsNullOrEmpty(stage.vigil_verse))
+                {
+                    faults.Add(stage.id + " is terminal and offers a vigil, but a terminal stage has no night to keep it on");
                 }
 
                 if (!string.IsNullOrEmpty(stage.reward_item) && CharacterCatalog.Item(stage.reward_item) == null)
@@ -1339,6 +1362,149 @@ namespace SheepGate.EditorTools
                 nights > 0 && flagFaults.Count == 0,
                 flagFaults.Count == 0 ? nights + " night(s) recorded their watch correctly"
                     : string.Join("; ", flagFaults));
+        }
+
+        // 16 — the vigil costs the night's work, returns a page, and moves nothing else.
+        //
+        // Rule 8 in three assertions per night. With a watch posted, a vigil lands zero work where
+        // an ordinary night lands some, and it is the only thing that writes the vigil flag; with
+        // the same watch it damages exactly what the ordinary night damages (nothing), because it
+        // is not a power. Without a watch, a vigil on a threat night still loses the wall — prayer
+        // alone loses the wall, in the rule's own words. And the page it returns resolves in
+        // verses.json with its chapter behind it, or the morning would show a marker where the
+        // whole return on the night's work should be.
+        static void TheVigilCostsTheNight()
+        {
+            StageDef[] stages = GameData.Stages;
+            if (stages == null || stages.Length == 0)
+            {
+                Check("16 the season has nights to keep a vigil on", false, "stages.json is missing or empty");
+                return;
+            }
+
+            var faults = new List<string>();
+            var offered = new List<string>();
+            var silent = new List<string>();
+
+            foreach (StageDef stage in stages)
+            {
+                if (stage == null || stage.terminal) continue;
+
+                if (!DayCycle.VigilOffers(stage.day))
+                {
+                    silent.Add(stage.id);
+
+                    // Asking for a vigil where none is offered is an ordinary night, not a night
+                    // that cost the work and showed nothing.
+                    NightOutcome forced = ResolveNightWithVigil(stage, true, true);
+                    if (forced.vigilFlag || forced.work <= 0)
+                    {
+                        faults.Add("night " + stage.day + " offers no page but a forced vigil " +
+                            (forced.vigilFlag ? "wrote the flag" : "landed no work"));
+                    }
+                    continue;
+                }
+
+                offered.Add(stage.id);
+
+                VerseEntry verse;
+                string reference = stage.vigil_verse.Trim();
+                if (!ScriptureService.TryGetVerse(reference, out verse) || verse == null || string.IsNullOrEmpty(verse.text))
+                {
+                    faults.Add("night " + stage.day + " returns " + reference + ", which has no text");
+                }
+
+                ChapterEntry chapter;
+                string chapterRef = ScriptureService.ChapterRefOf(reference);
+                if (string.IsNullOrEmpty(chapterRef) || !ScriptureService.TryGetChapter(chapterRef, out chapter) || chapter == null)
+                {
+                    faults.Add("night " + stage.day + " returns " + reference + ", whose chapter " + (chapterRef ?? "?") + " the reader cannot open");
+                }
+
+                NightOutcome vigil = ResolveNightWithVigil(stage, true, true);
+                NightOutcome plain = ResolveNightWithVigil(stage, true, false);
+                NightOutcome alone = ResolveNightWithVigil(stage, false, true);
+
+                if (vigil.work != 0)
+                {
+                    faults.Add("night " + stage.day + ": a vigil still landed " + vigil.work + " of work");
+                }
+
+                if (plain.work <= 0)
+                {
+                    faults.Add("night " + stage.day + ": an ordinary night landed no work, so the vigil's price is invisible");
+                }
+
+                if (!vigil.vigilFlag || plain.vigilFlag)
+                {
+                    faults.Add("night " + stage.day + ": " + GameFlags.VigilKeptForDay(stage.day) +
+                        " = " + vigil.vigilFlag + " with a vigil, " + plain.vigilFlag + " without");
+                }
+
+                if (vigil.damaged != plain.damaged)
+                {
+                    faults.Add("night " + stage.day + ": the vigil changed the damage (" +
+                        (vigil.damaged ?? "none") + " vs " + (plain.damaged ?? "none") + ")");
+                }
+
+                if (!vigil.watchFlag)
+                {
+                    faults.Add("night " + stage.day + ": the vigil lost the watch that was posted beside it");
+                }
+
+                if (stage.night_threat && alone.damaged == null)
+                {
+                    faults.Add("night " + stage.day + ": a vigil with no watch kept the wall whole — prayer alone must lose the wall");
+                }
+
+                if (!stage.night_threat && alone.damaged != null)
+                {
+                    faults.Add("night " + stage.day + " declares no threat but a vigil with no watch damaged \"" + alone.damaged + "\"");
+                }
+            }
+
+            Check("16 the vigil costs the night and returns the page",
+                offered.Count > 0 && faults.Count == 0,
+                offered.Count + " night(s) offer a vigil [" + string.Join(", ", offered) + "]" +
+                (silent.Count > 0 ? ", " + silent.Count + " offer none [" + string.Join(", ", silent) + "]" : "") +
+                (faults.Count > 0 ? " — " + string.Join("; ", faults) : ""));
+        }
+
+        struct NightOutcome
+        {
+            public int work;
+            public string damaged;
+            public bool vigilFlag;
+            public bool watchFlag;
+        }
+
+        /// <summary>
+        /// One night on a fresh run standing on this stage, resolved without the fade, with the
+        /// split fixed at six and six (a watch) or twelve and none (no watch).
+        /// </summary>
+        static NightOutcome ResolveNightWithVigil(StageDef stage, bool postWatch, bool vigil)
+        {
+            GameState state = GameState.NewGame();
+            state.day = stage.day;
+            ServiceLocator.Clear();
+            ServiceLocator.Register(state);
+
+            var host = new GameObject("HarnessVigil");
+            host.AddComponent<WallSystem>().Build(null);
+            var cycle = host.AddComponent<DayCycle>();
+            cycle.enabled = false;
+            cycle.EndDay(postWatch ? 6 : 12, postWatch ? 6 : 0, vigil);
+
+            var outcome = new NightOutcome
+            {
+                work = cycle.LastNightWorkApplied,
+                damaged = cycle.LastNightDamagedSegment,
+                vigilFlag = state.HasFlag(GameFlags.VigilKeptForDay(stage.day)),
+                watchFlag = state.HasFlag(GameFlags.WatchPostedForDay(stage.day))
+            };
+
+            UnityEngine.Object.DestroyImmediate(host);
+            return outcome;
         }
 
         // 13 — the day is its own clock, and reading is never what ends it.

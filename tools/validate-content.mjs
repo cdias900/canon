@@ -115,7 +115,9 @@ const REFERENCE_PATTERN = /^[A-Z0-9]{3}\.\d+(\.\d+)?$/;
  * the build ask for licensed text the game does not show - the exact thing the manifest's own note
  * says not to fetch.
  */
-const CITATION_KEYS = new Set(["verse", "page_verse"]);
+// vigil_verse is the page a night's vigil returns (stages.json), rendered by the morning report
+// with the same reference gate and the same way into the reader as a dialogue line's verse.
+const CITATION_KEYS = new Set(["verse", "page_verse", "vigil_verse"]);
 
 /**
  * A scripture reference as this repository spells one, found anywhere inside a string rather than

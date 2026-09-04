@@ -202,5 +202,12 @@ namespace SheepGate.Core
         /// twice on day one is telling us something the finished runs cannot.
         /// </summary>
         public const string RunRestarted = "run_restarted";
+
+        /// <summary>
+        /// The player gave up a night's work to be shown what is written about tomorrow. Carries
+        /// the stage and the reference. Read against verse_shown and chapter_opened with the
+        /// "vigil" trigger: it is the one exposure in the build the player pays for up front.
+        /// </summary>
+        public const string VigilKept = "vigil_kept";
     }
 }

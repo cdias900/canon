@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using SheepGate.Core;
+using SheepGate.Scripture;
 using SheepGate.World;
 using UnityEngine;
 using UnityEngine.UI;
@@ -58,6 +60,12 @@ namespace SheepGate.UI
         /// </summary>
         public int gateCoursesLeft;
 
+        /// <summary>Last night the crew off the wall kept vigil and laid nothing.</summary>
+        public bool vigilKept;
+
+        /// <summary>The page the vigil returned, as a reference into verses.json; null when no vigil was kept.</summary>
+        public string vigilVerse;
+
         /// <summary>
         /// Reads the morning off the run. Only facts already written into the state are used: the
         /// watch flag is read, never inferred, so this screen can never contradict the system that
@@ -101,6 +109,13 @@ namespace SheepGate.UI
             // night behind it.
             int previousDay = morningDay - 1;
             summary.watchPosted = state.HasFlag(GameFlags.WatchPostedForDay(previousDay));
+
+            // The counter says whether last night was a vigil; the stage table says what it was
+            // for. Read off the night that just ended, never the morning's own stage: the page is
+            // about today, but it was bought yesterday.
+            summary.vigilKept = state.Counter(DayCycle.NightVigilCounter) > 0
+                && state.HasFlag(GameFlags.VigilKeptForDay(previousDay));
+            summary.vigilVerse = summary.vigilKept ? DayCycle.VigilVerseFor(previousDay) : null;
 
             if (HasCounter(state, MorningReportUI.NightDamageCounter))
             {
@@ -198,6 +213,12 @@ namespace SheepGate.UI
         /// Must match SheepGate.World.DayCycle.NightDamageCounter.
         /// </summary>
         public const string NightDamageCounter = "night_damaged_segments";
+
+        /// <summary>
+        /// Trigger on the chapter_opened this card raises, and the context on its verse_shown.
+        /// One word, shared, so the funnel can join the vigil's exposure to its read.
+        /// </summary>
+        public const string VigilTrigger = "vigil";
 
         /// <summary>
         /// Height of the pinned action strip: a token of clearance, the button, and a token again.
@@ -328,6 +349,7 @@ namespace SheepGate.UI
             BuildHeader(column, summary, watched, accent);
             BuildAssignment(column, summary);
             BuildSteps(column, summary);
+            BuildVigil(column, summary);
             BuildFooter(cardRect);
         }
 
@@ -493,7 +515,12 @@ namespace SheepGate.UI
 
                 // What changed the count, said right under it. Each is a fact about a decision
                 // the player made the day before, or about the day the whole city went armed.
-                if (summary.pathCleared)
+                if (summary.vigilKept)
+                {
+                    BuildStep(steps, "Step_Vigil", UiSpriteKeys.IconDot, DesignTokens.Ambient.Sky,
+                              Loc.T("morning.vigil"), DesignTokens.Ink.Secondary);
+                }
+                else if (summary.pathCleared)
                 {
                     BuildStep(steps, "Step_PathCleared", UiSpriteKeys.IconCheck, DesignTokens.Ambient.Growth,
                               Loc.T("morning.path_cleared"), DesignTokens.Ink.Secondary);
@@ -530,6 +557,104 @@ namespace SheepGate.UI
             // always a check, because it is always true.
             BuildStep(steps, "Step_NoRegress", UiSpriteKeys.IconCheck, DesignTokens.Ambient.Growth,
                       Loc.T("morning.no_regress"), DesignTokens.Ink.Primary);
+        }
+
+        /// <summary>
+        /// What the vigil bought: the page, quoted on its own card under the steps, with the way
+        /// into its chapter beside the reference.
+        ///
+        /// Drawn like A Página — parchment, italic, the reference in mono — because it is the
+        /// same kind of object: text that was fetched, not spoken, and that the player can walk
+        /// into. The reference is gated by <see cref="ScriptureVisibility"/> exactly as every
+        /// quotation in the game is, so a vigil kept before the reveal shows the words and not
+        /// yet where they come from (rule 12), and the chapter is reachable either way, which is
+        /// the half of that rule that is never deferred.
+        ///
+        /// Nothing here pays anything. The card is the whole return on the night's work, and the
+        /// button opens the reader with the game asking — a vigil is the game's invitation, not
+        /// the player's own idea, so it is never counted as unprompted.
+        /// </summary>
+        static void BuildVigil(RectTransform column, NightSummary summary)
+        {
+            if (!summary.vigilKept || string.IsNullOrEmpty(summary.vigilVerse))
+            {
+                return;
+            }
+
+            string verseRef = summary.vigilVerse.Trim();
+            VerseEntry verse = ScriptureService.GetVerse(verseRef);
+
+            Image card = UIKit.CreateCard(column, "VigilPage", UIKit.CardStyle.Scroll);
+            card.raycastTarget = false;
+            var cardRect = (RectTransform)card.transform;
+            UIKit.VerticalGroup(card.gameObject, DesignTokens.Space.S12,
+                                Pad(DesignTokens.Space.S16, DesignTokens.Space.S16));
+
+            UIKit.CreateText(cardRect, "VigilEyebrow", Loc.T("morning.vigil.eyebrow"),
+                DesignTokens.Type.Minimum, DesignTokens.Ink.OnScrollMuted,
+                TextAnchor.UpperLeft, DesignTokens.TypeRole.BodyStrong);
+
+            Text body = UIKit.CreateText(cardRect, "VigilVerse",
+                verse != null && !string.IsNullOrEmpty(verse.text) ? verse.text : Loc.T("scripture.unavailable", verseRef),
+                DesignTokens.Type.Body, DesignTokens.Ink.OnScroll, TextAnchor.UpperLeft);
+            body.fontStyle = FontStyle.Italic;
+
+            RectTransform footer = UIKit.CreateRect("VigilFooter", cardRect);
+            UIKit.HorizontalGroup(footer.gameObject, DesignTokens.Space.S12, new RectOffset(), TextAnchor.MiddleLeft);
+
+            Text reference = UIKit.CreateText(footer, "VigilReference",
+                ReferenceLabel(verse, verseRef),
+                DesignTokens.Type.Mono, DesignTokens.Ink.OnScrollMuted,
+                TextAnchor.MiddleLeft, DesignTokens.TypeRole.Mono);
+            UIKit.Layout(reference).flexibleWidth = 1f;
+
+            string chapterRef = ScriptureService.ChapterRefOf(verseRef);
+            if (!string.IsNullOrEmpty(chapterRef))
+            {
+                UIKit.CreateButton(footer, "VigilReadMore", Loc.T("dialogue.read_more"),
+                    UIKit.ButtonVariant.Secondary,
+                    () => ChapterReaderUI.Open(chapterRef, VigilTrigger, true));
+            }
+
+            Telemetry.Track(TelemetryEvents.VerseShown, new Dictionary<string, object>
+            {
+                { "ref", verseRef },
+                { "context", VigilTrigger },
+                { "stage", ResolveStageId(summary.day - 1) }
+            });
+
+            if (verse == null || string.IsNullOrEmpty(verse.text))
+            {
+                Debug.LogWarning("[Morning] " + verseRef + " has no text in verses.json; the vigil card shows the missing marker.");
+            }
+        }
+
+        /// <summary>
+        /// The reference under the page, or nothing at all before the reveal. Same rule as the
+        /// dialogue and A Página: hidden is not denied, the chapter button beside it still opens.
+        /// </summary>
+        static string ReferenceLabel(VerseEntry verse, string verseRef)
+        {
+            if (!ScriptureVisibility.ReferencesVisible())
+            {
+                return string.Empty;
+            }
+
+            string label = verse != null && !string.IsNullOrEmpty(verse.ref_display) ? verse.ref_display : verseRef;
+            VersionInfo version = ScriptureService.Version;
+            if (version != null && !string.IsNullOrEmpty(version.abbrev))
+            {
+                label += " · " + version.abbrev;
+            }
+
+            return label;
+        }
+
+        /// <summary>The stage id the night belonged to, for the funnel; the number when the table has no row.</summary>
+        static string ResolveStageId(int day)
+        {
+            StageDef stage = GameData.Stage(day);
+            return stage != null && !string.IsNullOrEmpty(stage.id) ? stage.id : ("d" + day);
         }
 
         /// <summary>

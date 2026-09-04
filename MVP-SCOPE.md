@@ -172,8 +172,14 @@ Four segments, four **courses** each. `seg_02` is the exposed one.
 [ { "day": 6, "id": "enemies_rise", "type": "battle", "terminal": false, "night_threat": true,
     "contest": "raid", "cutscene_node": null, "finishes_wall": false, "closes_gate": false,
     "gate_segment": null, "reveals_page": true, "reveals_vocation": false,
-    "reward_item": "acc_watch_horn", "map_anchor": [0.67, 0.60], "map_focus": [0.68, 0.62] } ]
+    "reward_item": "acc_watch_horn", "vigil_verse": "NEH.4.16",
+    "map_anchor": [0.67, 0.60], "map_focus": [0.68, 0.62] } ]
 ```
+
+`vigil_verse` is the page the night's **vigil** returns (§05, `DayCycle`): a reference into
+`verses.json`, always about the stage that follows, `null` on a night that offers none. The
+validator checks it as a citation — the verse and its chapter both have to be there — and the
+terminal stage, which has no night, carries `null`.
 
 **Nine rows, and nothing in C# counts days.** `StageDirector` reads the row the run is standing in
 and does what it declares; `DayCycle` reads `night_threat`; the map reads the anchors. Adding a
@@ -245,7 +251,7 @@ standalone screen, so that route keeps working; nothing routes to it.
 | `PlayerController` · `GridPathfinder` | Tap the ground → path → move. Tap an interactable → approach and `Interact()`. A* on the tilemap grid. |
 | `WallSystem` | Courses per segment, consumes work, swaps sprite, raises completion. `DamageSegment` clears in-progress work only. |
 | `ResourceSystem` | Rubble split into stone, timber and crafted blocks, plus daily work capacity. **Capacity is the day's clock**, and it is **four courses** — what one morning's piles make (five of stone, four of timber, a block each, one stone pile to spare for a donation). A dry course on day 1 costs a block's worth of stone. The night crew is a separate number, `DayCycle.CrewSize` = 12; the two used to share one field and the day never ended by itself after the first. |
-| `DayCycle` | **The day ends by itself.** Light tracks capacity spent; when it hits zero the village goes to dusk and the split panel opens on its own. `DuskWaits` holds the night for whatever has the screen. A stage with `night_threat: false` still plays its whole night — that flag switches off the damage and nothing else. |
+| `DayCycle` | **The day ends by itself.** Light tracks capacity spent; when it hits zero the village goes to dusk and the split panel opens on its own. `DuskWaits` holds the night for whatever has the screen. A stage with `night_threat: false` still plays its whole night — that flag switches off the damage and nothing else. **The vigil** is rule 8's information half, on the same split: whoever is not on the wall stays up over the page instead of building, the night's work is the price (zero units, the cleared path left unspent), and the morning report shows the stage's `vigil_verse` on a card with the way into its chapter. It is not a prayer button (rule 13) and it is independent of the watch — a vigil with no watch still loses the wall, a watch with no vigil still learns nothing. Offered only on a night whose stage declares a page. |
 | `DialogueSystem` | Line queue, typewriter reveal, resolves `verse`, applies `grants`. |
 | `ScriptureService` | In-memory index of the locale's `verses.json`. Never hits the network. |
 | `ScriptureVisibility` | Decides whether `ref_display` is shown. One-way: hidden until the reveal, never re-hidden. |
@@ -294,6 +300,14 @@ the rows mean.
 > **The two beats the build exists for are now three stages apart.** A Página lands at stage 6 and the
 > gate closes at stage 9. In the three-day build both happened on day 3; anything that still says so
 > is describing a game that no longer exists.
+
+**Every night but the last offers a vigil**, and what it returns is written in the table's
+`vigil_verse`: the invitation's intent before the invitation (`NEH.6.2`), the nobles of Tekoa before
+their stretch is asked for (`NEH.3.5`), the people's will before the roll call (`NEH.4.6`), the mockery
+before Sambalate first speaks (`NEH.4.1`), the plot before the raid (`NEH.4.11`), the spear in the other
+hand before the armed nights (`NEH.4.16`), the letters' purpose before the letters (`NEH.6.9`), and the
+enemy's own verdict before the dedication (`NEH.6.16`). Each is about tomorrow, none is a number, and
+all eight were already in the corpus — the vigil added no citation the key could not fetch.
 
 Six residents, all named in Nehemiah 3 and **with no recorded speech in the text**. That is the
 category where writing dialogue is legitimate: the Bible names them and does not quote them.
@@ -521,6 +535,7 @@ so a real backend can arrive later without touching the call sites.
 | `node_completed` | Work progress. |
 | `vocation_revealed` | Real distribution of behaviour. |
 | `locale_changed` | Which language people actually play in. |
+| `vigil_kept` | The player paid a night's work to be shown what is written about tomorrow. `stage` and `ref`; its `verse_shown` carries `context: vigil`, and the card's reader opens with `trigger: vigil`. The one exposure in the build the player pays for up front. |
 
 ---
 
@@ -585,6 +600,7 @@ the version abbreviation and its copyright notice (`ChapterReaderUI.BuildColopho
 | 13 | The day ends by itself when capacity hits zero; no HUD button ends it; no night resolves with a panel open. |
 | 14 | The translation copyright is displayed in-game. |
 | 15 | A run with no character is never offered a launch screen to press through (§04). |
+| 16 | The vigil costs the night's work and returns a page that resolves; it changes nothing else — same damage as the ordinary night beside the same watch, and with no watch a vigil still loses the wall on a threat night. |
 
 > **The harness carries more than the fourteen, and the prefix says which is which.** Numbered
 > criteria come from this section; `L1`–`L3` are the localization checks that arrived with the

@@ -174,6 +174,13 @@ namespace SheepGate.World
         /// <summary>Counter set every night: 1 when that night's crew built double on a cleared path.</summary>
         public const string NightPathClearedCounter = "night_path_cleared";
 
+        /// <summary>
+        /// Counter written by every night: 1 when the crew off the wall kept vigil instead of
+        /// building, else 0. Replaced nightly like the others, so a morning never reads the vigil
+        /// of two nights ago as last night's.
+        /// </summary>
+        public const string NightVigilCounter = "night_vigil";
+
         /// <summary>Counter set every night: the units the Tekoites returned on the player's stretch that morning.</summary>
         public const string NightTekoaReturnedCounter = "night_tekoa_returned";
 
@@ -262,6 +269,9 @@ namespace SheepGate.World
 
         /// <summary>Work units the last night crew actually landed on the wall.</summary>
         public int LastNightWorkApplied { get; private set; }
+
+        /// <summary>Whether the night that last resolved was spent in vigil rather than on the work.</summary>
+        public bool LastNightHadVigil { get; private set; }
 
         private Image _tint;
         private Type _lightType;
@@ -721,6 +731,17 @@ namespace SheepGate.World
         /// <summary>Resolves the night on the chosen split and advances to the next morning.</summary>
         public void EndDay(int workers, int watchers)
         {
+            EndDay(workers, watchers, false);
+        }
+
+        /// <summary>
+        /// Ends the day with the split and, when <paramref name="vigil"/> is set, the crew off the
+        /// wall staying up over the page instead of building. The two-argument overload is the
+        /// one every existing caller has and it means "no vigil", so nothing that resolved a night
+        /// before this existed resolves it differently now.
+        /// </summary>
+        public void EndDay(int workers, int watchers, bool vigil)
+        {
             if (IsResolving)
             {
                 Debug.LogWarning("[World] EndDay ignored: the night is already resolving.");
@@ -730,25 +751,25 @@ namespace SheepGate.World
             if (!isActiveAndEnabled)
             {
                 Debug.LogWarning("[World] EndDay called on an inactive DayCycle; resolving without the fade.");
-                ResolveImmediately(workers, watchers);
+                ResolveImmediately(workers, watchers, vigil);
                 return;
             }
 
-            StartCoroutine(ResolveNight(workers, watchers));
+            StartCoroutine(ResolveNight(workers, watchers, vigil));
         }
 
-        private void ResolveImmediately(int workers, int watchers)
+        private void ResolveImmediately(int workers, int watchers, bool vigil)
         {
             IsResolving = true;
             ApplyNightAmount(1f, false);
-            ResolveNightOutcome(workers, watchers);
+            ResolveNightOutcome(workers, watchers, vigil);
             AdvanceToMorning();
             ApplyNightAmount(0f, false);
             IsResolving = false;
             RaiseMorning();
         }
 
-        private IEnumerator ResolveNight(int workers, int watchers)
+        private IEnumerator ResolveNight(int workers, int watchers, bool vigil)
         {
             IsResolving = true;
 
@@ -756,7 +777,7 @@ namespace SheepGate.World
             // village is already late, and restarting at noon would flash before it darkened.
             yield return Fade(NightAmount, 1f, DuskSeconds);
 
-            ResolveNightOutcome(workers, watchers);
+            ResolveNightOutcome(workers, watchers, vigil);
 
             yield return new WaitForSeconds(NightHoldSeconds);
 
@@ -768,7 +789,7 @@ namespace SheepGate.World
             RaiseMorning();
         }
 
-        private void ResolveNightOutcome(int workers, int watchers)
+        private void ResolveNightOutcome(int workers, int watchers, bool vigil)
         {
             GameState state = WorldRuntime.State;
             if (state == null)
@@ -786,6 +807,11 @@ namespace SheepGate.World
             LastNightHadWatch = CountsAsWatch(LastWatchers, crew);
             LastNightDamagedSegment = null;
             LastNightWorkApplied = 0;
+
+            // A vigil is only a vigil on a night that has a page to return. A stage with no
+            // vigil_verse offers no toggle, and a caller that passes true there anyway gets an
+            // ordinary night rather than a night that cost the work and showed nothing.
+            LastNightHadVigil = vigil && VigilOffers(day);
 
             WallSystem wall = FindWallSystem();
             if (wall == null)
@@ -822,9 +848,23 @@ namespace SheepGate.World
             // Recorded so the morning can tell the player what their split actually bought.
             int nightUnits = NightWorkUnits(LastWorkers, day);
 
+            // Rule 8, the information half: the crew off the wall stays up over the page and lays
+            // nothing. The watch is untouched — it is the other half of NEH.4.9 and it is decided
+            // on the slider — so a vigil with no watch still loses the wall, and a watch with no
+            // vigil still learns nothing. The price is the whole night's work, not a share of it:
+            // a vigil that cost half would be a discount, and rule 8 says it costs time.
+            if (LastNightHadVigil)
+            {
+                nightUnits = 0;
+                state.SetFlag(GameFlags.VigilKeptForDay(day));
+                ReportVigil(state, day);
+            }
+
             // The carriers' path, cleared that afternoon for an hour of the player's own work: the
-            // crew reaches the wall without tripping and lands double, on this one night.
-            bool pathCleared = state.HasFlag(GameFlags.PathCleared) && state.Counter(PathClearedSpentKey) == 0;
+            // crew reaches the wall without tripping and lands double, on this one night. Nobody
+            // walked it on a vigil night, so it waits, unspent, for the next night that does.
+            bool pathCleared = !LastNightHadVigil
+                && state.HasFlag(GameFlags.PathCleared) && state.Counter(PathClearedSpentKey) == 0;
             if (pathCleared)
             {
                 state.counters[PathClearedSpentKey] = 1;
@@ -836,9 +876,42 @@ namespace SheepGate.World
             SetCounter(state, GameFlags.NightWorkCounter(day), LastNightWorkApplied);
             SetCounter(state, NightDamageCounter, LastNightDamagedSegment != null ? 1 : 0);
             SetCounter(state, NightPathClearedCounter, pathCleared ? 1 : 0);
+            SetCounter(state, NightVigilCounter, LastNightHadVigil ? 1 : 0);
             SetCounter(state, NightTekoaReturnedCounter, ReturnTheTekoitesHour(state, wall));
 
             ScoreSteward(state, day);
+        }
+
+        /// <summary>
+        /// Whether this stage's night has a page for a vigil to return. Read off the stage table,
+        /// so a stage with nothing to say tonight simply offers nothing, and the terminal stage —
+        /// which has no night — answers false without a special case.
+        /// </summary>
+        public static bool VigilOffers(int day)
+        {
+            return !string.IsNullOrEmpty(VigilVerseFor(day));
+        }
+
+        /// <summary>The reference the vigil on this stage's night returns, or null.</summary>
+        public static string VigilVerseFor(int day)
+        {
+            StageDef stage = GameData.Stage(day);
+            return stage != null ? stage.vigil_verse : null;
+        }
+
+        /// <summary>
+        /// One event for the choice, with the stage it was made on and the page it bought. The
+        /// verse's own exposure is reported where it is shown, by the morning report, so the two
+        /// can be joined and so a vigil whose morning never rendered shows up as exactly that.
+        /// </summary>
+        private static void ReportVigil(GameState state, int day)
+        {
+            StageDef stage = GameData.Stage(day);
+            Telemetry.Track(TelemetryEvents.VigilKept, new Dictionary<string, object>
+            {
+                { "stage", stage != null && !string.IsNullOrEmpty(stage.id) ? stage.id : ("d" + day) },
+                { "ref", VigilVerseFor(day) }
+            });
         }
 
         /// <summary>

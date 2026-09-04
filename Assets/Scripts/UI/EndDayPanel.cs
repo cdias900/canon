@@ -86,10 +86,11 @@ namespace SheepGate.UI
 
         int _total = DefaultCrew;
         int _workers;
+        bool _vigil;
         bool _closed;
         bool _built;
 
-        Action<int, int> _onConfirm;
+        Action<int, int, bool> _onConfirm;
         Action _onDefer;
 
         Text _workNumber;
@@ -99,6 +100,7 @@ namespace SheepGate.UI
         Text _watchStatus;
         Text _watchRule;
         Image _watchIcon;
+        Text _vigilState;
 
         /// <summary>True while the split panel is on screen.</summary>
         public static bool IsOpen
@@ -131,13 +133,13 @@ namespace SheepGate.UI
         {
             if (cycle == null)
             {
-                return Open(ResolveCrewSize(), null, null);
+                return Open(ResolveCrewSize(), (Action<int, int, bool>)null, null);
             }
 
             // The way back exists only while the day could actually go on, which is the day cycle's
             // to answer and not this screen's to guess.
             Action defer = cycle.CanDeferDusk ? (Action)cycle.CancelDusk : null;
-            return Open(ResolveCrewSize(), (workers, watchers) => cycle.EndDay(workers, watchers), defer);
+            return Open(ResolveCrewSize(), (workers, watchers, vigil) => cycle.EndDay(workers, watchers, vigil), defer);
         }
 
         /// <summary>
@@ -145,6 +147,19 @@ namespace SheepGate.UI
         /// DayCycle in the scene; a null defer callback means this evening cannot be turned down.
         /// </summary>
         public static EndDayPanel Open(int totalPeople, Action<int, int> onConfirm, Action onDefer)
+        {
+            Action<int, int, bool> confirm = onConfirm != null
+                ? (workers, watchers, vigil) => onConfirm(workers, watchers)
+                : (Action<int, int, bool>)null;
+            return Open(totalPeople, confirm, onDefer);
+        }
+
+        /// <summary>
+        /// The split with the vigil in it. A caller that only cares about the two counts uses the
+        /// overload above; this one is what the day cycle takes, because the night's work is what
+        /// the vigil costs and the day cycle is where the night's work is resolved.
+        /// </summary>
+        public static EndDayPanel Open(int totalPeople, Action<int, int, bool> onConfirm, Action onDefer)
         {
             if (_current != null && !_current._closed)
             {
@@ -185,7 +200,7 @@ namespace SheepGate.UI
 
         // ------------------------------------------------------------------ construction
 
-        void Build(int totalPeople, Action<int, int> onConfirm, Action onDefer)
+        void Build(int totalPeople, Action<int, int, bool> onConfirm, Action onDefer)
         {
             if (_built)
             {
@@ -197,6 +212,7 @@ namespace SheepGate.UI
             _onDefer = onDefer;
             _total = Mathf.Max(MinimumPerSide * 2, Mathf.Max(1, totalPeople));
             _workers = ResolveInitialWorkers(_total);
+            _vigil = false;
 
             var container = (RectTransform)transform;
 
@@ -237,6 +253,7 @@ namespace SheepGate.UI
                     TextAnchor.UpperLeft, DesignTokens.TypeRole.Mono);
             }
 
+            BuildVigil(column);
             BuildHints(column);
             BuildWatchStatus(column);
 
@@ -379,6 +396,58 @@ namespace SheepGate.UI
         }
 
         /// <summary>
+        /// The vigil: whoever is not on the wall stays up over the page instead of building, and
+        /// in the morning the report shows what was written about the day ahead.
+        ///
+        /// Rule 8 in one row. It is not a prayer button (rule 13 forbids one) and it is not a
+        /// power: it returns information and it costs the night's work, and both halves are said
+        /// on this screen before the player commits — the bill in plain sight is what makes it a
+        /// decision. It is independent of the slider on purpose: the watch is the other half of
+        /// NEH.4.9, so a vigil with no watch still loses the wall, and the line under the toggle
+        /// says so in the same breath.
+        ///
+        /// Offered only on a night that has a page to return, which the stage table decides; on
+        /// any other night the row is simply not there, so nothing on this screen can promise
+        /// what the morning cannot show.
+        ///
+        /// It sits directly under the slider, above the hints, and says its price in one line. The
+        /// first draft put it under the hints with a three-line explanation, and at 1080×1920 the
+        /// toggle landed under the pinned footer: reachable by scrolling, invisible on arrival,
+        /// and the e2e's tap found the scrim instead of the button. A decision the player has to
+        /// scroll to find is not in plain sight.
+        /// </summary>
+        void BuildVigil(RectTransform column)
+        {
+            GameState state = TryGetState();
+            if (state == null || !DayCycle.VigilOffers(state.day))
+            {
+                return;
+            }
+
+            RectTransform field = UIKit.CreateRect("Vigil", column);
+            UIKit.VerticalGroup(field.gameObject, DesignTokens.Space.S8, new RectOffset());
+
+            UIKit.CreateText(field, "VigilLabel", Loc.T("end_day.vigil.label"),
+                DesignTokens.Type.Body, DesignTokens.Ink.Primary,
+                TextAnchor.UpperLeft, DesignTokens.TypeRole.BodyStrong);
+
+            UIKit.CreateText(field, "VigilCost", Loc.T("end_day.vigil.cost"),
+                DesignTokens.Type.Mono, DesignTokens.Ink.Muted,
+                TextAnchor.UpperLeft, DesignTokens.TypeRole.Mono);
+
+            // The state, not the action, on the button — the settings toggles set that rule and
+            // this row follows it, so a player who has read one knows how to read the other.
+            Button toggle = UIKit.CreateButton(field, "VigilToggle", VigilStateLabel(_vigil),
+                                               UIKit.ButtonVariant.Secondary, ToggleVigil);
+            _vigilState = toggle.GetComponentInChildren<Text>();
+        }
+
+        static string VigilStateLabel(bool vigil)
+        {
+            return vigil ? Loc.T("end_day.vigil.on") : Loc.T("end_day.vigil.off");
+        }
+
+        /// <summary>
         /// Where this split falls against the rule, restated on every drag.
         ///
         /// Three signals, as on the morning report, and the same pair of accents: growth when the
@@ -464,6 +533,29 @@ namespace SheepGate.UI
             Refresh();
         }
 
+        void ToggleVigil()
+        {
+            if (_closed)
+            {
+                return;
+            }
+
+            _vigil = !_vigil;
+
+            if (_vigilState != null)
+            {
+                _vigilState.text = VigilStateLabel(_vigil);
+            }
+
+            Refresh();
+        }
+
+        /// <summary>True while the split on screen has the vigil switched on.</summary>
+        public bool VigilSelected
+        {
+            get { return _vigil; }
+        }
+
         void Refresh()
         {
             int workers = ClampWorkers(_workers);
@@ -481,7 +573,11 @@ namespace SheepGate.UI
 
             if (_workHint != null)
             {
-                _workHint.text = Loc.Plural("end_day.work_hint", workers);
+                // The same people, a different night: the hint under the work count is the one
+                // place the vigil's price is written next to the number it applies to.
+                _workHint.text = _vigil
+                    ? Loc.Plural("end_day.vigil_hint", workers)
+                    : Loc.Plural("end_day.work_hint", workers);
             }
 
             if (_watchHint != null)
@@ -558,19 +654,20 @@ namespace SheepGate.UI
                 state.watchAssigned = watchers;
             }
 
-            Action<int, int> callback = _onConfirm;
+            bool vigil = _vigil;
+            Action<int, int, bool> callback = _onConfirm;
             Close();
 
             if (callback != null)
             {
-                callback(workers, watchers);
+                callback(workers, watchers, vigil);
                 return;
             }
 
             DayCycle cycle = FindFirstObjectByType<DayCycle>();
             if (cycle != null)
             {
-                cycle.EndDay(workers, watchers);
+                cycle.EndDay(workers, watchers, vigil);
                 return;
             }
 

@@ -440,6 +440,16 @@ namespace SheepGate.Core
         }
 
         /// <summary>
+        /// The night that ended this day was spent in vigil: the crew off the wall stayed up over
+        /// the page and laid nothing. One flag per night, the same shape as the watch, and for the
+        /// same reason — a single boolean would carry the first vigil into every morning after it.
+        /// </summary>
+        public static string VigilKeptForDay(int day)
+        {
+            return "vigil_kept_d" + day;
+        }
+
+        /// <summary>
         /// This contest has been fought. Keyed by contest id, because a season with two encounters
         /// cannot share one boolean: the flat <see cref="ContestResolved"/> would short-circuit the
         /// second contest with the first one's ending, which is a failure that logs nothing and

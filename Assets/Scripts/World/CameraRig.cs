@@ -305,7 +305,10 @@ namespace SheepGate.World
             // player can stand at the wall and be centred on it. The skirt is drawn deep enough
             // for the patrol view, so what the slack shows is terrain, never the void. Patrol keeps
             // the flush clamp: it frames the city, and slack there would let a drag frame the sky.
-            float slackY = IsPatrolView ? 0f : halfHeight * FollowSlack;
+            // Capped at the close size: on the way back from patrol the size is still near
+            // PatrolSize for a few frames, and slack measured from it would let the view reach
+            // past the skirt and flash the void above the wall while it zooms in.
+            float slackY = IsPatrolView ? 0f : Mathf.Min(halfHeight, CloseSize) * FollowSlack;
             float minY = bounds.min.y + halfHeight - slackY;
             float maxY = bounds.max.y - halfHeight + slackY;
             position.y = minY <= maxY ? Mathf.Clamp(position.y, minY, maxY) : bounds.center.y;

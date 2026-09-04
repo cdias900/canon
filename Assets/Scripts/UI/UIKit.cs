@@ -807,6 +807,34 @@ namespace SheepGate.UI
             return eventSystem;
         }
 
+        /// <summary>
+        /// Whether a screen position is over any UI graphic, asked of the canvases directly.
+        ///
+        /// <see cref="EventSystem.IsPointerOverGameObject()"/> answers for one pointer id, and the
+        /// id a touch gets depends on which input module is running: with both input handlers
+        /// active the event system runs the legacy module, the world reads touches through the
+        /// Input System, and the no-argument call asks about the mouse — which on a phone is
+        /// nowhere. It also answers from the module's last pass, so on the frame a touch begins
+        /// the answer can be stale. So a tap that pressed Voltar, Continuar or a dialogue branch
+        /// fell through to the ground under the button and the character walked off. A raycast
+        /// at the position, at the time of the press, is independent of both.
+        /// </summary>
+        public static bool IsPointerOverUserInterface(Vector2 screenPosition)
+        {
+            EventSystem eventSystem = EventSystem.current;
+            if (eventSystem == null)
+            {
+                return false;
+            }
+
+            var data = new PointerEventData(eventSystem) { position = screenPosition };
+            _uiRaycastResults.Clear();
+            eventSystem.RaycastAll(data, _uiRaycastResults);
+            return _uiRaycastResults.Count > 0;
+        }
+
+        private static readonly List<RaycastResult> _uiRaycastResults = new List<RaycastResult>();
+
         // ------------------------------------------------------------------ rect helpers
 
         public static RectTransform CreateRect(string name, Transform parent)

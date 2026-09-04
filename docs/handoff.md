@@ -84,6 +84,22 @@ a screenshot; different window sizes per locale still nests the smaller window i
 
 ## What landed since the last handoff
 
+### A tap on a button walked the character
+
+The user's second report from the phone: any tap on the interface — a dialogue branch, Voltar
+on the patrol, Continuar on the welcome-back — also reached the ground under it and the
+character set off. The project runs with **both input handlers active**
+(`activeInputHandler: 2`): `UIKit.EnsureEventSystem` therefore builds the legacy
+`StandaloneInputModule`, while `PlayerController.TryReadTap` and the patrol drag read touches
+through the Input System and asked `EventSystem.IsPointerOverGameObject()` with no id — the
+mouse's id, and a phone has no mouse — so the answer was always "not over UI". The id-based
+call also answers from the module's last pass, which on the frame a touch begins can be
+stale. `UIKit.IsPointerOverUserInterface(screenPosition)` raycasts the canvases at the
+position at the time of the press, independent of module and frame order; the player and the
+patrol drag ask both. Seen on the simulator before and after: Voltar used to raise "Não dá
+para chegar aí" (the tap fell through to an unreachable cell), and no longer does. The e2e
+never caught it because it taps through `ExecuteEvents`, not through a pointer.
+
 ### The wall was at the wrong end of the city — and the phone said so first
 
 The first play on a physical iPhone (16 Pro, 04/09/2026) came back with "I can't see the wall or

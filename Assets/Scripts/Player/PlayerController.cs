@@ -653,7 +653,7 @@ namespace SheepGate.Player
                 if (primaryTouch != null && primaryTouch.press.wasPressedThisFrame)
                 {
                     screenPosition = primaryTouch.position.ReadValue();
-                    overUI = IsPointerOverUI();
+                    overUI = IsPointerOverUI() || UIKit.IsPointerOverUserInterface(screenPosition);
                     return true;
                 }
             }
@@ -662,7 +662,7 @@ namespace SheepGate.Player
             if (mouse != null && mouse.leftButton.wasPressedThisFrame)
             {
                 screenPosition = mouse.position.ReadValue();
-                overUI = IsPointerOverUI();
+                overUI = IsPointerOverUI() || UIKit.IsPointerOverUserInterface(screenPosition);
                 return true;
             }
 
@@ -670,7 +670,7 @@ namespace SheepGate.Player
             if (pointer != null && pointer.press.wasPressedThisFrame)
             {
                 screenPosition = pointer.position.ReadValue();
-                overUI = IsPointerOverUI();
+                overUI = IsPointerOverUI() || UIKit.IsPointerOverUserInterface(screenPosition);
                 return true;
             }
 #endif
@@ -682,7 +682,7 @@ namespace SheepGate.Player
                 if (touch.phase == UnityEngine.TouchPhase.Began)
                 {
                     screenPosition = touch.position;
-                    overUI = IsPointerOverUI(touch.fingerId);
+                    overUI = IsPointerOverUI(touch.fingerId) || UIKit.IsPointerOverUserInterface(screenPosition);
                     return true;
                 }
             }
@@ -690,7 +690,7 @@ namespace SheepGate.Player
             {
                 Vector3 mousePosition = UnityEngine.Input.mousePosition;
                 screenPosition = new Vector2(mousePosition.x, mousePosition.y);
-                overUI = IsPointerOverUI();
+                overUI = IsPointerOverUI() || UIKit.IsPointerOverUserInterface(screenPosition);
                 return true;
             }
 #endif

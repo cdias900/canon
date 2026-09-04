@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using SheepGate.UI;
 using SheepGate.Core;
 
 namespace SheepGate.World
@@ -242,7 +243,7 @@ namespace SheepGate.World
                 return;
             }
 
-            if (IsPointerOverUserInterface())
+            if (IsPointerOverUserInterface(screenPosition))
             {
                 _dragging = false;
                 return;
@@ -262,12 +263,15 @@ namespace SheepGate.World
             _patrolX -= delta;
         }
 
-        private static bool IsPointerOverUserInterface()
+        private static bool IsPointerOverUserInterface(Vector2 screenPosition)
         {
             try
             {
                 EventSystem current = EventSystem.current;
-                return current != null && current.IsPointerOverGameObject();
+                // Both checks: see UIKit.IsPointerOverUserInterface for why the id-based one
+                // alone let the drag start under a button on a phone.
+                return current != null
+                       && (current.IsPointerOverGameObject() || UIKit.IsPointerOverUserInterface(screenPosition));
             }
             catch (Exception)
             {

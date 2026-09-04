@@ -720,6 +720,21 @@ namespace SheepGate.EditorTools
                 fought.Count > 0 ? "checked [" + string.Join(", ", fought) + "]"
                     : "no stage declares a battle or a boss");
 
+            // The trumpet flag has to survive the trip through JSON in both directions: a default
+            // that failed to apply would silence the assault, and a field the loader ignored would
+            // sound the horn at the mockery. Acceptance cannot hear audio, so it reads the rows.
+            var sounding = new List<string>();
+            var silent = new List<string>();
+            foreach (KeyValuePair<string, ContestConfig> pair in GameData.Contests ?? new Dictionary<string, ContestConfig>())
+            {
+                if (pair.Value == null) continue;
+                (pair.Value.trumpet ? sounding : silent).Add(pair.Key);
+            }
+
+            Check("07 the trumpet sounds where the row says and nowhere else",
+                sounding.Count > 0 && silent.Count > 0,
+                "sounding [" + string.Join(", ", sounding) + "], silent [" + string.Join(", ", silent) + "]");
+
             ThePageGatesItsMove();
 
             Check("09 no game over exists", !HasGameOverSymbol(),

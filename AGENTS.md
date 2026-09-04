@@ -203,7 +203,8 @@ exist. Always an internal reader; an external channel is a secondary, optional b
   fetched that day, and the famine and the reading of the Law are in the season. The `tobiah_d6`
   frame that wanted `NEH.4.12` now shows it — the node quotes `4.11` (the enemies' intention) and
   then `4.12` (the warning that came in ten times), each under its own frame — and the node's
-  `curated_in` names the commit that read it again. `sanballat_d8` still cites nothing.
+  `curated_in` names the commit that read it again. `sanballat_d8` is anchored on `NEH.6.5` — the fifth letter, the open one, which is what the
+  node is about — quoted under a frame that says how it came and in whose hands.
   `a943723` then taught the queue to say so: each read node carries `curated_in` with the commit
   that read it, and `node tools/list-curation.mjs` reports nothing waiting. `needs_curation` is
   **not** cleared on purpose — the queue is a record of what carries authored canonical speech,

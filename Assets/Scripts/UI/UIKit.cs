@@ -411,6 +411,14 @@ namespace SheepGate.UI
             /// <summary>A translucent parchment fill with a hairline border. The alternative.</summary>
             Secondary,
 
+            /// <summary>
+            /// The Secondary, for a parchment card. Secondary is parchment ink at 8% over a dark
+            /// surface; on <see cref="CardStyle.Scroll"/> that is parchment on parchment, and the
+            /// morning's vigil page shipped with a Saber mais nobody could see. Same shape, the
+            /// scroll's own inks — the one button that may sit on the card the player reads.
+            /// </summary>
+            SecondaryOnScroll,
+
             /// <summary>No fill at all. For the option that costs the player nothing to ignore.</summary>
             Ghost,
 
@@ -519,6 +527,18 @@ namespace SheepGate.UI
                         LabelHover = DesignTokens.Ink.Primary,
                         LabelPressed = DesignTokens.Ink.Primary,
                         Border = WithAlpha(DesignTokens.Ink.Primary, 0.20f)
+                    };
+
+                case ButtonVariant.SecondaryOnScroll:
+                    return new ButtonSkin
+                    {
+                        Fill = WithAlpha(DesignTokens.Ink.OnScroll, 0.08f),
+                        FillHover = WithAlpha(DesignTokens.Ink.OnScroll, 0.14f),
+                        FillPressed = WithAlpha(DesignTokens.Ink.OnScroll, 0.05f),
+                        Label = DesignTokens.Ink.OnScroll,
+                        LabelHover = DesignTokens.Ink.OnScroll,
+                        LabelPressed = DesignTokens.Ink.OnScroll,
+                        Border = WithAlpha(DesignTokens.Ink.OnScroll, 0.30f)
                     };
 
                 case ButtonVariant.Ghost:

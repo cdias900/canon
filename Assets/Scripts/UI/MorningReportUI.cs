@@ -617,9 +617,16 @@ namespace SheepGate.UI
             string chapterRef = ScriptureService.ChapterRefOf(verseRef);
             if (!string.IsNullOrEmpty(chapterRef))
             {
-                UIKit.CreateButton(footer, "VigilReadMore", Loc.T("dialogue.read_more"),
-                    UIKit.ButtonVariant.Secondary,
+                Button more = UIKit.CreateButton(footer, "VigilReadMore", Loc.T("dialogue.read_more"),
+                    UIKit.ButtonVariant.SecondaryOnScroll,
                     () => ChapterReaderUI.Open(chapterRef, VigilTrigger, true));
+
+                // Same width the dialogue's Saber mais asks for: in a row where the reference
+                // takes the slack, a button with no width of its own is a sliver with no label.
+                LayoutElement moreLayout = UIKit.Layout(more);
+                moreLayout.minWidth = DesignTokens.Px(140f);
+                moreLayout.preferredWidth = DesignTokens.Px(140f);
+                moreLayout.flexibleWidth = 0f;
             }
 
             Telemetry.Track(TelemetryEvents.VerseShown, new Dictionary<string, object>

@@ -36,6 +36,9 @@ namespace SheepGate.UI
         public const string Trigger = "codex";
 
         static readonly float FooterHeight = DesignTokens.Space.S24 * 2f + UIKit.ButtonMinHeight;
+
+        /// <summary>Width of a card's Saber mais; the dialogue's footer uses the same number.</summary>
+        static readonly float ReadMoreWidth = DesignTokens.Px(140f);
         static readonly float HairlineHeight = Mathf.Max(2f, DesignTokens.Px(1f));
 
         bool _closed;
@@ -217,12 +220,24 @@ namespace SheepGate.UI
                 TextAnchor.MiddleLeft, DesignTokens.TypeRole.Mono);
             UIKit.Layout(reference).flexibleWidth = 1f;
 
+            // gameAsked is false: nobody put this quotation in front of the player. They opened the
+            // drawer, chose the codex and tapped a card's Saber mais on their own, which is the
+            // study card's shape and not the dialogue's — a deep read from here also counts as
+            // unprompted_read, the signal §10 says matters most under rule 12.
             string chapterRef = ScriptureService.ChapterRefOf(verseRef);
             if (!string.IsNullOrEmpty(chapterRef))
             {
-                UIKit.CreateButton(footer, "CodexReadMore_" + gate.id, Loc.T("dialogue.read_more"),
-                    UIKit.ButtonVariant.Secondary,
-                    () => ChapterReaderUI.Open(chapterRef, Trigger, true));
+                Button more = UIKit.CreateButton(footer, "CodexReadMore_" + gate.id, Loc.T("dialogue.read_more"),
+                    UIKit.ButtonVariant.SecondaryOnScroll,
+                    () => ChapterReaderUI.Open(chapterRef, Trigger, false));
+
+                // The row gives the reference the slack, so the button has to say how wide it is
+                // or it arrives as a sliver with its label gone — the width the dialogue's own
+                // Saber mais asks for, for the same reason.
+                LayoutElement moreLayout = UIKit.Layout(more);
+                moreLayout.minWidth = ReadMoreWidth;
+                moreLayout.preferredWidth = ReadMoreWidth;
+                moreLayout.flexibleWidth = 0f;
             }
 
             if (verse == null || string.IsNullOrEmpty(verse.text))

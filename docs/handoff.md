@@ -93,7 +93,12 @@ and marks the player's gate by the terminal stage's `gate_segment`. **Its refere
 first hour** — the design keeps rule 12's deferral inside the fiction and names the codex as one of
 the surfaces that is honest about what the product is; MVP-SCOPE §04 has the reasoning. Criterion
 18 checks the table in both languages; the e2e opens the panel on the full-battery stages and reads
-a reference on stage 1, before any reveal. Two data fixes rode along after a look at the iPhone
+a reference on stage 1, before any reveal. A deep read from a codex card counts as
+`unprompted_read` too — nobody put that quotation in front of the player. The phone found one more
+thing: **the Saber mais on a parchment card was invisible** — `Secondary` is parchment ink over a
+dark surface, and on `CardStyle.Scroll` that is parchment on parchment. The vigil page had shipped
+that way. `ButtonVariant.SecondaryOnScroll` is the same shape in the scroll's own inks, and both
+cards use it. Two data fixes rode along after a look at the iPhone
 simulator: the mockery's and the famine's chapter moves — *seguir contando*, *abrir mão*, *recusar
 a ração* — were third and fourth in their lists, under the fold on a phone, and are now first; the
 e2e sorts moves by delta so it never noticed.

@@ -595,12 +595,13 @@ so a real backend can arrive later without touching the call sites.
 | `verse_shown` | Exposure to the text. |
 | `chapter_opened` | `trigger` distinguishes "Saber mais" from a game prompt. |
 | `deep_read` | **The north-star metric.** 1.5 s a verse (floor 20 s) and 60% scroll. |
-| `unprompted_read` | Opened **without** the game asking — today, only the study card in the profile; A Página, a quotation's "Saber mais" and the gate's record are the game asking. The signal that matters most under rule 12. |
+| `unprompted_read` | Opened **without** the game asking — the study card in the profile and the codex's cards (`trigger: codex`); A Página, a quotation's "Saber mais" and the gate's record are the game asking. The signal that matters most under rule 12. |
 | `ungamed_read` | A deep read from the ending's invitation, where no move, page or record was attached to the chapter. |
 | `reveal_shown` | The moment the penny drops. |
 | `node_completed` | Work progress. |
 | `vocation_revealed` | Real distribution of behaviour. |
 | `locale_changed` | Which language people actually play in. |
+| `codex_opened` | The codex of the gates was opened from the drawer: `gates` listed and whether the references were already `revealed` elsewhere — they are always shown here (§04). |
 | `vigil_kept` | The player paid a night's work to be shown what is written about tomorrow. `stage` and `ref`; its `verse_shown` carries `context: vigil`, and the card's reader opens with `trigger: vigil`. The one exposure in the build the player pays for up front. |
 
 ---

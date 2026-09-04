@@ -249,6 +249,45 @@ namespace SheepGate.World
 
             _fallenWall = VoidScatter.Build(VoidMask(), Width, Height, _skirtColumns, _skirtRows, _ruinScale);
             PaintTiles();
+            BuildWallFooting();
+        }
+
+        /// <summary>
+        /// The footing course on every wall cell of the map, so the ring reads as the broken wall
+        /// it is and not as a gap in the ground. The wall cells paint as ground in the tilemap;
+        /// without this only the four segments existed on screen, and on a phone the close view
+        /// is seven cells wide, so the player saw one lone stretch of stones in a field and asked
+        /// where the wall was. The segments draw on top of this on the row they build.
+        /// </summary>
+        private void BuildWallFooting()
+        {
+            Sprite footing = WorldRuntime.GetSprite(ArtKeys.Wall(0));
+            if (footing == null || _kinds == null)
+            {
+                return;
+            }
+
+            GameObject root = new GameObject("WallFooting");
+            root.transform.SetParent(transform, false);
+
+            for (int y = 0; y < Height; y++)
+            {
+                for (int x = 0; x < Width; x++)
+                {
+                    if (_kinds[x, y] != CellKind.Wall)
+                    {
+                        continue;
+                    }
+
+                    GameObject cell = new GameObject("Footing_" + x + "_" + y);
+                    cell.transform.SetParent(root.transform, false);
+                    cell.transform.position = CellToWorldCenter(x, y);
+                    SpriteRenderer renderer = cell.AddComponent<SpriteRenderer>();
+                    renderer.sprite = footing;
+                    // One below the segment that shares the cell, so a course always covers its footing.
+                    renderer.sortingOrder = WorldRuntime.SortingOrderForCell(Height, y) - 1;
+                }
+            }
         }
 
         /// <summary>
@@ -389,7 +428,6 @@ namespace SheepGate.World
         {
             string[] rows = map != null ? map.rows : null;
             int rowCount = rows != null ? rows.Length : 0;
-            bool wallRowFound = false;
 
             for (int y = 0; y < Height; y++)
             {
@@ -403,19 +441,75 @@ namespace SheepGate.World
                     CellKind kind = KindOf(symbol);
                     _kinds[x, y] = kind;
                     Walkable[x, y] = kind == CellKind.Ground || kind == CellKind.Rubble;
-
-                    if (kind == CellKind.Wall && !wallRowFound)
-                    {
-                        WallRowY = y;
-                        wallRowFound = true;
-                    }
                 }
             }
 
-            if (!wallRowFound)
+            int resolved = ResolveWallRow(map, Width, Height);
+            if (resolved >= 0)
+            {
+                WallRowY = resolved;
+            }
+            else
             {
                 Debug.LogWarning("[World] Map marks no wall row; wall segments will be placed on row y=" + WallRowY + ".");
             }
+        }
+
+        /// <summary>
+        /// The cell y the wall segments are built on, or -1 when the map draws no wall at all.
+        ///
+        /// The row with the most wall cells wins: on a ring every row has a wall cell or two at its
+        /// sides, and the first one a scan meets is whichever edge it starts from, not the stretch
+        /// the player is assigned. The circular map shipped with its straight run along the north
+        /// while the segments sat on a lone ring cell at the south, on open ground, under the
+        /// bottom of the phone's screen; that is what this rule replaces. A map may also say the
+        /// row outright with <c>wall_row</c>, which wins, with a warning when the drawing disagrees
+        /// so the two are never silently out of step.
+        /// </summary>
+        public static int ResolveWallRow(MapDef map, int width, int height)
+        {
+            string[] rows = map != null ? map.rows : null;
+            int rowCount = rows != null ? rows.Length : 0;
+            int bestRow = -1;
+            int bestCount = 0;
+
+            for (int y = 0; y < height; y++)
+            {
+                int rowIndex = RowIndexForCellY(y, height);
+                string row = rowIndex >= 0 && rowIndex < rowCount ? rows[rowIndex] : null;
+                if (row == null)
+                {
+                    continue;
+                }
+
+                int count = 0;
+                for (int x = 0; x < width && x < row.Length; x++)
+                {
+                    if (row[x] == WallChar || row[x] == WallAltChar)
+                    {
+                        count++;
+                    }
+                }
+
+                if (count > bestCount)
+                {
+                    bestCount = count;
+                    bestRow = y;
+                }
+            }
+
+            int declared = map != null ? map.wall_row : -1;
+            if (declared >= 0 && declared < height)
+            {
+                if (bestRow >= 0 && declared != bestRow)
+                {
+                    Debug.LogWarning("[World] map.json says wall_row=" + declared + " but the row with the most wall cells is y=" + bestRow + "; building on the declared row.");
+                }
+
+                return declared;
+            }
+
+            return bestRow;
         }
 
         private CellKind KindOf(char symbol)

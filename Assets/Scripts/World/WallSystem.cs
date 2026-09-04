@@ -235,8 +235,10 @@ namespace SheepGate.World
             for (int offset = -half; offset <= half; offset++)
             {
                 int cellX = centerX + offset;
-                if (_tilemap != null && !_tilemap.InBounds(cellX, rowY))
+                if (_tilemap != null && (!_tilemap.InBounds(cellX, rowY) || _tilemap.KindAt(cellX, rowY) == TilemapBuilder.CellKind.Void))
                 {
+                    // Off the map, or on the void beside the ring: a course drawn there hangs in
+                    // the air past the end of the wall.
                     continue;
                 }
 

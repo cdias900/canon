@@ -102,6 +102,7 @@ namespace SheepGate.EditorTools
                     ACostedMoveCostsTheDay();
                     TheCodexNamesEveryGate();
                     AFightSurvivesAKill();
+                    TheSegmentsStandOnTheWall();
                     DaylightClock();
                     CheckInSchedule();
                 }
@@ -1704,7 +1705,58 @@ namespace SheepGate.EditorTools
                     : string.Join("; ", faults));
         }
 
-        /// <summary>A fight on this stage with a day of the given capacity behind it.</summary>
+        /// <summary>
+        /// 20 — the wall segments stand on the wall. The row WallSystem builds on is the map's
+        /// straight stretch (the row with the most wall cells, and the one map.json declares), and
+        /// every cell a segment covers is a wall cell of that row. The segments once sat on open
+        /// ground at the far side of the city under the bottom of the phone screen, because a scan
+        /// took the first wall cell it met; nothing in the e2e looked at the wall, so nothing failed.
+        /// </summary>
+        static void TheSegmentsStandOnTheWall()
+        {
+            MapDef map = GameData.Map;
+            var faults = new List<string>();
+            int height = map != null && map.height > 0 ? map.height : 0;
+            int width = map != null && map.width > 0 ? map.width : 0;
+            int row = TilemapBuilder.ResolveWallRow(map, width, height);
+
+            if (row < 0)
+            {
+                Check("20 the segments stand on the wall", false, "the map draws no wall row");
+                return;
+            }
+            if (map.wall_row != row)
+            {
+                faults.Add("map.json wall_row=" + map.wall_row + " but the wall is resolved to y=" + row);
+            }
+
+            int rowIndex = TilemapBuilder.RowIndexForCellY(row, height);
+            string line = map.rows != null && rowIndex >= 0 && rowIndex < map.rows.Length ? map.rows[rowIndex] : string.Empty;
+            int half = WallSystem.SegmentWidthInCells / 2;
+            int covered = 0;
+            foreach (WallSegmentDef segment in GameData.WallSegments ?? Array.Empty<WallSegmentDef>())
+            {
+                if (segment == null) continue;
+                for (int x = segment.grid_x - half; x <= segment.grid_x + half; x++)
+                {
+                    char symbol = x >= 0 && x < line.Length ? line[x] : TilemapBuilder.VoidChar;
+                    if (symbol != TilemapBuilder.WallChar && symbol != TilemapBuilder.WallAltChar)
+                    {
+                        faults.Add(segment.id + " covers x=" + x + " on y=" + row + " and that is '" + symbol + "', not wall");
+                    }
+                    else
+                    {
+                        covered++;
+                    }
+                }
+            }
+
+            Check("20 the segments stand on the wall", faults.Count == 0,
+                faults.Count == 0
+                    ? "wall row y=" + row + ", " + covered + " segment cell(s) all on wall cells"
+                    : string.Join("; ", faults));
+        }
+
         /// <summary>
         /// 19 — a fight in progress survives the app being killed. The contest writes its turn,
         /// morale, resolve and spent moves into the state after every survived turn; a Begin on a

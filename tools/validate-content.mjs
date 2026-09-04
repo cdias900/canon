@@ -206,6 +206,7 @@ function main() {
   checkSpeakerNames(root, locales);
   checkLocaleKeysResolve(root, locales);
   checkCurationFlags(root, locales);
+  checkWallRow(root);
 
   console.log("");
   for (const warning of warnings) {
@@ -719,7 +720,7 @@ function checkBareReferences(root, locale) {
  * field by field so that can only be a build failure, never a shipped one.
  */
 function checkLocaleParity(root, locales) {
-  process.stdout.write("[7/11] locale parity          ");
+  process.stdout.write("[7/12] locale parity          ");
 
   const others = locales.filter((locale) => locale !== SOURCE_LOCALE);
   if (others.length === 0) {
@@ -943,7 +944,7 @@ function compareDialogue(locale, source, target) {
  * string that is missing from all of them.
  */
 function checkSpeakerNames(root, locales) {
-  process.stdout.write("[9/11] speaker names          ");
+  process.stdout.write("[9/12] speaker names          ");
 
   const dialoguePath = join(localeDir(root, SOURCE_LOCALE), "dialogue.json");
   const dialogue = readJson(root, dialoguePath);
@@ -1048,6 +1049,63 @@ function readJson(root, filePath) {
   }
 }
 
+// -------------------------------------------------- wall row
+
+/**
+ * The wall segments are built on one row of the map, and every cell they occupy has to be a wall
+ * cell of that row, which has to be the densest wall row in the drawing (the straight stretch the
+ * player is assigned). The segments once sat on a lone ring cell at the far side of the city
+ * because a scan took the first wall cell it met; this is the check that keeps the row and the
+ * segments on the same line whichever way the map is edited.
+ */
+function checkWallRow(root) {
+  process.stdout.write("[12/12] wall row              ");
+  const before = errors.length;
+  checkWallRowInner(root);
+  console.log(errors.length === before ? "OK" : "FAIL");
+}
+
+function checkWallRowInner(root) {
+  const map = readJson(root, join(root, "Assets", "Resources", "Data", "map.json"));
+  const segments = readJson(root, join(root, "Assets", "Resources", "Data", "wall_segments.json"));
+  if (!map || !Array.isArray(map.rows) || !Array.isArray(segments)) return;
+
+  const height = map.height > 0 ? map.height : map.rows.length;
+  const isWall = (ch) => ch === "W" || ch === "=";
+  const rowAt = (y) => map.rows[height - 1 - y] ?? "";
+  let densest = -1;
+  let densestCount = 0;
+  for (let y = 0; y < height; y++) {
+    const count = [...rowAt(y)].filter(isWall).length;
+    if (count > densestCount) {
+      densestCount = count;
+      densest = y;
+    }
+  }
+
+  const declared = typeof map.wall_row === "number" ? map.wall_row : -1;
+  if (declared < 0) {
+    errors.push("map.json: wall_row is missing; the segments would fall back to a scan of the drawing");
+    return;
+  }
+  if (declared !== densest) {
+    errors.push("map.json: wall_row=" + declared + " but the row with the most wall cells is y=" + densest + " (" + densestCount + " cells)");
+  }
+
+  const row = rowAt(declared);
+  const half = 1; // WallSystem.SegmentWidthInCells = 3
+  for (const segment of segments) {
+    if (!segment || typeof segment.grid_x !== "number") continue;
+    const bad = [];
+    for (let x = segment.grid_x - half; x <= segment.grid_x + half; x++) {
+      if (!isWall(row[x] ?? " ")) bad.push(x);
+    }
+    if (bad.length > 0) {
+      errors.push("wall_segments.json: " + segment.id + " covers x=" + bad.join(",") + " on wall_row " + declared + " and those are not wall cells");
+    }
+  }
+}
+
 // -------------------------------------------------- hardcoded player strings
 
 /**
@@ -1058,7 +1116,7 @@ function readJson(root, filePath) {
  * careless edit away from now that it ships a second language.
  */
 function checkNoHardcodedPlayerStrings(root) {
-  process.stdout.write("[8/11] hardcoded strings      ");
+  process.stdout.write("[8/12] hardcoded strings      ");
 
   const sources = [];
   for (const filePath of walkFiles(join(root, "Assets"))) {
@@ -1450,7 +1508,7 @@ function lastKeyOf(path) {
  * mode is a player reading "backpack.slot.hair" off a panel, in every language at once.
  */
 function checkLocaleKeysResolve(root, locales) {
-  process.stdout.write("[10/11] locale keys resolve   ");
+  process.stdout.write("[10/12] locale keys resolve   ");
 
   // A key, and nothing else: lowercase segments joined by dots. Sprite keys carry no dot, file
   // names do not start with a known namespace, and scripture references are uppercase, so none of
@@ -1607,7 +1665,7 @@ function checkLocaleKeysResolve(root, locales) {
  * speech is newly authored speech in that language and owes its own read.
  */
 function checkCurationFlags(root, locales) {
-  process.stdout.write("[11/11] curation flags        ");
+  process.stdout.write("[11/12] curation flags        ");
 
   const hits = [];
   let queued = 0;

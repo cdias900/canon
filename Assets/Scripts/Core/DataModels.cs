@@ -191,6 +191,13 @@ namespace SheepGate.Core
         [JsonProperty("player_spawn")] public GridPos player_spawn;
 
         /// <summary>
+        /// Cell y of the row the wall segments are built on. Negative or absent means "the row
+        /// with the most wall cells", which on a ring is the straight stretch; the field exists so
+        /// that a map can say so outright instead of leaving it to a scan.
+        /// </summary>
+        [JsonProperty("wall_row")] public int wall_row = -1;
+
+        /// <summary>
         /// Cells that yield stone. Named "rubble" because that is what the file has always called
         /// them and map.json is content other people edit; the material they hand out is stone.
         /// </summary>

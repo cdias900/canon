@@ -256,7 +256,7 @@ standalone screen, so that route keeps working; nothing routes to it.
 | `ScriptureService` | In-memory index of the locale's `verses.json`. Never hits the network. |
 | `ScriptureVisibility` | Decides whether `ref_display` is shown. One-way: hidden until the reveal, never re-hidden. |
 | `ChapterReaderUI` | Scrollable panel with the whole chapter. Fires `deep_read` past a dwell of 1.5 s per verse (floor 20 s) **and** 60% scroll. |
-| `MoraleContest` | Turn machine for any stage that names a `contest`. Two exist. See §07. |
+| `MoraleContest` | Turn machine for any stage that names a `contest`. Three exist. See §07. |
 | `StageDirector` | Everything a stage asks for beyond an ordinary working day: the contest, A Página, the gathering, the wall finishing, the gate closing, the vocation. **Driven entirely by `stages.json` — it counts nothing.** A beat holds the day open only while it runs and then gives the hold back, so the stage still ends through the one end-of-day path every other stage uses. The `terminal` stage is the single exception: once its gate segment is standing it takes `HoldFinalDay` and never releases it, because it has no tomorrow; before that it is a working day that repeats its date. |
 | `VocationTracker` | Accumulates silently. **No public score getter.** Reveals at the terminal stage. |
 | `DailyQuiz` | One question a stage, asked at **dusk** so it closes the session, with a one-line `hook` into tomorrow under the answer; only the terminal stage asks at its morning, because an earned gate leaves it no dusk. Counts whether right or wrong. |
@@ -291,7 +291,7 @@ the rows mean.
 | 2 | `vision_and_plan` | work | the invitation from outside, the well | `hair_headscarf` |
 | 3 | `preparation` | work | ordinary working day | `outfit_expedition_gear` |
 | 4 | `the_people_united` | rest | `gathering_d4` · **`night_threat: false`** | `outfit_valley_mantle` |
-| 5 | `the_work_begins` | work | Sambalate first speaks | `outfit_work_apron` |
+| 5 | `the_work_begins` | battle | **contest `mockery`** — Sambalate first speaks, and the work answers | `outfit_work_apron` |
 | 6 | `enemies_rise` | battle | **contest `raid` · `reveals_page`** — A Página, `NEH.4.17` | `acc_watch_horn` |
 | 7 | `prayer_and_guard` | work | the watch | `acc_bead_bracelet` |
 | 8 | `the_work_finished` | boss | **contest `letters` · `finishes_wall`** | `acc_old_seal` |
@@ -345,6 +345,11 @@ whose read is stale — the queue is a record, not a backlog.
 - `malquias` brings the invitation. Accepting spends the whole day and damages a segment; refusing
   cites `NEH.6.3`.
 - Fish in the well: 2 attempts fail, the 3rd brings the hint and cites `JHN.21.6`.
+- **Timber arrives by letter, not by gathering.** The beams are in the village from this morning
+  (`RubblePile.TimberFirstDay`), and Hananias says where they came from: a seal nobody can read and
+  a letter that was written down — `NEH.2.8`, quoted on `hananias_d2`. The design's *negotiate
+  timber* is a citation rather than a gate on purpose: gating the day's four courses behind a
+  conversation is the economy failure the P0 wave just took out.
 - Accepting zeroes capacity **without** ending the day: `malquias` takes a named hold
   (`DayCycle.HoldPendingBeat`) until the player comes back and hears the other half of it. The hold is
   re-derived in `Start`, so a scene rebuild mid-beat restores it. The mat can overrule it, and must —
@@ -359,7 +364,17 @@ return the hour on the player's own stretch the next morning, after the night ha
 morning report says so with the number. Keeping the hour scores the zealot. The choice, not the
 conversation, is what scores.
 
-### Stage 5 — `the_work_begins`
+### Stage 5 — `the_work_begins`, the mockery
+
+The morning opens on the **`mockery`** contest (§07), the design's first threat: the work is
+ridiculed from the upper road, in public, and there is no target to attack. It is a pure morale
+drain — the other side's lines are laughter, a dropped stone and the fox — and the answer is
+leadership and the work carrying on: **Hold the line** is worth what the wall already says, **Call
+the others** is worth who knows the player by name, and **Count out loud**, the contest's own move,
+is the crew hearing the count instead of the joke. No trumpet: nobody is converging on a breach.
+No Page: the reveal is the raid's, next stage. The residents then say what the day did to them
+(`hananias_d5`, `salum_d5`, `zacur_d5`), and Baruque still takes the player up to hear
+`sanballat_d5`, which is where `NEH.4.1-3` are cited.
 
 Sambalate first speaks, and **the carriers** (on `meremote_d5`; the verse the beat comes from is
 not in the manifest, so it is authored text). The path to the wall is choked with fallen stone;
@@ -429,7 +444,7 @@ The outcome is decided by what the player did in the stages before it — that i
 earned rather than rolled. **Nothing is random: two players who prepared the same way see the same
 fight.**
 
-**There are two contests, and they are data** (`contest.json`); a stage names which one it fights.
+**There are three contests, and they are data** (`contest.json`); a stage names which one it fights.
 `MoraleContest` is instanced once and every encounter runs through it, so what used to be "the trial"
 is now "this contest" — including whether it has already been fought, and whose lines the other side
 speaks.
@@ -443,12 +458,14 @@ enemy.pressure  = base +  6 for the missing watch + 6 for the accepted invitatio
 turn limit      = 8   // overflow = the enemy withdraws, a technical draw
 ```
 
-| | `raid` — stage 6 | `letters` — stage 8 |
-|---|---|---|
-| resolve base | 60 | **78** |
-| pressure base | 12 | **14** |
-| A Página | **turn 2, `NEH.4.17`** | none — the reveal already happened |
-| extra move | — | **Keep working**, −24 resolve · +4 morale, only with `refused_invite` |
+| | `mockery` — stage 5 | `raid` — stage 6 | `letters` — stage 8 |
+|---|---|---|---|
+| resolve base | **48** | 60 | **78** |
+| pressure base | **10** | 12 | **14** |
+| A Página | none — not yet | **turn 2, `NEH.4.17`** | none — the reveal already happened |
+| trumpet | **no** — there is no assault | yes (`NEH.4.20`) | yes |
+| extra move | **Count out loud**, −10 resolve · +4 morale | — | **Keep working**, −24 resolve · +4 morale, only with `refused_invite` |
+| not offered | Show the watch, Half and half | — | — |
 
 | Move | Effect | Depends on |
 |---|---|---|
@@ -457,6 +474,7 @@ turn limit      = 8   // overflow = the enemy withdraws, a technical draw
 | Show the watch | −20 resolve (`raid`) · −14 (`letters`) | a watch was posted |
 | **Half and half** *(unlocks on t2)* | −15 resolve **and** +8 morale, same turn | Only exists after A Página |
 | **Keep working** *(`letters` only)* | −24 resolve **and** +4 morale | flag `refused_invite` |
+| **Count out loud** *(`mockery` only)* | −10 resolve **and** +4 morale | nothing — the work is always an answer |
 
 > **The second contest pays out the first refusal.** Whoever turned the invitation down at stage 2
 > carries the strongest move in the game into stage 8 — six stages later, and never announced. It is
@@ -571,7 +589,7 @@ accessory. Eight synthesised sounds (three of them the stone, so a day of course
 - A daily streak, push notifications
 - Sign-up, accounts, cloud, sync
 - LLM calls at runtime — all dialogue is authored in `dialogue.json`
-- The other 9 gates, the other 3 threats, any other season
+- The other 9 gates, any other season, and **the famine of `NEH.5`** — the one threat of the design's four still missing (mockery, the raid and the letters are in); it waits on the corpus, not on code
 - Jesus or the Holy Spirit as a guide — **deferred by decision, not discarded**
 
 ---

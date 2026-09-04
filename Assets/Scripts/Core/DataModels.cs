@@ -283,6 +283,15 @@ namespace SheepGate.Core
         /// </summary>
         [JsonProperty("enemy_line_prefix")] public string enemy_line_prefix;
 
+        /// <summary>
+        /// Whether the trumpet sounds when this contest begins. True unless the row says
+        /// otherwise, because the two fights that existed before the field did are an assault
+        /// and a siege of letters, and NEH.4.20 puts the horn at the assault. Mockery has no
+        /// assault to announce — nobody is converging on a breach — so it is the one row that
+        /// sets this false.
+        /// </summary>
+        [JsonProperty("trumpet")] public bool trumpet = true;
+
         [JsonProperty("moves")] public ContestMoveDef[] moves;
     }
 

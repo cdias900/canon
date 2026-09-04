@@ -31,5 +31,21 @@
       { "id": "half_and_half", "resolve_delta": -15, "morale_delta": 8,  "unlocked_by_page": true,  "unlocked_by_flag": null },
       { "id": "keep_working",  "resolve_delta": -24, "morale_delta": 4,  "unlocked_by_page": false, "unlocked_by_flag": "refused_invite" }
     ]
+  },
+  "mockery": {
+    "id": "mockery",
+    "player_morale": 100,
+    "enemy_resolve_base": 48,
+    "turn_limit": 8,
+    "base_pressure": 10,
+    "page_turn": 0,
+    "page_verse": null,
+    "trumpet": false,
+    "enemy_line_prefix": "contest.log.mockery",
+    "moves": [
+      { "id": "hold_line",     "resolve_delta": -8,  "morale_delta": 0,  "unlocked_by_page": false, "unlocked_by_flag": null },
+      { "id": "call_others",   "resolve_delta": 0,   "morale_delta": 12, "unlocked_by_page": false, "unlocked_by_flag": null },
+      { "id": "keep_counting", "resolve_delta": -10, "morale_delta": 4,  "unlocked_by_page": false, "unlocked_by_flag": null }
+    ]
   }
 }

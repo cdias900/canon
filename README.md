@@ -45,7 +45,7 @@ tools/tile-preview.sh sheet      # every generated tile as a PNG in seconds, wit
 
 `tools/e2e.sh` is the one that runs a real build. It launches one player per locale and plays the
 season the way `stages.json` declares it, from a cold save to the terminal stage — the opening,
-character creation, the split, the night, both contests, A Página, the reader, the backpack, the
+character creation, the split, the night, the three contests, A Página, the reader, the backpack, the
 progression map and the vocation reveal — driving it through the EventSystem, refusing to click a
 control that something else is covering. It screenshots into `Builds/e2e/` and fails on an
 unresolved string or any error in the log. The compile, the validator and the acceptance run are

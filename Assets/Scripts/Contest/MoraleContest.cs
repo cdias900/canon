@@ -70,6 +70,13 @@ namespace SheepGate.Contest
         public const string MoveHalfAndHalf = "half_and_half";
 
         /// <summary>
+        /// The mockery's own move. Mockery has no target to attack — the design's first threat is
+        /// a pure morale drain — so its answer is the work carrying on out loud: the other side
+        /// loses its audience, and the crew hears the count instead of the joke.
+        /// </summary>
+        public const string MoveKeepCounting = "keep_counting";
+
+        /// <summary>
         /// The turn the page interrupts when a contest carries a reveal but does not say when.
         ///
         /// A contest declares its own turn in contest.json, and zero there means it carries no
@@ -361,8 +368,12 @@ namespace SheepGate.Contest
 
             // NEH.4.20 — the trumpet that calls everyone to the breach. It is the only sound in
             // the game a passage asks for by name, so it plays where the passage puts it: the
-            // moment the assault arrives, not at a victory.
-            SheepGate.Audio.AudioDirector.Play(SheepGate.Audio.AudioKeys.Trumpet);
+            // moment the assault arrives, not at a victory — and not at all for a contest with no
+            // assault in it, which is what the row's trumpet flag says.
+            if (_config.trumpet)
+            {
+                SheepGate.Audio.AudioDirector.Play(SheepGate.Audio.AudioKeys.Trumpet);
+            }
 
             ContestUI ui = ContestUI.EnsureInstance();
             if (ui != null)
@@ -741,6 +752,12 @@ namespace SheepGate.Contest
                 case MoveHalfAndHalf:
                 {
                     line = Loc.T("contest.log.half_and_half");
+                    break;
+                }
+
+                case MoveKeepCounting:
+                {
+                    line = Loc.T("contest.log.keep_counting");
                     break;
                 }
 

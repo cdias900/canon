@@ -18,5 +18,9 @@
   "keep_working": {
     "display": "Keep working",
     "description": "You said no once already and you are not going down now. There is no answer to give: the work carries on, and they go on waiting."
+  },
+  "keep_counting": {
+    "display": "Count out loud",
+    "description": "You lay stone counting the courses out loud, so as not to count what they are saying. The work is the only answer they get to hear."
   }
 }

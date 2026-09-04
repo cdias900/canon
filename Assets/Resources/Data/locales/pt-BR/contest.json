@@ -18,5 +18,9 @@
   "keep_working": {
     "display": "Continuar a obra",
     "description": "Você já disse não uma vez e não vai descer agora. Não há resposta a dar: a obra continua, e eles seguem esperando."
+  },
+  "keep_counting": {
+    "display": "Contar alto",
+    "description": "Você assenta contando as fiadas em voz alta, para não contar o que eles dizem. A obra é a única resposta que eles chegam a ouvir."
   }
 }

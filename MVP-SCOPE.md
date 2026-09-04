@@ -160,7 +160,12 @@ and fails on any disagreement. A translator cannot change what the game does.
 [ { "id": "seg_01", "grid_x": 13, "stage_cost": [1, 1, 1, 1], "exposed": false } ]
 ```
 
-Four segments, four **courses** each. `seg_02` is the exposed one.
+Four segments, four **courses** each. `seg_02` is the exposed one. They are built on **one row of
+`map.json`, `wall_row`** (cell y; 22 on the shipped map, the straight run of `W` along the north),
+and every cell a segment covers has to be a wall cell of that row — the validator and criterion 20
+both check it. `TilemapBuilder` resolves the row as the densest wall row when the field is absent
+and warns when the two disagree. The wall cells of the whole ring draw the footing course
+(`wall_0`) so the city reads as a broken wall, and the segments draw their courses on top.
 
 > **The word `stage` means two different things, and the field names keep both.** A *course* is one
 > of the four steps that build a wall segment (`stage_cost`, `WallSystem`). A *season stage* is one
@@ -250,7 +255,9 @@ standalone screen, so that route keeps working; nothing routes to it.
 > without that latch changing language would put the player back on a screen they had dismissed.
 
 > **Two cameras, one map**
-> The default view is close, portrait, following the character. A HUD button switches to the
+> The default view is close, portrait, following the character; it may look half a screen past the
+> top and bottom of the city (`CameraRig.FollowSlack`), so a player standing at the wall is centred
+> on it instead of pinned under the top plates. A HUD button switches to the
 > **Patrol**: the camera pulls back and the player drags horizontally. It is the only view that shows
 > total progress, and it is diegetic — Nehemiah inspects the wall at night before anything else
 > (`NEH.2.13`).
@@ -670,6 +677,7 @@ the version abbreviation and its copyright notice (`ChapterReaderUI.BuildColopho
 | 17 | A costed move is shut below its price, spends exactly its price, and is offered once per fight. |
 | 16 | The vigil costs the night's work and returns a page that resolves; it changes nothing else — same damage as the ordinary night beside the same watch, and with no watch a vigil still loses the wall on a threat night. |
 | 19 | A fight in progress survives the app being killed: the contest writes its turn, morale, resolve and spent moves into the state after every survived turn, a Begin on that state opens at that turn, and the end clears it. The app also saves on pause and quit, with the cell under the player's feet. |
+| 20 | The wall segments stand on the wall: the row `WallSystem` builds on is the row the map declares and the densest wall row of the drawing, and every cell a segment covers is a wall cell of that row. Kept by the validator (`[12/12] wall row`) and the harness. |
 | 18 | The codex names every gate of `gates.json` with a verse that resolves in both languages and strings in both, and marks exactly one as the player's: the one on the terminal stage's segment. The e2e opens it from the drawer on the full-battery stages, counts the cards, reads a reference before the reveal, and takes its Saber mais into `NEH.3`. |
 
 > **The harness carries more than the fourteen, and the prefix says which is which.** Numbered
@@ -756,6 +764,9 @@ removed rather than wired.
   both need hardware, not code.
 - **The buildable wall is a straight run** along the north of a circular city. Nehemiah 3 assigns each
   group a stretch, so it reads correctly, but a true arc would need `WallSystem`, the contest and the
-  patrol camera to change together. **Deferred by decision.**
+  patrol camera to change together. **Deferred by decision.** (Until 04/09/2026 the segments were not
+  on that run at all: a scan took the first wall cell from the south and built on open ground at the
+  bottom of the city, under the phone's bottom buttons. `wall_row` in `map.json` and criterion 20
+  close that; the ring's footing is drawn since the same day.)
 - **The four skin tones and the build silhouettes are unjudged.** Nobody has looked at whether tones 2
   and 3 are distinguishable at 32×48, or whether the narrower build reads.

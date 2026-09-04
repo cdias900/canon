@@ -84,6 +84,33 @@ a screenshot; different window sizes per locale still nests the smaller window i
 
 ## What landed since the last handoff
 
+### The wall was at the wrong end of the city — and the phone said so first
+
+The first play on a physical iPhone (16 Pro, 04/09/2026) came back with "I can't see the wall or
+it being built, and text runs out of its box". Three defects, one of them old. **The segments were
+built on the south edge of the city, on open ground**, because `TilemapBuilder.ParseRows` took
+the first wall cell it met scanning from y=0 — on the circular map that is a lone ring cell at
+y=6, not the eighteen-cell straight run at y=22 the `_shape` note and the design describe. The
+scan was written for the first, rectangular map (`9b1382a`); the circle arrived with the cutscene
+(`7133628`) and nothing looked at the wall: the e2e spends work through `ResourceSystem`, and
+the segments went on being at the bottom of the phone screen under Mapa and the backpack. Now
+`map.json` declares `wall_row: 22`, the builder resolves the densest wall row and warns when the
+two disagree, the validator's `[12/12] wall row` and criterion 20 keep every segment cell on a
+wall cell of that row, and every wall cell of the ring draws the footing course so the city reads
+as a broken wall rather than four stretches of stones in a field (the close view on a phone is
+seven cells wide; a lone segment in it was the "where is the wall"). The follow camera got half
+a screen of vertical slack (`CameraRig.FollowSlack`) so a player at the wall is centred on it
+and a course rises mid-screen; patrol keeps the flush clamp. **Dialogue branches** were rows of
+a fixed two-line height from a comment that said the longest branch was 44 characters; the data
+is at 65 in pt-BR and the third line left the box. A branch is now sized by its own label
+(layout group on the button, border and ring ignoring it, the two-line height as a floor).
+**The device build ran as a Development build** like every other, and the Development Console
+drew a `[CharacterCreation] Step 2 shows 1,74 rows` error across the phone; `BuildIOS` now
+builds without it. The error itself is real and device-specific — the iPhone 17 Pro simulator
+and the e2e do not reproduce it — and is still open below. Seen on the simulator: the player at
+the wall mid-screen with the ring's footing across the width, a course rising there, and the
+three-line Meremote branch inside its box.
+
 ### Saving on the way out, a fight that survives a kill, and the first day's nudge
 
 Three answers to "does it save, and does the player know what to do". Every save was taken
@@ -447,8 +474,15 @@ covered by playing it.**
   clipped on the phones tested; there is simply no room left, and a squarer screen would eat into
   it.
 - **The buildable wall is a straight run** along the north of a circular city. `WallSystem` places a
-  segment by `grid_x` on one row. `NEH.3` assigns each group a stretch, so it reads correctly,
-  but a true arc would need `WallSystem`, the contest and the patrol camera to change together.
+  segment by `grid_x` on one row — `map.json`'s `wall_row`, since 04/09/2026; before that a scan
+  put it on the south ring cell, see "What landed". `NEH.3` assigns each group a stretch, so it
+  reads correctly, but a true arc would need `WallSystem`, the contest and the patrol camera to
+  change together.
+- **Character creation's Step 2 shows 1.74 wardrobe rows on an iPhone 16 Pro** and logs an error
+  saying so (`CharacterCreationScreen`, floor of 2 rows in a 1890-unit safe area). The 17 Pro
+  simulator and the e2e do not reproduce it and no 16 Pro simulator runtime is installed here;
+  the lever the error names is the tallest catalogue row (`acc_plumb_line`, 117 characters in
+  pt-BR). The list still scrolls; the console that showed it no longer ships in the device build.
 - **The four skin tones and the build silhouettes are unjudged.** Nobody has looked at whether tones
   2 and 3 are distinguishable at 32×48, or whether the narrower build actually reads.
 - **`WorldMapOverlay.Place.Caption` no longer exists** — earlier handoffs listed a never-drawn

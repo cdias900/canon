@@ -605,24 +605,25 @@ namespace SheepGate.UI
                 DesignTokens.Type.Body, DesignTokens.Ink.OnScroll, TextAnchor.UpperLeft);
             body.fontStyle = FontStyle.Italic;
 
-            RectTransform footer = UIKit.CreateRect("VigilFooter", cardRect);
-            UIKit.HorizontalGroup(footer.gameObject, DesignTokens.Space.S12, new RectOffset(), TextAnchor.MiddleLeft);
-
-            Text reference = UIKit.CreateText(footer, "VigilReference",
+            // Reference on its own line, button on the line under it — same shape as the codex's
+            // cards, and for the same reason: beside a button wide enough for its label, a mono
+            // reference wraps on a phone.
+            UIKit.CreateText(cardRect, "VigilReference",
                 ReferenceLabel(verse, verseRef),
                 DesignTokens.Type.Mono, DesignTokens.Ink.OnScrollMuted,
                 TextAnchor.MiddleLeft, DesignTokens.TypeRole.Mono);
-            UIKit.Layout(reference).flexibleWidth = 1f;
 
             string chapterRef = ScriptureService.ChapterRefOf(verseRef);
             if (!string.IsNullOrEmpty(chapterRef))
             {
-                Button more = UIKit.CreateButton(footer, "VigilReadMore", Loc.T("dialogue.read_more"),
+                RectTransform actions = UIKit.CreateRect("VigilActions", cardRect);
+                UIKit.HorizontalGroup(actions.gameObject, DesignTokens.Space.S12, new RectOffset(), TextAnchor.MiddleRight);
+
+                Button more = UIKit.CreateButton(actions, "VigilReadMore", Loc.T("dialogue.read_more"),
                     UIKit.ButtonVariant.SecondaryOnScroll,
                     () => ChapterReaderUI.Open(chapterRef, VigilTrigger, true));
 
-                // Same width the dialogue's Saber mais asks for: in a row where the reference
-                // takes the slack, a button with no width of its own is a sliver with no label.
+                // A right-aligned row gives its child no width of its own; the dialogue's width.
                 LayoutElement moreLayout = UIKit.Layout(more);
                 moreLayout.minWidth = DesignTokens.Px(140f);
                 moreLayout.preferredWidth = DesignTokens.Px(140f);

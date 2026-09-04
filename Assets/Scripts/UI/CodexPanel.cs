@@ -211,14 +211,15 @@ namespace SheepGate.UI
                 DesignTokens.Type.Body, DesignTokens.Ink.OnScroll, TextAnchor.UpperLeft);
             body.fontStyle = FontStyle.Italic;
 
-            RectTransform footer = UIKit.CreateRect("GateFooter", cardRect);
-            UIKit.HorizontalGroup(footer.gameObject, DesignTokens.Space.S12, new RectOffset(), TextAnchor.MiddleLeft);
-
-            Text reference = UIKit.CreateText(footer, "GateReference_" + gate.id,
+            // The reference on a line of its own, the button on the line under it. Side by side
+            // they fit a 1080-wide run and not a phone: inside the sheet's gutter and the card's
+            // padding, a mono "Neemias 3:3 · NVI" beside a button wide enough for its label wraps
+            // the reference onto two lines. Two rows cost a little height on a card that scrolls
+            // anyway, and read the same at every width.
+            UIKit.CreateText(cardRect, "GateReference_" + gate.id,
                 ReferenceLabel(verse, verseRef),
                 DesignTokens.Type.Mono, DesignTokens.Ink.OnScrollMuted,
                 TextAnchor.MiddleLeft, DesignTokens.TypeRole.Mono);
-            UIKit.Layout(reference).flexibleWidth = 1f;
 
             // gameAsked is false: nobody put this quotation in front of the player. They opened the
             // drawer, chose the codex and tapped a card's Saber mais on their own, which is the
@@ -227,13 +228,15 @@ namespace SheepGate.UI
             string chapterRef = ScriptureService.ChapterRefOf(verseRef);
             if (!string.IsNullOrEmpty(chapterRef))
             {
-                Button more = UIKit.CreateButton(footer, "CodexReadMore_" + gate.id, Loc.T("dialogue.read_more"),
+                RectTransform actions = UIKit.CreateRect("GateActions", cardRect);
+                UIKit.HorizontalGroup(actions.gameObject, DesignTokens.Space.S12, new RectOffset(), TextAnchor.MiddleRight);
+
+                Button more = UIKit.CreateButton(actions, "CodexReadMore_" + gate.id, Loc.T("dialogue.read_more"),
                     UIKit.ButtonVariant.SecondaryOnScroll,
                     () => ChapterReaderUI.Open(chapterRef, Trigger, false));
 
-                // The row gives the reference the slack, so the button has to say how wide it is
-                // or it arrives as a sliver with its label gone — the width the dialogue's own
-                // Saber mais asks for, for the same reason.
+                // A right-aligned row gives its child no width of its own, so the button says how
+                // wide it is — the width the dialogue's own Saber mais asks for.
                 LayoutElement moreLayout = UIKit.Layout(more);
                 moreLayout.minWidth = ReadMoreWidth;
                 moreLayout.preferredWidth = ReadMoreWidth;

@@ -114,13 +114,15 @@ namespace SheepGate.Dialogue
         private const string AdvanceHintKey = "dialogue.advance_hint";
 
         /// <summary>
-        /// Height of one branch row: two lines of body copy at the design system's leading, plus the
-        /// vertical padding a button puts around its own label.
+        /// Floor for one branch row: two lines of body copy at the design system's leading, plus
+        /// the vertical padding a button puts around its own label.
         ///
-        /// Two lines and not one because the longest authored branch is 44 characters in English and
-        /// wraps at this width; not three, because nothing in the data reaches a third and an empty
-        /// line is a hole in the column. Never below the 48 point touch target whatever the
-        /// arithmetic says — that floor is an accessibility rule, not a minimum this may undercut.
+        /// A floor and not the height. The rows used to be fixed at two lines on the strength of
+        /// the longest branch then authored; the data grew past it and a three-line branch in
+        /// pt-BR ran out of its box on the phone. A row now takes its height from its own label
+        /// and this only stops a one-line branch from making the column look uneven. Never below
+        /// the 48 point touch target whatever the arithmetic says — that floor is an accessibility
+        /// rule, not a minimum this may undercut.
         /// </summary>
         private static readonly float ChoiceButtonHeight = Mathf.Max(
             UIKit.ButtonMinHeight,
@@ -428,16 +430,32 @@ namespace SheepGate.Dialogue
             }
 
             // The kit already gives a button a layout element at the 48 point touch height; a branch
-            // needs a taller one because its label is a sentence that wraps.
+            // is a sentence that wraps, so the row is sized by its label instead: a layout group on
+            // the button hands the label the row's width, and the row's preferred height is the
+            // wrapped text plus the button's own padding. The border and the focus ring stay
+            // stretched over the whole button, outside the group's arithmetic.
             LayoutElement layout = UIKit.Layout(button);
             if (layout != null)
             {
                 layout.minHeight = ChoiceButtonHeight;
-                layout.preferredHeight = ChoiceButtonHeight;
+                layout.preferredHeight = -1f;
                 layout.flexibleWidth = 1f;
             }
 
             Text label = button.GetComponentInChildren<Text>();
+            foreach (Transform child in button.transform)
+            {
+                if (label == null || child != label.transform)
+                {
+                    UIKit.Layout(child).ignoreLayout = true;
+                }
+            }
+
+            int horizontal = Mathf.RoundToInt(UIKit.ButtonPadding);
+            int vertical = Mathf.RoundToInt(UIKit.ButtonVerticalPadding);
+            UIKit.VerticalGroup(button.gameObject, 0f,
+                new RectOffset(horizontal, horizontal, vertical, vertical), TextAnchor.MiddleLeft);
+
             if (label != null)
             {
                 // Left aligned, because a branch is a sentence the player says rather than a verb on

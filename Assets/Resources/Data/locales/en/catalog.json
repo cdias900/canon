@@ -116,7 +116,7 @@
     },
     "acc_plumb_line": {
       "display": "Plumb line",
-      "description": "Lead on the end of a cord, tied at the belt. It tells you a course is out before the course above it proves so."
+      "description": "Lead on a cord at the belt. Calls a course out before the one above proves it."
     },
     "acc_gate_key": {
       "display": "Gate key",

@@ -1887,7 +1887,8 @@ namespace SheepGate.UI
                 preview = PreviewHeightMax;
                 keepCustomiseTitle = true;
 
-                float tallest = TallestRowHeight();
+                string tallestIds;
+                float tallest = TallestRowHeight(out tallestIds);
                 if (tallest <= 0f)
                 {
                     // No rows were drawn at all, which BuildTabRows has already reported. There is
@@ -1933,7 +1934,7 @@ namespace SheepGate.UI
 
                 Debug.LogError("[CharacterCreation] Step 2 shows " + (band / tallest).ToString("0.00") +
                                " rows at the tallest row in locale " + Loc.LoadedLocale + " (" + tallest +
-                               " units), against a floor of " + MinimumVisibleRows +
+                               " units: " + tallestIds + "), against a floor of " + MinimumVisibleRows +
                                ". The band is " + band + " units of a " + _rootHeight +
                                "-unit safe area, with the preview already at its floor of " +
                                PreviewHeightFloor + " and " + FixedChrome() +
@@ -1963,7 +1964,20 @@ namespace SheepGate.UI
             /// </summary>
             float TallestRowHeight()
             {
+                string ignored;
+                return TallestRowHeight(out ignored);
+            }
+
+            /// <summary>
+            /// The tallest row and the ids of every row within a unit of it, so the error that
+            /// names "the longest catalogue string" can say which strings those are. Several rows
+            /// usually tie: every description that wraps to the same number of lines lands on the
+            /// same height, and shortening one of them moves nothing until all of them are shorter.
+            /// </summary>
+            float TallestRowHeight(out string tallestIds)
+            {
                 float tallest = 0f;
+                var ids = new List<string>();
 
                 for (int i = 0; _tabs != null && i < _tabs.Length; i++)
                 {
@@ -1982,13 +1996,25 @@ namespace SheepGate.UI
                         }
 
                         var layout = view.Root.GetComponent<LayoutElement>();
-                        if (layout != null)
+                        if (layout == null)
                         {
-                            tallest = Mathf.Max(tallest, layout.preferredHeight);
+                            continue;
+                        }
+
+                        if (layout.preferredHeight > tallest + 0.5f)
+                        {
+                            tallest = layout.preferredHeight;
+                            ids.Clear();
+                        }
+
+                        if (Mathf.Abs(layout.preferredHeight - tallest) <= 0.5f)
+                        {
+                            ids.Add(view.ItemId);
                         }
                     }
                 }
 
+                tallestIds = string.Join(", ", ids);
                 return tallest;
             }
 

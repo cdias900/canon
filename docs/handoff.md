@@ -106,8 +106,9 @@ is at 65 in pt-BR and the third line left the box. A branch is now sized by its 
 (layout group on the button, border and ring ignoring it, the two-line height as a floor).
 **The device build ran as a Development build** like every other, and the Development Console
 drew a `[CharacterCreation] Step 2 shows 1,74 rows` error across the phone; `BuildIOS` now
-builds without it. The error itself is real and device-specific — the iPhone 17 Pro simulator
-and the e2e do not reproduce it — and is still open below. Seen on the simulator: the player at
+builds without it. The error itself was real: the iPhone 15 Pro simulator, the same
+19.5:9 class, reproduces it, and it went away once the three pt-BR descriptions that tied for
+tallest (and the English plumb line) were shortened; the error names the tied rows now. Seen on the simulator: the player at
 the wall mid-screen with the ring's footing across the width, a course rising there, and the
 three-line Meremote branch inside its box.
 
@@ -478,11 +479,14 @@ covered by playing it.**
   put it on the south ring cell, see "What landed". `NEH.3` assigns each group a stretch, so it
   reads correctly, but a true arc would need `WallSystem`, the contest and the patrol camera to
   change together.
-- **Character creation's Step 2 shows 1.74 wardrobe rows on an iPhone 16 Pro** and logs an error
-  saying so (`CharacterCreationScreen`, floor of 2 rows in a 1890-unit safe area). The 17 Pro
-  simulator and the e2e do not reproduce it and no 16 Pro simulator runtime is installed here;
-  the lever the error names is the tallest catalogue row (`acc_plumb_line`, 117 characters in
-  pt-BR). The list still scrolls; the console that showed it no longer ships in the device build.
+- **Character creation's Step 2 was 1.74 wardrobe rows on an iPhone 16 Pro** and logged an
+  error saying so (`CharacterCreationScreen`, floor of 2 rows in a 1890-unit safe area). The
+  iPhone 15 Pro simulator, same 19.5:9 class, reproduces it (1889 units), the 17 Pro and the
+  e2e do not. Fixed on the data side on 04/09/2026: the error now names the rows that tie for
+  tallest, and the three pt-BR descriptions that did (`acc_plumb_line` at 117 characters, then
+  `acc_watch_horn` and `acc_gate_key` at the same three-line height) plus `acc_plumb_line` in
+  English were shortened until the 15 Pro shows two rows in both languages with no error. A
+  new long description will bring it back; the error says which one.
 - **The four skin tones and the build silhouettes are unjudged.** Nobody has looked at whether tones
   2 and 3 are distinguishable at 32×48, or whether the narrower build actually reads.
 - **`WorldMapOverlay.Place.Caption` no longer exists** — earlier handoffs listed a never-drawn

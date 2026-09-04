@@ -83,6 +83,26 @@ a screenshot; different window sizes per locale still nests the smaller window i
 
 ## What landed since the last handoff
 
+### Timber by letter — one citation, no gate
+
+The design says timber *is not gathered: it comes by letter to the keeper of the king's forest*.
+The beams already appeared on day 2; now Hananias says why, and `NEH.2.8` is quoted on
+`hananias_d2` in both locales. Content only — gating the day's courses behind a conversation would
+reopen the economy defect the engagement wave closed.
+
+### The mockery — the design's first threat, as its own contest
+
+Stage 5 opened on Sambalate's first words as dialogue; the design lists mockery as one of four
+threats with its own grammar, *a pure morale drain with no target to attack*. It is now the
+**`mockery`** contest on the same engine (`contest.json`, `type: battle` on stage 5): resolve 48,
+pressure 10, six narrated lines of laughter from the upper road, no trumpet (`trumpet: false` — the
+row is the first to carry the field; the other two default to true), no Page, and three moves —
+Hold the line, Call the others, and its own **Count out loud** (−10 resolve · +4 morale, the crew
+hearing the count instead of the joke). Show the watch and Half and half are not offered: there is
+nothing to show a torch to, and the Page has not happened. The residents' day-5 lines already
+described exactly this, so nothing in the dialogue moved. Criterion 07 now checks three fights, and
+the e2e fights the mockery at stage 5 before the raid at stage 6 without the Page intruding.
+
 ### The vigil — rule 8's information half, on the split
 
 The design's *rule of prayer* had no code behind it: prayer returns information, never force, and

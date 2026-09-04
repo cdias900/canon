@@ -27,10 +27,11 @@ asking, it has done its job — it answered no, and answered cheaply.
 > declares itself terminal — with the wall visibly built, a morale contest won or lost, and the
 > chapter reader opened at least once.
 
-> **There are two `deep_read` doors, not one.** A Página offers `NEH.4` at the contest of stage 6,
-> and the closed gate offers `NEH.12` at stage 9. Both go through **Saber mais**, which stays the
-> only way into the reader. A build that opens one and not the other has answered the question by
-> half.
+> **There are three `deep_read` doors.** A Página offers `NEH.4` at the contest of stage 6, the
+> closed gate offers `NEH.12` at stage 9, and **the reading of the Law offers `NEH.8`** in the
+> closing gathering after the gate — the event the design names as the season's ending. All go
+> through **Saber mais**, which stays the only way into the reader. A build that opens one and not
+> the others has answered the question in part.
 
 Android keeps its build target and stays in this definition. **An APK was first built and played on
 03/09/2026**, on an arm64 emulator (`tools/android-emu.sh`), through the opening, creation and the
@@ -256,7 +257,7 @@ standalone screen, so that route keeps working; nothing routes to it.
 | `ScriptureService` | In-memory index of the locale's `verses.json`. Never hits the network. |
 | `ScriptureVisibility` | Decides whether `ref_display` is shown. One-way: hidden until the reveal, never re-hidden. |
 | `ChapterReaderUI` | Scrollable panel with the whole chapter. Fires `deep_read` past a dwell of 1.5 s per verse (floor 20 s) **and** 60% scroll. |
-| `MoraleContest` | Turn machine for any stage that names a `contest`. Three exist. See §07. |
+| `MoraleContest` | Turn machine for any stage that names a `contest`. Four exist. See §07. A move may carry `costs_work`: it spends the day's capacity, once per fight, and is shut below its price. |
 | `StageDirector` | Everything a stage asks for beyond an ordinary working day: the contest, A Página, the gathering, the wall finishing, the gate closing, the vocation. **Driven entirely by `stages.json` — it counts nothing.** A beat holds the day open only while it runs and then gives the hold back, so the stage still ends through the one end-of-day path every other stage uses. The `terminal` stage is the single exception: once its gate segment is standing it takes `HoldFinalDay` and never releases it, because it has no tomorrow; before that it is a working day that repeats its date. |
 | `VocationTracker` | Accumulates silently. **No public score getter.** Reveals at the terminal stage. |
 | `DailyQuiz` | One question a stage, asked at **dusk** so it closes the session, with a one-line `hook` into tomorrow under the answer; only the terminal stage asks at its morning, because an earned gate leaves it no dusk. Counts whether right or wrong. |
@@ -293,9 +294,9 @@ the rows mean.
 | 4 | `the_people_united` | rest | `gathering_d4` · **`night_threat: false`** | `outfit_valley_mantle` |
 | 5 | `the_work_begins` | battle | **contest `mockery`** — Sambalate first speaks, and the work answers | `outfit_work_apron` |
 | 6 | `enemies_rise` | battle | **contest `raid` · `reveals_page`** — A Página, `NEH.4.17` | `acc_watch_horn` |
-| 7 | `prayer_and_guard` | work | the watch | `acc_bead_bracelet` |
+| 7 | `prayer_and_guard` | battle | **contest `famine`** — the crisis inside the wall; then the watch, the armed nights from tonight | `acc_bead_bracelet` |
 | 8 | `the_work_finished` | boss | **contest `letters` · `finishes_wall`** | `acc_old_seal` |
-| 9 | `the_dedication` | gate | **`terminal` · `closes_gate` (`seg_02`) · `reveals_vocation`** | `acc_gate_key` |
+| 9 | `the_dedication` | gate | **`terminal` · `closes_gate` (`seg_02`) · `closing_node` `reading_d9` · `reveals_vocation`** | `acc_gate_key` |
 
 > **The two beats the build exists for are now three stages apart.** A Página lands at stage 6 and the
 > gate closes at stage 9. In the three-day build both happened on day 3; anything that still says so
@@ -304,8 +305,8 @@ the rows mean.
 **Every night but the last offers a vigil**, and what it returns is written in the table's
 `vigil_verse`: the invitation's intent before the invitation (`NEH.6.2`), the nobles of Tekoa before
 their stretch is asked for (`NEH.3.5`), the people's will before the roll call (`NEH.4.6`), the mockery
-before Sambalate first speaks (`NEH.4.1`), the plot before the raid (`NEH.4.11`), the spear in the other
-hand before the armed nights (`NEH.4.16`), the letters' purpose before the letters (`NEH.6.9`), and the
+before Sambalate first speaks (`NEH.4.1`), the plot before the raid (`NEH.4.11`), the outcry before the famine (`NEH.5.1`), the letters'
+purpose before the letters (`NEH.6.9`), and the
 enemy's own verdict before the dedication (`NEH.6.16`). Each is about tomorrow, none is a number, and
 all eight were already in the corpus — the vigil added no citation the key could not fetch.
 
@@ -382,7 +383,17 @@ clearing it with them costs one unit of work today and that night's crew builds 
 morning report shows the doubled count and says why. The steward scores the clearing, the zealot
 the refusal.
 
-### Stage 7 — `prayer_and_guard`
+### Stage 7 — `prayer_and_guard`, the famine and the watch
+
+The morning opens on the **`famine`** contest (§07), the design's third threat and the only one
+that comes from inside the wall: hunger, mortgaged fields, the king's tax, daughters given for
+grain debts, and the lenders standing in the same square — `NEH.5.1-5`, narrated, never quoted.
+It is *unsolvable by wall*: **Keep building** is worth almost nothing here, and the two moves that
+answer it cost the day — **Give back what is theirs** (`NEH.5.11-12`, the shepherd) and **Give up
+your share** (`NEH.5.14-18`, the steward), each spending one unit of today's work, each offered
+once. That is the chapter's grammar in the engine: the correct play is deliberately losing a
+resource, and the price is paid through the day's own clock. No trumpet, no Page. The vigil of the
+night before returns `NEH.5.1`, the outcry.
 
 From the night of this stage the crew works with the other hand on the weapon (`NEH.4.17`,
 `DayCycle.HalfAndHalfStage`): a night unit for every two people instead of every three, and the
@@ -418,6 +429,13 @@ complete it — the story closing the wall, not the player spending anything.
   (`DayCycle.RefillThePiles`), and the morning report says how many courses are left. Delayed,
   never cancelled (rule 7). It used to hand the segment sixty-four units of work nobody laid.
 - **Saber mais** opens `NEH.12`. Second `deep_read` door.
+- **The reading** (`reading_d9`, the stage's `closing_node`): with the gate shut the square in
+  front of the Water Gate fills and the people ask for the book — `NEH.8.1`, `8.3`, `8.6`, `8.8`,
+  `8.10`, `8.12`, quoted with narration around them and no authored line for the governor or for
+  Ezra. It plays between the gate panel and the reveal, because the reading is what the wall was
+  for, and its quotations are the **third `deep_read` door**. The book puts chapter 8 before
+  chapter 12; the season puts the reading after the dedication on purpose, as the design does —
+  *the prize for building the city is reading the book.*
 - The vocation reveal. Ties break by the most recent award, and only a run with no awards at all
   falls back to the order of `vocations.json`.
 - **The ending** (`SeasonEndPanel`), after the reveal and again from the HUD's drawer: the whole
@@ -444,7 +462,7 @@ The outcome is decided by what the player did in the stages before it — that i
 earned rather than rolled. **Nothing is random: two players who prepared the same way see the same
 fight.**
 
-**There are three contests, and they are data** (`contest.json`); a stage names which one it fights.
+**There are four contests, and they are data** (`contest.json`); a stage names which one it fights.
 `MoraleContest` is instanced once and every encounter runs through it, so what used to be "the trial"
 is now "this contest" — including whether it has already been fought, and whose lines the other side
 speaks.
@@ -458,14 +476,19 @@ enemy.pressure  = base +  6 for the missing watch + 6 for the accepted invitatio
 turn limit      = 8   // overflow = the enemy withdraws, a technical draw
 ```
 
-| | `mockery` — stage 5 | `raid` — stage 6 | `letters` — stage 8 |
-|---|---|---|---|
-| resolve base | **48** | 60 | **78** |
-| pressure base | **10** | 12 | **14** |
-| A Página | none — not yet | **turn 2, `NEH.4.17`** | none — the reveal already happened |
-| trumpet | **no** — there is no assault | yes (`NEH.4.20`) | yes |
-| extra move | **Count out loud**, −10 resolve · +4 morale | — | **Keep working**, −24 resolve · +4 morale, only with `refused_invite` |
-| not offered | Show the watch, Half and half | — | — |
+| | `mockery` — stage 5 | `raid` — stage 6 | `famine` — stage 7 | `letters` — stage 8 |
+|---|---|---|---|---|
+| resolve base | **48** | 60 | **56** | **78** |
+| pressure base | **10** | 12 | **12** | **14** |
+| A Página | none — not yet | **turn 2, `NEH.4.17`** | none | none — the reveal already happened |
+| trumpet | **no** — there is no assault | yes (`NEH.4.20`) | **no** — the threat is inside | yes |
+| extra move | **Count out loud**, −10 resolve · +4 morale | — | **Give back**, −18 · +6, **costs 1 work** · **Give up your share**, −12 · +8, **costs 1 work** | **Keep working**, −24 resolve · +4 morale, only with `refused_invite` |
+| not offered | Show the watch, Half and half | — | Hold the line (the wall does not answer hunger), Show the watch, Half and half | — |
+
+A move with `costs_work` is offered once per fight and only while the day still has its price; the
+card stays on the menu, greyed, below it. The price goes through `ResourceSystem.Spend`, so the
+light moves with it and a fight can end the day — the night waits on the modal (§05), so nothing
+resolves under the contest.
 
 | Move | Effect | Depends on |
 |---|---|---|
@@ -475,6 +498,9 @@ turn limit      = 8   // overflow = the enemy withdraws, a technical draw
 | **Half and half** *(unlocks on t2)* | −15 resolve **and** +8 morale, same turn | Only exists after A Página |
 | **Keep working** *(`letters` only)* | −24 resolve **and** +4 morale | flag `refused_invite` |
 | **Count out loud** *(`mockery` only)* | −10 resolve **and** +4 morale | nothing — the work is always an answer |
+| **Keep building** *(`famine` only)* | −3 resolve | nothing, and no wall bonus: nobody eats a wall |
+| **Give back what is theirs** *(`famine` only)* | −18 resolve **and** +6 morale | **1 of today's work**, once |
+| **Give up your share** *(`famine` only)* | −12 resolve **and** +8 morale | **1 of today's work**, once |
 
 > **The second contest pays out the first refusal.** Whoever turned the invitation down at stage 2
 > carries the strongest move in the game into stage 8 — six stages later, and never announced. It is
@@ -589,7 +615,7 @@ accessory. Eight synthesised sounds (three of them the stone, so a day of course
 - A daily streak, push notifications
 - Sign-up, accounts, cloud, sync
 - LLM calls at runtime — all dialogue is authored in `dialogue.json`
-- The other 9 gates, any other season, and **the famine of `NEH.5`** — the one threat of the design's four still missing (mockery, the raid and the letters are in); it waits on the corpus, not on code
+- The other 9 gates, any other season. **All four threats of the design are in** — mockery, the raid, the famine, the letters
 - Jesus or the Holy Spirit as a guide — **deferred by decision, not discarded**
 
 ---
@@ -618,6 +644,7 @@ the version abbreviation and its copyright notice (`ChapterReaderUI.BuildColopho
 | 13 | The day ends by itself when capacity hits zero; no HUD button ends it; no night resolves with a panel open. |
 | 14 | The translation copyright is displayed in-game. |
 | 15 | A run with no character is never offered a launch screen to press through (§04). |
+| 17 | A costed move is shut below its price, spends exactly its price, and is offered once per fight. |
 | 16 | The vigil costs the night's work and returns a page that resolves; it changes nothing else — same damage as the ordinary night beside the same watch, and with no watch a vigil still loses the wall on a threat night. |
 
 > **The harness carries more than the fourteen, and the prefix says which is which.** Numbered

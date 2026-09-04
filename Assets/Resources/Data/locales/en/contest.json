@@ -22,5 +22,17 @@
   "keep_counting": {
     "display": "Count out loud",
     "description": "You lay stone counting the courses out loud, so as not to count what they are saying. The work is the only answer they get to hear."
+  },
+  "keep_building": {
+    "display": "Keep building",
+    "description": "Stone on stone. The wall goes up, and nobody eats a wall."
+  },
+  "give_back": {
+    "display": "Give back what is theirs",
+    "description": "Field, vineyard, house and the interest charged on top. It costs part of your day, and it is the one thing that answers what they are shouting."
+  },
+  "refuse_ration": {
+    "display": "Give up your share",
+    "description": "The ration the work owes you stays on somebody else's table today. It costs part of your day, and it is what can be seen from far off."
   }
 }

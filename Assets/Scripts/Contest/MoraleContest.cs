@@ -77,6 +77,20 @@ namespace SheepGate.Contest
         public const string MoveKeepCounting = "keep_counting";
 
         /// <summary>
+        /// The famine's own moves. Neither is answered by the wall: the nobles give the fields back
+        /// (NEH.5.11-12) and the governor refuses the ration the office entitles him to
+        /// (NEH.5.14-18). Both cost the day, once, which is the whole grammar of that chapter.
+        /// </summary>
+        public const string MoveGiveBack = "give_back";
+        public const string MoveRefuseRation = "refuse_ration";
+        public const string MoveKeepBuilding = "keep_building";
+
+        const int ShepherdGiveBackPoints = 2;
+        const int StewardRationPoints = 2;
+        const string ShepherdGiveBackCounter = "shepherd_give_back_awarded";
+        const string StewardRationCounter = "steward_refuse_ration_awarded";
+
+        /// <summary>
         /// The turn the page interrupts when a contest carries a reveal but does not say when.
         ///
         /// A contest declares its own turn in contest.json, and zero there means it carries no
@@ -361,6 +375,7 @@ namespace SheepGate.Contest
 
             _watchShown = false;
             _firstMovePlayed = false;
+            _costedMovesUsed.Clear();
             _enemyLineIndex = 0;
             _pendingMoveId = null;
             HasFinished = false;
@@ -542,6 +557,24 @@ namespace SheepGate.Contest
             if (move == null)
             {
                 return false;
+            }
+
+            // A costed move is spent once and needs its price left in the day. No ResourceSystem
+            // means no day to spend — the editor harness builds contests without one — and a move
+            // that locked itself over a missing system would fail silently in the one place the
+            // rules are checked, so the absence reads as affordable.
+            if (move.costs_work > 0)
+            {
+                if (_costedMovesUsed.Contains(moveId))
+                {
+                    return false;
+                }
+
+                ResourceSystem resources = ResourceSystem.Find();
+                if (resources != null && resources.Capacity < move.costs_work)
+                {
+                    return false;
+                }
             }
 
             if (move.unlocked_by_page && !_pageDismissed)
@@ -761,6 +794,26 @@ namespace SheepGate.Contest
                     break;
                 }
 
+                case MoveKeepBuilding:
+                {
+                    line = Loc.T("contest.log.keep_building");
+                    break;
+                }
+
+                case MoveGiveBack:
+                {
+                    line = Loc.T("contest.log.give_back");
+                    AwardOnce(ShepherdGiveBackCounter, VocationIds.Shepherd, ShepherdGiveBackPoints);
+                    break;
+                }
+
+                case MoveRefuseRation:
+                {
+                    line = Loc.T("contest.log.refuse_ration");
+                    AwardOnce(StewardRationCounter, VocationIds.Steward, StewardRationPoints);
+                    break;
+                }
+
                 default:
                 {
                     line = move.display ?? moveId;
@@ -769,6 +822,22 @@ namespace SheepGate.Contest
             }
 
             _firstMovePlayed = true;
+
+            // The price, paid through the day's own clock so the light moves with it. Paid after
+            // the move resolved rather than before, because a move that could not be afforded was
+            // never on the menu (IsMoveAvailable) and a Spend that failed here would mean the day
+            // changed under the contest — logged, and the move still lands, because the player
+            // pressed something that was offered.
+            if (move.costs_work > 0)
+            {
+                _costedMovesUsed.Add(moveId);
+                ResourceSystem resources = ResourceSystem.Find();
+                if (resources != null && !resources.Spend(move.costs_work))
+                {
+                    Debug.LogWarning("[Contest] '" + moveId + "' could not spend " + move.costs_work +
+                                     " of work; the day ran out under the contest.");
+                }
+            }
 
             _enemyResolve = Mathf.Clamp(_enemyResolve + resolveDelta, 0, _enemyResolveMax);
             _morale = Mathf.Clamp(_morale + moraleDelta, 0, _moraleMax);
@@ -785,6 +854,9 @@ namespace SheepGate.Contest
         /// reads key-shaped literals out of this tree and asserts every one of them exists in
         /// ui.json, and a bare prefix looks exactly like a key that has gone missing.
         /// </summary>
+        /// <summary>Costed moves already spent in this fight; a costed move is offered once.</summary>
+        readonly HashSet<string> _costedMovesUsed = new HashSet<string>();
+
         static readonly string[] DefaultEnemyLineKeys =
         {
             "contest.log.enemy.1",

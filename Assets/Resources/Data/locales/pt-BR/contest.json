@@ -22,5 +22,17 @@
   "keep_counting": {
     "display": "Contar alto",
     "description": "Você assenta contando as fiadas em voz alta, para não contar o que eles dizem. A obra é a única resposta que eles chegam a ouvir."
+  },
+  "keep_building": {
+    "display": "Seguir na obra",
+    "description": "Pedra em cima de pedra. O muro sobe, e ninguém come muro."
+  },
+  "give_back": {
+    "display": "Devolver o que é deles",
+    "description": "Campo, vinha, casa e o juro cobrado em cima. Custa uma parte do seu dia, e é a única coisa que responde ao que estão gritando."
+  },
+  "refuse_ration": {
+    "display": "Abrir mão da sua parte",
+    "description": "A ração que a obra deve a você fica na mesa dos outros hoje. Custa uma parte do seu dia, e é o que se vê de longe."
   }
 }

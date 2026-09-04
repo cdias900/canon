@@ -368,6 +368,13 @@ namespace SheepGate.World
                     yield return RunGateBeat(stage);
                 }
 
+                // The closing event, between the doors and the name: the reading of the Law is
+                // what the wall was for, so it lands before the season says who the player was.
+                if (!string.IsNullOrEmpty(stage.closing_node))
+                {
+                    yield return RunClosingBeat(stage);
+                }
+
                 if (stage.reveals_vocation)
                 {
                     yield return RunRevealBeat();
@@ -457,6 +464,27 @@ namespace SheepGate.World
             {
                 Debug.LogWarning("[World] The gathering node \"" + nodeId + "\" could not be played; stage \""
                                  + stage.id + "\" carries on without it.");
+                yield break;
+            }
+
+            yield return WaitForQuietWorld();
+        }
+
+        /// <summary>
+        /// The gathering a stage names for after its gate: the same shape as the morning's
+        /// gathering, played into a quiet world, and the same tolerance — a node that cannot play
+        /// is a warning and the stage carries on to the reveal rather than stalling on it.
+        /// </summary>
+        private IEnumerator RunClosingBeat(StageDef stage)
+        {
+            string nodeId = stage.closing_node;
+
+            yield return WaitForQuietWorld();
+
+            if (!WorldRuntime.PlayDialogue(nodeId))
+            {
+                Debug.LogWarning("[World] The closing node \"" + nodeId + "\" could not be played; stage \""
+                                 + stage.id + "\" goes on to its reveal without it.");
                 yield break;
             }
 

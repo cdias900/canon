@@ -83,6 +83,19 @@ a screenshot; different window sizes per locale still nests the smaller window i
 
 ## What landed since the last handoff
 
+### The famine and the reading — the two beats the corpus was holding back
+
+NVI was enabled for the app's key on 04/09/2026 and `NEH.5`, `NEH.8` and `NEH.4.12` were fetched
+in both locales. With them: the **`famine`** contest on stage 7 (the design's third threat, from
+inside the wall — six narrated lines of hunger, the tax and the lenders; two moves that **cost the
+day**, `costs_work` on the move row, once per fight, spent through `ResourceSystem`; the shepherd
+and the steward score them; criterion 17 proves the price), and the **reading of the Law** as the
+season's closing event: `reading_d9` is stage 9's new `closing_node`, played by the director
+between the gate panel and the reveal, quoting `NEH.8` around a narrator with no authored line
+for the governor or Ezra — the third `deep_read` door, and the ending the design asked for. The
+vigil of stage 6 now returns `NEH.5.1`. The e2e fights the famine and detours through the
+reading's Saber mais, asserting the chapter is the node's own.
+
 ### Timber by letter — one citation, no gate
 
 The design says timber *is not gathered: it comes by letter to the keeper of the king's forest*.

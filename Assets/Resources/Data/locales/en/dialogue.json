@@ -1553,6 +1553,52 @@
       }
     ]
   },
+  "reading_d9": {
+    "npc": "narrator",
+    "day": 9,
+    "cutscene": true,
+    "lines": [
+      {
+        "text": "With the gate shut, nobody goes home. The square in front of the Water Gate fills without anyone giving the order, and what the people ask for is not a feast."
+      },
+      {
+        "frame": "What they asked for, and of whom, was written down:",
+        "verse": "NEH.8.1"
+      },
+      {
+        "text": "They brought the book. A wooden platform, built for today, and a man on it whom nobody here had ever seen read."
+      },
+      {
+        "frame": "He read. It was set down from what hour to what hour, and who stayed listening:",
+        "verse": "NEH.8.3"
+      },
+      {
+        "text": "You are on your feet with the dust of your stretch still on your clothes. The ones who laid stone beside you the whole season are beside you now too, and nobody is looking at the wall."
+      },
+      {
+        "frame": "When he opened the book, this happened:",
+        "verse": "NEH.8.6"
+      },
+      {
+        "frame": "They did not only read. They explained, for whoever did not understand what was being read:",
+        "verse": "NEH.8.8"
+      },
+      {
+        "text": "People are crying. Not from fear; fear was the other day. From understanding, for the first time, what the fifty-two days were for."
+      },
+      {
+        "frame": "What was said to the people in that hour was recorded, word for word:",
+        "verse": "NEH.8.10"
+      },
+      {
+        "frame": "And the day ended like this:",
+        "verse": "NEH.8.12"
+      },
+      {
+        "text": "The wall is behind you. This is what it was for."
+      }
+    ]
+  },
   "hananias_d9": {
     "npc": "hananias",
     "day": 9,

@@ -197,12 +197,12 @@ exist. Always an internal reader; an external channel is a secondary, optional b
   this machine, which is the file `tools/fetch-verses.mjs:42-50` reads. So what is left is a task —
   add the two references and refetch — not a blocker, and it stays open only because adding a
   citation is a content judgement about which verse the frame is actually describing.
-  **And the key is not enough on its own:** on 03/09/2026 the key in `.env.local` returned
-  `403 Access denied for 129` on NVI while serving BLT (`3254`) and WEB (`206`) — the state
-  `docs/youversion-api.md` §2 describes, where the version has to be **enabled for the app in the
-  YouVersion developer portal**. Until someone does that, or pt-BR is regenerated against BLT, no
-  new pt-BR citation can be fetched, and `NEH.5` and `NEH.8` — the famine and the reading of the
-  Law, the two beats of the design still missing — stay out of reach.
+  **The key needed the portal step too:** on 03/09/2026 it returned `403 Access denied for 129`
+  on NVI while serving BLT and WEB — the state `docs/youversion-api.md` §2 describes. **NVI was
+  enabled for the app on 04/09/2026 and serves since**: `NEH.5`, `NEH.8` and `NEH.4.12` were
+  fetched that day, and the famine and the reading of the Law are in the season. The `tobiah_d6`
+  frame that wants `NEH.4.12` is now a content edit, not a fetch — and that node carries
+  `curated_in`, so editing it reopens its read.
   `a943723` then taught the queue to say so: each read node carries `curated_in` with the commit
   that read it, and `node tools/list-curation.mjs` reports nothing waiting. `needs_curation` is
   **not** cleared on purpose — the queue is a record of what carries authored canonical speech,

@@ -99,6 +99,7 @@ namespace SheepGate.EditorTools
                     VocationResolution();
                     NightDiffers();
                     TheVigilCostsTheNight();
+                    ACostedMoveCostsTheDay();
                     DaylightClock();
                     CheckInSchedule();
                 }
@@ -425,6 +426,11 @@ namespace SheepGate.EditorTools
                     (!ScriptureService.TryGetVerse(stage.vigil_verse.Trim(), out vigilPage) || vigilPage == null || string.IsNullOrEmpty(vigilPage.text)))
                 {
                     faults.Add(stage.id + " offers a vigil on \"" + stage.vigil_verse + "\", which verses.json does not carry");
+                }
+
+                if (!string.IsNullOrEmpty(stage.closing_node) && !GameData.Dialogue.ContainsKey(stage.closing_node))
+                {
+                    faults.Add(stage.id + " names closing node \"" + stage.closing_node + "\", which this locale does not carry");
                 }
 
                 if (stage.terminal && !string.IsNullOrEmpty(stage.vigil_verse))
@@ -1520,6 +1526,108 @@ namespace SheepGate.EditorTools
 
             UnityEngine.Object.DestroyImmediate(host);
             return outcome;
+        }
+
+        // 17 — a costed move is priced in the day: shut below its price, spends exactly its price,
+        // and is offered once. The famine's grammar is deliberately losing a resource, and a move
+        // that said it cost the day and did not would be the discount rule 18 forbids in another
+        // coat. Driven through ApplyPlayerMove by reflection, the way the harness already reaches
+        // what the fight keeps private, because the turn loop is a coroutine the editor never runs.
+        static void ACostedMoveCostsTheDay()
+        {
+            var costed = new List<KeyValuePair<string, ContestMoveDef>>();
+            foreach (KeyValuePair<string, ContestConfig> pair in GameData.Contests ?? new Dictionary<string, ContestConfig>())
+            {
+                if (pair.Value == null || pair.Value.moves == null) continue;
+                foreach (ContestMoveDef move in pair.Value.moves)
+                {
+                    if (move != null && move.costs_work > 0) costed.Add(new KeyValuePair<string, ContestMoveDef>(pair.Key, move));
+                }
+            }
+
+            if (costed.Count == 0)
+            {
+                Check("17 a costed move costs the day", false, "no contest declares a move with costs_work");
+                return;
+            }
+
+            var faults = new List<string>();
+            MethodInfo apply = typeof(MoraleContest).GetMethod("ApplyPlayerMove", BindingFlags.Instance | BindingFlags.NonPublic);
+            if (apply == null)
+            {
+                Check("17 a costed move costs the day", false, "MoraleContest.ApplyPlayerMove is no longer reachable by reflection");
+                return;
+            }
+
+            foreach (KeyValuePair<string, ContestMoveDef> entry in costed)
+            {
+                string contestId = entry.Key;
+                ContestMoveDef move = entry.Value;
+                StageDef stage = StageFighting(contestId);
+                if (stage == null)
+                {
+                    faults.Add(contestId + "/" + move.id + " costs work but no stage fights that contest");
+                    continue;
+                }
+
+                // Below the price: on the menu but shut.
+                MoraleContest poor = BuildContestWithADay(stage, "HarnessCostedPoor", move.costs_work - 1);
+                if (poor.IsMoveAvailable(move.id))
+                {
+                    faults.Add(contestId + "/" + move.id + " is offered with " + (move.costs_work - 1) + " of work left, below its price of " + move.costs_work);
+                }
+                UnityEngine.Object.DestroyImmediate(poor.gameObject);
+
+                // At the price: offered, spends exactly the price, then shut for the rest of the fight.
+                int start = move.costs_work + 2;
+                MoraleContest able = BuildContestWithADay(stage, "HarnessCostedAble", start);
+                GameState state;
+                ServiceLocator.TryGet(out state);
+
+                if (!able.IsMoveAvailable(move.id))
+                {
+                    faults.Add(contestId + "/" + move.id + " is shut with " + start + " of work left");
+                }
+                else
+                {
+                    apply.Invoke(able, new object[] { move.id });
+                    int left = state != null ? state.workCapacity : -1;
+                    if (left != start - move.costs_work)
+                    {
+                        faults.Add(contestId + "/" + move.id + " left " + left + " of work from " + start + ", expected " + (start - move.costs_work));
+                    }
+
+                    if (able.IsMoveAvailable(move.id))
+                    {
+                        faults.Add(contestId + "/" + move.id + " is offered a second time in the same fight");
+                    }
+                }
+                UnityEngine.Object.DestroyImmediate(able.gameObject);
+            }
+
+            Check("17 a costed move costs the day", faults.Count == 0,
+                faults.Count == 0
+                    ? costed.Count + " costed move(s) priced in the day, single use"
+                    : string.Join("; ", faults));
+        }
+
+        /// <summary>A fight on this stage with a day of the given capacity behind it.</summary>
+        static MoraleContest BuildContestWithADay(StageDef stage, string hostName, int capacity)
+        {
+            GameState state = GameState.NewGame();
+            state.day = stage.day;
+            state.workCapacity = Mathf.Max(0, capacity);
+            state.workCapacityMax = Mathf.Max(state.workCapacityMax, state.workCapacity);
+
+            ServiceLocator.Clear();
+            ServiceLocator.Register(state);
+
+            var host = new GameObject(hostName);
+            host.AddComponent<WallSystem>().Build(null);
+            ServiceLocator.Register(host.AddComponent<ResourceSystem>());
+            var contest = host.AddComponent<MoraleContest>();
+            contest.Begin(stage.contest);
+            return contest;
         }
 
         // 13 — the day is its own clock, and reading is never what ends it.

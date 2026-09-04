@@ -1122,6 +1122,11 @@ namespace SheepGate.E2E
 
             yield return Tap("Continue", "past the gate");
 
+            if (!string.IsNullOrEmpty(stage.closing_node))
+            {
+                yield return PlayTheClosingReading(stage);
+            }
+
             yield return WaitForObject("Close", "the vocation reveal");
             yield return Capture(stage.day, "reveal");
             CheckNoMissingStrings();
@@ -1150,6 +1155,71 @@ namespace SheepGate.E2E
         }
 
         /// <summary>True when the text is one of the six display names vocations.json authors for this locale.</summary>
+        /// <summary>
+        /// The closing event between the doors and the name: the reading of the Law. Driven like
+        /// the morning gatherings, with one detour through a quotation's Saber mais — the third
+        /// deep_read door, and the one the design calls the ending — asserting that the chapter it
+        /// opens is its own and not the Page's or the gate's.
+        /// </summary>
+        IEnumerator PlayTheClosingReading(StageDef stage)
+        {
+            string nodeId = stage.closing_node;
+            bool seen = false;
+
+            yield return AdvanceDialogueUntil(
+                delegate
+                {
+                    if (CurrentDialogueNode() == nodeId) seen = true;
+                    return seen && Find("MoreButton") != null;
+                },
+                "a quotation in the closing reading \"" + nodeId + "\"",
+                true,
+                BeatTimeoutSeconds);
+
+            Record("stage " + stage.day + " plays its closing reading", seen,
+                seen ? "\"" + nodeId + "\" is on screen" : "\"" + nodeId + "\" never played after the gate");
+
+            if (seen && Find("MoreButton") != null)
+            {
+                yield return Capture(stage.day, "reading");
+                CheckNoMissingStrings();
+
+                yield return OpenTheReaderAndComeBack("MoreButton", "the reading's chapter", stage, "reading-reader",
+                    delegate(string chapterRef)
+                    {
+                        string expected = FirstQuotedChapter(nodeId);
+                        Record("the closing reading opens its own chapter",
+                            !string.IsNullOrEmpty(chapterRef) && chapterRef == expected && chapterRef != _pageChapterRef,
+                            "the reading opened \"" + (chapterRef ?? "nothing") + "\", its node quotes \""
+                            + (expected ?? "nothing") + "\", the Page had opened \"" + (_pageChapterRef ?? "nothing") + "\"");
+                    });
+            }
+
+            yield return AdvanceDialogueUntil(() => seen && !DialogueIsPlaying(),
+                "the end of the closing reading", true, BeatTimeoutSeconds);
+        }
+
+        /// <summary>The chapter of the first quotation a node carries, or null when it quotes nothing.</summary>
+        static string FirstQuotedChapter(string nodeId)
+        {
+            DialogueNode node;
+            if (string.IsNullOrEmpty(nodeId) || GameData.Dialogue == null || !GameData.Dialogue.TryGetValue(nodeId, out node)
+                || node == null || node.lines == null)
+            {
+                return null;
+            }
+
+            foreach (DialogueLine line in node.lines)
+            {
+                if (line != null && !string.IsNullOrEmpty(line.verse))
+                {
+                    return ScriptureService.ChapterRefOf(line.verse.Trim());
+                }
+            }
+
+            return null;
+        }
+
         static bool IsAuthoredVocationName(string text)
         {
             if (string.IsNullOrEmpty(text))

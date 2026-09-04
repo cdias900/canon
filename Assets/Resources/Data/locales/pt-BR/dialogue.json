@@ -1553,6 +1553,52 @@
       }
     ]
   },
+  "reading_d9": {
+    "npc": "narrator",
+    "day": 9,
+    "cutscene": true,
+    "lines": [
+      {
+        "text": "Com a porta fechada, ninguém volta para casa. A praça em frente à porta das Águas enche sem que ninguém mande, e o que o povo pede não é festa."
+      },
+      {
+        "frame": "Ficou escrito o que pediram, e a quem:",
+        "verse": "NEH.8.1"
+      },
+      {
+        "text": "Trouxeram o livro. Um estrado de madeira, feito para hoje, e um homem em cima que ninguém aqui tinha visto ler."
+      },
+      {
+        "frame": "Ele leu. Ficou anotado de que hora até que hora, e quem ficou ouvindo:",
+        "verse": "NEH.8.3"
+      },
+      {
+        "text": "Você está de pé com a poeira do seu trecho ainda na roupa. Os que assentaram pedra ao seu lado a temporada inteira estão do seu lado agora também, e ninguém está olhando para o muro."
+      },
+      {
+        "frame": "Quando ele abriu o livro, aconteceu isto:",
+        "verse": "NEH.8.6"
+      },
+      {
+        "frame": "Não leram só. Explicaram, para quem não entendia o que estava sendo lido:",
+        "verse": "NEH.8.8"
+      },
+      {
+        "text": "Tem gente chorando. Não é de medo; medo foi o outro dia. É de entender, pela primeira vez, o que os cinquenta e dois dias eram."
+      },
+      {
+        "frame": "O que se disse ao povo naquela hora ficou registrado, palavra por palavra:",
+        "verse": "NEH.8.10"
+      },
+      {
+        "frame": "E o dia terminou assim:",
+        "verse": "NEH.8.12"
+      },
+      {
+        "text": "O muro fica atrás de você. Foi para isto que ele serviu."
+      }
+    ]
+  },
   "hananias_d9": {
     "npc": "hananias",
     "day": 9,

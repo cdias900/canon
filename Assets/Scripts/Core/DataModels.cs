@@ -224,6 +224,15 @@ namespace SheepGate.Core
         [JsonProperty("unlocked_by_page")] public bool unlocked_by_page;
 
         /// <summary>
+        /// Units of today's work capacity this move spends, or 0. The famine's grammar: the
+        /// correct play is deliberately losing a resource, and the honest resource in this game is
+        /// the day — a costed move shortens it. A costed move is offered once per contest and only
+        /// while the day still has the price left; below it the card stays on the menu, greyed,
+        /// so the player sees what the move would have cost.
+        /// </summary>
+        [JsonProperty("costs_work")] public int costs_work;
+
+        /// <summary>
         /// Flag that has to be raised for the move to be offered. Null or empty means always.
         /// The same shape <see cref="DialogueChoice.hidden_if_flag"/> already uses, inverted.
         ///
@@ -428,6 +437,13 @@ namespace SheepGate.Core
         /// Resolved through ScriptureService, so rule 2 holds: the text is fetched, never typed.
         /// </summary>
         [JsonProperty("vigil_verse")] public string vigil_verse;
+
+        /// <summary>
+        /// Gathering node the director plays after the gate closes and before the vocation is
+        /// revealed, or null. The season's closing event — the reading of the Law, `NEH.8` — lives
+        /// here so the director still counts nothing: a stage that wants a closing beat names it.
+        /// </summary>
+        [JsonProperty("closing_node")] public string closing_node;
 
         /// <summary>
         /// Where this stage's node sits on the progression map. Two entries, normalised 0..1 against

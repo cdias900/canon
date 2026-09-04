@@ -348,8 +348,14 @@ namespace SheepGate.UI
 
             BuildHeader(column, summary, watched, accent);
             BuildAssignment(column, summary);
-            BuildSteps(column, summary);
+
+            // Before the steps, not after them. The page is the whole return on a night's work,
+            // and the first build put it under four step rows, where at 1080×1920 it sat below
+            // the pinned footer: present in the hierarchy, passed by the e2e, and invisible to
+            // anyone who did not scroll. What the vigil bought is the news of this morning, so it
+            // comes right after the numbers and the routine lines come after it.
             BuildVigil(column, summary);
+            BuildSteps(column, summary);
             BuildFooter(cardRect);
         }
 

@@ -17,7 +17,7 @@ Names, in three layers, because several circulated and only these three mean any
 
 | Name | What it names |
 |---|---|
-| **Cânon** | The game. The product name, and what appears on screen. |
+| **Cânon** | The game, and what appears on screen. The Unity `productName` is the ASCII `Canon`: Xcode derives the bundle name through `$(TARGET_NAME:c99extidentifier)` and drops the accent, which turned the app into `Cnon.app` on a build that reported success. `BundleDisplayName` writes the real name back onto the key each platform shows, reading it from the authoring locale. |
 | **Cinquenta e Dois Dias** | The season — the whole wall, 12 to 15 sessions. The MVP is its opening. |
 | **Porta das Ovelhas** | This chapter. It is `NEH.3.1`, and it is fiction before it is a label: the gate the player raises. |
 

@@ -135,8 +135,8 @@ into a fresh run. That is the route a playtester has; the paths below are the on
 game will not start, or when you want the device to forget it ever ran.
 
 ```bash
-rm -rf ~/Library/Application\ Support/com.Create-Hack.Cânon   # player build
-rm -rf ~/Library/Application\ Support/Create\ Hack/Cânon      # editor Play mode
+rm -rf ~/Library/Application\ Support/com.Create-Hack.Canon   # player build
+rm -rf ~/Library/Application\ Support/Create\ Hack/Canon      # editor Play mode
 ```
 
 Deleting the save does **not** clear PlayerPrefs, and two preferences live there rather than in the

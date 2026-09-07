@@ -31,7 +31,14 @@ namespace SheepGate.EditorTools
         private const string PipelineAssetPath = SettingsFolder + "/SheepGateRenderPipeline.asset";
         private const string UniversalPackagePath = "Packages/com.unity.render-pipelines.universal";
 
-        private const string ProductName = "Cânon";
+        /// <summary>
+        /// The build identifier, deliberately ASCII. Xcode derives the bundle name through
+        /// $(TARGET_NAME:c99extidentifier), which drops every character that cannot appear in a
+        /// C identifier, and "Cânon" came out of it as "Cnon.app". The accent is put back on the
+        /// key each platform actually shows by <see cref="BundleDisplayName"/>.
+        /// </summary>
+        private const string ProductName = "Canon";
+
         private const string CompanyName = "Create Hack";
         private const int DefaultScreenWidth = 1080;
         private const int DefaultScreenHeight = 1920;

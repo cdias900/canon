@@ -1,11 +1,11 @@
-# A Cidade Quebrada
+# Cânon
 
 A turn-based building-and-defence game set in the book of Nehemiah. A nine-stage season, one gate,
 Unity 6.
 
-Names, in three layers: **A Cidade Quebrada** is the game, **Cinquenta e Dois Dias** is the season,
-and **Porta das Ovelhas** is this chapter — `NEH.3.1`, the gate the player raises. `SheepGate` is
-that gate in English, and it is the namespace for all the code.
+Names, in three layers: **Cânon** is the game, **Cinquenta e Dois Dias** is the season, and
+**Porta das Ovelhas** is this chapter, `NEH.3.1`, the gate the player raises. `SheepGate` is that
+gate in English, and it is the namespace for all the code.
 
 The build exists to answer one question: **does the player open the chapter of their own accord?**
 Everything else is a means. The event that answers it is `deep_read`.
@@ -135,8 +135,8 @@ into a fresh run. That is the route a playtester has; the paths below are the on
 game will not start, or when you want the device to forget it ever ran.
 
 ```bash
-rm -rf ~/Library/Application\ Support/com.Create-Hack.A-Cidade-Quebrada   # player build
-rm -rf ~/Library/Application\ Support/Create\ Hack                        # editor Play mode
+rm -rf ~/Library/Application\ Support/com.Create-Hack.Cânon   # player build
+rm -rf ~/Library/Application\ Support/Create\ Hack/Cânon      # editor Play mode
 ```
 
 Deleting the save does **not** clear PlayerPrefs, and two preferences live there rather than in the

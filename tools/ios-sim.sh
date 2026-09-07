@@ -60,9 +60,8 @@ PRODUCTS_DIR="${DERIVED}/Build/Products/Debug-iphonesimulator"
 
 # The .app is DERIVED, never spelled here. Xcode names the bundle from PlayerSettings
 # productName with the spaces stripped, so writing the name in this file means a product rename
-# turns a build that SUCCEEDED into "XCODE BUILD FAILED" with no error line under it — which is
-# exactly what "A Cidade Quebrada" did to "PortadasOvelhas.app". tools/e2e.sh already learned
-# this lesson for the macOS binary; this is the same fix on the iOS side.
+# turns a build that SUCCEEDED into "XCODE BUILD FAILED" with no error line under it.
+# tools/e2e.sh derives the macOS binary for the same reason.
 resolve_product() {
   find "${PRODUCTS_DIR}" -maxdepth 1 -type d -name "*.app" 2>/dev/null | head -1
 }

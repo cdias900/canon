@@ -1,6 +1,6 @@
 # Sistema Vale — implementation reference
 
-The design system for **A Cidade Quebrada**, as it exists in code. The authored source is
+The design system for **Cânon**, as it exists in code. The authored source is
 `Jogo Neemias.dc.html` (Sistema Vale v0.1, handoff-ready); this file is the part of it that
 survived contact with a Unity uGUI project, plus the decisions taken where the two disagreed.
 

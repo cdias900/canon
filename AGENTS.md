@@ -1,4 +1,4 @@
-# Create Hack 2026 — product context
+# Cânon: product context
 
 Repository of a Bible-engagement game. This file is the context every agent reads before anything
 else. The details live in `docs/`; **the rules below are not there — they are here because they
@@ -6,18 +6,18 @@ cannot be violated.**
 
 ## What we are building
 
-**A Cidade Quebrada** — a turn-based building-and-defence game set in the book of Nehemiah. The
-player is one of the people called up to rebuild the wall of Jerusalem. Scripture arrives as a
-**strategy guide**. See `docs/nehemiah-game-design.md`.
+**Cânon** is a turn-based building-and-defence game set in the book of Nehemiah. The player is one
+of the people called up to rebuild the wall of Jerusalem. Scripture arrives as a **strategy guide**.
+See `docs/nehemiah-game-design.md`.
 
 **In development now:** the MVP — a nine-stage season, one gate, Unity, iOS and desktop. It is what
 gets presented at the end of the hackathon. See `MVP-SCOPE.md`.
 
-Names, in three layers, because four of them circulated and only these three mean anything:
+Names, in three layers, because several circulated and only these three mean anything:
 
 | Name | What it names |
 |---|---|
-| **A Cidade Quebrada** | The game. The product name, and what appears on screen. |
+| **Cânon** | The game. The product name, and what appears on screen. |
 | **Cinquenta e Dois Dias** | The season — the whole wall, 12 to 15 sessions. The MVP is its opening. |
 | **Porta das Ovelhas** | This chapter. It is `NEH.3.1`, and it is fiction before it is a label: the gate the player raises. |
 
@@ -25,10 +25,12 @@ Names, in three layers, because four of them circulated and only these three mea
 (`com.createhack.portadasovelhas`) **does not change** — changing it orphans the save and the run
 parked on the simulator, and buys nothing.
 
-> **Cânon is discontinued.** It was the sibling concept — a text-based narrative RPG with scripture
-> as equippable *loot*. The decision to go deep on Nehemiah is made. The shared layer (verse
-> pipeline, vocation, telemetry) is still written with care because that is good engineering, no
-> longer because another product depends on it. The Cânon plan leaves `docs/`; `git log` keeps it.
+> **Cânon names this game, and nothing else.** A sibling concept once carried the name: a
+> text-based narrative RPG with scripture as equippable *loot*. That concept is discontinued and
+> is not an open fork; the decision to go deep on Nehemiah is made. Do not revive it on the
+> strength of the shared name. The shared layer (verse pipeline, vocation, telemetry) is written
+> with care because that is good engineering, not because another product depends on it. The old
+> plan is not in `docs/`; `git log` keeps it.
 
 ## The north-star metric
 
@@ -148,7 +150,7 @@ exist. Always an internal reader; an external channel is a secondary, optional b
 
 | Topic | Decision |
 |---|---|
-| Concept | **Nehemiah.** Cânon is discontinued; it is no longer an open fork. |
+| Concept | **Nehemiah.** The text-based RPG that once carried the name is discontinued; it is no longer an open fork. |
 | Engine | **Unity 6 LTS · 2D URP.** More C#/Unity in model training than GDScript, and the implementation is done by agents. |
 | Text source | **YouVersion** (access granted for the project). Licence unblocked. |
 | Translation | **NVI (`129`) in pt-BR, World English Bible (`206`) in English.** The three licence questions are answered — see `docs/youversion-api.md`. NVI is all-rights-reserved, and **that is why this repository is private**; the copyright notice ships in `verses.json` and must appear in-game. English is public domain on purpose: it is the locale that could ship publicly first. |

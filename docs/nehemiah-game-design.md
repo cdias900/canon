@@ -1,4 +1,4 @@
-# A Cidade Quebrada — season design
+# Cânon: season design
 
 > The design of the whole season, beyond the MVP. Solo first, co-op after.
 > A shared world built on the rebuilding of the wall of Jerusalem.

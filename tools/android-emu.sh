@@ -50,7 +50,7 @@ AVD="${AVD:-canon_arm64}"
 IMAGE="system-images;android-35;google_apis;arm64-v8a"
 DEVICE_PROFILE="pixel_6"
 APK="${ROOT}/Builds/android/SheepGate.apk"
-PACKAGE="com.createhack.portadasovelhas"
+PACKAGE="com.createhack.canon"
 GPU="${GPU:-host}"
 
 COMMAND="all"

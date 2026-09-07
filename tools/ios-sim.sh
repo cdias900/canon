@@ -69,7 +69,7 @@ resolve_product() {
 # Likewise the bundle id: read it off the built Info.plist when there is one, so install and
 # launch can never disagree with what was actually compiled. The literal is only the fallback
 # for `reset` before anything has been built.
-BUNDLE_ID_FALLBACK="com.createhack.portadasovelhas"
+BUNDLE_ID_FALLBACK="com.createhack.canon"
 resolve_bundle_id() {
   local app
   app="$(resolve_product)"

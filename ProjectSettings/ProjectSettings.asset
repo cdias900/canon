@@ -170,8 +170,8 @@ PlayerSettings:
   androidMaxAspectRatio: 2.4
   androidMinAspectRatio: 1
   applicationIdentifier:
-    Android: com.createhack.portadasovelhas
-    iPhone: com.createhack.portadasovelhas
+    Android: com.createhack.canon
+    iPhone: com.createhack.canon
   buildNumber:
     Standalone: 0
     VisionOS: 0

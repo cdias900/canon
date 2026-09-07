@@ -184,7 +184,7 @@ namespace SheepGate.EditorTools
         /// </summary>
         private static void ApplyBundleIdentifiers()
         {
-            const string packageName = "com.createhack.portadasovelhas";
+            const string packageName = "com.createhack.canon";
 
             TrySetIdentifier(NamedBuildTarget.iOS, packageName);
             TrySetIdentifier(NamedBuildTarget.Android, packageName);

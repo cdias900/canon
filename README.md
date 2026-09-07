@@ -151,7 +151,7 @@ you had deleted.
 
 **Do not trust the paths above — read `[Boot] Save ->` in the log.** Both are derived from
 `productName`, so they move whenever the product is renamed, and the macOS player has no explicit
-bundle identifier of its own (iOS and Android do: `com.createhack.portadasovelhas`). Boot logs the
+bundle identifier of its own (iOS and Android do: `com.createhack.canon`). Boot logs the
 resolved paths for exactly this reason.
 
 Telemetry, including `deep_read` and `unprompted_read`, is appended to `telemetry.jsonl`

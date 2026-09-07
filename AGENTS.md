@@ -21,9 +21,10 @@ Names, in three layers, because several circulated and only these three mean any
 | **Cinquenta e Dois Dias** | The season — the whole wall, 12 to 15 sessions. The MVP is its opening. |
 | **Porta das Ovelhas** | This chapter. It is `NEH.3.1`, and it is fiction before it is a label: the gate the player raises. |
 
-`SheepGate` is the Sheep Gate in English, and remains the namespace for all the code. The bundle id
-(`com.createhack.portadasovelhas`) **does not change** — changing it orphans the save and the run
-parked on the simulator, and buys nothing.
+`SheepGate` is the Sheep Gate in English, and remains the namespace for all the code. The bundle id is
+`com.createhack.canon`. Changing it orphans the save and the run parked on a device, so it moves
+**only while the game is unreleased**: an id is permanent once an app ships, and until then the
+cost of correcting it is a disposable playtest save rather than an impossibility.
 
 > **Cânon names this game, and nothing else.** A sibling concept once carried the name: a
 > text-based narrative RPG with scripture as equippable *loot*. That concept is discontinued and
